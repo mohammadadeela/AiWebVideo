@@ -1,0 +1,137 @@
+
+
+ will make changes# Build "webvideo generator" — full production spec
+
+
+
+Build a production-ready SaaS web application called **webvideo generator**. It lets anyone paste a live website URL into a chat interface and receive an AI-generated promo video, a set of marketing photos, or both — generated from what their site actually looks like, not a generic template.
+
+
+
+Treat this document as the complete spec. Where a decision isn't specified, make the most professional, production-grade choice and note the assumption.
+
+
+
+---
+
+
+
+## 1. Product summary
+
+
+
+- **Core interaction**: a chat widget, not a form. The user pastes a URL, the assistant "scans" the site, asks what to generate (video / photos / both) and what vibe, then renders the result inside the conversation.
+
+- **Business model**: freemium, credit-metered subscriptions.
+
+- **Primary users**: indie founders, small agencies, SaaS marketers who want a demo/promo asset without hiring a video editor.
+
+- **Differentiator vs. existing URL-to-ad tools** (Creatify, Zeely, Higgsfield): those scrape *product pages* for e-commerce ads. This product captures the *live site itself* — real screenshots and a scroll recording — so the output reflects the actual product/brand, not a generic template. Lean into "see your real site in motion," not generic ad copy.
+
+
+
+---
+
+
+
+## 2. Brand identity
+
+
+
+- **Name**: `webvideo generator` — always lowercase in the wordmark. Nav/footer lockup: bold "webvideo" + a small tracked-out pill reading "GENERATOR" next to it.
+
+- **Logo mark**: a rounded-square badge (gradient fill) containing a white ring (camera lens / "capture") with a white play triangle centered inside it ("generate"). Simple enough to double as a favicon. Provide as a standalone `logo.svg`.
+
+- **Color palette** (dark theme, use as CSS variables):
+
+  - Background `#140F27`, panel `#1E1A3B`, panel-alt `#241F45`, border `rgba(255,255,255,0.09)`
+
+  - Text primary `#F5F3FF`, text muted `#A79FC9`, text dim `#7A72A3`
+
+  - Signature gradient (used on all primary CTAs, user chat bubbles, logo): `linear-gradient(135deg, #8B5CF6, #EC4899 60%, #FBBF24)` (violet → pink → gold)
+
+  - Success/online accent: mint `#34D9C4`
+
+- **Typography**: display font **Sora** (600/700), body **Inter** (400/500/600), utility/mono **JetBrains Mono** (used for URLs, credit counts, timers — reinforces the "technical but approachable" feel).
+
+- **Voice**: plain, active, no filler. Buttons say what they do ("Sign in to unlock," not "Submit"). Empty/error states explain what happened and what to do next, never apologize vaguely.
+
+
+
+---
+
+
+
+## 3. Tech stack
+
+
+
+| Layer | Choice |
+
+|---|---|
+
+| Frontend | Next.js (App Router), React, Tailwind CSS |
+
+| Auth | **Firebase Authentication** — Google, GitHub, Facebook, Email/Password |
+
+| Database | **PostgreSQL**, self-hosted on the deployment VPS |
+
+| Hosting | **Hostinger VPS (KVM plan)**, Ubuntu 24.04, Nginx reverse proxy, PM2 process manager, Certbot for SSL |
+
+| Site capture | **Playwright** (headless Chromium), run as its own PM2/Docker worker process, separate from the web process |
+
+| Job queue | BullMQ + Redis (self-hosted on the same VPS or a small managed instance) |
+
+| AI — script/storyboard | Gemini API (multimodal: text + images in, structured JSON out) |
+
+| AI — video | Veo 3.1 via Gemini API — async long-running operation, poll until done |
+
+| AI — photos | Imagen 4 or Gemini image generation ("Nano Banana") via Gemini API |
+
+| Video assembly | ffmpeg (stitch clips, mix voiceover, burn in watermark for free tier) |
+
+| Object storage | S3-compatible bucket (Cloudflare R2 recommended) — never store rendered media on the VPS disk |
+
+| Billing | Stripe (Checkout + Customer Portal + webhooks) |
+
+
+
+---
+
+
+
+## 4. Architecture & data flow
+
+
+
+```
+
+Chat UI → Backend API (validates URL, queues job)
+
+  → Job queue (Redis/BullMQ)
+
+    → Capture worker (Playwright: screenshot + scroll recording + brand color extraction)
+
+      → Gemini call (screenshots + user brief → structured storyboard JSON)
+
+        → Veo call, per scene (text + screenshot as reference frame → long-running job)
+
+          → Poll operation.done → download each clip
+
+            → ffmpeg assembly (stitch + voiceover + watermark) → Storage (R2/S3)
+
+        → [if photos requested] Imagen/Nano Banana call → Storage
+
+  → Chat UI polls/subscribes to job status → shows locked result → unlock on sign-in
+
+```
+
+
+
+Non-negotiable architectural rules:
+
+- The capture + render pipeline is **fully asynchronous**. The chat request returns immediately; a job ID is polled or pushed via websocket as it progresses through capture → storyboard → render → done.
+
+- Veo generation is a **long-running operation** — never assume a synchronous response. Poll with exponential backoff (start ~1s, cap ~10s), and enforce a maximum retry count/timeout so a stuck job can't hang a user's chat forever.
+
+- **SSRF protection is mandatory** on the capture worker: validate the URL scheme (http/https only), resolve and block private/internal IP ranges...
