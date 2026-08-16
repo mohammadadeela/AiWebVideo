@@ -1,0 +1,216 @@
+@import 'tailwindcss';
+
+@theme inline {
+  /* Brand colors */
+  --color-bg: #140F27;
+  --color-panel: #1E1A3B;
+  --color-panel-alt: #241F45;
+  --color-border: rgba(255, 255, 255, 0.09);
+
+  /* Text */
+  --color-text-primary: #F5F3FF;
+  --color-text-muted: #A79FC9;
+  --color-text-dim: #7A72A3;
+
+  /* Accents */
+  --color-mint: #34D9C4;
+  --color-violet: #8B5CF6;
+  --color-pink: #EC4899;
+  --color-gold: #FBBF24;
+
+  /* Fonts */
+  --font-display: 'Sora', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-utility: 'JetBrains Mono', monospace;
+  --font-sans: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Border radius */
+  --radius-badge: 14px;
+
+  /* Animations */
+  --animate-pulse-soft: pulse-soft 2s ease-in-out infinite;
+  --animate-typing-dot: typing-dot 1.2s ease-in-out infinite;
+
+  /* Shadows */
+  --shadow-violet: 0 8px 30px -8px rgba(139,92,246,0.6);
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@keyframes typing-dot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-3px); opacity: 1; }
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes logo-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); filter: drop-shadow(0 5px 12px rgba(139,92,246,.25)); }
+  50% { transform: translateY(-3px) rotate(2deg); filter: drop-shadow(0 9px 18px rgba(236,72,153,.35)); }
+}
+
+@keyframes button-sheen {
+  from { transform: translateX(-180%) skewX(-18deg); opacity: 0; }
+  15% { opacity: .8; }
+  to { transform: translateX(420%) skewX(-18deg); opacity: 0; }
+}
+
+.logo-motion { animation: logo-float 4s ease-in-out infinite; transition: transform .25s ease; }
+.logo-motion:hover { transform: rotate(-6deg) scale(1.08); }
+
+.premium-button { position: relative; isolation: isolate; overflow: hidden; transform: translateZ(0); }
+.premium-button::after {
+  content: '';
+  position: absolute;
+  inset: -50% auto -50% -35%;
+  width: 28%;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.3), transparent);
+  opacity: 0;
+  transform: translateX(-180%) skewX(-18deg);
+}
+.premium-button:hover:not(:disabled)::after { animation: button-sheen .85s cubic-bezier(.2,.7,.2,1) 1; }
+.premium-button:hover:not(:disabled) { transform: translateY(-2px); }
+
+/* Gradient utility classes (not possible via CSS variables alone) */
+.bg-signature {
+  background-image: linear-gradient(135deg, #8B5CF6 0%, #EC4899 60%, #FBBF24 100%);
+}
+
+.bg-signature-soft {
+  background-image: linear-gradient(135deg, rgba(139,92,246,0.16) 0%, rgba(236,72,153,0.12) 60%, rgba(251,191,36,0.10) 100%);
+}
+
+.bg-signature-text {
+  background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 60%, #FBBF24 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 60%, #FBBF24 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Text gradient shorthand */
+.text-gradient {
+  background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 60%, #FBBF24 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Ambient glow */
+.ambient-glow {
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.25) 0%, rgba(20, 15, 39, 0) 70%);
+  filter: blur(60px);
+}
+
+/* Font utility class */
+.font-utility {
+  font-family: 'JetBrains Mono', monospace;
+  font-feature-settings: 'liga' 0;
+}
+
+/* Animation helpers */
+.animate-fade-in-up {
+  animation: fade-in-up 0.5s ease-out both;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out both;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+/* Chat scrollbar */
+.chat-scroll::-webkit-scrollbar { width: 6px; }
+.chat-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 999px; }
+.chat-scroll::-webkit-scrollbar-track { background: transparent; }
+
+/* Global base */
+* { border-color: rgba(255, 255, 255, 0.09); }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background-color: #140F27;
+  color: #F5F3FF;
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/*
+ * Browsers do NOT show a pointer cursor on <button> by default (only on
+ * <a href>) — every clickable control in the app needs this set explicitly,
+ * or it silently falls back to the plain arrow cursor. This is a real bug
+ * fix, not a local-only quirk: it applies wherever the site is deployed.
+ */
+button:not(:disabled):not([aria-disabled='true']),
+[role='button']:not([aria-disabled='true']):not(:disabled),
+a[href],
+label[for],
+select:not(:disabled),
+input[type='checkbox']:not(:disabled),
+input[type='radio']:not(:disabled),
+summary {
+  cursor: pointer;
+}
+
+button:disabled,
+button[aria-disabled='true'],
+[role='button'][aria-disabled='true'],
+[role='button']:disabled {
+  cursor: not-allowed;
+}
+
+:focus-visible {
+  outline: 2px solid #8B5CF6;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: rgba(139, 92, 246, 0.35);
+  color: #F5F3FF;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse-soft,
+  .animate-typing-dot,
+  .animate-spin,
+  .ambient-glow,
+  .animate-fade-in-up,
+  .animate-glow-pulse {
+    animation: none !important;
+  }
+  .premium-button::after { display: none !important; }
+  * { scroll-behavior: auto !important; }
+}
