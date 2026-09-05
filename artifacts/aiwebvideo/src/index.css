@@ -1,0 +1,669 @@
+@import "tailwindcss";
+
+@theme inline {
+  /* Brand colors */
+  --color-bg: #140f27;
+  --color-panel: #1e1a3b;
+  --color-panel-alt: #241f45;
+  --color-border: rgba(255, 255, 255, 0.09);
+
+  /* Text */
+  --color-text-primary: #f5f3ff;
+  --color-text-muted: #a79fc9;
+  --color-text-dim: #7a72a3;
+
+  /* Accents */
+  --color-mint: #34d9c4;
+  --color-violet: #8b5cf6;
+  --color-pink: #ec4899;
+  --color-gold: #fbbf24;
+
+  /* Fonts */
+  --font-display: "Sora", sans-serif;
+  --font-body: "Inter", sans-serif;
+  --font-utility: "JetBrains Mono", monospace;
+  --font-sans: "Inter", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  /* Border radius */
+  --radius-badge: 14px;
+
+  /* Animations */
+  --animate-pulse-soft: pulse-soft 2s ease-in-out infinite;
+  --animate-typing-dot: typing-dot 1.2s ease-in-out infinite;
+
+  /* Shadows */
+  --shadow-violet: 0 8px 30px -8px rgba(139, 92, 246, 0.6);
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+@keyframes typing-dot {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes glow-pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+@keyframes logo-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+    filter: drop-shadow(0 5px 12px rgba(139, 92, 246, 0.25));
+  }
+  50% {
+    transform: translateY(-3px) rotate(2deg);
+    filter: drop-shadow(0 9px 18px rgba(236, 72, 153, 0.35));
+  }
+}
+
+@keyframes button-sheen {
+  from {
+    transform: translateX(-180%) skewX(-18deg);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.8;
+  }
+  to {
+    transform: translateX(420%) skewX(-18deg);
+    opacity: 0;
+  }
+}
+
+@keyframes generation-scan {
+  0% {
+    top: 8%;
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.75;
+  }
+  88% {
+    opacity: 0.75;
+  }
+  100% {
+    top: 92%;
+    opacity: 0;
+  }
+}
+
+@keyframes generation-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(0, -12px, 0) scale(1.04);
+  }
+}
+
+@keyframes generation-preview {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(52, 217, 196, 0);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 46px 2px rgba(52, 217, 196, 0.14);
+    transform: scale(1.035);
+  }
+}
+
+@keyframes generation-float-card {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes generation-soft-flash {
+  0% {
+    opacity: 0;
+    transform: translateX(-24%) scale(1);
+  }
+  18% {
+    opacity: .14;
+  }
+  45% {
+    opacity: .24;
+  }
+  72% {
+    opacity: .08;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(26%) scale(1.03);
+  }
+}
+
+.logo-motion {
+  animation: logo-float 4s ease-in-out infinite;
+  transition: transform 0.25s ease;
+}
+.logo-motion:hover {
+  transform: rotate(-6deg) scale(1.08);
+}
+
+.premium-button {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  transform: translateZ(0);
+}
+.premium-button::after {
+  content: "";
+  position: absolute;
+  inset: -50% auto -50% -35%;
+  width: 28%;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  opacity: 0;
+  transform: translateX(-180%) skewX(-18deg);
+}
+.premium-button:hover:not(:disabled)::after {
+  animation: button-sheen 0.85s cubic-bezier(0.2, 0.7, 0.2, 1) 1;
+}
+.premium-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.hero-mesh {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    radial-gradient(circle at 50% 0%, rgba(139, 92, 246, 0.14), transparent 52%);
+  background-size:
+    62px 62px,
+    62px 62px,
+    100% 100%;
+  mask-image: linear-gradient(to bottom, black 0%, transparent 92%);
+}
+
+.generation-grid {
+  background-image:
+    linear-gradient(rgba(139, 92, 246, 0.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(139, 92, 246, 0.09) 1px, transparent 1px);
+  background-size: 36px 36px;
+  mask-image: radial-gradient(circle at center, black, transparent 78%);
+}
+
+.generation-scan {
+  animation: generation-scan 3.2s ease-in-out infinite;
+}
+.generation-preview {
+  animation: generation-preview 3s ease-in-out infinite;
+}
+.generation-orb {
+  position: absolute;
+  width: 260px;
+  height: 260px;
+  border-radius: 999px;
+  filter: blur(82px);
+  opacity: 0.2;
+  animation: generation-float 7s ease-in-out infinite;
+}
+.generation-orb-one {
+  left: -70px;
+  top: -60px;
+  background: #8b5cf6;
+}
+.generation-orb-two {
+  right: -90px;
+  bottom: -70px;
+  background: #ec4899;
+}
+.generation-orb-two {
+  animation-delay: -3s;
+  animation-duration: 9s;
+}
+
+.generation-soft-flash {
+  background:
+    radial-gradient(circle at 20% 45%, rgba(255,255,255,.08), transparent 22%),
+    linear-gradient(110deg, transparent 20%, rgba(255,255,255,.1) 36%, rgba(139,92,246,.14) 48%, rgba(52,217,196,.12) 58%, transparent 74%);
+  mix-blend-mode: screen;
+  animation: generation-soft-flash 2.4s ease-in-out infinite;
+}
+
+.generation-floating-card {
+  animation: generation-float-card 6s ease-in-out infinite;
+}
+
+.generation-stage-shell {
+  backdrop-filter: blur(12px);
+}
+
+/* Gradient utility classes (not possible via CSS variables alone) */
+.bg-signature {
+  background-image: linear-gradient(
+    135deg,
+    #8b5cf6 0%,
+    #ec4899 60%,
+    #fbbf24 100%
+  );
+}
+
+.bg-signature-soft {
+  background-image: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.16) 0%,
+    rgba(236, 72, 153, 0.12) 60%,
+    rgba(251, 191, 36, 0.1) 100%
+  );
+}
+
+
+.bg-signature-text {
+  background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 60%, #fbbf24 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 60%, #fbbf24 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Text gradient shorthand */
+.text-gradient {
+  background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 60%, #fbbf24 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Ambient glow */
+.ambient-glow {
+  background: radial-gradient(
+    circle,
+    rgba(139, 92, 246, 0.25) 0%,
+    rgba(20, 15, 39, 0) 70%
+  );
+  filter: blur(60px);
+}
+
+/* Font utility class */
+.font-utility {
+  font-family: "JetBrains Mono", monospace;
+  font-feature-settings: "liga" 0;
+}
+
+/* Animation helpers */
+.animate-fade-in-up {
+  animation: fade-in-up 0.5s ease-out both;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out both;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+/* Chat scrollbar */
+.chat-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.chat-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+}
+.chat-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Global base */
+* {
+  border-color: rgba(255, 255, 255, 0.09);
+}
+
+html {
+  min-width: 320px;
+  scroll-behavior: smooth;
+  overflow-x: clip;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  overflow-x: clip;
+  background-color: #140f27;
+  color: #f5f3ff;
+  font-family: "Inter", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+}
+
+[id] {
+  scroll-margin-top: 5.5rem;
+}
+
+/*
+ * Browsers do NOT show a pointer cursor on <button> by default (only on
+ * <a href>) — every clickable control in the app needs this set explicitly,
+ * or it silently falls back to the plain arrow cursor. This is a real bug
+ * fix, not a local-only quirk: it applies wherever the site is deployed.
+ */
+button:not(:disabled):not([aria-disabled="true"]),
+[role="button"]:not([aria-disabled="true"]):not(:disabled),
+a[href],
+label[for],
+select:not(:disabled),
+input[type="checkbox"]:not(:disabled),
+input[type="radio"]:not(:disabled),
+summary {
+  cursor: pointer;
+}
+
+button:disabled,
+button[aria-disabled="true"],
+[role="button"][aria-disabled="true"],
+[role="button"]:disabled {
+  cursor: not-allowed;
+}
+
+:focus-visible {
+  outline: 2px solid #8b5cf6;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: rgba(139, 92, 246, 0.35);
+  color: #f5f3ff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse-soft,
+  .animate-typing-dot,
+  .animate-spin,
+  .ambient-glow,
+  .animate-fade-in-up,
+  .animate-glow-pulse,
+  .logo-motion {
+    animation: none !important;
+  }
+  .generation-scan,
+  .generation-preview,
+  .generation-orb,
+  .generation-soft-flash,
+  .generation-floating-card {
+    animation: none !important;
+  }
+  .premium-button::after {
+    display: none !important;
+  }
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@keyframes generationSweep {
+  0% { transform: translateX(-120%); opacity: 0; }
+  20% { opacity: .65; }
+  80% { opacity: .65; }
+  100% { transform: translateX(520%); opacity: 0; }
+}
+
+.generation-sweep {
+  animation: generationSweep 1.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .generation-sweep {
+    animation: none !important;
+  }
+}
+
+/* Creator composer UX refresh */
+@keyframes globe-orbit-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes mint-field-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(52, 217, 196, 0); }
+  50% { box-shadow: 0 0 26px -16px rgba(52, 217, 196, .65); }
+}
+
+.globe-orbit {
+  animation: globe-orbit-spin 8s linear infinite;
+  transform-origin: center;
+  will-change: transform;
+}
+
+.creator-field {
+  transition: border-color .22s ease, background-color .22s ease, box-shadow .22s ease, transform .22s ease;
+}
+
+.creator-field:hover {
+  border-color: rgba(255, 255, 255, .22);
+}
+
+.creator-field:focus,
+.creator-field:focus-within {
+  border-color: rgba(52, 217, 196, .65) !important;
+  background-color: rgba(255, 255, 255, .075);
+  box-shadow: 0 0 0 3px rgba(52, 217, 196, .09), 0 18px 42px -30px rgba(52, 217, 196, .7);
+}
+
+.creator-field:focus-within .globe-orbit {
+  animation-duration: 2.8s;
+}
+
+.creator-option,
+.creator-secondary-button,
+.creator-icon-button,
+.idea-chip {
+  transform: translateY(0);
+}
+
+.creator-option:hover,
+.creator-secondary-button:hover,
+.creator-icon-button:hover,
+.idea-chip:hover {
+  transform: translateY(-1px);
+}
+
+.creator-option:active,
+.creator-secondary-button:active,
+.creator-icon-button:active,
+.idea-chip:active,
+.creator-primary-button:active {
+  transform: translateY(1px) scale(.99);
+}
+
+.creator-primary-button {
+  position: relative;
+  overflow: hidden;
+}
+
+.creator-primary-button::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 28%, rgba(255,255,255,.48) 46%, transparent 63%);
+  transform: translateX(-130%);
+  transition: transform .7s ease;
+}
+
+.creator-primary-button:hover::before {
+  transform: translateX(130%);
+}
+
+.creator-primary-button .cta-arrow {
+  transition: transform .2s ease;
+}
+
+.creator-primary-button:hover .cta-arrow {
+  transform: translateX(4px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .globe-orbit { animation: none; }
+  .creator-primary-button::before { display: none; }
+}
+
+
+/* ================================================================
+   Mobile production UX guardrails
+   Keep every page inside the viewport, preserve 44px+ touch targets,
+   and prevent iOS from zooming the page when a form control receives focus.
+   ================================================================ */
+html,
+body,
+#root {
+  width: 100%;
+  max-width: 100%;
+}
+
+iframe,
+picture {
+  max-width: 100%;
+}
+
+@media (max-width: 767px) {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    overflow-x: hidden;
+  }
+
+  /* 16px is required to stop Safari's focus auto-zoom. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+
+  button,
+  [role="button"],
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button:not(.creator-option):not(.idea-chip),
+  [role="button"] {
+    touch-action: manipulation;
+  }
+
+  .creator-composer {
+    width: 100%;
+    max-width: 100%;
+    border-radius: 20px;
+  }
+
+  .creator-composer .creator-field {
+    max-width: 100%;
+  }
+
+  .creator-primary-button {
+    min-height: 48px !important;
+  }
+
+  .creator-secondary-button,
+  .creator-icon-button {
+    min-height: 44px;
+  }
+
+  /* Keep media and long generated content from creating horizontal page scroll. */
+  .generation-preview,
+  .generation-grid,
+  .chat-scroll {
+    max-width: 100%;
+  }
+
+  [role="dialog"] {
+    max-width: calc(100vw - 16px);
+  }
+
+  table {
+    max-width: none;
+  }
+}
+
+@media (max-width: 380px) {
+  .creator-composer {
+    border-radius: 18px;
+  }
+}

@@ -1,0 +1,31 @@
+# AiWebVideo
+
+AiWebVideo is an AI website video generator. Its primary workflow turns a public website URL and a campaign goal into a brand-aware AI-generated marketing video.
+
+## Core website-to-video pages
+- URL to Video: https://aiwebvideo.com/url-to-video
+- Website Video Generator: https://aiwebvideo.com/website-video-generator
+- SaaS Demo Video Generator: https://aiwebvideo.com/saas-demo-video-generator
+- Product Page to Video: https://aiwebvideo.com/product-page-to-video
+- Examples and use cases: https://aiwebvideo.com/examples
+
+## Website-to-video workflow
+- Paste a public website URL.
+- Describe the product, offer, audience, or campaign to promote.
+- AiWebVideo studies useful public pages and visible brand context.
+- AI plans the story, shots, duration, pacing, sound, and format.
+- The creator generates the video and keeps production state in the project workspace.
+
+## Other creation tools
+- AI Video Generator: https://aiwebvideo.com/studio/idea
+- AI Product Photo and Video Generator: https://aiwebvideo.com/studio/product
+- AI Scenario Video Generator: https://aiwebvideo.com/studio/scenario
+
+## Practical guides
+- Turn a website into video: https://aiwebvideo.com/guides/turn-website-into-video
+- SaaS product video: https://aiwebvideo.com/guides/saas-product-demo-video
+- Product-page video campaigns: https://aiwebvideo.com/guides/product-page-video-ads
+
+Canonical website: https://aiwebvideo.com/
+How it works: https://aiwebvideo.com/how-it-works
+Pricing: https://aiwebvideo.com/pricing
