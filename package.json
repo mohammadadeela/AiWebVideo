@@ -1,0 +1,23 @@
+{
+  "name": "workspace",
+  "version": "0.0.0",
+  "license": "MIT",
+  "scripts": {
+    "preinstall": "node -e \"const fs=require('fs');for(const f of['package-lock.json','yarn.lock'])fs.rmSync(f,{force:true});if(!(process.env.npm_config_user_agent||'').startsWith('pnpm/')){console.error('Use pnpm instead');process.exit(1)}\"",
+    "build": "pnpm run typecheck && pnpm --filter @workspace/aiwebvideo run build && pnpm --filter @workspace/api-server run build",
+    "start": "node --enable-source-maps artifacts/api-server/dist/index.mjs",
+    "db:migrate": "node --env-file=.env.local artifacts/api-server/db/migrate.mjs",
+    "test": "pnpm --filter @workspace/api-server run test",
+    "typecheck:libs": "tsc --build --force",
+    "typecheck": "pnpm run typecheck:libs && pnpm --filter @workspace/aiwebvideo --filter @workspace/api-server run typecheck"
+  },
+  "private": true,
+  "packageManager": "pnpm@10.28.2",
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "prettier": "^3.9.6",
+    "typescript": "~5.9.3"
+  }
+}
