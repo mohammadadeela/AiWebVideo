@@ -208,6 +208,10 @@ export interface AdminSettings {
   operations: { maintenanceMode: boolean; registrationsEnabled: boolean; maxConcurrentJobs: number };
 }
 export function fetchAdminOverview() { return request<Record<string, unknown> & AdminSettings>('/api/admin/overview'); }
+export type AdminReportRange = 'today' | '7d' | '30d' | 'month' | 'year' | 'all';
+export function fetchAdminReports(range: AdminReportRange = 'month') {
+  return request<Record<string, unknown>>(`/api/admin/reports?range=${encodeURIComponent(range)}`);
+}
 export interface AdminUserFilters { search?: string; page?: number; plan?: string; role?: 'all' | 'admin' | 'user'; status?: 'all' | 'active' | 'suspended'; auth?: 'all' | 'email' | 'google' | 'github' | 'facebook' | 'firebase' | 'unknown'; verified?: 'all' | 'verified' | 'unverified'; }
 export function fetchAdminUsers(filters: AdminUserFilters = {}) {
   const params = new URLSearchParams();

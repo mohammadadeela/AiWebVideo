@@ -67,6 +67,7 @@ interface Message {
   id: string;
   role: "bot" | "user";
   content: ReactNode;
+  hidden?: boolean;
 }
 
 function durationLabel(seconds: number) {
@@ -342,6 +343,7 @@ export function ChatWidget({
           {
             id: nextId(),
             role: "bot",
+            hidden: true,
             content:
               "Choose what you want to create, add your source, and direct it here. I’ll keep the full production in this conversation.",
           },
@@ -830,10 +832,20 @@ export function ChatWidget({
         const workflow = restoreWorkflow(saved);
         const resumedStage = resolveResumeStage(saved, workflow);
 
-        const transcript: Message[] = (
+        const visibleSavedMessages = (
           Array.isArray(saved.messages) ? saved.messages : []
-        )
-          .filter((message) => !HIDDEN_RESTORED_MESSAGE_KINDS.has(message.kind))
+        ).filter((message) => !HIDDEN_RESTORED_MESSAGE_KINDS.has(message.kind));
+        let latestResultIndex = -1;
+        if (resumedStage === "done") {
+          visibleSavedMessages.forEach((message, index) => {
+            if (message.kind === "result") latestResultIndex = index;
+          });
+        }
+        const savedFinalResult = latestResultIndex >= 0
+          ? visibleSavedMessages[latestResultIndex]
+          : null;
+        const transcript: Message[] = visibleSavedMessages
+          .filter((_message, index) => index !== latestResultIndex)
           .map((message) => ({
             id: message.id,
             role: message.role === "user" ? "user" : "bot",
@@ -877,19 +889,18 @@ export function ChatWidget({
 
         if (resumedStage === "done") {
           renderedRef.current = true;
-          const restoredResult = saved.messages.some(
-            (message) =>
-              message.kind === "result" &&
-              Array.isArray(message.payload?.resultAssets) &&
-              message.payload.resultAssets.length > 0,
-          );
-          if (!restoredResult) {
-            rebuilt.push({
-              id: nextId(),
-              role: "bot",
-              content: doneResultMessage(saved, () => setShowAuthModal(true)),
-            });
-          }
+          // Capture and storyboard context is reconstructed above; always put
+          // the durable output after it so reopening the conversation leaves
+          // the generated video/photo set as the final chat message.
+          rebuilt.push(savedFinalResult ? {
+            id: savedFinalResult.id,
+            role: savedFinalResult.role === "user" ? "user" : "bot",
+            content: restoredMessageContent(savedFinalResult, () => setShowAuthModal(true), resultSourceKind(saved)),
+          } : {
+            id: nextId(),
+            role: "bot",
+            content: doneResultMessage(saved, () => setShowAuthModal(true)),
+          });
           setMessages(rebuilt);
           setStage("done");
         } else if (resumedStage === "failed") {
@@ -2503,8 +2514,8 @@ export function ChatWidget({
               </div>
             </div>
           ) : (
-            messages.map((m, index) =>
-              index === 0 ? null : (
+            messages.map((m) =>
+              m.hidden ? null : (
                 <ChatBubble key={m.id} role={m.role}>
                   {m.content}
                 </ChatBubble>

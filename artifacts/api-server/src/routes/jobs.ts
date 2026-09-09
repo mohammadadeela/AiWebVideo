@@ -11,6 +11,7 @@ import {
   addJobMessage,
   claimJob,
   claimRenderAndSpend,
+  completeJobWithResult,
   createAsset,
   createJobFromCapture,
   getAssetsByJob,
@@ -1698,43 +1699,28 @@ router.post("/:id/render", requireAuth, async (req, res) => {
         }
 
         // If video was requested but failed while photos succeeded, refund the
-        // video portion of the charge and surface a partial note
+        // video portion of the charge and surface a partial note.
+        let completionError: string | null = shortDeliveryNote;
         if (wantsVideo && !hasVideo && photoCount > 0) {
           const videoPortion = cost - CREDIT_COSTS.PHOTO_SET_4;
           await refund(videoPortion, `Video failure refund ${job.id}`);
           const videoReason = (videoResult as PromiseRejectedResult).reason as
             Error | undefined;
-          await updateJob(job.id, {
-            status: "done",
-            progress: 100,
-            status_message: "Ready to view",
-            eta_seconds: 0,
-            workflow_state: {
-              ...renderWorkflow,
-              savedAt: Date.now(),
-              stage: "done",
-            },
-            error_message: `Video generation failed — photos were delivered instead and the video credits were refunded. Exact error: ${videoReason?.message ?? "unknown error"}. Please try again for video.${shortDeliveryNote ? ` ${shortDeliveryNote}` : ""}`,
-          });
-        } else {
-          await updateJob(job.id, {
-            status: "done",
-            progress: 100,
-            status_message: "Ready to view",
-            eta_seconds: 0,
-            workflow_state: {
-              ...renderWorkflow,
-              savedAt: Date.now(),
-              stage: "done",
-            },
-            error_message: shortDeliveryNote as never,
-          });
+          completionError = `Video generation failed — photos were delivered instead and the video credits were refunded. Exact error: ${videoReason?.message ?? "unknown error"}. Please try again for video.${shortDeliveryNote ? ` ${shortDeliveryNote}` : ""}`;
         }
-        await addJobMessage(
+
+        // Commit the final transcript row and the done status together. The
+        // video is therefore already durable before any polling tab can see
+        // the production as completed.
+        await completeJobWithResult(
           job.id,
-          "assistant",
+          {
+            ...renderWorkflow,
+            savedAt: Date.now(),
+            stage: "done",
+          },
           shortDeliveryNote || "Your production is ready to view and download.",
-          "result",
+          completionError,
         );
         return;
       } catch (err) {

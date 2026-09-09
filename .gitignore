@@ -57,3 +57,4 @@ yuds.zip
 *.zip
 artifacts/aiwebvideo/dist/
 artifacts/api-server/dist/
+artifacts/api-server/dist-test/

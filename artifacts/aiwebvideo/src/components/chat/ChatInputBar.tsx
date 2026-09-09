@@ -1,4 +1,4 @@
-import { useRef, useState, type ClipboardEvent, type DragEvent, type FormEvent, type KeyboardEvent } from 'react';
+import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent, type FormEvent, type KeyboardEvent } from 'react';
 import { Paperclip } from 'lucide-react';
 import { Button } from '@/components/ui/app-button';
 
@@ -23,7 +23,28 @@ export function ChatInputBar({
   const [value, setValue] = useState('');
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
+  const dragDepthRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const resetDragState = () => {
+      dragDepthRef.current = 0;
+      setDragging(false);
+    };
+    const resetWhenLeavingWindow = (event: globalThis.DragEvent) => {
+      if (event.relatedTarget === null) resetDragState();
+    };
+    window.addEventListener('drop', resetDragState, true);
+    window.addEventListener('dragend', resetDragState, true);
+    window.addEventListener('dragleave', resetWhenLeavingWindow, true);
+    window.addEventListener('blur', resetDragState);
+    return () => {
+      window.removeEventListener('drop', resetDragState, true);
+      window.removeEventListener('dragend', resetDragState, true);
+      window.removeEventListener('dragleave', resetWhenLeavingWindow, true);
+      window.removeEventListener('blur', resetDragState);
+    };
+  }, []);
 
   function submitValue() {
     const trimmed = value.trim();
@@ -86,8 +107,13 @@ export function ChatInputBar({
   function handleDrop(event: DragEvent<HTMLFormElement>) {
     if (!onFiles || disabled) return;
     event.preventDefault();
+    dragDepthRef.current = 0;
     setDragging(false);
     sendFiles(Array.from(event.dataTransfer.files ?? []));
+  }
+
+  function isFileDrag(event: DragEvent<HTMLFormElement>) {
+    return Array.from(event.dataTransfer.types ?? []).includes('Files');
   }
 
   const fieldClass = `font-utility flex-1 rounded-[22px] border border-white/[.11] bg-white/[.05] px-4 py-3 text-base text-text-primary
@@ -98,9 +124,23 @@ export function ChatInputBar({
     <div className="space-y-1.5">
       <form
         onSubmit={handleSubmit}
-        onDragEnter={(event) => { if (onFiles && !disabled) { event.preventDefault(); setDragging(true); } }}
-        onDragOver={(event) => { if (onFiles && !disabled) event.preventDefault(); }}
-        onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false); }}
+        onDragEnter={(event) => {
+          if (!onFiles || disabled || !isFileDrag(event)) return;
+          event.preventDefault();
+          dragDepthRef.current += 1;
+          setDragging(true);
+        }}
+        onDragOver={(event) => {
+          if (!onFiles || disabled || !isFileDrag(event)) return;
+          event.preventDefault();
+          event.dataTransfer.dropEffect = 'copy';
+        }}
+        onDragLeave={(event) => {
+          if (!dragging) return;
+          event.preventDefault();
+          dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+          if (dragDepthRef.current === 0) setDragging(false);
+        }}
         onDrop={handleDrop}
         className={`relative flex items-end gap-2.5 rounded-[24px] transition ${dragging ? 'ring-2 ring-mint/30' : ''}`}
       >

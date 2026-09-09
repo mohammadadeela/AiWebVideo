@@ -440,9 +440,9 @@ router.post('/checkout', requireAuth, async (req, res) => {
     const url = approveLink(data.links);
     if (!orderId || !url) throw new AppError('The payment service did not return a valid order.', 502, 'CHECKOUT_FAILED');
     await query(
-      `INSERT INTO payments(user_id,provider,provider_ref,kind,amount_usd,currency,credits_granted,plan,status)
-       VALUES ($1,'paypal',$2,'one_time',$3,'USD',$4,$5,'pending') ON CONFLICT(provider,provider_ref) DO NOTHING`,
-      [req.user!.id, orderId, product.amountUsd, product.credits, product.plan],
+      `INSERT INTO payments(user_id,provider,provider_ref,kind,amount_usd,currency,credits_granted,plan,product_id,status)
+       VALUES ($1,'paypal',$2,'one_time',$3,'USD',$4,$5,$6,'pending') ON CONFLICT(provider,provider_ref) DO NOTHING`,
+      [req.user!.id, orderId, product.amountUsd, product.credits, product.plan, plan],
     );
     res.json({ checkoutUrl: url });
   } catch (error) { sendError(res, error); }
@@ -739,10 +739,10 @@ router.post('/webhook', async (req, res) => {
           reason: `Completed subscription payment ${saleId}`,
         });
         await query(
-          `INSERT INTO payments(user_id,provider,provider_ref,kind,amount_usd,currency,credits_granted,plan,status)
-           VALUES ($1,'paypal',$2,$3,$4,'USD',$5,$6,'paid')
-           ON CONFLICT(provider,provider_ref) DO UPDATE SET status='paid'`,
-          [userId, saleId, kind, matched.product.amountUsd, matched.product.credits, matched.product.plan],
+          `INSERT INTO payments(user_id,provider,provider_ref,kind,amount_usd,currency,credits_granted,plan,product_id,status)
+           VALUES ($1,'paypal',$2,$3,$4,'USD',$5,$6,$7,'paid')
+           ON CONFLICT(provider,provider_ref) DO UPDATE SET status='paid',product_id=EXCLUDED.product_id`,
+          [userId, saleId, kind, matched.product.amountUsd, matched.product.credits, matched.product.plan, matched.id],
         );
 
         const nextBillingDate = dates.end ? new Date(dates.end).toISOString().slice(0, 10) : null;

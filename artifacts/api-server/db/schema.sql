@@ -232,6 +232,7 @@ CREATE TABLE IF NOT EXISTS payments (
   currency         TEXT NOT NULL DEFAULT 'USD',
   credits_granted  INTEGER NOT NULL DEFAULT 0,
   plan             TEXT,
+  product_id       TEXT,                         -- creator | single8 | topup50 | ...
   status           TEXT NOT NULL DEFAULT 'paid', -- paid | refunded
   invoice_emailed_at TIMESTAMPTZ,
   created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -239,6 +240,23 @@ CREATE TABLE IF NOT EXISTS payments (
 CREATE INDEX IF NOT EXISTS payments_user_id_idx ON payments(user_id, created_at DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS payments_provider_ref_idx ON payments(provider, provider_ref);
 ALTER TABLE payments ADD COLUMN IF NOT EXISTS provider_capture_ref TEXT;
+ALTER TABLE payments ADD COLUMN IF NOT EXISTS product_id TEXT;
+
+-- Older payments predate product_id. Credits are unique across the current
+-- one-time catalog, while subscription rows already carry their exact plan.
+UPDATE payments
+SET product_id = CASE
+  WHEN kind LIKE 'subscription_%' AND plan IN ('creator','pro','agency') THEN plan
+  WHEN kind = 'one_time' AND credits_granted = 38 THEN 'single8'
+  WHEN kind = 'one_time' AND credits_granted = 198 THEN 'single48'
+  WHEN kind = 'one_time' AND credits_granted = 582 THEN 'single144'
+  WHEN kind = 'one_time' AND credits_granted = 50 THEN 'topup50'
+  WHEN kind = 'one_time' AND credits_granted = 100 THEN 'topup100'
+  WHEN kind = 'one_time' AND credits_granted = 250 THEN 'topup250'
+  ELSE product_id
+END
+WHERE product_id IS NULL;
+CREATE INDEX IF NOT EXISTS payments_product_created_idx ON payments(product_id, created_at DESC);
 
 -- Non-secret runtime controls. Credentials remain in .env.local and are never
 -- returned to the browser.

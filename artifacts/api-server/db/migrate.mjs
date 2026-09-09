@@ -60,6 +60,7 @@ try {
     p.currency,
     p.credits_granted,
     p.plan,
+    p.product_id,
     p.status,
     p.created_at
     FROM payments p LIMIT 0`);

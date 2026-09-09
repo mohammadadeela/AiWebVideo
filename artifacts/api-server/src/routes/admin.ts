@@ -12,7 +12,7 @@ import { ASSETS_DIR } from '../lib/capture.js';
 import { clearMarketingSettingsCache, getMarketingSettings, MAX_MARKETING_VIDEOS } from '../lib/marketing.js';
 import { GEMINI_COST_CATALOG } from '../lib/costs.js';
 import { CREDIT_COSTS, MAX_VIDEO_SECONDS, MIN_VIDEO_SECONDS, videoCreditQuote } from '../lib/credits.js';
-import { getPayPalReadiness } from './paypal.js';
+import { getPayPalReadiness, PRODUCTS } from './paypal.js';
 import { getProviderQueueSnapshot } from '../lib/provider-queue.js';
 import { isR2Configured, uploadBufferToR2 } from '../lib/r2-storage.js';
 
@@ -80,6 +80,233 @@ router.get('/overview', async (req, res) => {
       costBreakdown: costBreakdown.rows,
       recentCosts: recentCosts.rows,
       videoCostMatrix,
+    });
+  } catch (error) { sendError(res, error); }
+});
+
+const reportRangeSchema = z.enum(['today', '7d', '30d', 'month', 'year', 'all']);
+
+function reportPeriodStart(range: z.infer<typeof reportRangeSchema>): Date | null {
+  const now = new Date();
+  if (range === 'all') return null;
+  if (range === 'today') return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  if (range === 'month') return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  if (range === 'year') return new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
+  return new Date(now.getTime() - (range === '7d' ? 7 : 30) * 24 * 60 * 60 * 1000);
+}
+
+function reportRangeLabel(range: z.infer<typeof reportRangeSchema>) {
+  return ({ today: 'Today', '7d': 'Last 7 days', '30d': 'Last 30 days', month: 'This month', year: 'This year', all: 'All time' })[range];
+}
+
+const inferredProductSql = `COALESCE(product_id, CASE
+  WHEN kind LIKE 'subscription_%' AND plan IN ('creator','pro','agency') THEN plan
+  WHEN kind='one_time' AND credits_granted=38 THEN 'single8'
+  WHEN kind='one_time' AND credits_granted=198 THEN 'single48'
+  WHEN kind='one_time' AND credits_granted=582 THEN 'single144'
+  WHEN kind='one_time' AND credits_granted=50 THEN 'topup50'
+  WHEN kind='one_time' AND credits_granted=100 THEN 'topup100'
+  WHEN kind='one_time' AND credits_granted=250 THEN 'topup250'
+  ELSE 'unclassified' END)`;
+
+router.get('/reports', async (req, res) => {
+  try {
+    const range = reportRangeSchema.catch('month').parse(req.query.range);
+    const periodStart = reportPeriodStart(range);
+    const values = periodStart ? [periodStart] : [];
+    const paymentWhere = periodStart ? 'WHERE created_at >= $1' : '';
+    const paymentAliasWhere = periodStart ? 'WHERE p.created_at >= $1' : '';
+    const costWhere = periodStart ? 'WHERE created_at >= $1' : '';
+    const jobWhere = periodStart ? 'WHERE created_at >= $1 AND deleted_at IS NULL' : 'WHERE deleted_at IS NULL';
+    const creditWhere = periodStart ? 'WHERE created_at >= $1' : '';
+
+    const paymentSummaryQuery = (start: Date | null) => query<Record<string, unknown>>(
+      `SELECT
+        COALESCE(SUM(amount_usd) FILTER (WHERE status IN ('paid','refunded','reversed')),0)::float gross_revenue,
+        COALESCE(SUM(amount_usd) FILTER (WHERE status IN ('refunded','reversed')),0)::float refunded_revenue,
+        COALESCE(SUM(amount_usd) FILTER (WHERE status='paid'),0)::float net_revenue,
+        COALESCE(SUM(amount_usd) FILTER (WHERE status='paid' AND kind='one_time'),0)::float one_time_revenue,
+        COALESCE(SUM(amount_usd) FILTER (WHERE status='paid' AND kind LIKE 'subscription_%'),0)::float subscription_revenue,
+        COALESCE(SUM(amount_usd) FILTER (WHERE status='pending'),0)::float pending_revenue,
+        COUNT(*) FILTER (WHERE status='paid')::int paid_transactions,
+        COUNT(*) FILTER (WHERE status IN ('refunded','reversed'))::int refunded_transactions,
+        COUNT(*) FILTER (WHERE status='pending')::int pending_transactions,
+        COUNT(DISTINCT user_id) FILTER (WHERE status='paid')::int paying_customers,
+        COUNT(DISTINCT user_id) FILTER (WHERE status='paid' AND kind='subscription_initial')::int new_subscribers,
+        COUNT(*) FILTER (WHERE status='paid' AND kind='subscription_renewal')::int renewals,
+        COALESCE(AVG(amount_usd) FILTER (WHERE status='paid'),0)::float average_order_value,
+        COALESCE(SUM(credits_granted) FILTER (WHERE status='paid'),0)::int credits_sold
+       FROM payments ${start ? 'WHERE created_at >= $1' : ''}`,
+      start ? [start] : [],
+    );
+
+    const productQuery = (start: Date | null) => query<Record<string, unknown>>(
+      `WITH classified AS (
+         SELECT *, ${inferredProductSql} AS product_key
+         FROM payments ${start ? 'WHERE created_at >= $1' : ''}
+       )
+       SELECT product_key,
+         COUNT(*) FILTER (WHERE status='paid')::int paid_sales,
+         COUNT(*) FILTER (WHERE status='pending')::int pending_sales,
+         COUNT(*) FILTER (WHERE status IN ('refunded','reversed'))::int refunded_sales,
+         COUNT(DISTINCT user_id) FILTER (WHERE status='paid')::int buyers,
+         COALESCE(SUM(amount_usd) FILTER (WHERE status IN ('paid','refunded','reversed')),0)::float gross_revenue,
+         COALESCE(SUM(amount_usd) FILTER (WHERE status IN ('refunded','reversed')),0)::float refunds,
+         COALESCE(SUM(amount_usd) FILTER (WHERE status='paid'),0)::float net_revenue,
+         COALESCE(SUM(credits_granted) FILTER (WHERE status='paid'),0)::int credits_granted
+       FROM classified GROUP BY product_key ORDER BY net_revenue DESC`,
+      start ? [start] : [],
+    );
+
+    const [
+      periodPayments, lifetimePayments, periodProducts, lifetimeProducts,
+      subscriptionSummary, subscriptionPlans, customers, credits, periodCosts,
+      lifetimeCosts, productions, timeline, recentPayments, paymentKinds,
+    ] = await Promise.all([
+      paymentSummaryQuery(periodStart),
+      paymentSummaryQuery(null),
+      productQuery(periodStart),
+      productQuery(null),
+      query<Record<string, unknown>>(`SELECT
+        COUNT(*) FILTER (WHERE status='active')::int active_subscriptions,
+        COUNT(DISTINCT user_id) FILTER (WHERE status='active')::int active_subscribers,
+        COUNT(DISTINCT user_id) FILTER (WHERE status='active' AND auto_renew)::int auto_renewing_subscribers,
+        COUNT(DISTINCT user_id) FILTER (WHERE status='active' AND NOT auto_renew)::int ending_subscribers,
+        COUNT(DISTINCT user_id) FILTER (WHERE status='past_due')::int past_due_subscribers,
+        COUNT(DISTINCT user_id) FILTER (WHERE status IN ('cancelled','expired','suspended'))::int inactive_subscribers,
+        COALESCE(SUM(CASE WHEN status='active' AND auto_renew THEN CASE plan WHEN 'creator' THEN 39 WHEN 'pro' THEN 99 WHEN 'agency' THEN 249 ELSE 0 END ELSE 0 END),0)::float mrr
+        FROM subscriptions`),
+      query<Record<string, unknown>>(`SELECT plan,
+        COUNT(*) FILTER (WHERE status='active')::int active_subscriptions,
+        COUNT(DISTINCT user_id) FILTER (WHERE status='active')::int active_subscribers,
+        COUNT(DISTINCT user_id) FILTER (WHERE status='active' AND auto_renew)::int auto_renewing,
+        COUNT(DISTINCT user_id) FILTER (WHERE status='active' AND NOT auto_renew)::int ending,
+        COUNT(DISTINCT user_id) FILTER (WHERE status='past_due')::int past_due,
+        COUNT(DISTINCT user_id) FILTER (WHERE status IN ('cancelled','expired','suspended'))::int inactive
+        FROM subscriptions GROUP BY plan ORDER BY plan`),
+      query<Record<string, unknown>>(`SELECT
+        COUNT(*)::int total_users,
+        COUNT(*) FILTER (WHERE created_at >= COALESCE($1::timestamptz, '-infinity'::timestamptz))::int new_users,
+        (SELECT COUNT(DISTINCT user_id)::int FROM payments WHERE status='paid') AS lifetime_paying_users,
+        (SELECT COUNT(DISTINCT user_id)::int FROM payments WHERE status='paid' AND created_at >= COALESCE($1::timestamptz, '-infinity'::timestamptz)) AS period_paying_users
+        FROM users`, [periodStart]),
+      query<Record<string, unknown>>(`SELECT
+        (SELECT COALESCE(SUM(credits_balance),0)::int FROM users) current_customer_balance,
+        (SELECT COALESCE(SUM(credits_granted),0)::int FROM payments p ${paymentAliasWhere}${paymentAliasWhere ? " AND" : " WHERE"} p.status='paid') credits_purchased,
+        COALESCE(SUM(-delta) FILTER (WHERE delta < 0),0)::int credits_spent,
+        COALESCE(SUM(delta) FILTER (WHERE delta > 0 AND reason ILIKE '%refund%'),0)::int credits_refunded,
+        COALESCE(SUM(delta) FILTER (WHERE delta > 0),0)::int total_positive_credits
+        FROM credit_transactions ${creditWhere}`, values),
+      query<Record<string, unknown>>(`SELECT COALESCE(SUM(total_cost_usd),0)::float provider_cost,COUNT(*)::int cost_events FROM generation_cost_events ${costWhere}`, values),
+      query<Record<string, unknown>>(`SELECT COALESCE(SUM(total_cost_usd),0)::float provider_cost,COUNT(*)::int cost_events FROM generation_cost_events`),
+      query<Record<string, unknown>>(`SELECT
+        COUNT(*)::int total,
+        COUNT(*) FILTER (WHERE status='done')::int completed,
+        COUNT(*) FILTER (WHERE status='failed')::int failed,
+        COUNT(*) FILTER (WHERE status='cancelled')::int cancelled,
+        COUNT(*) FILTER (WHERE status IN ('queued','capturing','storyboarding','rendering'))::int running,
+        COALESCE(SUM(credits_spent),0)::int credits_reserved_or_spent
+        FROM jobs ${jobWhere}`, values),
+      query<Record<string, unknown>>(`WITH months AS (
+          SELECT generate_series(date_trunc('month',NOW()) - INTERVAL '11 months',date_trunc('month',NOW()),INTERVAL '1 month') AS month
+        ), revenue AS (
+          SELECT date_trunc('month',created_at) month,
+            COALESCE(SUM(amount_usd) FILTER (WHERE status IN ('paid','refunded','reversed')),0)::float gross,
+            COALESCE(SUM(amount_usd) FILTER (WHERE status='paid'),0)::float net,
+            COALESCE(SUM(amount_usd) FILTER (WHERE status IN ('refunded','reversed')),0)::float refunds
+          FROM payments WHERE created_at >= date_trunc('month',NOW()) - INTERVAL '11 months' GROUP BY 1
+        ), costs AS (
+          SELECT date_trunc('month',created_at) month,COALESCE(SUM(total_cost_usd),0)::float provider_cost
+          FROM generation_cost_events WHERE created_at >= date_trunc('month',NOW()) - INTERVAL '11 months' GROUP BY 1
+        )
+        SELECT to_char(months.month,'YYYY-MM') period,to_char(months.month,'Mon YYYY') label,
+          COALESCE(revenue.gross,0)::float gross_revenue,COALESCE(revenue.net,0)::float net_revenue,
+          COALESCE(revenue.refunds,0)::float refunds,COALESCE(costs.provider_cost,0)::float provider_cost
+        FROM months LEFT JOIN revenue USING(month) LEFT JOIN costs USING(month) ORDER BY months.month`),
+      query<Record<string, unknown>>(`WITH classified AS (
+          SELECT p.*,${inferredProductSql} AS product_key FROM payments p ${paymentAliasWhere}
+        )
+        SELECT p.id,p.provider,p.provider_ref,p.provider_capture_ref,p.kind,p.amount_usd,p.currency,
+        p.credits_granted,p.plan,p.product_key AS product_id,p.status,p.invoice_emailed_at,p.created_at,u.email
+        FROM classified p LEFT JOIN users u ON u.id=p.user_id
+        ORDER BY p.created_at DESC LIMIT 100`, values),
+      query<Record<string, unknown>>(`SELECT kind,status,COUNT(*)::int transactions,COUNT(DISTINCT user_id)::int customers,
+        COALESCE(SUM(amount_usd),0)::float amount,COALESCE(SUM(credits_granted),0)::int credits
+        FROM payments ${paymentWhere} GROUP BY kind,status ORDER BY kind,status`, values),
+    ]);
+
+    const byPeriodProduct = new Map(periodProducts.rows.map((row) => [String(row.product_key), row]));
+    const byLifetimeProduct = new Map(lifetimeProducts.rows.map((row) => [String(row.product_key), row]));
+    const catalogEntries = Object.entries(PRODUCTS) as Array<[string, (typeof PRODUCTS)[keyof typeof PRODUCTS]]>;
+    const knownProducts = new Set(catalogEntries.map(([id]) => id));
+    const products: Array<Record<string, unknown>> = catalogEntries.map(([productId, product]) => ({
+      productId,
+      name: product.name,
+      type: product.mode,
+      category: product.mode === 'subscription' ? 'subscription' : productId.startsWith('single') ? 'video package' : 'credit pack',
+      priceUsd: product.amountUsd,
+      credits: product.credits,
+      period: byPeriodProduct.get(productId) ?? {},
+      lifetime: byLifetimeProduct.get(productId) ?? {},
+    }));
+    for (const [productId, lifetime] of byLifetimeProduct) {
+      if (!knownProducts.has(productId)) products.push({
+        productId, name: productId === 'unclassified' ? 'Legacy / unclassified' : productId,
+        type: 'unknown', category: 'legacy', priceUsd: 0, credits: 0,
+        period: byPeriodProduct.get(productId) ?? {}, lifetime,
+      });
+    }
+
+    const subscriptionRows = new Map(subscriptionPlans.rows.map((row) => [String(row.plan), row]));
+    const subscriptionBreakdown = (['creator', 'pro', 'agency'] as const).map((plan) => ({
+      plan,
+      name: PRODUCTS[plan].name,
+      monthlyPriceUsd: PRODUCTS[plan].amountUsd,
+      creditsPerMonth: PRODUCTS[plan].credits,
+      ...(subscriptionRows.get(plan) ?? {}),
+    }));
+    const period = periodPayments.rows[0] ?? {};
+    const lifetime = lifetimePayments.rows[0] ?? {};
+    const periodProviderCost = Number(periodCosts.rows[0]?.provider_cost ?? 0);
+    const lifetimeProviderCost = Number(lifetimeCosts.rows[0]?.provider_cost ?? 0);
+    const periodNetRevenue = Number(period.net_revenue ?? 0);
+    const lifetimeNetRevenue = Number(lifetime.net_revenue ?? 0);
+    const customerTotals = customers.rows[0] ?? {};
+    const totalUsers = Number(customerTotals.total_users ?? 0);
+    const lifetimePayingUsers = Number(customerTotals.lifetime_paying_users ?? 0);
+
+    res.json({
+      range,
+      rangeLabel: reportRangeLabel(range),
+      periodStart: periodStart?.toISOString() ?? null,
+      generatedAt: new Date().toISOString(),
+      period: {
+        ...period,
+        provider_cost: periodProviderCost,
+        gross_profit: periodNetRevenue - periodProviderCost,
+        margin_percent: periodNetRevenue > 0 ? ((periodNetRevenue - periodProviderCost) / periodNetRevenue) * 100 : 0,
+      },
+      lifetime: {
+        ...lifetime,
+        provider_cost: lifetimeProviderCost,
+        gross_profit: lifetimeNetRevenue - lifetimeProviderCost,
+        margin_percent: lifetimeNetRevenue > 0 ? ((lifetimeNetRevenue - lifetimeProviderCost) / lifetimeNetRevenue) * 100 : 0,
+      },
+      customers: {
+        ...customerTotals,
+        lifetime_conversion_percent: totalUsers > 0 ? (lifetimePayingUsers / totalUsers) * 100 : 0,
+      },
+      subscriptions: {
+        ...(subscriptionSummary.rows[0] ?? {}),
+        arr: Number(subscriptionSummary.rows[0]?.mrr ?? 0) * 12,
+        plans: subscriptionBreakdown,
+      },
+      products,
+      credits: credits.rows[0] ?? {},
+      productions: productions.rows[0] ?? {},
+      timeline: timeline.rows,
+      paymentKinds: paymentKinds.rows,
+      recentPayments: recentPayments.rows,
     });
   } catch (error) { sendError(res, error); }
 });

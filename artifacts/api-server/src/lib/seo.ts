@@ -294,6 +294,7 @@ const PRIVATE_PAGES: Record<string, Omit<SeoPage, 'path' | 'index'>> = {
   '/dashboard': { title: 'Workspace | AiWebVideo', description: 'Your private AiWebVideo production workspace.' },
   '/profile': { title: 'Your Account | AiWebVideo', description: 'Manage your private AiWebVideo account, plan, and credits.' },
   '/admin': { title: 'Admin | AiWebVideo', description: 'Private AiWebVideo administration console.' },
+  '/admin/reports': { title: 'Admin Reports | AiWebVideo', description: 'Private AiWebVideo financial and subscription reports.' },
 };
 
 export const SITEMAP_PATHS = Object.freeze(Object.keys(PUBLIC_PAGES));

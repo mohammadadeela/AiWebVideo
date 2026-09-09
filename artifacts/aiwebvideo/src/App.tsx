@@ -50,6 +50,7 @@ function Router() {
       <Route path="/dashboard" component={DashboardPage} />
       <Route path="/pricing" component={PricingPage} />
       <Route path="/profile" component={ProfilePage} />
+      <Route path="/admin/reports" component={AdminPage} />
       <Route path="/admin" component={AdminPage} />
       <Route path="/studio" component={StudioIndexPage} />
       <Route path="/studio/product" component={StudioProductPage} />

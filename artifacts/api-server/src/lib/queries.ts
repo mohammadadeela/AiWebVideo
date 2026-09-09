@@ -838,6 +838,42 @@ export async function addJobMessage(
   return rows[0];
 }
 
+/**
+ * Publish a completed production and its result message in one transaction.
+ * A polling client must never be able to observe `status = done` before the
+ * durable result message exists, otherwise a fast navigation away/back can
+ * briefly reopen a chat without its final video.
+ */
+export async function completeJobWithResult(
+  jobId: string,
+  workflowState: Record<string, unknown>,
+  resultMessage: string,
+  errorMessage: string | null,
+): Promise<void> {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(
+      `INSERT INTO job_messages (job_id, role, kind, content)
+       VALUES ($1,'assistant','result',$2)`,
+      [jobId, resultMessage],
+    );
+    await client.query(
+      `UPDATE jobs
+       SET status='done',progress=100,status_message='Ready to view',eta_seconds=0,
+           workflow_state=$2::jsonb,error_message=$3,updated_at=NOW()
+       WHERE id=$1`,
+      [jobId, JSON.stringify(workflowState), errorMessage],
+    );
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 export async function getJobMessages(jobId: string): Promise<JobMessageRow[]> {
   const { rows } = await query<JobMessageRow>(
     'SELECT * FROM job_messages WHERE job_id=$1 ORDER BY created_at ASC',

@@ -205,6 +205,7 @@ export function WebsiteBriefForm({
   const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
+  const dragDepthRef = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const composerRootRef = useRef<HTMLDivElement>(null);
   const settingsPanelRef = useRef<HTMLDivElement>(null);
@@ -279,6 +280,30 @@ export function WebsiteBriefForm({
     return () => window.cancelAnimationFrame(frame);
   }, [settingsOpen, activeMode]);
 
+  // Browsers do not guarantee a final dragleave when a file leaves the
+  // window (or when the pointer crosses children inside the composer). Reset
+  // the counter from window-level terminal events so the visual drop target
+  // can never remain over the form and make the inputs appear frozen.
+  useEffect(() => {
+    const resetDragState = () => {
+      dragDepthRef.current = 0;
+      setDragging(false);
+    };
+    const resetWhenLeavingWindow = (event: globalThis.DragEvent) => {
+      if (event.relatedTarget === null) resetDragState();
+    };
+    window.addEventListener("drop", resetDragState, true);
+    window.addEventListener("dragend", resetDragState, true);
+    window.addEventListener("dragleave", resetWhenLeavingWindow, true);
+    window.addEventListener("blur", resetDragState);
+    return () => {
+      window.removeEventListener("drop", resetDragState, true);
+      window.removeEventListener("dragend", resetDragState, true);
+      window.removeEventListener("dragleave", resetWhenLeavingWindow, true);
+      window.removeEventListener("blur", resetDragState);
+    };
+  }, []);
+
   function addFiles(list: FileList | File[] | null) {
     if (!list || !list.length) return;
     const accepted: File[] = [];
@@ -301,9 +326,14 @@ export function WebsiteBriefForm({
 
   function onDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
+    dragDepthRef.current = 0;
     setDragging(false);
     if (disabled) return;
     addFiles(event.dataTransfer.files);
+  }
+
+  function isFileDrag(event: DragEvent<HTMLDivElement>) {
+    return Array.from(event.dataTransfer.types ?? []).includes("Files");
   }
 
   function updateCustomDuration(value: string) {
@@ -537,12 +567,21 @@ export function WebsiteBriefForm({
         addFiles(pastedImages);
       }}
       onDragEnter={(event) => {
+        if (disabled || !isFileDrag(event)) return;
         event.preventDefault();
-        if (!disabled) setDragging(true);
+        dragDepthRef.current += 1;
+        setDragging(true);
       }}
-      onDragOver={(event) => event.preventDefault()}
+      onDragOver={(event) => {
+        if (disabled || !isFileDrag(event)) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "copy";
+      }}
       onDragLeave={(event) => {
-        if (event.currentTarget === event.target) setDragging(false);
+        if (!dragging) return;
+        event.preventDefault();
+        dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+        if (dragDepthRef.current === 0) setDragging(false);
       }}
       onDrop={onDrop}
     >

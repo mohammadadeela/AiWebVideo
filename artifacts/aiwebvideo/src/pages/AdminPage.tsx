@@ -1,23 +1,25 @@
 import { useCallback, useEffect, useRef, useState, type ComponentType } from 'react';
 import { Link } from 'wouter';
-import { Activity, AlertTriangle, CheckCircle2, Clock3, CreditCard, Database, DollarSign, FileVideo, KeyRound, LayoutDashboard, MailCheck, ReceiptText, RefreshCw, Search, Settings2, ShieldCheck, SlidersHorizontal, UserRoundCog, Users, Upload, Save, GalleryVerticalEnd, Plus, Trash2, X, type LucideProps } from 'lucide-react';
+import { Activity, AlertTriangle, BarChart3, CheckCircle2, Clock3, CreditCard, Database, DollarSign, FileVideo, KeyRound, LayoutDashboard, MailCheck, ReceiptText, RefreshCw, Search, Settings2, ShieldCheck, SlidersHorizontal, UserRoundCog, Users, Upload, Save, GalleryVerticalEnd, Plus, Trash2, X, type LucideProps } from 'lucide-react';
 import { Button } from '@/components/ui/app-button';
 import { Switch } from '@/components/ui/switch';
 import { Wordmark } from '@/components/ui/Wordmark';
+import { AdminReports } from '@/components/admin/AdminReports';
 import {
-  fetchAdminAudit, fetchAdminJobs, fetchAdminOverview, fetchAdminUsers, fetchAdminUserDetails, fetchMe,
+  fetchAdminAudit, fetchAdminJobs, fetchAdminOverview, fetchAdminReports, fetchAdminUsers, fetchAdminUserDetails, fetchMe,
   saveAdminSettings, updateAdminJob, updateAdminUser, saveMarketingSettings, uploadMarketingAsset,
-  type AdminSettings, type MarketingSettings,
+  type AdminReportRange, type AdminSettings, type MarketingSettings,
 } from '@/lib/api-client';
 import { watchAuthState } from '@/lib/firebase/client';
 import { useSeo } from '@/lib/useSeo';
 
-type Tab = 'overview' | 'landing' | 'users' | 'jobs' | 'providers' | 'audit';
+type Tab = 'overview' | 'reports' | 'landing' | 'users' | 'jobs' | 'providers' | 'audit';
 type Row = Record<string, unknown>;
 type MetricCard = [label: string, value: string, icon: ComponentType<LucideProps>, hint: string];
 const LANDING_VIDEO_LIMIT = 30;
 const tabs: Array<{ id: Tab; label: string; icon: typeof LayoutDashboard }> = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+  { id: 'reports', label: 'Money reports', icon: BarChart3 },
   { id: 'landing', label: 'Landing videos', icon: GalleryVerticalEnd },
   { id: 'users', label: 'Users', icon: Users },
   { id: 'jobs', label: 'Productions', icon: FileVideo },
@@ -230,11 +232,14 @@ function UserDetailsModal({ details, loading, onClose }: { details: { user: Row;
 
 export function AdminPage() {
   useSeo({ title: 'Admin', description: 'AiWebVideo admin console.', path: '/admin', noindex: true });
-  const [tab, setTab] = useState<Tab>('overview');
+  const [tab, setTab] = useState<Tab>(() => window.location.pathname === '/admin/reports' ? 'reports' : 'overview');
   const [checked, setChecked] = useState(false);
   const [allowed, setAllowed] = useState(false);
   const [meId, setMeId] = useState<string | null>(null);
   const [overview, setOverview] = useState<Row | null>(null);
+  const [reports, setReports] = useState<Row | null>(null);
+  const [reportRange, setReportRange] = useState<AdminReportRange>('month');
+  const [reportsLoading, setReportsLoading] = useState(false);
   const [users, setUsers] = useState<Row[]>([]);
   const [usersTotal, setUsersTotal] = useState(0);
   const [usersPage, setUsersPage] = useState(1);
@@ -304,6 +309,14 @@ export function AdminPage() {
   }, [userSearch, usersPage, planFilter, roleFilter, statusFilter, authFilter, verifiedFilter]);
   const loadJobs = useCallback(async () => setJobs((await fetchAdminJobs(jobStatus, jobSearch)).jobs), [jobStatus, jobSearch]);
   const loadAudit = useCallback(async () => setAudit((await fetchAdminAudit()).events), []);
+  const loadReports = useCallback(async () => {
+    setReportsLoading(true);
+    try {
+      setReports(await fetchAdminReports(reportRange));
+    } finally {
+      setReportsLoading(false);
+    }
+  }, [reportRange]);
 
   useEffect(() => watchAuthState((user) => {
     if (!user) { setChecked(true); setAllowed(false); return; }
@@ -325,9 +338,10 @@ export function AdminPage() {
       if (tab === 'users') void loadUsers().catch(() => undefined);
       if (tab === 'jobs') void loadJobs();
       if (tab === 'audit') void loadAudit();
+      if (tab === 'reports') void loadReports().catch((error) => setMessage(error instanceof Error ? error.message : 'Reports could not be loaded.'));
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [allowed, tab, loadUsers, loadJobs, loadAudit]);
+  }, [allowed, tab, loadUsers, loadJobs, loadAudit, loadReports]);
 
   const providerStatus = (overview?.providerStatus ?? {}) as {
     geminiApiKey?: boolean;
@@ -355,6 +369,7 @@ export function AdminPage() {
       if (tab === 'users') await loadUsers();
       else if (tab === 'jobs') await loadJobs();
       else if (tab === 'audit') await loadAudit();
+      else if (tab === 'reports') await loadReports();
       else await loadOverview();
     } catch { setMessage('The control center could not refresh. Check the server connection.'); }
     finally { setBusy(false); }
@@ -465,7 +480,13 @@ export function AdminPage() {
 
   function viewUserJobs(user: Row) {
     setJobSearch(text(user.email));
-    setTab('jobs');
+    selectTab('jobs');
+  }
+
+  function selectTab(nextTab: Tab) {
+    setTab(nextTab);
+    const nextPath = nextTab === 'reports' ? '/admin/reports' : '/admin';
+    if (window.location.pathname !== nextPath) window.history.replaceState({}, '', nextPath);
   }
 
   function clearUserFilters() {
@@ -499,7 +520,7 @@ export function AdminPage() {
   return <div className="min-h-screen bg-bg lg:flex">
     <aside className="border-b border-border bg-[#100c20] p-4 lg:sticky lg:top-0 lg:h-screen lg:w-64 lg:border-b-0 lg:border-r">
       <div className="flex items-center justify-between"><Link href="/"><Wordmark /></Link><span className="rounded-full bg-violet/15 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-violet">Admin</span></div>
-      <nav className="mt-7 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-1">{tabs.map((item) => <button key={item.id} type="button" onClick={() => setTab(item.id)} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs font-semibold transition ${tab === item.id ? 'bg-violet/15 text-text-primary' : 'text-text-muted hover:bg-white/5 hover:text-text-primary'}`}><item.icon size={16} />{item.label}</button>)}</nav>
+      <nav className="mt-7 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-1">{tabs.map((item) => <button key={item.id} type="button" onClick={() => selectTab(item.id)} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs font-semibold transition ${tab === item.id ? 'bg-violet/15 text-text-primary' : 'text-text-muted hover:bg-white/5 hover:text-text-primary'}`}><item.icon size={16} />{item.label}</button>)}</nav>
       <Link href="/dashboard" className="mt-4 block rounded-xl border border-border px-3 py-2.5 text-center text-xs text-text-muted hover:text-text-primary lg:hidden">← User workspace</Link>
       <div className="mt-6 hidden rounded-2xl border border-border bg-panel/60 p-4 lg:block"><p className="text-xs font-semibold text-text-primary">Protected controls</p><p className="mt-1 text-[10px] leading-relaxed text-text-dim">Gemini credentials stay server-side. This page shows readiness only, never secret values.</p></div>
       <Link href="/dashboard" className="mt-4 hidden rounded-xl border border-border px-3 py-2.5 text-center text-xs text-text-muted hover:text-text-primary lg:block">← User workspace</Link>
@@ -509,6 +530,8 @@ export function AdminPage() {
       <header className="sticky top-3 z-30 flex flex-col justify-between gap-4 rounded-2xl border border-white/10 bg-bg/90 p-4 shadow-2xl backdrop-blur-xl sm:flex-row sm:items-center"><div><p className="text-xs font-semibold uppercase tracking-[.16em] text-violet">Operations</p><h1 className="mt-1 font-display text-2xl font-bold text-text-primary sm:text-3xl">Admin control center</h1><p className="mt-1 text-sm text-text-muted">Users, productions, Gemini costs, availability, and safety controls.</p></div><div className="flex gap-2">{tab === 'landing' && <Button disabled={busy || !dirty} onClick={() => void saveLanding()}><Save size={15} /> {dirty ? 'Save landing page' : 'Saved'}</Button>}{tab === 'providers' && <Button disabled={busy} onClick={() => void saveSettings()}><Save size={15} /> Save controls</Button>}<Button variant="secondary" disabled={busy} onClick={() => void refresh()}><RefreshCw size={15} className={busy ? 'animate-spin' : ''} /> Refresh</Button></div></header>
       {message && <div className="mt-5 rounded-xl border border-violet/25 bg-violet/10 px-4 py-3 text-sm text-text-muted">{message}</div>}
 
+      {tab === 'reports' && <AdminReports report={reports} range={reportRange} loading={reportsLoading} onRangeChange={(nextRange) => { setMessage(null); setReportRange(nextRange); }} />}
+
       {tab === 'overview' && <div className="mt-7 space-y-6">
         <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{([
           ['Total users', number(userStats.total), Users, 'All registered accounts'],
@@ -516,7 +539,7 @@ export function AdminPage() {
           ['Completed', number(jobStats.done), CheckCircle2, 'Successful deliveries'],
           ['Month cost', `$${number(usage.cost).toFixed(2)}`, DollarSign, `${number(usage.credits).toFixed(0)} customer credits used`],
         ] as MetricCard[]).map(([label, value, Icon, hint]) => <div key={label} className="rounded-2xl border border-border bg-panel p-5"><div className="flex items-center justify-between"><p className="text-xs text-text-muted">{label}</p><Icon size={17} className="text-violet" /></div><p className="mt-3 font-utility text-2xl font-bold text-text-primary">{value}</p><p className="mt-1 text-[10px] text-text-dim">{hint}</p></div>)}</section>
-        <section className="grid gap-5 xl:grid-cols-[1.35fr_.65fr]"><div className="rounded-3xl border border-border bg-panel p-5"><div className="flex items-center justify-between"><div><h2 className="font-semibold text-text-primary">Recent productions</h2><p className="text-xs text-text-dim">Latest activity across all users</p></div><button onClick={() => setTab('jobs')} className="text-xs font-semibold text-violet">View all</button></div><div className="mt-4 overflow-x-auto"><table className="w-full min-w-[620px] text-left text-xs"><thead className="text-text-dim"><tr><th className="pb-3">Project</th><th>User</th><th>Status</th><th>Provider</th><th>Cost</th></tr></thead><tbody className="divide-y divide-border">{recentJobs.map((job) => <tr key={text(job.id)}><td className="max-w-52 truncate py-3 font-semibold text-text-primary">{text(job.title || job.source_url)}</td><td className="text-text-muted">{text(job.email)}</td><td><span className={`rounded-full px-2 py-1 text-[9px] capitalize ${statusClass(job.status)}`}>{text(job.status)}</span></td><td className="text-text-muted">{text(job.generation_provider)}</td><td className="text-text-muted">${number(job.generation_cost_usd).toFixed(3)}</td></tr>)}</tbody></table></div></div>
+        <section className="grid gap-5 xl:grid-cols-[1.35fr_.65fr]"><div className="rounded-3xl border border-border bg-panel p-5"><div className="flex items-center justify-between"><div><h2 className="font-semibold text-text-primary">Recent productions</h2><p className="text-xs text-text-dim">Latest activity across all users</p></div><button onClick={() => selectTab('jobs')} className="text-xs font-semibold text-violet">View all</button></div><div className="mt-4 overflow-x-auto"><table className="w-full min-w-[620px] text-left text-xs"><thead className="text-text-dim"><tr><th className="pb-3">Project</th><th>User</th><th>Status</th><th>Provider</th><th>Cost</th></tr></thead><tbody className="divide-y divide-border">{recentJobs.map((job) => <tr key={text(job.id)}><td className="max-w-52 truncate py-3 font-semibold text-text-primary">{text(job.title || job.source_url)}</td><td className="text-text-muted">{text(job.email)}</td><td><span className={`rounded-full px-2 py-1 text-[9px] capitalize ${statusClass(job.status)}`}>{text(job.status)}</span></td><td className="text-text-muted">{text(job.generation_provider)}</td><td className="text-text-muted">${number(job.generation_cost_usd).toFixed(3)}</td></tr>)}</tbody></table></div></div>
         <div className="space-y-3 rounded-3xl border border-border bg-panel p-5"><h2 className="font-semibold text-text-primary">System readiness</h2>{[['Gemini API', providerStatus.geminiApiKey], ['Cloudflare R2 storage', providerStatus.r2Storage], ['Checkout credentials', providerStatus.checkout?.configured]].map(([label, ready]) => <div key={String(label)} className="flex items-center justify-between rounded-xl bg-panel-alt px-3 py-2.5"><span className="text-xs text-text-muted">{String(label)}</span><span className={`flex items-center gap-1.5 text-[10px] font-semibold ${ready ? 'text-mint' : 'text-pink'}`}>{ready ? <CheckCircle2 size={13} /> : <AlertTriangle size={13} />}{ready ? 'Ready' : 'Missing'}</span></div>)}{providerStatus.checkout?.configured && <div className="rounded-xl bg-panel-alt px-3 py-2.5 text-[10px] text-text-dim"><div className="flex items-center justify-between gap-3"><span>Checkout connection</span><span className={`font-semibold ${providerStatus.checkout.connection === 'ready' ? 'text-mint' : providerStatus.checkout.connection === 'credentials_rejected' ? 'text-pink' : 'text-amber-200'}`}>{providerStatus.checkout.connection === 'ready' ? 'Verified' : providerStatus.checkout.connection === 'credentials_rejected' ? 'Credentials rejected' : providerStatus.checkout.connection === 'unavailable' ? 'Unavailable' : 'Not checked yet'}</span></div><p className="mt-1">Mode: {providerStatus.checkout.environment === 'live' ? 'Live' : 'Sandbox'}</p></div>}</div></section>
         <section className="rounded-3xl border border-border bg-panel p-5"><div><h2 className="font-semibold text-text-primary">Gemini cost by process · this month</h2><p className="text-xs text-text-dim">Recorded from each completed Gemini generation step.</p></div><div className="mt-4 overflow-x-auto"><table className="w-full min-w-[680px] text-left text-xs"><thead className="text-text-dim"><tr><th className="pb-3">Model</th><th>Process</th><th>Usage</th><th>Events</th><th>Cost</th></tr></thead><tbody className="divide-y divide-border">{costBreakdown.map((row, index) => <tr key={`${text(row.provider)}-${text(row.operation)}-${index}`}><td className="py-3 text-text-primary">{text(row.model)}</td><td className="text-text-muted">{text(row.operation).replaceAll('_', ' ')}</td><td className="text-text-muted">{number(row.quantity).toFixed(2)} {text(row.unit)}</td><td className="text-text-muted">{number(row.events)}</td><td className="font-semibold text-mint">${number(row.cost).toFixed(4)}</td></tr>)}</tbody></table>{!costBreakdown.length && <p className="py-8 text-center text-sm text-text-dim">Costs will appear after the next generation.</p>}</div></section>
         <section className="rounded-3xl border border-border bg-panel p-5"><div><h2 className="font-semibold text-text-primary">Configured Gemini unit prices</h2><p className="text-xs text-text-dim">Reference rates used to calculate each process event. Text rates can be overridden with server environment variables.</p></div><div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{[
