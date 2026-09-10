@@ -157,12 +157,11 @@ export function isGenerativeVideoMode(mode: string) {
 const AI_VIDEO_REFERENCE_POLICY = `
 AI VIDEO REFERENCE LOCK — REAL WEBSITE, GENERATED MOTION:
 - The final deliverable is ONE continuous AI-generated film. The planned scenes are only timeline beats inside that film, grounded by the supplied website screenshots. Do not plan screenshot pans, Ken-Burns moves, code-drawn cursors, slideshow transitions, or separately generated clip resets as the final visual.
-- Treat captures as the source of truth for the real website, products, brand, prices, controls, and UI structure. Treat existing text inside a capture as protected source pixels: never ask the video model to redraw or retype it. If text cannot remain pixel-faithful during motion, plan a wider stable device view or product/benefit footage instead of a close text-heavy UI shot.
-- The video model must never synthesize Arabic, Korean, Cyrillic, Chinese, or other non-English lettering. Any NEW visible copy explicitly requested by the customer must be short, natural, correctly spelled ENGLISH only. Otherwise plan no generated typography at all.
+- Treat captures as the source of truth for the real website. Preserve visible source-language wording, logos, prices, product identity, colors, controls, navigation labels, and UI structure whenever they are shown. Never translate or redraw the website text. Any NEW on-screen marketing copy requested by the customer must be English only.
 - Never invent a product, page, feature, modal, cart state, checkout state, confirmation, price, field value, statistic, claim, or button result that is not supported by the captures.
 - A generated cursor/touch action is allowed only on a real visible control. If the resulting state is shown, it must be grounded by another real capture selected in sourceIndices.
 - sourceIndices are not editing instructions anymore. They are the strongest real reference states for this scene: normally one capture, or two ordered before/after captures for an interaction. Put states in story order when a before/after interaction is intended.
-- onScreenCopy MUST be "" for website-first modes. Never invent a title, subtitle, CTA, URL, slogan, price, or logo card. voiceoverScript MUST be null.
+- onScreenCopy MUST be "" for website-first modes. The website's existing UI text is enough. voiceoverScript MUST be null.
 
 INTERACTION SCENES — REAL ACTION, REAL RESULT:
 - Use sceneType="interaction" when the captures support a meaningful real action: select a size/color/variant, add to cart, open cart, open menu/search/filter, start checkout, open a chat/AI assistant, choose a plan, book, sign up, or another actual conversion step visible on this specific site.
@@ -204,8 +203,8 @@ PHOTO MODE — REFERENCE-BASED CREATIVE EDITING:
 - Preserve recognizable brand/product identity unless the customer explicitly asks to change a specific property.
 - You may isolate products from the supplied references and place them into newly created marketing environments when that matches the request.
 - Do NOT invent unrelated products, logos, prices, product names, or brand claims.
-- Do NOT generate random typography. onScreenCopy MUST be "" for every scene. If the customer explicitly asks for added visible text, interpret the meaning but render short, correctly spelled ENGLISH only.
-- If a website screenshot/UI remains visible, treat its existing text as protected source pixels; never regenerate, translate, correct, replace, or redraw it. Avoid text-heavy UI in the final composition if pixel-faithful preservation is not possible.
+- Do NOT generate random typography. onScreenCopy MUST be "" for every scene.
+- If a website screenshot/UI is one of the references and remains visible in the final image, its existing Arabic/English text must stay faithful to the source; never translate, correct, replace, or redraw that UI text.
 - Prefer a strong visual ad with no added text unless the user explicitly asks for marketing copy in their written instructions.
 - The four photo scenes should be meaningfully different creative executions, not four near-identical crops.
 - voiceoverScript MUST be null.
@@ -216,7 +215,7 @@ VIDEO + PHOTOS — TWO AI PIPELINES:
 - VIDEO OUTPUT: generate one continuous film with the selected AI video model from the real website references. Timeline beats are directing notes only; never fall back to screenshot-only motion or stitched unrelated clips.
 - PHOTO OUTPUT: may creatively transform real products/brand into marketing stills according to the user brief.
 - In both outputs, never invent unrelated products, prices, claims, features, logos, or random UI text.
-- If website UI is visible, preserve its text as protected source pixels; never synthesize non-English lettering. Any newly generated visible copy must be English only.
+- If website UI is visible, preserve its existing Arabic/English wording faithfully.
 - onScreenCopy MUST be "". voiceoverScript MUST be null.
 `;
 
@@ -224,9 +223,9 @@ const DEMO_CREATIVE_POLICY = `
 DEMO MODE — FULL AI CINEMATIC BRAND FILM:
 - The result is one continuous true AI-generated video, not independent clips and not AI stills animated by code.
 - Captures are grounding references for the real brand, logo, products, colors, and UI. Cinematic surrounding environments, devices, depth, light, reflections, and camera movement are allowed.
-- Any website UI shown inside a device/screen must remain faithful to the references and remain a supporting proof moment, not dominate the whole film. Lead with cinematic product/service/customer imagery that is pleasant to watch. Never invent product names, prices, claims, statistics, discounts, or features.
+- Any website UI shown inside a device/screen must remain faithful to the references. Never invent product names, prices, claims, statistics, discounts, or features.
 - Keep one shared visual world and art direction across the entire film, while varying shot scale and motion so the continuous story stays exciting.
-- onScreenCopy must be "". Never invent marketing copy, a logo, a URL, or a closing card.
+- onScreenCopy should normally be "". Never invent marketing copy.
 - voiceoverScript MUST be null.
 `;
 
@@ -236,7 +235,7 @@ MOCKUP MODE — DIGITAL PRODUCT / MOTION GRAPHIC SHOWCASE:
 - Each capture is one real page/panel/photo of the product. Treat each as ground truth: never invent, redraw, retranslate, or restyle its real text, layout, or imagery.
 - Generate satisfying AI motion around and between real pages: cards sliding/flipping/stacking into view, a hand or cursor swiping, gentle parallax, a soft zoom settling on a detail — energetic and premium, never a static slideshow.
 - The overall presentation may include a light social-media-feed frame (subtle like/comment icon accents, soft neutral background) so it feels native to a Reels/TikTok scroll, but this frame must never cover or distort the real product content.
-- Build hook -> quick flip through the strongest real pages/panels -> a satisfying visual resolution. Pacing must feel snappy and current, not corporate. Never invent a title/logo card for the ending.
+- Build hook -> quick flip through the strongest real pages/panels -> a satisfying closing reveal. Pacing must feel snappy and current, not corporate.
 - onScreenCopy MUST be "" — the real product pages already contain their own real text. voiceoverScript MUST be null.
 `;
 
@@ -247,7 +246,7 @@ CUSTOM MODE — THE CUSTOMER'S OWN VIDEO, NOT A WEBSITE COMMERCIAL:
 - If a reference image shows a real, recognizable person, product, or place (something the customer actually uploaded), keep that subject recognizable and consistent throughout the film; do not swap their identity or fabricate on-screen text/prices/logos that would misrepresent something real. With no reference image, invent freely to match the written idea.
 - If the customer's idea describes people talking, a conversation, narration, or a testimonial, direct real dialogue/performance: natural expressions, gestures, timing and pacing that match spoken lines, as if real words are being said even though the words themselves are written and voiced separately. voiceoverScript MUST still be null in the planning beats (the spoken narration/dialogue for the finished video is generated by a separate step, not written here).
 - If the customer's notes leave a creative choice unspecified, make a strong, exciting, professional choice yourself rather than defaulting to something bland or website-like.
-- onScreenCopy MUST be "" unless the customer's notes explicitly ask for on-screen text/captions. If requested, plan only concise English visible copy even when the prompt was written in another language; never plan pseudo-language text.
+- onScreenCopy MUST be "" unless the customer's notes explicitly ask for on-screen text/captions.
 `;
 
 const PRODUCT_VIDEO_CREATIVE_POLICY = `
@@ -255,7 +254,7 @@ PRODUCT VIDEO MODE — REAL PRODUCT, ONE CONTINUOUS FILM:
 - The customer's uploaded product image(s) are the product identity source of truth. Preserve exact shape, proportions, colors, materials, stitching, hardware, logos, packaging and small details.
 - The final deliverable is ONE continuous product film. Timeline beats are directing notes only; never plan unrelated product clips or swap the item between beats.
 - You may create premium studio, lifestyle, macro-detail and hero environments around the real product when they match the customer's brief, but never redesign, recolor, simplify, replace or invent product details.
-- Do not invent prices, product names, claims, readable packaging copy, badges, discounts or random typography. Any explicitly requested added visible copy must be concise English only.
+- Do not invent prices, product names, claims, readable packaging copy, badges, discounts or random typography.
 - Use attached references as identity anchors for continuity throughout the film; sourceIndices may select up to 3 useful product references per timeline beat.
 - onScreenCopy MUST be "". voiceoverScript MUST be null.
 `;
@@ -281,7 +280,7 @@ Use the uploaded product references as identity ground truth. Plan a premium beg
 Follow the customer's scenario exactly. Preserve speaker identity, wardrobe, setting and eyelines; plan natural dialogue/performance timing, gestures, reactions and camera blocking as one coherent video. Do not invent unrelated dialogue or scene resets.`,
 
   video: `PROMO VIDEO — AI-generated premium website commercial.
-Inspect what this exact site sells/does and build a real commercial around it. Lead with cinematic product, service, customer, environment, and benefit footage derived from the real site; use stable website/device shots selectively as proof rather than making the entire film an animated screenshot. Open with a strong hook, move through distinct real benefits or products, include at most one grounded conversion interaction when it helps, and finish with a strong text-free visual resolution unless the customer explicitly requested a verified real brand mark.`,
+Inspect what this exact site sells/does and build a real commercial around it. Use different real pages/products/features as references, add purposeful AI-generated motion and believable interaction only where controls/states support it, and make the site feel alive rather than like screenshots. Open with a strong hook, move through distinct benefits or products, include at most one conversion interaction when it helps, and finish on a clean real branded state.`,
 
   tutorial: `HOW TO USE — AI-generated first-time-user walkthrough.
 Teach the real website through believable cursor/touch movement and real captured states. Orient the viewer, then show the most useful actions this specific site supports (browse, search, filter, open item, choose option, use a tool, open chat, etc.). Use before/after captures for actions whenever available. Keep UI readable, complete each important action, and never invent a missing result.`,
@@ -293,7 +292,7 @@ First infer the website type. For ecommerce, use the real supported purchase pat
 Discover the strongest real features visible across all captures, including search/filter/navigation, product areas, dashboards, tools, chat/AI assistant, categories, or other site-specific capabilities. Give each scene a different feature purpose and, when a real interaction state exists, show the feature working. Long tours must keep introducing new content and motion instead of repeating the same page.`,
 
   demo: `CINEMATIC BRAND FILM — fully AI-generated premium product film.
-Use the captures as grounding references, then create cinematic product/service/customer moments, elegant environments, dimensional devices used sparingly, controlled lighting, depth, and premium camera movement. Keep any website UI inside screens stable and faithful to the real references and preserve the actual brand/products. Never invent features, claims, prices, readable text, a logo, or a different brand.`,
+Use the captures as grounding references, then create cinematic motion, dimensional devices, elegant environments, lighting, depth, and premium camera movement. Keep any website UI inside screens faithful to the real references and preserve the actual brand/products. Never invent features, claims, prices, or a different brand.`,
 
   photos: `PHOTOS — premium marketing image creation from the real captured website.
 Use the customer's description as the primary art direction. Plan four distinct campaign images grounded in the real products/brand visible in the captures. Explore useful marketing variations such as product-hero imagery, premium studio/background changes, editorial/lifestyle treatment, social-ad compositions, seasonal campaign treatment, or clean brand visuals — but only when consistent with what the user asked for. Do not add random text. If the user wants the website UI itself shown, keep that UI text faithful to the source instead of recreating it.`,
@@ -305,7 +304,7 @@ Analyze the captured website, its real icon/logo, business purpose, color system
 Plan the video as real AI-generated motion grounded in the website captures, following the PROMO VIDEO logic and never relying on screenshot-only movement. Plan the photos as distinct marketing stills from the same real brand/products.`,
 
   mockup: `DIGITAL PRODUCT MOCKUP / MOTION GRAPHIC VIDEO — social-feed-style product reveal.
-Treat each capture as a real page/panel/photo of a product (digital template, planner, guide, or physical product photos). Build a fast, exciting flip-through: hook on the strongest page first, reveal 3-6 more real pages with satisfying AI-generated motion (slide, flip, stack, gentle zoom), and resolve on the strongest real page without inventing a title or logo card. This is the exact genre used to advertise digital products/templates on TikTok, Instagram Reels, and Pinterest — energetic, current, scroll-stopping, never corporate or static.`,
+Treat each capture as a real page/panel/photo of a product (digital template, planner, guide, or physical product photos). Build a fast, exciting flip-through: hook on the strongest page first, reveal 3-6 more real pages with satisfying AI-generated motion (slide, flip, stack, gentle zoom), and close on a clean branded or title card if one exists in the captures. This is the exact genre used to advertise digital products/templates on TikTok, Instagram Reels, and Pinterest — energetic, current, scroll-stopping, never corporate or static.`,
 
   linkedin: `LINKEDIN VIDEO — professional feed story.
 Create a credible, business-appropriate video for LinkedIn. Lead with the real problem or result, demonstrate the strongest real website workflow/product proof, and finish on a clean brand state. Prefer restrained motion, readable pacing and 16:9 or square-safe framing. Never invent metrics, customers, testimonials, prices, claims, or capabilities.`,
@@ -374,10 +373,10 @@ export function buildFallbackStoryboard(input: StoryboardInput): Storyboard {
       'Finish the performance on a natural resolved reaction or line ending instead of cutting mid-sentence.',
     ],
     video: [
-      'Open immediately with premium cinematic imagery of the strongest real product, service, customer benefit, or visual subject discovered on the website; no title card or text-heavy screen.',
-      'Advance to a different real product/benefit and use a stable device or website view only when it adds convincing proof without redrawing its text.',
-      'Develop another distinct real benefit, product, environment, or grounded action with a different camera idea; never repeat the first page to fill time.',
-      'Finish on a strong text-free product/service visual resolution; use a captured real brand mark only if it remains pixel-faithful, and never invent a logo or title card.',
+      'Generate an immediate premium AI-video reveal from the strongest real homepage state; keep the website text and brand faithful while adding convincing motion.',
+      'Generate a different real page/product/feature as a new AI-video beat with purposeful interaction or camera motion supported by that capture.',
+      'Generate another distinct website benefit or product with a different motion idea; do not repeat the first page just to fill time.',
+      'Finish on a clean real branded state, letting the AI-generated motion resolve fully before the film moves into its ending.',
     ],
     tutorial: [
       'Generate a readable first-time-user orientation on the real homepage with natural cursor/touch movement only on real controls.',
@@ -395,19 +394,19 @@ export function buildFallbackStoryboard(input: StoryboardInput): Storyboard {
       'Generate an AI-video reveal of the homepage and the first strongest real feature.',
       'Generate a second different real feature with its own purposeful motion or supported interaction.',
       'Generate another distinct tool/category/page so the tour keeps introducing new value instead of repeating content.',
-      'Finish on the strongest existing interface or product state with clean resolved motion and no invented logo/title card.',
+      'Finish on the strongest existing branded interface state with a clean resolved motion.',
     ],
     demo: [
-      'Open immediately on a cinematic real product, service, or customer-benefit hero moment derived from the strongest website reference; no generated logo or title card.',
-      'Develop the same premium visual world with a second distinct real product/benefit; a stable device view may appear briefly as supporting proof.',
-      'Advance to another real product, use case, environment, or grounded website proof moment with a different camera scale while maintaining the same lighting world.',
-      'Finish on a premium text-free hero resolution of the real product/service; never fabricate a brand mark, slogan, URL, or closing card.',
+      'Open with a wide reveal of the real logo/brand mark floating in a soft studio environment (marble surface, warm daylight, gentle shadows).',
+      'Show a 3D tablet mockup displaying the real captured homepage UI, framed with a glassmorphism accent card naming a real feature/section from the site.',
+      'Show a second real UI area (product/category) inside a mockup, with a different camera move, same lighting world as the previous scene.',
+      'Finish on a polished branded closing card: the real logo/name and, if present in the capture, the real tagline, on the same studio backdrop.',
     ],
     both: [
-      'Generate a premium cinematic opening from the strongest real product, service, or benefit on the site.',
-      'Generate a different real product/benefit with a distinct camera and action idea; use UI only as stable supporting proof.',
-      'Generate another non-repeating commercial beat grounded in a real capture and the complete customer brief.',
-      'Finish on a clean text-free product/service resolution after the AI motion resolves.',
+      'Generate a premium AI-video opening from the strongest real homepage state.',
+      'Generate a different real page/feature/product with a distinct motion idea.',
+      'Generate another non-repeating commercial beat grounded in a real capture.',
+      'Finish on a clean existing branded state after the AI motion resolves.',
     ],
     photos: [
       'Create a premium hero marketing image based on the strongest real product or brand element in the supplied references and the customer request.',
@@ -425,13 +424,13 @@ export function buildFallbackStoryboard(input: StoryboardInput): Storyboard {
       'Open on the strongest real product page/panel with an energetic AI-generated reveal — a card sliding or flipping into view, framed in a light social-feed style.',
       'Flip to a second distinct real page/panel with its own satisfying motion; keep the pace fast and current.',
       'Flip to a third distinct real page/panel, varying the motion style (parallax, stack, gentle zoom) so it never feels repetitive.',
-      'Close on the strongest remaining real page/panel with a clean, satisfying final reveal and no invented title/logo card.',
+      'Close on the strongest remaining real page/panel or title card with a clean, satisfying final reveal.',
     ],
     linkedin: [
       'Open with a concise professional hook grounded in the strongest real website state.',
       'Show the clearest real workflow, feature, or product proof with readable purposeful motion.',
       'Develop the business value through another distinct real page or supported interaction without inventing claims.',
-      'Finish on a clean professional product/service state suitable for a LinkedIn feed post, without inventing a logo, claim, or title card.',
+      'Finish on a clean branded state suitable for a LinkedIn feed post.',
     ],
     custom: [
       'Open with the strongest possible AI-generated hook driven by the customer\u2019s written idea.',
@@ -462,8 +461,8 @@ export function buildFallbackStoryboard(input: StoryboardInput): Storyboard {
         ? (isPhotos
           ? `Use the captured website area that visibly represents “${feature}” as the source reference for a premium marketing image. Follow the customer's photo request and preserve recognizable brand/product identity.`
           : isDemo
-            ? `Generate one cinematic product/service/benefit moment (same lighting world as the rest of the film) grounded in the captured area that visibly represents “${feature}”. If UI appears, keep it stable and treat its text as protected source pixels — never invent the claim.`
-            : `Generate an AI-video scene around the captured website area that visibly represents “${feature}”. Treat its UI text as protected source pixels and use natural motion or supported interaction without inventing a result.`)
+            ? `Generate one cinematic frame (device mockup or feature card, same lighting world as the rest of the film) built from the captured area that visibly represents “${feature}”. Use only real brand/product/text elements from that capture — never invent the claim.`
+            : `Generate an AI-video scene around the captured website area that visibly represents “${feature}”. Preserve its real UI text/brand and use natural motion or supported interaction without inventing a result.`)
         : longFormDirection,
       sourceIndices: isPhotos || textOnlyStudio
         ? []
@@ -487,7 +486,7 @@ export function buildFallbackStoryboard(input: StoryboardInput): Storyboard {
       : isStudioVideo
         ? `A professionally directed continuous AI video generated from the customer's ${input.mode === 'product-video' ? 'real product references and product-film direction' : 'written idea'}${actualCaptureCount ? ' and reference images' : ''}.`
       : isDemo
-        ? `${brandName} presented as a generative cinematic product/service film with a consistent visual world and selective stable website proof grounded in real captured content.`
+        ? `${brandName} presented as a generative cinematic brand film — AI-composited device mockups and feature cards grounded in its real logo, products, and captured brand content.`
         : `${brandName} presented as a true AI-generated website film grounded in its real captured pages, products, UI and brand.`,
     vibe: input.vibeBrief,
     ideas: isIcon
@@ -522,9 +521,9 @@ export function buildFallbackStoryboard(input: StoryboardInput): Storyboard {
               ]
       : isDemo
         ? [
-            'Cinematic product/service film with stable website proof moments',
-            'Lifestyle/studio product-hero film with a text-free visual resolution',
-            'Benefit-led brand story using devices sparingly and no invented typography',
+            'Device-mockup-led brand film with glassmorphism feature cards',
+            'Lifestyle/studio product-hero film ending on a branded closing card',
+            'Responsive-design showcase moving from desktop to tablet to phone mockups',
           ]
         : [
           'AI-generated website commercial with real interaction states and faithful UI',
@@ -543,7 +542,7 @@ export function buildFallbackStoryboard(input: StoryboardInput): Storyboard {
 }
 
 export function storyboardModelName() {
-  return process.env.GEMINI_STORYBOARD_MODEL?.trim() || 'gemini-3.6-flash';
+  return process.env.GEMINI_STORYBOARD_MODEL ?? 'gemini-3.6-flash';
 }
 
 type PlannerPart = { inlineData: { mimeType: string; data: string } } | { text: string };
@@ -659,11 +658,6 @@ CREATIVE VARIATION ID: ${variantSeed}
 This is a fresh generation attempt. ${isStudioVideo ? 'Use the variation ID to choose a fresh interpretation, camera language, performance/action and rhythm while preserving the requested subject/product identity.' : 'Use the variation ID to deliberately choose a different real-content sequence, interaction mix, camera behavior, motion rhythm, and reference-state selection while preserving website fidelity.'}
 ${featuresBlock ? `\n${featuresBlock}\n` : ''}
 
-PROMPT FIDELITY — NON-NEGOTIABLE
-- Read the complete CUSTOM USER NOTES before planning. Treat every compatible detail as a requirement, not as optional inspiration.
-- Account for the requested subject/product, action and order, setting, visual style, camera, lighting, colors, dialogue/audio, exclusions, aspect, pacing and ending. Do not silently drop a detail merely because a generic template would be easier.
-- Customer specifics outrank generic mode defaults. Use expert creative judgment only where the customer left a choice open.
-
 MODE-SPECIFIC MASTER DIRECTION
 ${modeDirection}
 
@@ -692,9 +686,8 @@ ${coverageBlock}
 
 TEXT LANGUAGE POLICY
 - Generated on-screen typography is never automatic. Keep onScreenCopy empty unless the customer's idea explicitly requires visible marketing text.
-- If visible generated copy is explicitly required, translate its intended meaning into short, natural, correctly spelled ENGLISH regardless of the language of the customer prompt or source website. Brand names and proper names remain unchanged.
-- Never direct the visual model to synthesize Arabic, Korean, Cyrillic, Chinese, or any other non-English lettering. Never create pseudo-language glyphs.
-- Existing website/reference text is protected source imagery: never retype, redraw, translate, or "correct" it. Never make non-English source text the readable focal point; plan a wider stable device view or product/benefit visual rather than asking the video model to recreate lettering.
+- If visible generated copy is explicitly required, translate its intended meaning into short, natural, correctly spelled ENGLISH for the video direction regardless of the language of the customer prompt or source website. Brand names and proper names remain unchanged.
+- Existing website/reference text is source imagery: never translate, retype, redraw, or "correct" it. For dense non-English UI, plan wider/stable framing rather than asking the video model to recreate the lettering.
 - This policy is only for visible generated text; spoken dialogue/narration follows the selected audio/language direction.
 
 OUTPUT REQUIREMENTS
@@ -751,9 +744,7 @@ export async function generateStoryboard(input: StoryboardInput): Promise<Storyb
         config: {
           responseMimeType: 'application/json',
           responseSchema: STORYBOARD_SCHEMA as Parameters<typeof client.models.generateContent>[0]['config'] extends { responseSchema?: infer T } ? T : never,
-          // Keep enough variation for fresh art direction while weighting the
-          // customer's concrete requirements more strongly than a loose remix.
-          temperature: 0.55,
+          temperature: 0.72,
         },
       }),
     });
