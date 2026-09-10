@@ -1,3 +1,5 @@
+export const MIN_PARTIAL_DELIVERY_RATIO = 0.5;
+
 export interface PartialDeliveryMetadata {
   requestedSeconds: number;
   deliveredSeconds: number;
@@ -9,6 +11,10 @@ export interface PartialDeliveryMetadata {
 /**
  * Build one normalized billing record for a shortened video delivery.
  * Returns null when the requested duration was fully delivered.
+ *
+ * A tiny fragment is not treated as a fair paid delivery. If less than half
+ * of the requested film is usable, throw so the normal render failure path can
+ * restore the full reservation instead of charging for an unusably short clip.
  */
 export function buildPartialDeliveryMetadata(
   requestedSeconds: number,
@@ -20,6 +26,11 @@ export function buildPartialDeliveryMetadata(
   const rate = Math.max(0, Math.round(perSecondCredits));
   const missing = Math.max(0, requested - delivered);
   if (missing === 0) return null;
+  if (requested <= 0 || delivered / requested < MIN_PARTIAL_DELIVERY_RATIO) {
+    throw new Error(
+      `Completed video is only ${delivered}s of ${requested}s, below the fair partial-delivery threshold.`,
+    );
+  }
   return {
     requestedSeconds: requested,
     deliveredSeconds: delivered,
@@ -42,7 +53,8 @@ export function readPartialDeliveryMetadata(value: unknown): PartialDeliveryMeta
     !Number.isSafeInteger(deliveredSeconds) || deliveredSeconds <= 0 ||
     !Number.isSafeInteger(missingSeconds) || missingSeconds <= 0 ||
     !Number.isSafeInteger(refundedCredits) || refundedCredits < 0 ||
-    deliveredSeconds + missingSeconds !== requestedSeconds
+    deliveredSeconds + missingSeconds !== requestedSeconds ||
+    deliveredSeconds / requestedSeconds < MIN_PARTIAL_DELIVERY_RATIO
   ) return null;
   return {
     requestedSeconds,
