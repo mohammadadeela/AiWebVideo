@@ -38,6 +38,10 @@ const adminPathByTab: Record<Tab, string> = {
 function adminTabFromPath(pathname: string): Tab {
   return (Object.entries(adminPathByTab).find(([, path]) => path === pathname)?.[0] as Tab | undefined) ?? 'overview';
 }
+function adminUserIdFromLocation(location: string) {
+  const userId = new URLSearchParams(location.split('?')[1] ?? '').get('user') ?? '';
+  return /^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(userId) ? userId : null;
+}
 function number(value: unknown) { return Number(value ?? 0); }
 function text(value: unknown) { return String(value ?? '—'); }
 function date(value: unknown) { return value ? new Date(String(value)).toLocaleString() : '—'; }
@@ -46,6 +50,27 @@ function statusClass(value: unknown) {
   if (['done', 'active'].includes(status)) return 'bg-mint/10 text-mint';
   if (['failed', 'suspended', 'cancelled'].includes(status)) return 'bg-pink/10 text-pink';
   return 'bg-violet/10 text-violet';
+}
+
+function UserReference({ userId, label, onOpen, className = '' }: {
+  userId: unknown;
+  label: unknown;
+  onOpen: (userId: string) => void;
+  className?: string;
+}) {
+  const id = String(userId ?? '').trim();
+  const caption = text(label);
+  if (!id) return <span className={className}>{caption}</span>;
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(id)}
+      title={`View all information for ${caption}`}
+      className={`text-left font-semibold text-text-primary transition hover:text-violet hover:underline ${className}`}
+    >
+      {caption}
+    </button>
+  );
 }
 
 function VideoCostMatrix({ rows }: { rows: Row[] }) {
@@ -279,6 +304,8 @@ export function AdminPage() {
   const [userDetails, setUserDetails] = useState<{ user: Row; subscriptions: Row[]; payments: Row[]; credits: Row[]; productions: Row[] } | null>(null);
   const [userDetailsOpen, setUserDetailsOpen] = useState(false);
   const [userDetailsLoading, setUserDetailsLoading] = useState(false);
+  const userDetailsRequestId = useRef(0);
+  const userDetailsOpenedHere = useRef(false);
   const [creditDrafts, setCreditDrafts] = useState<Record<string, string>>({});
   const [jobs, setJobs] = useState<Row[]>([]);
   const [audit, setAudit] = useState<Row[]>([]);
@@ -368,6 +395,35 @@ export function AdminPage() {
   useEffect(() => {
     setTab(adminTabFromPath(window.location.pathname));
   }, [location]);
+
+  // A selected user lives in the URL so Back closes the account record and
+  // returns to the exact admin page that opened it. The same URL can also be
+  // shared/bookmarked by administrators.
+  useEffect(() => {
+    if (!allowed) return;
+    const userId = adminUserIdFromLocation(location);
+    if (!userId) {
+      userDetailsRequestId.current += 1;
+      userDetailsOpenedHere.current = false;
+      setUserDetailsOpen(false);
+      setUserDetailsLoading(false);
+      setUserDetails(null);
+      return;
+    }
+    const requestId = ++userDetailsRequestId.current;
+    setUserDetailsOpen(true);
+    setUserDetailsLoading(true);
+    setUserDetails(null);
+    void fetchAdminUserDetails(userId).then((details) => {
+      if (requestId === userDetailsRequestId.current) setUserDetails(details);
+    }).catch((error) => {
+      if (requestId !== userDetailsRequestId.current) return;
+      setMessage(error instanceof Error ? error.message : 'User details could not be loaded.');
+      setUserDetailsOpen(false);
+    }).finally(() => {
+      if (requestId === userDetailsRequestId.current) setUserDetailsLoading(false);
+    });
+  }, [allowed, location]);
 
   useEffect(() => {
     if (!allowed) return;
@@ -540,19 +596,27 @@ export function AdminPage() {
     setUsersPage(1);
   }
 
-  async function openUserDetails(user: Row) {
-    setUserDetailsOpen(true);
-    setUserDetailsLoading(true);
-    setUserDetails(null);
-    try {
-      const details = await fetchAdminUserDetails(text(user.id));
-      setUserDetails(details);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'User details could not be loaded.');
-      setUserDetailsOpen(false);
-    } finally {
-      setUserDetailsLoading(false);
+  function openUserDetails(user: Row | string) {
+    const userId = typeof user === 'string' ? user : String(user.id ?? '').trim();
+    if (!userId) return;
+    const [path, query = ''] = location.split('?');
+    const params = new URLSearchParams(query);
+    params.set('user', userId);
+    userDetailsOpenedHere.current = true;
+    navigate(`${path}?${params.toString()}`);
+  }
+
+  function closeUserDetails() {
+    if (userDetailsOpenedHere.current) {
+      userDetailsOpenedHere.current = false;
+      window.history.back();
+      return;
     }
+    const [path, query = ''] = location.split('?');
+    const params = new URLSearchParams(query);
+    params.delete('user');
+    const next = params.size ? `${path}?${params.toString()}` : path;
+    navigate(next, { replace: true });
   }
 
   if (!checked) return <div className="flex min-h-screen items-center justify-center bg-bg"><div className="h-9 w-9 animate-spin rounded-full border-2 border-violet border-t-transparent" /></div>;
@@ -571,7 +635,7 @@ export function AdminPage() {
       <header className="sticky top-3 z-30 flex flex-col justify-between gap-4 rounded-2xl border border-white/10 bg-bg/90 p-4 shadow-2xl backdrop-blur-xl sm:flex-row sm:items-center"><div><p className="text-xs font-semibold uppercase tracking-[.16em] text-violet">Operations</p><h1 className="mt-1 font-display text-2xl font-bold text-text-primary sm:text-3xl">Admin control center</h1><p className="mt-1 text-sm text-text-muted">Users, productions, Gemini costs, availability, and safety controls.</p></div><div className="flex gap-2">{tab === 'landing' && <Button disabled={busy || !dirty} onClick={() => void saveLanding()}><Save size={15} /> {dirty ? 'Save landing page' : 'Saved'}</Button>}{tab === 'providers' && <Button disabled={busy} onClick={() => void saveSettings()}><Save size={15} /> Save controls</Button>}<Button variant="secondary" disabled={busy} onClick={() => void refresh()}><RefreshCw size={15} className={busy ? 'animate-spin' : ''} /> Refresh</Button></div></header>
       {message && <div className="mt-5 rounded-xl border border-violet/25 bg-violet/10 px-4 py-3 text-sm text-text-muted">{message}</div>}
 
-      {tab === 'reports' && <AdminReports report={reports} range={reportRange} loading={reportsLoading} onRangeChange={(nextRange) => { setMessage(null); setReportRange(nextRange); }} />}
+      {tab === 'reports' && <AdminReports report={reports} range={reportRange} loading={reportsLoading} onRangeChange={(nextRange) => { setMessage(null); setReportRange(nextRange); }} onViewUser={(userId) => openUserDetails(userId)} />}
 
       {tab === 'overview' && <div className="mt-7 space-y-6">
         <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{([
@@ -580,7 +644,7 @@ export function AdminPage() {
           ['Completed', number(jobStats.done), CheckCircle2, 'Successful deliveries'],
           ['Month cost', `$${number(usage.cost).toFixed(2)}`, DollarSign, `${number(usage.credits).toFixed(0)} customer credits used`],
         ] as MetricCard[]).map(([label, value, Icon, hint]) => <div key={label} className="rounded-2xl border border-border bg-panel p-5"><div className="flex items-center justify-between"><p className="text-xs text-text-muted">{label}</p><Icon size={17} className="text-violet" /></div><p className="mt-3 font-utility text-2xl font-bold text-text-primary">{value}</p><p className="mt-1 text-[10px] text-text-dim">{hint}</p></div>)}</section>
-        <section className="grid gap-5 xl:grid-cols-[1.35fr_.65fr]"><div className="rounded-3xl border border-border bg-panel p-5"><div className="flex items-center justify-between"><div><h2 className="font-semibold text-text-primary">Recent productions</h2><p className="text-xs text-text-dim">Latest activity across all users</p></div><button onClick={() => selectTab('jobs')} className="text-xs font-semibold text-violet">View all</button></div><div className="mt-4 overflow-x-auto"><table className="w-full min-w-[620px] text-left text-xs"><thead className="text-text-dim"><tr><th className="pb-3">Project</th><th>User</th><th>Status</th><th>Provider</th><th>Cost</th></tr></thead><tbody className="divide-y divide-border">{recentJobs.map((job) => <tr key={text(job.id)}><td className="max-w-52 truncate py-3 font-semibold text-text-primary">{text(job.title || job.source_url)}</td><td className="text-text-muted">{text(job.email)}</td><td><span className={`rounded-full px-2 py-1 text-[9px] capitalize ${statusClass(job.status)}`}>{text(job.status)}</span></td><td className="text-text-muted">{text(job.generation_provider)}</td><td className="text-text-muted">${number(job.generation_cost_usd).toFixed(3)}</td></tr>)}</tbody></table></div></div>
+        <section className="grid gap-5 xl:grid-cols-[1.35fr_.65fr]"><div className="rounded-3xl border border-border bg-panel p-5"><div className="flex items-center justify-between"><div><h2 className="font-semibold text-text-primary">Recent productions</h2><p className="text-xs text-text-dim">Latest activity across all users</p></div><button onClick={() => selectTab('jobs')} className="text-xs font-semibold text-violet">View all</button></div><div className="mt-4 overflow-x-auto"><table className="w-full min-w-[620px] text-left text-xs"><thead className="text-text-dim"><tr><th className="pb-3">Project</th><th>User</th><th>Status</th><th>Provider</th><th>Cost</th></tr></thead><tbody className="divide-y divide-border">{recentJobs.map((job) => <tr key={text(job.id)}><td className="max-w-52 truncate py-3 font-semibold text-text-primary">{text(job.title || job.source_url)}</td><td><UserReference userId={job.user_id} label={job.email} onOpen={(userId) => openUserDetails(userId)} className="max-w-48 truncate" /></td><td><span className={`rounded-full px-2 py-1 text-[9px] capitalize ${statusClass(job.status)}`}>{text(job.status)}</span></td><td className="text-text-muted">{text(job.generation_provider)}</td><td className="text-text-muted">${number(job.generation_cost_usd).toFixed(3)}</td></tr>)}</tbody></table></div></div>
         <div className="space-y-3 rounded-3xl border border-border bg-panel p-5"><h2 className="font-semibold text-text-primary">System readiness</h2>{[['Gemini API', providerStatus.geminiApiKey], ['Cloudflare R2 storage', providerStatus.r2Storage], ['Checkout credentials', providerStatus.checkout?.configured]].map(([label, ready]) => <div key={String(label)} className="flex items-center justify-between rounded-xl bg-panel-alt px-3 py-2.5"><span className="text-xs text-text-muted">{String(label)}</span><span className={`flex items-center gap-1.5 text-[10px] font-semibold ${ready ? 'text-mint' : 'text-pink'}`}>{ready ? <CheckCircle2 size={13} /> : <AlertTriangle size={13} />}{ready ? 'Ready' : 'Missing'}</span></div>)}{providerStatus.checkout?.configured && <div className="rounded-xl bg-panel-alt px-3 py-2.5 text-[10px] text-text-dim"><div className="flex items-center justify-between gap-3"><span>Checkout connection</span><span className={`font-semibold ${providerStatus.checkout.connection === 'ready' ? 'text-mint' : providerStatus.checkout.connection === 'credentials_rejected' ? 'text-pink' : 'text-amber-200'}`}>{providerStatus.checkout.connection === 'ready' ? 'Verified' : providerStatus.checkout.connection === 'credentials_rejected' ? 'Credentials rejected' : providerStatus.checkout.connection === 'unavailable' ? 'Unavailable' : 'Not checked yet'}</span></div><p className="mt-1">Mode: {providerStatus.checkout.environment === 'live' ? 'Live' : 'Sandbox'}</p></div>}</div></section>
         <section className="rounded-3xl border border-border bg-panel p-5"><div><h2 className="font-semibold text-text-primary">Gemini cost by process · this month</h2><p className="text-xs text-text-dim">Recorded from each completed Gemini generation step.</p></div><div className="mt-4 overflow-x-auto"><table className="w-full min-w-[680px] text-left text-xs"><thead className="text-text-dim"><tr><th className="pb-3">Model</th><th>Process</th><th>Usage</th><th>Events</th><th>Cost</th></tr></thead><tbody className="divide-y divide-border">{costBreakdown.map((row, index) => <tr key={`${text(row.provider)}-${text(row.operation)}-${index}`}><td className="py-3 text-text-primary">{text(row.model)}</td><td className="text-text-muted">{text(row.operation).replaceAll('_', ' ')}</td><td className="text-text-muted">{number(row.quantity).toFixed(2)} {text(row.unit)}</td><td className="text-text-muted">{number(row.events)}</td><td className="font-semibold text-mint">${number(row.cost).toFixed(4)}</td></tr>)}</tbody></table>{!costBreakdown.length && <p className="py-8 text-center text-sm text-text-dim">Costs will appear after the next generation.</p>}</div></section>
         <section className="rounded-3xl border border-border bg-panel p-5"><div><h2 className="font-semibold text-text-primary">Configured Gemini unit prices</h2><p className="text-xs text-text-dim">Reference rates used to calculate each process event. Text rates can be overridden with server environment variables.</p></div><div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{[
@@ -757,7 +821,7 @@ export function AdminPage() {
         </section>
       </div>}
 
-      {tab === 'jobs' && <section className="mt-4 overflow-hidden rounded-3xl border border-border bg-panel"><div className="overflow-x-auto"><table className="w-full min-w-[1160px] text-left text-xs"><thead className="border-b border-border bg-panel-alt text-text-dim"><tr><th className="p-4">Production</th><th>Feature</th><th>User</th><th>Status</th><th>Progress</th><th>Provider</th><th>Cost</th><th>Credits</th><th className="pr-4">Actions</th></tr></thead><tbody className="divide-y divide-border">{jobs.map((job) => <tr key={text(job.id)}><td className="max-w-64 p-4"><p className="truncate font-semibold text-text-primary">{text(job.title || job.source_url)}</p><p className="mt-1 truncate text-[9px] text-text-dim">{text(job.source_url)}</p>{Boolean(job.error_message) && <p className="mt-1 max-w-64 truncate text-[9px] text-pink" title={text(job.error_message)}>{text(job.error_message)}</p>}</td><td><div className="min-w-32"><span className="inline-flex rounded-full border border-violet/20 bg-violet/10 px-2.5 py-1 text-[9px] font-semibold text-violet">{text(job.feature_label)}</span><p className="mt-1 font-utility text-[8px] text-text-dim">{text(job.feature_type)}</p></div></td><td className="text-text-muted">{text(job.email)}</td><td><span className={`rounded-full px-2 py-1 text-[9px] capitalize ${statusClass(job.status)}`}>{text(job.status)}</span></td><td><div className="w-24"><div className="h-1.5 overflow-hidden rounded-full bg-white/10"><span className="block h-full bg-signature transition-all" style={{ width: `${Math.min(100, number(job.progress))}%` }} /></div><span className="text-[9px] text-text-dim">{number(job.progress)}%</span></div></td><td className="max-w-36 truncate text-text-muted">{text(job.generation_provider)}</td><td className="text-text-muted">${number(job.generation_cost_usd).toFixed(3)}</td><td><div className="min-w-24"><p className="font-utility font-semibold text-text-primary">{number(job.credits_charged)} credits</p><p className="mt-0.5 text-[9px] text-text-dim">Quote {number(job.credits_quoted)} · {number(job.duration_seconds)}s · {text(job.output_quality)}</p>{text(job.audio_mode) === 'voice_music' && <p className="mt-0.5 text-[9px] text-violet">Includes narration</p>}</div></td><td className="pr-4"><div className="flex gap-2">{['queued','capturing','storyboarding','rendering'].includes(text(job.status)) && <button disabled={busy} onClick={() => void updateAdminJob(text(job.id), 'cancel').then(loadJobs)} className="rounded-lg border border-pink/25 px-2 py-1.5 text-[9px] font-semibold text-pink">Cancel</button>}<button disabled={busy} onClick={() => { if (window.confirm('Hide this production from the user history?')) void updateAdminJob(text(job.id), 'hide').then(loadJobs); }} className="rounded-lg border border-border px-2 py-1.5 text-[9px] text-text-muted">Hide</button></div></td></tr>)}</tbody></table></div>{!jobs.length && <p className="p-10 text-center text-sm text-text-dim">No productions match these filters.</p>}</section>}
+      {tab === 'jobs' && <section className="mt-4 overflow-hidden rounded-3xl border border-border bg-panel"><div className="overflow-x-auto"><table className="w-full min-w-[1160px] text-left text-xs"><thead className="border-b border-border bg-panel-alt text-text-dim"><tr><th className="p-4">Production</th><th>Feature</th><th>User</th><th>Status</th><th>Progress</th><th>Provider</th><th>Cost</th><th>Credits</th><th className="pr-4">Actions</th></tr></thead><tbody className="divide-y divide-border">{jobs.map((job) => <tr key={text(job.id)}><td className="max-w-64 p-4"><p className="truncate font-semibold text-text-primary">{text(job.title || job.source_url)}</p><p className="mt-1 truncate text-[9px] text-text-dim">{text(job.source_url)}</p>{Boolean(job.error_message) && <p className="mt-1 max-w-64 truncate text-[9px] text-pink" title={text(job.error_message)}>{text(job.error_message)}</p>}</td><td><div className="min-w-32"><span className="inline-flex rounded-full border border-violet/20 bg-violet/10 px-2.5 py-1 text-[9px] font-semibold text-violet">{text(job.feature_label)}</span><p className="mt-1 font-utility text-[8px] text-text-dim">{text(job.feature_type)}</p></div></td><td><UserReference userId={job.user_id} label={job.email} onOpen={(userId) => openUserDetails(userId)} className="max-w-52 truncate" /></td><td><span className={`rounded-full px-2 py-1 text-[9px] capitalize ${statusClass(job.status)}`}>{text(job.status)}</span></td><td><div className="w-24"><div className="h-1.5 overflow-hidden rounded-full bg-white/10"><span className="block h-full bg-signature transition-all" style={{ width: `${Math.min(100, number(job.progress))}%` }} /></div><span className="text-[9px] text-text-dim">{number(job.progress)}%</span></div></td><td className="max-w-36 truncate text-text-muted">{text(job.generation_provider)}</td><td className="text-text-muted">${number(job.generation_cost_usd).toFixed(3)}</td><td><div className="min-w-24"><p className="font-utility font-semibold text-text-primary">{number(job.credits_charged)} credits</p><p className="mt-0.5 text-[9px] text-text-dim">Quote {number(job.credits_quoted)} · {number(job.duration_seconds)}s · {text(job.output_quality)}</p>{text(job.audio_mode) === 'voice_music' && <p className="mt-0.5 text-[9px] text-violet">Includes narration</p>}</div></td><td className="pr-4"><div className="flex gap-2">{['queued','capturing','storyboarding','rendering'].includes(text(job.status)) && <button disabled={busy} onClick={() => void updateAdminJob(text(job.id), 'cancel').then(loadJobs)} className="rounded-lg border border-pink/25 px-2 py-1.5 text-[9px] font-semibold text-pink">Cancel</button>}<button disabled={busy} onClick={() => { if (window.confirm('Hide this production from the user history?')) void updateAdminJob(text(job.id), 'hide').then(loadJobs); }} className="rounded-lg border border-border px-2 py-1.5 text-[9px] text-text-muted">Hide</button></div></td></tr>)}</tbody></table></div>{!jobs.length && <p className="p-10 text-center text-sm text-text-dim">No productions match these filters.</p>}</section>}
 
       {tab === 'providers' && settings && <div className="mt-7 grid gap-5 xl:grid-cols-[.8fr_1.2fr]">
         <section className="space-y-4">
@@ -812,9 +876,9 @@ export function AdminPage() {
           <select value={auditSort} onChange={(event) => setAuditSort(event.target.value as typeof auditSort)} className="rounded-xl border border-border bg-bg px-3 py-3 text-xs text-text-primary"><option value="newest">Newest first</option><option value="oldest">Oldest first</option></select>
           {(auditSearch || auditSearchBy !== 'all' || auditCategory !== 'all' || auditCreated !== 'all' || auditSort !== 'newest') && <button type="button" onClick={() => { setAuditSearch(''); setAuditSearchBy('all'); setAuditCategory('all'); setAuditCreated('all'); setAuditSort('newest'); }} className="rounded-xl border border-violet/25 bg-violet/10 px-3 py-3 text-xs font-semibold text-violet">Clear filters</button>}
         </div>
-        <section className="rounded-3xl border border-border bg-panel p-5"><div className="flex items-center gap-3"><Database size={18} className="text-violet" /><div><h2 className="font-semibold text-text-primary">Administrator audit log</h2><p className="text-xs text-text-dim">Searchable permanent record of sensitive control changes.</p></div></div><div className="mt-5 divide-y divide-border">{audit.map((event) => <div key={text(event.id)} className="grid gap-2 py-3 text-xs sm:grid-cols-[1fr_1fr_1fr_auto]"><span className="font-semibold text-text-primary">{text(event.action)}</span><span className="text-text-muted">{text(event.admin_email)}</span><span className="text-text-dim">{text(event.target_type)} · {text(event.target_id)}</span><span className="text-text-dim">{date(event.created_at)}</span></div>)}{!audit.length && <p className="py-10 text-center text-text-dim">No administrator actions match these filters.</p>}</div></section>
+        <section className="rounded-3xl border border-border bg-panel p-5"><div className="flex items-center gap-3"><Database size={18} className="text-violet" /><div><h2 className="font-semibold text-text-primary">Administrator audit log</h2><p className="text-xs text-text-dim">Searchable permanent record of sensitive control changes. User references open the complete account record.</p></div></div><div className="mt-5 divide-y divide-border">{audit.map((event) => <div key={text(event.id)} className="grid gap-2 py-3 text-xs sm:grid-cols-[1fr_1fr_1fr_auto]"><span className="font-semibold text-text-primary">{text(event.action)}</span><UserReference userId={event.admin_user_id} label={event.admin_email} onOpen={(userId) => openUserDetails(userId)} className="max-w-56 truncate" /><span className="text-text-dim">{text(event.target_type)} · {text(event.target_type) === 'user' ? <UserReference userId={event.target_id} label={event.target_id} onOpen={(userId) => openUserDetails(userId)} className="max-w-48 truncate align-bottom font-utility text-[9px]" /> : text(event.target_id)}</span><span className="text-text-dim">{date(event.created_at)}</span></div>)}{!audit.length && <p className="py-10 text-center text-text-dim">No administrator actions match these filters.</p>}</div></section>
       </div>}
-      {userDetailsOpen && <UserDetailsModal details={userDetails} loading={userDetailsLoading} onClose={() => { setUserDetailsOpen(false); setUserDetails(null); }} />}
+      {userDetailsOpen && <UserDetailsModal details={userDetails} loading={userDetailsLoading} onClose={closeUserDetails} />}
     </main>
   </div>;
 }

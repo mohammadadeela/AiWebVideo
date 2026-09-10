@@ -24,3 +24,17 @@ test('admin report timeline avoids the reserved month alias that broke PostgreSQ
   assert.match(source, /AS period_start/);
   assert.match(source, /LEFT JOIN revenue ON revenue\.period_start=month_series\.period_start/);
 });
+
+test('every admin customer reference retains a user id and opens the shared account record', async () => {
+  const routeSource = await readFile(new URL('../src/routes/admin.ts', import.meta.url), 'utf8');
+  const pageSource = await readFile(new URL('../../aiwebvideo/src/pages/AdminPage.tsx', import.meta.url), 'utf8');
+  const reportsSource = await readFile(new URL('../../aiwebvideo/src/components/admin/AdminReports.tsx', import.meta.url), 'utf8');
+
+  assert.match(routeSource, /SELECT j\.id,j\.user_id,j\.title/);
+  assert.match(routeSource, /SELECT p\.id,p\.user_id,p\.provider/);
+  assert.match(routeSource, /a\.admin_id AS admin_user_id/);
+  assert.match(pageSource, /function UserReference/);
+  assert.match(pageSource, /params\.set\('user', userId\)/);
+  assert.match(pageSource, /onViewUser=\{\(userId\) => openUserDetails\(userId\)\}/);
+  assert.match(reportsSource, /onViewUser\(text\(payment\.user_id\)\)/);
+});
