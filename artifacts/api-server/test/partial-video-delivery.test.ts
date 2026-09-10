@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildPartialDeliveryMetadata,
+  MIN_PARTIAL_DELIVERY_RATIO,
   partialDeliveryResultMessage,
   readPartialDeliveryMetadata,
 } from '../src/lib/partial-delivery.js';
@@ -33,6 +34,17 @@ test('a complete or over-complete provider result has no partial refund', () => 
   assert.equal(buildPartialDeliveryMetadata(144, 148, 4), null);
 });
 
+test('less than half of the requested film is not treated as a paid partial delivery', () => {
+  assert.equal(MIN_PARTIAL_DELIVERY_RATIO, 0.5);
+  assert.throws(
+    () => buildPartialDeliveryMetadata(144, 64, 4),
+    /below the fair partial-delivery threshold/,
+  );
+  const half = buildPartialDeliveryMetadata(144, 72, 4);
+  assert.equal(half?.deliveredSeconds, 72);
+  assert.equal(half?.refundedCredits, 288);
+});
+
 test('saved partial metadata must be internally consistent before it changes result UX', () => {
   const valid = buildPartialDeliveryMetadata(48, 43, 4);
   assert.deepEqual(readPartialDeliveryMetadata(valid), valid);
@@ -41,6 +53,12 @@ test('saved partial metadata must be internally consistent before it changes res
     deliveredSeconds: 43,
     missingSeconds: 6,
     refundedCredits: 24,
+  }), null);
+  assert.equal(readPartialDeliveryMetadata({
+    requestedSeconds: 144,
+    deliveredSeconds: 64,
+    missingSeconds: 80,
+    refundedCredits: 320,
   }), null);
 });
 
