@@ -26,7 +26,7 @@ function isSignInMethod(value: string | null): value is SignInMethod {
 
 function lastUsedButtonClass(active: boolean) {
   return active
-    ? 'border-violet/35 bg-[linear-gradient(135deg,rgba(139,92,246,.09),rgba(236,72,153,.035))] shadow-[0_14px_34px_-28px_rgba(139,92,246,.95)]'
+    ? 'border-violet/45 ring-1 ring-inset ring-violet/20 bg-[linear-gradient(135deg,rgba(139,92,246,.10),rgba(236,72,153,.045))] shadow-[0_16px_36px_-28px_rgba(139,92,246,.95)]'
     : '';
 }
 
@@ -34,9 +34,8 @@ function LastUsedBadge() {
   return (
     <span
       aria-label="Last used sign-in method"
-      className="pointer-events-none absolute right-2 top-0 z-10 inline-flex h-4 items-center gap-1.5 rounded-full border border-violet/25 bg-panel px-2 font-utility text-[8px] font-semibold uppercase leading-none tracking-[.12em] text-violet shadow-[0_8px_24px_-14px_rgba(139,92,246,.9),inset_0_1px_0_rgba(255,255,255,.08)]"
+      className="pointer-events-none absolute -top-2 right-3 z-20 inline-flex h-4 items-center rounded-full border border-white/10 bg-[linear-gradient(135deg,#7c3aed_0%,#ec4899_72%,#f59e0b_145%)] px-2.5 font-utility text-[8px] font-semibold uppercase leading-none tracking-[.13em] text-white shadow-[0_8px_22px_-10px_rgba(139,92,246,.9),0_4px_14px_-8px_rgba(236,72,153,.8),inset_0_1px_0_rgba(255,255,255,.20)]"
     >
-      <span className="inline-flex h-2.5 w-2.5 items-center justify-center rounded-full bg-violet/15 text-[7px] font-bold text-pink">✓</span>
       Last used
     </span>
   );
@@ -44,7 +43,7 @@ function LastUsedBadge() {
 
 function LastUsedMethod({ active, children }: { active: boolean; children: React.ReactNode }) {
   return (
-    <div className={active ? 'relative pt-5' : 'relative'}>
+    <div className="relative">
       {active && <LastUsedBadge />}
       {children}
     </div>
