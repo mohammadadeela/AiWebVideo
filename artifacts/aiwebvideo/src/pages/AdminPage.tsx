@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ComponentType } from 'react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { Activity, AlertTriangle, BarChart3, CheckCircle2, Clock3, CreditCard, Database, DollarSign, FileVideo, KeyRound, LayoutDashboard, MailCheck, ReceiptText, RefreshCw, Search, Settings2, ShieldCheck, SlidersHorizontal, UserRoundCog, Users, Upload, Save, GalleryVerticalEnd, Plus, Trash2, X, type LucideProps } from 'lucide-react';
 import { Button } from '@/components/ui/app-button';
 import { Switch } from '@/components/ui/switch';
@@ -26,6 +26,18 @@ const tabs: Array<{ id: Tab; label: string; icon: typeof LayoutDashboard }> = [
   { id: 'providers', label: 'AI & controls', icon: SlidersHorizontal },
   { id: 'audit', label: 'Audit log', icon: ShieldCheck },
 ];
+const adminPathByTab: Record<Tab, string> = {
+  overview: '/admin',
+  reports: '/admin/reports',
+  landing: '/admin/landing',
+  users: '/admin/users',
+  jobs: '/admin/productions',
+  providers: '/admin/controls',
+  audit: '/admin/audit',
+};
+function adminTabFromPath(pathname: string): Tab {
+  return (Object.entries(adminPathByTab).find(([, path]) => path === pathname)?.[0] as Tab | undefined) ?? 'overview';
+}
 function number(value: unknown) { return Number(value ?? 0); }
 function text(value: unknown) { return String(value ?? '—'); }
 function date(value: unknown) { return value ? new Date(String(value)).toLocaleString() : '—'; }
@@ -86,6 +98,8 @@ function UserRow({
   const statusDisabledReason = isSelf && isActive ? 'You cannot suspend your own account.' : undefined;
   const subscriptionStatus = user.subscription_status ? text(user.subscription_status) : null;
   const subscriptionProvider = user.subscription_provider ? text(user.subscription_provider) : null;
+  const hasPaidPurchase = Boolean(user.has_paid_purchase);
+  const hasSubscription = Boolean(user.has_subscription);
 
   return (
     <tr className="align-top hover:bg-white/[.02]">
@@ -96,6 +110,8 @@ function UserRow({
               {text(user.email)}
             </button>
             {isSelf && <span className="rounded-full bg-violet/15 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-violet">You</span>}
+            {hasPaidPurchase && <span className="rounded-full border border-mint/20 bg-mint/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-mint">Paid customer</span>}
+            {hasSubscription && <span className="rounded-full border border-violet/20 bg-violet/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-violet">Subscriber</span>}
             <span className={`rounded-full px-1.5 py-0.5 text-[8px] font-semibold ${verified ? 'bg-mint/10 text-mint' : 'bg-amber-300/10 text-amber-200'}`}>
               {verified ? 'Verified' : 'Unverified'}
             </span>
@@ -125,7 +141,7 @@ function UserRow({
               {Boolean(user.subscription_period_end) && <p>Renews/ends {date(user.subscription_period_end)}</p>}
             </div>
           ) : <p className="mt-2 text-[9px] text-text-dim">No subscription</p>}
-          <p className="mt-1 text-[9px] font-semibold text-mint">${number(user.lifetime_paid_usd).toFixed(2)} lifetime paid</p>
+          <p className={`mt-1 text-[9px] font-semibold ${hasPaidPurchase ? 'text-mint' : 'text-text-dim'}`}>${number(user.lifetime_paid_usd).toFixed(2)} lifetime paid · {number(user.paid_purchase_count)} purchase{number(user.paid_purchase_count) === 1 ? '' : 's'}</p>
         </div>
       </td>
       <td className="py-4 pr-4">
@@ -232,7 +248,8 @@ function UserDetailsModal({ details, loading, onClose }: { details: { user: Row;
 
 export function AdminPage() {
   useSeo({ title: 'Admin', description: 'AiWebVideo admin console.', path: '/admin', noindex: true });
-  const [tab, setTab] = useState<Tab>(() => window.location.pathname === '/admin/reports' ? 'reports' : 'overview');
+  const [location, navigate] = useLocation();
+  const [tab, setTab] = useState<Tab>(() => adminTabFromPath(window.location.pathname));
   const [checked, setChecked] = useState(false);
   const [allowed, setAllowed] = useState(false);
   const [meId, setMeId] = useState<string | null>(null);
@@ -250,6 +267,10 @@ export function AdminPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'suspended'>('all');
   const [authFilter, setAuthFilter] = useState<'all' | 'email' | 'google' | 'github' | 'facebook' | 'firebase' | 'unknown'>('all');
   const [verifiedFilter, setVerifiedFilter] = useState<'all' | 'verified' | 'unverified'>('all');
+  const [billingFilter, setBillingFilter] = useState<'all' | 'paying' | 'purchased' | 'subscribed' | 'active_subscription' | 'never_paid'>('all');
+  const [userSearchBy, setUserSearchBy] = useState<'all' | 'email' | 'id' | 'payment' | 'subscription'>('all');
+  const [joinedFilter, setJoinedFilter] = useState<'all' | 'today' | '7d' | '30d' | 'year'>('all');
+  const [userSort, setUserSort] = useState<'newest' | 'oldest' | 'recent_signin' | 'highest_spend' | 'highest_credits' | 'most_productions'>('newest');
   const [userSummary, setUserSummary] = useState<Row>({});
   const [pendingSignups, setPendingSignups] = useState<Row[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
@@ -266,7 +287,19 @@ export function AdminPage() {
   const [dirty, setDirty] = useState(false);
   const [userSearch, setUserSearch] = useState('');
   const [jobSearch, setJobSearch] = useState('');
+  const [jobSearchBy, setJobSearchBy] = useState<'all' | 'title' | 'id' | 'url' | 'user' | 'provider' | 'error'>('all');
   const [jobStatus, setJobStatus] = useState('all');
+  const [jobFeature, setJobFeature] = useState('all');
+  const [jobProvider, setJobProvider] = useState<'all' | 'gemini' | 'other' | 'unassigned'>('all');
+  const [jobCreated, setJobCreated] = useState<'all' | 'today' | '7d' | '30d' | 'year'>('all');
+  const [jobBilling, setJobBilling] = useState<'all' | 'charged' | 'no_charge'>('all');
+  const [jobQuality, setJobQuality] = useState<'all' | '1080p' | '4k'>('all');
+  const [jobSort, setJobSort] = useState<'newest' | 'oldest' | 'highest_cost' | 'highest_credits' | 'most_progress'>('newest');
+  const [auditSearch, setAuditSearch] = useState('');
+  const [auditSearchBy, setAuditSearchBy] = useState<'all' | 'action' | 'admin' | 'target' | 'details'>('all');
+  const [auditCategory, setAuditCategory] = useState<'all' | 'user' | 'job' | 'settings' | 'marketing'>('all');
+  const [auditCreated, setAuditCreated] = useState<'all' | 'today' | '7d' | '30d' | 'year'>('all');
+  const [auditSort, setAuditSort] = useState<'newest' | 'oldest'>('newest');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -282,7 +315,7 @@ export function AdminPage() {
     setUsersLoading(true);
     setUsersError(null);
     try {
-      const result = await fetchAdminUsers({ search: userSearch, page: usersPage, plan: planFilter, role: roleFilter, status: statusFilter, auth: authFilter, verified: verifiedFilter });
+      const result = await fetchAdminUsers({ search: userSearch, searchBy: userSearchBy, page: usersPage, plan: planFilter, role: roleFilter, status: statusFilter, auth: authFilter, verified: verifiedFilter, billing: billingFilter, joined: joinedFilter, sort: userSort });
       if (requestId !== usersRequestId.current) return;
       if (!Array.isArray(result.users)) throw new Error('The server returned an invalid users response.');
       const pageSize = Math.max(1, Number(result.pageSize) || 25);
@@ -306,9 +339,9 @@ export function AdminPage() {
     } finally {
       if (requestId === usersRequestId.current) setUsersLoading(false);
     }
-  }, [userSearch, usersPage, planFilter, roleFilter, statusFilter, authFilter, verifiedFilter]);
-  const loadJobs = useCallback(async () => setJobs((await fetchAdminJobs(jobStatus, jobSearch)).jobs), [jobStatus, jobSearch]);
-  const loadAudit = useCallback(async () => setAudit((await fetchAdminAudit()).events), []);
+  }, [userSearch, userSearchBy, usersPage, planFilter, roleFilter, statusFilter, authFilter, verifiedFilter, billingFilter, joinedFilter, userSort]);
+  const loadJobs = useCallback(async () => setJobs((await fetchAdminJobs({ search: jobSearch, searchBy: jobSearchBy, status: jobStatus, feature: jobFeature, provider: jobProvider, created: jobCreated, billing: jobBilling, quality: jobQuality, sort: jobSort })).jobs), [jobSearch, jobSearchBy, jobStatus, jobFeature, jobProvider, jobCreated, jobBilling, jobQuality, jobSort]);
+  const loadAudit = useCallback(async () => setAudit((await fetchAdminAudit({ search: auditSearch, searchBy: auditSearchBy, category: auditCategory, created: auditCreated, sort: auditSort })).events), [auditSearch, auditSearchBy, auditCategory, auditCreated, auditSort]);
   const loadReports = useCallback(async () => {
     setReportsLoading(true);
     try {
@@ -330,7 +363,11 @@ export function AdminPage() {
 
   // Any filter or search change should reset back to page 1 — otherwise a
   // narrower filter can land the admin on a now-empty page.
-  useEffect(() => { setUsersPage(1); }, [userSearch, planFilter, roleFilter, statusFilter, authFilter, verifiedFilter]);
+  useEffect(() => { setUsersPage(1); }, [userSearch, userSearchBy, planFilter, roleFilter, statusFilter, authFilter, verifiedFilter, billingFilter, joinedFilter, userSort]);
+
+  useEffect(() => {
+    setTab(adminTabFromPath(window.location.pathname));
+  }, [location]);
 
   useEffect(() => {
     if (!allowed) return;
@@ -355,7 +392,7 @@ export function AdminPage() {
   const recentJobs = (overview?.recentJobs ?? []) as Row[];
   const costBreakdown = (overview?.costBreakdown ?? []) as Row[];
   const videoCostMatrix = (overview?.videoCostMatrix ?? []) as Row[];
-  const userFiltersActive = Boolean(userSearch || planFilter !== 'all' || roleFilter !== 'all' || statusFilter !== 'all' || authFilter !== 'all' || verifiedFilter !== 'all');
+  const userFiltersActive = Boolean(userSearch || userSearchBy !== 'all' || planFilter !== 'all' || roleFilter !== 'all' || statusFilter !== 'all' || authFilter !== 'all' || verifiedFilter !== 'all' || billingFilter !== 'all' || joinedFilter !== 'all' || userSort !== 'newest');
   const costCatalog = (overview?.costCatalog ?? {}) as {
     text?: { inputToken?: number; outputToken?: number };
     video?: Record<string, number>;
@@ -485,17 +522,21 @@ export function AdminPage() {
 
   function selectTab(nextTab: Tab) {
     setTab(nextTab);
-    const nextPath = nextTab === 'reports' ? '/admin/reports' : '/admin';
-    if (window.location.pathname !== nextPath) window.history.replaceState({}, '', nextPath);
+    const nextPath = adminPathByTab[nextTab];
+    if (window.location.pathname !== nextPath) navigate(nextPath);
   }
 
   function clearUserFilters() {
     setUserSearch('');
+    setUserSearchBy('all');
     setPlanFilter('all');
     setRoleFilter('all');
     setStatusFilter('all');
     setAuthFilter('all');
     setVerifiedFilter('all');
+    setBillingFilter('all');
+    setJoinedFilter('all');
+    setUserSort('newest');
     setUsersPage(1);
   }
 
@@ -645,12 +686,13 @@ export function AdminPage() {
         </div>
       </section>}
 
-      {tab === 'users' && <section className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
+      {tab === 'users' && <section className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
         {[
           ['Accounts', number(userSummary.total), 'All registered users'],
           ['Active', number(userSummary.active), 'Can sign in and generate'],
+          ['Paid customers', number(userSummary.paying_users), `$${number(userSummary.lifetime_revenue).toFixed(2)} collected`],
+          ['Subscribers', number(userSummary.subscribers), `${number(userSummary.active_subscribers)} active now`],
           ['Admins', number(userSummary.admins), 'Administrator accounts'],
-          ['Paid plans', number(userSummary.paid_plans), 'Creator / Pro / Agency'],
           ['Suspended', number(userSummary.suspended), 'Access blocked'],
           ['Verified', number(userSummary.verified), 'Verified emails'],
           ['Social auth', number(userSummary.social_auth), 'Google / GitHub / Facebook'],
@@ -658,16 +700,30 @@ export function AdminPage() {
         ].map(([label, value, hint]) => <div key={String(label)} className="rounded-2xl border border-border bg-panel p-3.5"><p className="text-[9px] uppercase tracking-wider text-text-dim">{String(label)}</p><p className="mt-2 font-utility text-xl font-bold text-text-primary">{String(value)}</p><p className="mt-1 text-[9px] leading-4 text-text-dim">{String(hint)}</p></div>)}
       </section>}
 
-      {(tab === 'users' || tab === 'jobs') && <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center"><div className="relative flex-1 sm:min-w-64"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-dim" /><input value={tab === 'users' ? userSearch : jobSearch} onChange={(event) => tab === 'users' ? setUserSearch(event.target.value) : setJobSearch(event.target.value)} placeholder={tab === 'users' ? 'Search by email or user ID' : 'Search projects, URLs, or users'} className="w-full rounded-xl border border-border bg-panel py-3 pl-9 pr-3 text-base text-text-primary outline-none focus:border-violet/50 sm:text-xs" /></div>
+      {(tab === 'users' || tab === 'jobs') && <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-border bg-panel/60 p-3 sm:flex-row sm:flex-wrap sm:items-center"><div className="relative flex-1 sm:min-w-72"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-dim" /><input value={tab === 'users' ? userSearch : jobSearch} onChange={(event) => tab === 'users' ? setUserSearch(event.target.value) : setJobSearch(event.target.value)} placeholder={tab === 'users' ? 'Search accounts, payments or subscriptions' : 'Search productions, users, URLs, providers or errors'} className="w-full rounded-xl border border-border bg-bg py-3 pl-9 pr-3 text-base text-text-primary outline-none focus:border-violet/50 sm:text-xs" /></div>
         {tab === 'users' && <>
+          <select value={userSearchBy} onChange={(event) => setUserSearchBy(event.target.value as typeof userSearchBy)} className="rounded-xl border border-border bg-bg px-3 py-3 text-xs text-text-primary"><option value="all">Search everything</option><option value="email">Email only</option><option value="id">User ID only</option><option value="payment">Payment reference / product</option><option value="subscription">Subscription ID / plan / status</option></select>
+          <select value={billingFilter} onChange={(event) => setBillingFilter(event.target.value as typeof billingFilter)} className="rounded-xl border border-border bg-panel px-3 py-3 text-xs text-text-primary"><option value="all">All billing activity</option><option value="paying">Paid or subscribed</option><option value="purchased">Bought anything</option><option value="subscribed">Any subscription</option><option value="active_subscription">Active subscription</option><option value="never_paid">Never paid</option></select>
           <select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value as typeof roleFilter)} className="rounded-xl border border-border bg-panel px-3 py-3 text-xs text-text-primary"><option value="all">All roles</option><option value="admin">Administrators</option><option value="user">Customers</option></select>
           <select value={planFilter} onChange={(event) => setPlanFilter(event.target.value as typeof planFilter)} className="rounded-xl border border-border bg-panel px-3 py-3 text-xs text-text-primary"><option value="all">All plans</option><option value="free">Free</option><option value="creator">Creator</option><option value="pro">Pro</option><option value="agency">Agency</option></select>
           <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)} className="rounded-xl border border-border bg-panel px-3 py-3 text-xs text-text-primary"><option value="all">All statuses</option><option value="active">Active</option><option value="suspended">Suspended</option></select>
           <select value={authFilter} onChange={(event) => setAuthFilter(event.target.value as typeof authFilter)} className="rounded-xl border border-border bg-panel px-3 py-3 text-xs text-text-primary"><option value="all">All sign-in types</option><option value="email">Email / password</option><option value="google">Google</option><option value="github">GitHub</option><option value="facebook">Facebook</option><option value="firebase">Firebase legacy</option><option value="unknown">Unknown legacy</option></select>
           <select value={verifiedFilter} onChange={(event) => setVerifiedFilter(event.target.value as typeof verifiedFilter)} className="rounded-xl border border-border bg-panel px-3 py-3 text-xs text-text-primary"><option value="all">Verified + unverified</option><option value="verified">Verified only</option><option value="unverified">Unverified only</option></select>
+          <select value={joinedFilter} onChange={(event) => setJoinedFilter(event.target.value as typeof joinedFilter)} className="rounded-xl border border-border bg-panel px-3 py-3 text-xs text-text-primary"><option value="all">Joined any time</option><option value="today">Joined today</option><option value="7d">Joined last 7 days</option><option value="30d">Joined last 30 days</option><option value="year">Joined last year</option></select>
+          <select value={userSort} onChange={(event) => setUserSort(event.target.value as typeof userSort)} className="rounded-xl border border-border bg-panel px-3 py-3 text-xs text-text-primary"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="recent_signin">Recent sign-in</option><option value="highest_spend">Highest spend</option><option value="highest_credits">Highest credits</option><option value="most_productions">Most productions</option></select>
           {userFiltersActive && <button type="button" onClick={clearUserFilters} className="rounded-xl border border-violet/25 bg-violet/10 px-3 py-3 text-xs font-semibold text-violet hover:bg-violet/15">Clear filters</button>}
         </>}
-        {tab === 'jobs' && <select value={jobStatus} onChange={(event) => setJobStatus(event.target.value)} className="rounded-xl border border-border bg-panel px-4 py-3 text-xs text-text-primary"><option value="all">All statuses</option><option value="queued">Queued</option><option value="capturing">Capturing</option><option value="captured">Captured</option><option value="storyboarding">Direction</option><option value="rendering">Rendering</option><option value="done">Completed</option><option value="failed">Failed</option><option value="cancelled">Cancelled</option></select>}
+        {tab === 'jobs' && <>
+          <select value={jobSearchBy} onChange={(event) => setJobSearchBy(event.target.value as typeof jobSearchBy)} className="rounded-xl border border-border bg-bg px-3 py-3 text-xs text-text-primary"><option value="all">Search everything</option><option value="title">Title only</option><option value="id">Production ID</option><option value="url">Source URL</option><option value="user">User email</option><option value="provider">Provider</option><option value="error">Status / error</option></select>
+          <select value={jobFeature} onChange={(event) => setJobFeature(event.target.value)} className="rounded-xl border border-border bg-panel px-3 py-3 text-xs text-text-primary"><option value="all">All features</option><option value="website-video">Website Video</option><option value="ai-video">AI Video</option><option value="ai-images">AI Images</option><option value="product-photos">Product Photos</option><option value="product-video">Product Video</option><option value="talking-scene">Talking Scene</option></select>
+          <select value={jobStatus} onChange={(event) => setJobStatus(event.target.value)} className="rounded-xl border border-border bg-panel px-3 py-3 text-xs text-text-primary"><option value="all">All statuses</option><option value="queued">Queued</option><option value="capturing">Capturing</option><option value="captured">Captured</option><option value="storyboarding">Direction</option><option value="rendering">Rendering</option><option value="done">Completed</option><option value="failed">Failed</option><option value="cancelled">Cancelled</option></select>
+          <select value={jobProvider} onChange={(event) => setJobProvider(event.target.value as typeof jobProvider)} className="rounded-xl border border-border bg-panel px-3 py-3 text-xs text-text-primary"><option value="all">All providers</option><option value="gemini">Gemini</option><option value="other">Other provider</option><option value="unassigned">Not assigned</option></select>
+          <select value={jobCreated} onChange={(event) => setJobCreated(event.target.value as typeof jobCreated)} className="rounded-xl border border-border bg-panel px-3 py-3 text-xs text-text-primary"><option value="all">Created any time</option><option value="today">Today</option><option value="7d">Last 7 days</option><option value="30d">Last 30 days</option><option value="year">Last year</option></select>
+          <select value={jobBilling} onChange={(event) => setJobBilling(event.target.value as typeof jobBilling)} className="rounded-xl border border-border bg-panel px-3 py-3 text-xs text-text-primary"><option value="all">Any cost</option><option value="charged">Credits / cost charged</option><option value="no_charge">No charge</option></select>
+          <select value={jobQuality} onChange={(event) => setJobQuality(event.target.value as typeof jobQuality)} className="rounded-xl border border-border bg-panel px-3 py-3 text-xs text-text-primary"><option value="all">All quality</option><option value="1080p">1080p</option><option value="4k">4K</option></select>
+          <select value={jobSort} onChange={(event) => setJobSort(event.target.value as typeof jobSort)} className="rounded-xl border border-border bg-panel px-3 py-3 text-xs text-text-primary"><option value="newest">Recently updated</option><option value="oldest">Oldest created</option><option value="highest_cost">Highest provider cost</option><option value="highest_credits">Highest credits</option><option value="most_progress">Most progress</option></select>
+          {(jobSearch || jobSearchBy !== 'all' || jobStatus !== 'all' || jobFeature !== 'all' || jobProvider !== 'all' || jobCreated !== 'all' || jobBilling !== 'all' || jobQuality !== 'all' || jobSort !== 'newest') && <button type="button" onClick={() => { setJobSearch(''); setJobSearchBy('all'); setJobStatus('all'); setJobFeature('all'); setJobProvider('all'); setJobCreated('all'); setJobBilling('all'); setJobQuality('all'); setJobSort('newest'); }} className="rounded-xl border border-violet/25 bg-violet/10 px-3 py-3 text-xs font-semibold text-violet hover:bg-violet/15">Clear filters</button>}
+        </>}
       </div>}
 
       {tab === 'users' && <div className="mt-4 space-y-4">
@@ -701,7 +757,7 @@ export function AdminPage() {
         </section>
       </div>}
 
-      {tab === 'jobs' && <section className="mt-4 overflow-hidden rounded-3xl border border-border bg-panel"><div className="overflow-x-auto"><table className="w-full min-w-[1020px] text-left text-xs"><thead className="border-b border-border bg-panel-alt text-text-dim"><tr><th className="p-4">Production</th><th>User</th><th>Status</th><th>Progress</th><th>Provider</th><th>Cost</th><th>Credits</th><th className="pr-4">Actions</th></tr></thead><tbody className="divide-y divide-border">{jobs.map((job) => <tr key={text(job.id)}><td className="max-w-64 p-4"><p className="truncate font-semibold text-text-primary">{text(job.title || job.source_url)}</p><p className="mt-1 truncate text-[9px] text-text-dim">{text(job.source_url)}</p>{Boolean(job.error_message) && <p className="mt-1 max-w-64 truncate text-[9px] text-pink" title={text(job.error_message)}>{text(job.error_message)}</p>}</td><td className="text-text-muted">{text(job.email)}</td><td><span className={`rounded-full px-2 py-1 text-[9px] capitalize ${statusClass(job.status)}`}>{text(job.status)}</span></td><td><div className="w-24"><div className="h-1.5 overflow-hidden rounded-full bg-white/10"><span className="block h-full bg-signature" style={{ width: `${Math.min(100, number(job.progress))}%` }} /></div><span className="text-[9px] text-text-dim">{number(job.progress)}%</span></div></td><td className="max-w-36 truncate text-text-muted">{text(job.generation_provider)}</td><td className="text-text-muted">${number(job.generation_cost_usd).toFixed(3)}</td><td><div className="min-w-24"><p className="font-utility font-semibold text-text-primary">{number(job.credits_charged)} credits</p><p className="mt-0.5 text-[9px] text-text-dim">Quote {number(job.credits_quoted)} · {number(job.duration_seconds)}s · {text(job.output_quality)}</p>{text(job.audio_mode) === 'voice_music' && <p className="mt-0.5 text-[9px] text-violet">Includes narration</p>}</div></td><td className="pr-4"><div className="flex gap-2">{['queued','capturing','storyboarding','rendering'].includes(text(job.status)) && <button disabled={busy} onClick={() => void updateAdminJob(text(job.id), 'cancel').then(loadJobs)} className="rounded-lg border border-pink/25 px-2 py-1.5 text-[9px] font-semibold text-pink">Cancel</button>}<button disabled={busy} onClick={() => { if (window.confirm('Hide this production from the user history?')) void updateAdminJob(text(job.id), 'hide').then(loadJobs); }} className="rounded-lg border border-border px-2 py-1.5 text-[9px] text-text-muted">Hide</button></div></td></tr>)}</tbody></table></div>{!jobs.length && <p className="p-10 text-center text-sm text-text-dim">No productions match these filters.</p>}</section>}
+      {tab === 'jobs' && <section className="mt-4 overflow-hidden rounded-3xl border border-border bg-panel"><div className="overflow-x-auto"><table className="w-full min-w-[1160px] text-left text-xs"><thead className="border-b border-border bg-panel-alt text-text-dim"><tr><th className="p-4">Production</th><th>Feature</th><th>User</th><th>Status</th><th>Progress</th><th>Provider</th><th>Cost</th><th>Credits</th><th className="pr-4">Actions</th></tr></thead><tbody className="divide-y divide-border">{jobs.map((job) => <tr key={text(job.id)}><td className="max-w-64 p-4"><p className="truncate font-semibold text-text-primary">{text(job.title || job.source_url)}</p><p className="mt-1 truncate text-[9px] text-text-dim">{text(job.source_url)}</p>{Boolean(job.error_message) && <p className="mt-1 max-w-64 truncate text-[9px] text-pink" title={text(job.error_message)}>{text(job.error_message)}</p>}</td><td><div className="min-w-32"><span className="inline-flex rounded-full border border-violet/20 bg-violet/10 px-2.5 py-1 text-[9px] font-semibold text-violet">{text(job.feature_label)}</span><p className="mt-1 font-utility text-[8px] text-text-dim">{text(job.feature_type)}</p></div></td><td className="text-text-muted">{text(job.email)}</td><td><span className={`rounded-full px-2 py-1 text-[9px] capitalize ${statusClass(job.status)}`}>{text(job.status)}</span></td><td><div className="w-24"><div className="h-1.5 overflow-hidden rounded-full bg-white/10"><span className="block h-full bg-signature transition-all" style={{ width: `${Math.min(100, number(job.progress))}%` }} /></div><span className="text-[9px] text-text-dim">{number(job.progress)}%</span></div></td><td className="max-w-36 truncate text-text-muted">{text(job.generation_provider)}</td><td className="text-text-muted">${number(job.generation_cost_usd).toFixed(3)}</td><td><div className="min-w-24"><p className="font-utility font-semibold text-text-primary">{number(job.credits_charged)} credits</p><p className="mt-0.5 text-[9px] text-text-dim">Quote {number(job.credits_quoted)} · {number(job.duration_seconds)}s · {text(job.output_quality)}</p>{text(job.audio_mode) === 'voice_music' && <p className="mt-0.5 text-[9px] text-violet">Includes narration</p>}</div></td><td className="pr-4"><div className="flex gap-2">{['queued','capturing','storyboarding','rendering'].includes(text(job.status)) && <button disabled={busy} onClick={() => void updateAdminJob(text(job.id), 'cancel').then(loadJobs)} className="rounded-lg border border-pink/25 px-2 py-1.5 text-[9px] font-semibold text-pink">Cancel</button>}<button disabled={busy} onClick={() => { if (window.confirm('Hide this production from the user history?')) void updateAdminJob(text(job.id), 'hide').then(loadJobs); }} className="rounded-lg border border-border px-2 py-1.5 text-[9px] text-text-muted">Hide</button></div></td></tr>)}</tbody></table></div>{!jobs.length && <p className="p-10 text-center text-sm text-text-dim">No productions match these filters.</p>}</section>}
 
       {tab === 'providers' && settings && <div className="mt-7 grid gap-5 xl:grid-cols-[.8fr_1.2fr]">
         <section className="space-y-4">
@@ -748,7 +804,16 @@ export function AdminPage() {
         </section>
       </div>}
 
-      {tab === 'audit' && <section className="mt-7 rounded-3xl border border-border bg-panel p-5"><div className="flex items-center gap-3"><Database size={18} className="text-violet" /><div><h2 className="font-semibold text-text-primary">Administrator audit log</h2><p className="text-xs text-text-dim">Permanent record of sensitive control changes.</p></div></div><div className="mt-5 divide-y divide-border">{audit.map((event) => <div key={text(event.id)} className="grid gap-2 py-3 text-xs sm:grid-cols-[1fr_1fr_1fr_auto]"><span className="font-semibold text-text-primary">{text(event.action)}</span><span className="text-text-muted">{text(event.admin_email)}</span><span className="text-text-dim">{text(event.target_type)} · {text(event.target_id)}</span><span className="text-text-dim">{date(event.created_at)}</span></div>)}{!audit.length && <p className="py-10 text-center text-text-dim">No administrator actions recorded yet.</p>}</div></section>}
+      {tab === 'audit' && <div className="mt-7 space-y-4">
+        <div className="flex flex-col gap-3 rounded-2xl border border-border bg-panel/60 p-3 sm:flex-row sm:flex-wrap"><div className="relative flex-1 sm:min-w-72"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-dim" /><input value={auditSearch} onChange={(event) => setAuditSearch(event.target.value)} placeholder="Search actions, admins, targets or change details" className="w-full rounded-xl border border-border bg-bg py-3 pl-9 pr-3 text-base text-text-primary outline-none focus:border-violet/50 sm:text-xs" /></div>
+          <select value={auditSearchBy} onChange={(event) => setAuditSearchBy(event.target.value as typeof auditSearchBy)} className="rounded-xl border border-border bg-bg px-3 py-3 text-xs text-text-primary"><option value="all">Search everything</option><option value="action">Action</option><option value="admin">Admin email</option><option value="target">Target type / ID</option><option value="details">Changed details</option></select>
+          <select value={auditCategory} onChange={(event) => setAuditCategory(event.target.value as typeof auditCategory)} className="rounded-xl border border-border bg-bg px-3 py-3 text-xs text-text-primary"><option value="all">All action types</option><option value="user">User changes</option><option value="job">Production changes</option><option value="settings">Control settings</option><option value="marketing">Landing content</option></select>
+          <select value={auditCreated} onChange={(event) => setAuditCreated(event.target.value as typeof auditCreated)} className="rounded-xl border border-border bg-bg px-3 py-3 text-xs text-text-primary"><option value="all">Any time</option><option value="today">Today</option><option value="7d">Last 7 days</option><option value="30d">Last 30 days</option><option value="year">Last year</option></select>
+          <select value={auditSort} onChange={(event) => setAuditSort(event.target.value as typeof auditSort)} className="rounded-xl border border-border bg-bg px-3 py-3 text-xs text-text-primary"><option value="newest">Newest first</option><option value="oldest">Oldest first</option></select>
+          {(auditSearch || auditSearchBy !== 'all' || auditCategory !== 'all' || auditCreated !== 'all' || auditSort !== 'newest') && <button type="button" onClick={() => { setAuditSearch(''); setAuditSearchBy('all'); setAuditCategory('all'); setAuditCreated('all'); setAuditSort('newest'); }} className="rounded-xl border border-violet/25 bg-violet/10 px-3 py-3 text-xs font-semibold text-violet">Clear filters</button>}
+        </div>
+        <section className="rounded-3xl border border-border bg-panel p-5"><div className="flex items-center gap-3"><Database size={18} className="text-violet" /><div><h2 className="font-semibold text-text-primary">Administrator audit log</h2><p className="text-xs text-text-dim">Searchable permanent record of sensitive control changes.</p></div></div><div className="mt-5 divide-y divide-border">{audit.map((event) => <div key={text(event.id)} className="grid gap-2 py-3 text-xs sm:grid-cols-[1fr_1fr_1fr_auto]"><span className="font-semibold text-text-primary">{text(event.action)}</span><span className="text-text-muted">{text(event.admin_email)}</span><span className="text-text-dim">{text(event.target_type)} · {text(event.target_id)}</span><span className="text-text-dim">{date(event.created_at)}</span></div>)}{!audit.length && <p className="py-10 text-center text-text-dim">No administrator actions match these filters.</p>}</div></section>
+      </div>}
       {userDetailsOpen && <UserDetailsModal details={userDetails} loading={userDetailsLoading} onClose={() => { setUserDetailsOpen(false); setUserDetails(null); }} />}
     </main>
   </div>;

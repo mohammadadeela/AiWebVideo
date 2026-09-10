@@ -518,6 +518,10 @@ const faqGroups = [
         "What website content is captured?",
         "The website workflow works with public website pages. Account history and downloadable outputs are loaded through the authenticated experience.",
       ],
+      [
+        "How do I contact support?",
+        "Email aiwebvideo0@gmail.com for help with your account, billing, or a production.",
+      ],
     ],
   },
 ] as const;

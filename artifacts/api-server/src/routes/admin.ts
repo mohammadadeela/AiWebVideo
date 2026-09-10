@@ -15,6 +15,7 @@ import { CREDIT_COSTS, MAX_VIDEO_SECONDS, MIN_VIDEO_SECONDS, videoCreditQuote } 
 import { getPayPalReadiness, PRODUCTS } from './paypal.js';
 import { getProviderQueueSnapshot } from '../lib/provider-queue.js';
 import { isR2Configured, uploadBufferToR2 } from '../lib/r2-storage.js';
+import { classifyAdminProduction } from '../lib/admin-production.js';
 
 const router = Router();
 router.use(requireAdmin);
@@ -108,6 +109,16 @@ const inferredProductSql = `COALESCE(product_id, CASE
   WHEN kind='one_time' AND credits_granted=100 THEN 'topup100'
   WHEN kind='one_time' AND credits_granted=250 THEN 'topup250'
   ELSE 'unclassified' END)`;
+
+const adminJobFeatureSql = `CASE
+  WHEN j.capture_metadata->>'sourceType'='studio' AND j.capture_metadata->>'studioKind'='product' THEN CASE WHEN j.mode='photos' THEN 'product-photos' ELSE 'product-video' END
+  WHEN j.capture_metadata->>'sourceType'='studio' AND j.capture_metadata->>'studioKind'='scenario' THEN 'talking-scene'
+  WHEN j.capture_metadata->>'sourceType'='studio' AND j.capture_metadata->>'studioKind'='idea' THEN 'ai-video'
+  WHEN j.mode='product-video' THEN 'product-video'
+  WHEN j.mode='talking-scene' THEN 'talking-scene'
+  WHEN j.mode IN ('ai-video','custom') THEN 'ai-video'
+  WHEN j.mode='photos' THEN 'ai-images'
+  ELSE 'website-video' END`;
 
 router.get('/reports', async (req, res) => {
   try {
@@ -207,22 +218,25 @@ router.get('/reports', async (req, res) => {
         COUNT(*) FILTER (WHERE status IN ('queued','capturing','storyboarding','rendering'))::int running,
         COALESCE(SUM(credits_spent),0)::int credits_reserved_or_spent
         FROM jobs ${jobWhere}`, values),
-      query<Record<string, unknown>>(`WITH months AS (
-          SELECT generate_series(date_trunc('month',NOW()) - INTERVAL '11 months',date_trunc('month',NOW()),INTERVAL '1 month') AS month
+      query<Record<string, unknown>>(`WITH month_series AS (
+          SELECT generate_series(date_trunc('month',NOW()) - INTERVAL '11 months',date_trunc('month',NOW()),INTERVAL '1 month') AS period_start
         ), revenue AS (
-          SELECT date_trunc('month',created_at) month,
+          SELECT date_trunc('month',created_at) AS period_start,
             COALESCE(SUM(amount_usd) FILTER (WHERE status IN ('paid','refunded','reversed')),0)::float gross,
             COALESCE(SUM(amount_usd) FILTER (WHERE status='paid'),0)::float net,
             COALESCE(SUM(amount_usd) FILTER (WHERE status IN ('refunded','reversed')),0)::float refunds
           FROM payments WHERE created_at >= date_trunc('month',NOW()) - INTERVAL '11 months' GROUP BY 1
         ), costs AS (
-          SELECT date_trunc('month',created_at) month,COALESCE(SUM(total_cost_usd),0)::float provider_cost
+          SELECT date_trunc('month',created_at) AS period_start,COALESCE(SUM(total_cost_usd),0)::float provider_cost
           FROM generation_cost_events WHERE created_at >= date_trunc('month',NOW()) - INTERVAL '11 months' GROUP BY 1
         )
-        SELECT to_char(months.month,'YYYY-MM') period,to_char(months.month,'Mon YYYY') label,
+        SELECT to_char(month_series.period_start,'YYYY-MM') period,to_char(month_series.period_start,'Mon YYYY') label,
           COALESCE(revenue.gross,0)::float gross_revenue,COALESCE(revenue.net,0)::float net_revenue,
           COALESCE(revenue.refunds,0)::float refunds,COALESCE(costs.provider_cost,0)::float provider_cost
-        FROM months LEFT JOIN revenue USING(month) LEFT JOIN costs USING(month) ORDER BY months.month`),
+        FROM month_series
+        LEFT JOIN revenue ON revenue.period_start=month_series.period_start
+        LEFT JOIN costs ON costs.period_start=month_series.period_start
+        ORDER BY month_series.period_start`),
       query<Record<string, unknown>>(`WITH classified AS (
           SELECT p.*,${inferredProductSql} AS product_key FROM payments p ${paymentAliasWhere}
         )
@@ -365,12 +379,23 @@ router.get('/users', async (req, res) => {
     const statusFilter = String(req.query.status ?? 'all');
     const authFilter = String(req.query.auth ?? 'all');
     const verifiedFilter = String(req.query.verified ?? 'all');
+    const billingFilter = String(req.query.billing ?? 'all');
+    const searchBy = String(req.query.searchBy ?? 'all');
+    const joined = String(req.query.joined ?? 'all');
+    const sort = String(req.query.sort ?? 'newest');
     const limit = 25;
     const clauses: string[] = [];
     const values: unknown[] = [];
     if (search) {
       values.push(`%${search}%`);
-      clauses.push(`(u.email ILIKE $${values.length} OR u.id::text ILIKE $${values.length})`);
+      const value = `$${values.length}`;
+      const searchClauses: Record<string, string> = {
+        email: `u.email ILIKE ${value}`,
+        id: `u.id::text ILIKE ${value}`,
+        payment: `EXISTS (SELECT 1 FROM payments sp WHERE sp.user_id=u.id AND (sp.provider_ref ILIKE ${value} OR COALESCE(sp.provider_capture_ref,'') ILIKE ${value} OR COALESCE(sp.product_id,'') ILIKE ${value}))`,
+        subscription: `EXISTS (SELECT 1 FROM subscriptions ss WHERE ss.user_id=u.id AND (COALESCE(ss.paypal_subscription_id,'') ILIKE ${value} OR ss.plan ILIKE ${value} OR ss.status ILIKE ${value}))`,
+      };
+      clauses.push(searchClauses[searchBy] ?? `(u.email ILIKE ${value} OR u.id::text ILIKE ${value} OR EXISTS (SELECT 1 FROM payments sp WHERE sp.user_id=u.id AND (sp.provider_ref ILIKE ${value} OR COALESCE(sp.provider_capture_ref,'') ILIKE ${value} OR COALESCE(sp.product_id,'') ILIKE ${value})) OR EXISTS (SELECT 1 FROM subscriptions ss WHERE ss.user_id=u.id AND (COALESCE(ss.paypal_subscription_id,'') ILIKE ${value} OR ss.plan ILIKE ${value} OR ss.status ILIKE ${value})))`);
     }
     if (['free', 'creator', 'pro', 'agency'].includes(planFilter)) {
       values.push(planFilter);
@@ -388,11 +413,33 @@ router.get('/users', async (req, res) => {
     }
     if (verifiedFilter === 'verified') clauses.push(`u.email_verified = TRUE`);
     else if (verifiedFilter === 'unverified') clauses.push(`u.email_verified = FALSE`);
+    if (billingFilter === 'paying') {
+      clauses.push(`(EXISTS (SELECT 1 FROM payments bp WHERE bp.user_id=u.id AND bp.status='paid') OR EXISTS (SELECT 1 FROM subscriptions bs WHERE bs.user_id=u.id))`);
+    } else if (billingFilter === 'purchased') {
+      clauses.push(`EXISTS (SELECT 1 FROM payments bp WHERE bp.user_id=u.id AND bp.status='paid')`);
+    } else if (billingFilter === 'subscribed') {
+      clauses.push(`EXISTS (SELECT 1 FROM subscriptions bs WHERE bs.user_id=u.id)`);
+    } else if (billingFilter === 'active_subscription') {
+      clauses.push(`EXISTS (SELECT 1 FROM subscriptions bs WHERE bs.user_id=u.id AND bs.status='active')`);
+    } else if (billingFilter === 'never_paid') {
+      clauses.push(`NOT EXISTS (SELECT 1 FROM payments bp WHERE bp.user_id=u.id AND bp.status='paid') AND NOT EXISTS (SELECT 1 FROM subscriptions bs WHERE bs.user_id=u.id)`);
+    }
+    const joinedIntervals: Record<string, string> = { '7d': '7 days', '30d': '30 days', year: '1 year' };
+    if (joined === 'today') clauses.push(`u.created_at >= date_trunc('day',NOW())`);
+    else if (joinedIntervals[joined]) clauses.push(`u.created_at >= NOW() - INTERVAL '${joinedIntervals[joined]}'`);
 
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
     const countValues = [...values];
     values.push(limit, (page - 1) * limit);
     const limitIndex = values.length - 1;
+    const userOrderBy: Record<string, string> = {
+      newest: 'u.created_at DESC',
+      oldest: 'u.created_at ASC',
+      recent_signin: 'u.last_sign_in_at DESC NULLS LAST, u.created_at DESC',
+      highest_spend: `(SELECT COALESCE(SUM(p.amount_usd),0) FROM payments p WHERE p.user_id=u.id AND p.status='paid') DESC, u.created_at DESC`,
+      highest_credits: 'u.credits_balance DESC, u.created_at DESC',
+      most_productions: `(SELECT COUNT(*) FROM jobs j WHERE j.user_id=u.id AND j.deleted_at IS NULL) DESC, u.created_at DESC`,
+    };
     const rows = await query<Record<string, unknown>>(
       `SELECT
          u.id,u.email,u.plan,u.credits_balance,u.is_admin,u.account_status,u.created_at,u.updated_at,
@@ -407,15 +454,19 @@ router.get('/users', async (req, res) => {
          COALESCE((SELECT SUM(ct.delta) FROM credit_transactions ct WHERE ct.user_id=u.id AND ct.delta > 0 AND ct.reason ILIKE '%refund%'),0)::int AS credits_refunded,
          COALESCE((SELECT SUM(p.credits_granted) FROM payments p WHERE p.user_id=u.id AND p.status='paid'),0)::int AS credits_purchased,
          COALESCE((SELECT SUM(p.amount_usd) FROM payments p WHERE p.user_id=u.id AND p.status='paid'),0)::float AS lifetime_paid_usd,
+         (SELECT COUNT(*)::int FROM payments p WHERE p.user_id=u.id AND p.status='paid') AS paid_purchase_count,
+         EXISTS (SELECT 1 FROM payments p WHERE p.user_id=u.id AND p.status='paid') AS has_paid_purchase,
+         (SELECT COUNT(*)::int FROM subscriptions s WHERE s.user_id=u.id) AS subscription_count,
+         EXISTS (SELECT 1 FROM subscriptions s WHERE s.user_id=u.id) AS has_subscription,
          (SELECT p.provider FROM payments p WHERE p.user_id=u.id AND p.status='paid' ORDER BY p.created_at DESC LIMIT 1) AS last_payment_provider,
          (SELECT p.created_at FROM payments p WHERE p.user_id=u.id AND p.status='paid' ORDER BY p.created_at DESC LIMIT 1) AS last_payment_at,
          (SELECT s.plan FROM subscriptions s WHERE s.user_id=u.id ORDER BY (s.status='active') DESC, s.updated_at DESC LIMIT 1) AS subscription_plan,
          (SELECT s.status FROM subscriptions s WHERE s.user_id=u.id ORDER BY (s.status='active') DESC, s.updated_at DESC LIMIT 1) AS subscription_status,
-         (SELECT CASE WHEN s.paypal_subscription_id IS NOT NULL THEN 'payment' ELSE NULL END FROM subscriptions s WHERE s.user_id=u.id ORDER BY (s.status='active') DESC, s.updated_at DESC LIMIT 1) AS subscription_provider,
+         (SELECT CASE WHEN s.paypal_subscription_id IS NOT NULL THEN 'PayPal' ELSE 'Manual' END FROM subscriptions s WHERE s.user_id=u.id ORDER BY (s.status='active') DESC, s.updated_at DESC LIMIT 1) AS subscription_provider,
          (SELECT s.auto_renew FROM subscriptions s WHERE s.user_id=u.id ORDER BY (s.status='active') DESC, s.updated_at DESC LIMIT 1) AS subscription_auto_renew,
          (SELECT s.current_period_end FROM subscriptions s WHERE s.user_id=u.id ORDER BY (s.status='active') DESC, s.updated_at DESC LIMIT 1) AS subscription_period_end
        FROM users u ${where}
-       ORDER BY u.created_at DESC
+       ORDER BY ${userOrderBy[sort] ?? userOrderBy.newest}
        LIMIT $${limitIndex} OFFSET $${limitIndex + 1}`,
       values,
     );
@@ -427,6 +478,10 @@ router.get('/users', async (req, res) => {
         COUNT(*) FILTER (WHERE account_status='suspended')::int suspended,
         COUNT(*) FILTER (WHERE is_admin)::int admins,
         COUNT(*) FILTER (WHERE plan<>'free')::int paid_plans,
+        (SELECT COUNT(DISTINCT p.user_id)::int FROM payments p WHERE p.status='paid') AS paying_users,
+        (SELECT COUNT(DISTINCT s.user_id)::int FROM subscriptions s) AS subscribers,
+        (SELECT COUNT(DISTINCT s.user_id)::int FROM subscriptions s WHERE s.status='active') AS active_subscribers,
+        COALESCE((SELECT SUM(p.amount_usd) FROM payments p WHERE p.status='paid'),0)::float AS lifetime_revenue,
         COUNT(*) FILTER (WHERE email_verified)::int verified,
         COUNT(*) FILTER (WHERE auth_provider='email')::int email_auth,
         COUNT(*) FILTER (WHERE auth_provider IN ('google','github','facebook','firebase'))::int social_auth
@@ -545,19 +600,60 @@ router.get('/jobs', async (req, res) => {
   try {
     const status = String(req.query.status ?? 'all');
     const search = String(req.query.search ?? '').trim();
+    const searchBy = String(req.query.searchBy ?? 'all');
+    const feature = String(req.query.feature ?? 'all');
+    const provider = String(req.query.provider ?? 'all');
+    const created = String(req.query.created ?? 'all');
+    const billing = String(req.query.billing ?? 'all');
+    const quality = String(req.query.quality ?? 'all');
+    const sort = String(req.query.sort ?? 'newest');
     const clauses = ['j.deleted_at IS NULL']; const values: unknown[] = [];
     if (status !== 'all') { values.push(status); clauses.push(`j.status=$${values.length}`); }
-    if (search) { values.push(`%${search}%`); clauses.push(`(j.title ILIKE $${values.length} OR j.source_url ILIKE $${values.length} OR u.email ILIKE $${values.length})`); }
+    if (search) {
+      values.push(`%${search}%`);
+      const value = `$${values.length}`;
+      const searchClauses: Record<string, string> = {
+        title: `COALESCE(j.title,'') ILIKE ${value}`,
+        id: `j.id::text ILIKE ${value}`,
+        url: `j.source_url ILIKE ${value}`,
+        user: `u.email ILIKE ${value}`,
+        provider: `COALESCE(j.generation_provider,'') ILIKE ${value}`,
+        error: `(COALESCE(j.error_message,'') ILIKE ${value} OR COALESCE(j.status_message,'') ILIKE ${value})`,
+      };
+      clauses.push(searchClauses[searchBy] ?? `(COALESCE(j.title,'') ILIKE ${value} OR j.id::text ILIKE ${value} OR j.source_url ILIKE ${value} OR u.email ILIKE ${value} OR COALESCE(j.generation_provider,'') ILIKE ${value} OR COALESCE(j.error_message,'') ILIKE ${value} OR COALESCE(j.status_message,'') ILIKE ${value})`);
+    }
+    if (['website-video', 'ai-video', 'ai-images', 'product-photos', 'product-video', 'talking-scene'].includes(feature)) {
+      values.push(feature);
+      clauses.push(`(${adminJobFeatureSql})=$${values.length}`);
+    }
+    if (provider === 'gemini') clauses.push(`COALESCE(j.generation_provider,'') ILIKE '%gemini%'`);
+    else if (provider === 'other') clauses.push(`j.generation_provider IS NOT NULL AND j.generation_provider NOT ILIKE '%gemini%'`);
+    else if (provider === 'unassigned') clauses.push(`j.generation_provider IS NULL`);
+    const createdIntervals: Record<string, string> = { '7d': '7 days', '30d': '30 days', year: '1 year' };
+    if (created === 'today') clauses.push(`j.created_at >= date_trunc('day',NOW())`);
+    else if (createdIntervals[created]) clauses.push(`j.created_at >= NOW() - INTERVAL '${createdIntervals[created]}'`);
+    if (billing === 'charged') clauses.push(`(j.credits_spent > 0 OR j.generation_cost_usd > 0)`);
+    else if (billing === 'no_charge') clauses.push(`j.credits_spent=0 AND j.generation_cost_usd=0`);
+    if (quality === '4k') clauses.push(`COALESCE(j.storyboard->>'outputQuality',j.workflow_state->>'outputQuality')='4k'`);
+    else if (quality === '1080p') clauses.push(`COALESCE(j.storyboard->>'outputQuality',j.workflow_state->>'outputQuality','1080p')<>'4k'`);
+    const jobOrderBy: Record<string, string> = {
+      newest: 'j.updated_at DESC',
+      oldest: 'j.created_at ASC',
+      highest_cost: 'j.generation_cost_usd DESC, j.updated_at DESC',
+      highest_credits: 'j.credits_spent DESC, j.updated_at DESC',
+      most_progress: 'j.progress DESC, j.updated_at DESC',
+    };
     values.push(100);
     const rows = await query<Record<string, unknown>>(
-      `SELECT j.id,j.title,j.source_url,j.status,j.progress,j.mode,j.status_message,j.error_message,j.generation_provider,j.generation_cost_usd,j.credits_spent,j.storyboard,j.workflow_state,j.created_at,j.updated_at,u.email,
+      `SELECT j.id,j.title,j.source_url,j.status,j.progress,j.mode,j.status_message,j.error_message,j.generation_provider,j.generation_cost_usd,j.credits_spent,j.capture_metadata,j.storyboard,j.workflow_state,j.created_at,j.updated_at,u.email,
         GREATEST(j.credits_spent, GREATEST(0, -COALESCE((SELECT SUM(ct.delta) FROM credit_transactions ct WHERE ct.user_id=j.user_id AND (ct.job_id=j.id OR (ct.job_id IS NULL AND ct.reason ILIKE '%' || j.id::text || '%'))),0)))::int AS credits_charged
-       FROM jobs j LEFT JOIN users u ON u.id=j.user_id WHERE ${clauses.join(' AND ')} ORDER BY j.updated_at DESC LIMIT $${values.length}`,
+       FROM jobs j LEFT JOIN users u ON u.id=j.user_id WHERE ${clauses.join(' AND ')} ORDER BY ${jobOrderBy[sort] ?? jobOrderBy.newest} LIMIT $${values.length}`,
       values,
     );
     const jobsWithCredits = rows.rows.map((row) => {
       const storyboard = (row.storyboard && typeof row.storyboard === 'object' ? row.storyboard : {}) as Record<string, unknown>;
       const workflow = (row.workflow_state && typeof row.workflow_state === 'object' ? row.workflow_state : {}) as Record<string, unknown>;
+      const feature = classifyAdminProduction({ mode: row.mode, captureMetadata: row.capture_metadata, workflowState: workflow });
       const durationSeconds = Math.max(MIN_VIDEO_SECONDS, Math.min(MAX_VIDEO_SECONDS, Number(storyboard.targetDurationSeconds ?? workflow.durationSeconds ?? MIN_VIDEO_SECONDS) || MIN_VIDEO_SECONDS));
       const outputQuality = (storyboard.outputQuality ?? workflow.outputQuality) === '4k' ? '4k' as const : '1080p' as const;
       const audioMode = String(workflow.audioMode ?? 'native_audio');
@@ -565,6 +661,8 @@ router.get('/jobs', async (req, res) => {
       const quote = videoCreditQuote(String(row.mode ?? 'video'), skipVoiceover, durationSeconds, outputQuality);
       return {
         ...row,
+        feature_type: feature.type,
+        feature_label: feature.label,
         credits_quoted: quote.totalCredits,
         duration_seconds: quote.generatedSeconds,
         output_quality: outputQuality,
@@ -617,9 +715,40 @@ router.put('/settings', async (req, res) => {
   } catch (error) { sendError(res, error); }
 });
 
-router.get('/audit', async (_req, res) => {
+router.get('/audit', async (req, res) => {
   try {
-    const rows = await query(`SELECT a.id,a.action,a.target_type,a.target_id,a.details,a.created_at,u.email admin_email FROM admin_audit_log a LEFT JOIN users u ON u.id=a.admin_id ORDER BY a.created_at DESC LIMIT 100`);
+    const search = String(req.query.search ?? '').trim().slice(0, 200);
+    const searchBy = String(req.query.searchBy ?? 'all');
+    const category = String(req.query.category ?? 'all');
+    const created = String(req.query.created ?? 'all');
+    const sort = String(req.query.sort ?? 'newest');
+    const clauses: string[] = [];
+    const values: unknown[] = [];
+    if (search) {
+      values.push(`%${search}%`);
+      const value = `$${values.length}`;
+      const searchClauses: Record<string, string> = {
+        action: `a.action ILIKE ${value}`,
+        admin: `u.email ILIKE ${value}`,
+        target: `(COALESCE(a.target_type,'') ILIKE ${value} OR COALESCE(a.target_id,'') ILIKE ${value})`,
+        details: `COALESCE(a.details::text,'') ILIKE ${value}`,
+      };
+      clauses.push(searchClauses[searchBy] ?? `(a.action ILIKE ${value} OR u.email ILIKE ${value} OR COALESCE(a.target_type,'') ILIKE ${value} OR COALESCE(a.target_id,'') ILIKE ${value} OR COALESCE(a.details::text,'') ILIKE ${value})`);
+    }
+    if (['user', 'job', 'settings', 'marketing'].includes(category)) {
+      if (category === 'marketing') clauses.push(`a.action LIKE 'marketing.%'`);
+      else if (category === 'settings') clauses.push(`a.action LIKE 'settings.%'`);
+      else {
+        values.push(category);
+        clauses.push(`a.target_type=$${values.length}`);
+      }
+    }
+    const createdIntervals: Record<string, string> = { '7d': '7 days', '30d': '30 days', year: '1 year' };
+    if (created === 'today') clauses.push(`a.created_at >= date_trunc('day',NOW())`);
+    else if (createdIntervals[created]) clauses.push(`a.created_at >= NOW() - INTERVAL '${createdIntervals[created]}'`);
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+    const order = sort === 'oldest' ? 'ASC' : 'DESC';
+    const rows = await query(`SELECT a.id,a.action,a.target_type,a.target_id,a.details,a.created_at,u.email admin_email FROM admin_audit_log a LEFT JOIN users u ON u.id=a.admin_id ${where} ORDER BY a.created_at ${order} LIMIT 250`, values);
     res.json({ events: rows.rows });
   } catch (error) { sendError(res, error); }
 });

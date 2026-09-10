@@ -1,5 +1,6 @@
 import { Link } from "wouter";
 import { Wordmark } from "@/components/ui/Wordmark";
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/support";
 
 export function Footer() {
   return (
@@ -141,6 +142,11 @@ export function Footer() {
                 >
                   Terms
                 </Link>
+              </li>
+              <li>
+                <a href={SUPPORT_MAILTO} className="break-all transition-colors hover:text-white">
+                  Support: {SUPPORT_EMAIL}
+                </a>
               </li>
             </ul>
           </div>

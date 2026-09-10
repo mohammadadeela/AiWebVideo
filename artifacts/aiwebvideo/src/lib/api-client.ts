@@ -212,24 +212,38 @@ export type AdminReportRange = 'today' | '7d' | '30d' | 'month' | 'year' | 'all'
 export function fetchAdminReports(range: AdminReportRange = 'month') {
   return request<Record<string, unknown>>(`/api/admin/reports?range=${encodeURIComponent(range)}`);
 }
-export interface AdminUserFilters { search?: string; page?: number; plan?: string; role?: 'all' | 'admin' | 'user'; status?: 'all' | 'active' | 'suspended'; auth?: 'all' | 'email' | 'google' | 'github' | 'facebook' | 'firebase' | 'unknown'; verified?: 'all' | 'verified' | 'unverified'; }
+export interface AdminUserFilters { search?: string; searchBy?: 'all' | 'email' | 'id' | 'payment' | 'subscription'; page?: number; plan?: string; role?: 'all' | 'admin' | 'user'; status?: 'all' | 'active' | 'suspended'; auth?: 'all' | 'email' | 'google' | 'github' | 'facebook' | 'firebase' | 'unknown'; verified?: 'all' | 'verified' | 'unverified'; billing?: 'all' | 'paying' | 'purchased' | 'subscribed' | 'active_subscription' | 'never_paid'; joined?: 'all' | 'today' | '7d' | '30d' | 'year'; sort?: 'newest' | 'oldest' | 'recent_signin' | 'highest_spend' | 'highest_credits' | 'most_productions'; }
 export function fetchAdminUsers(filters: AdminUserFilters = {}) {
   const params = new URLSearchParams();
   if (filters.search) params.set('search', filters.search);
+  if (filters.searchBy && filters.searchBy !== 'all') params.set('searchBy', filters.searchBy);
   params.set('page', String(filters.page ?? 1));
   if (filters.plan && filters.plan !== 'all') params.set('plan', filters.plan);
   if (filters.role && filters.role !== 'all') params.set('role', filters.role);
   if (filters.status && filters.status !== 'all') params.set('status', filters.status);
   if (filters.auth && filters.auth !== 'all') params.set('auth', filters.auth);
   if (filters.verified && filters.verified !== 'all') params.set('verified', filters.verified);
+  if (filters.billing && filters.billing !== 'all') params.set('billing', filters.billing);
+  if (filters.joined && filters.joined !== 'all') params.set('joined', filters.joined);
+  if (filters.sort && filters.sort !== 'newest') params.set('sort', filters.sort);
   return request<{ users: Array<Record<string, unknown>>; total: number; page: number; pageSize: number; adminCount: number; summary: Record<string, unknown>; pendingSignups: Array<Record<string, unknown>> }>(`/api/admin/users?${params.toString()}`);
 }
 export function updateAdminUser(id: string, patch: { plan?: string; creditsBalance?: number; accountStatus?: string; isAdmin?: boolean }) { return request<{ user: Record<string, unknown> }>(`/api/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }); }
 export function fetchAdminUserDetails(id: string) { return request<{ user: Record<string, unknown>; subscriptions: Array<Record<string, unknown>>; payments: Array<Record<string, unknown>>; credits: Array<Record<string, unknown>>; productions: Array<Record<string, unknown>> }>(`/api/admin/users/${id}`); }
-export function fetchAdminJobs(status = 'all', search = '') { return request<{ jobs: Array<Record<string, unknown>> }>(`/api/admin/jobs?status=${encodeURIComponent(status)}&search=${encodeURIComponent(search)}`); }
+export interface AdminJobFilters { search?: string; searchBy?: 'all' | 'title' | 'id' | 'url' | 'user' | 'provider' | 'error'; status?: string; feature?: string; provider?: 'all' | 'gemini' | 'other' | 'unassigned'; created?: 'all' | 'today' | '7d' | '30d' | 'year'; billing?: 'all' | 'charged' | 'no_charge'; quality?: 'all' | '1080p' | '4k'; sort?: 'newest' | 'oldest' | 'highest_cost' | 'highest_credits' | 'most_progress'; }
+export function fetchAdminJobs(filters: AdminJobFilters = {}) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) if (value && value !== 'all' && value !== 'newest') params.set(key, String(value));
+  return request<{ jobs: Array<Record<string, unknown>> }>(`/api/admin/jobs?${params.toString()}`);
+}
 export function updateAdminJob(id: string, action: 'cancel' | 'hide') { return request(`/api/admin/jobs/${id}`, { method: 'PATCH', body: JSON.stringify({ action }) }); }
 export function saveAdminSettings(settings: AdminSettings) { return request<AdminSettings>('/api/admin/settings', { method: 'PUT', body: JSON.stringify(settings) }); }
-export function fetchAdminAudit() { return request<{ events: Array<Record<string, unknown>> }>('/api/admin/audit'); }
+export interface AdminAuditFilters { search?: string; searchBy?: 'all' | 'action' | 'admin' | 'target' | 'details'; category?: 'all' | 'user' | 'job' | 'settings' | 'marketing'; created?: 'all' | 'today' | '7d' | '30d' | 'year'; sort?: 'newest' | 'oldest'; }
+export function fetchAdminAudit(filters: AdminAuditFilters = {}) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) if (value && value !== 'all' && value !== 'newest') params.set(key, String(value));
+  return request<{ events: Array<Record<string, unknown>> }>(`/api/admin/audit?${params.toString()}`);
+}
 
 // ---- Read-only landing-page videos ----
 export interface MarketingVideo { id: string; url: string | null; posterUrl: string | null; caption: string | null; overlayText: string | null; eyebrow: string | null; }

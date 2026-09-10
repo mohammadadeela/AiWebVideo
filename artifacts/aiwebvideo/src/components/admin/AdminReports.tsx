@@ -1,4 +1,4 @@
-import type { ComponentType } from 'react';
+import { useState, type ComponentType } from 'react';
 import {
   BadgeDollarSign,
   CalendarRange,
@@ -8,6 +8,7 @@ import {
   ReceiptText,
   RefreshCw,
   RotateCcw,
+  Search,
   TrendingUp,
   UserRoundCheck,
   Users,
@@ -103,6 +104,11 @@ export function AdminReports({ report, range, loading, onRangeChange }: {
   loading: boolean;
   onRangeChange: (range: AdminReportRange) => void;
 }) {
+  const [productSearch, setProductSearch] = useState('');
+  const [productCategory, setProductCategory] = useState('all');
+  const [transactionSearch, setTransactionSearch] = useState('');
+  const [transactionSearchBy, setTransactionSearchBy] = useState('all');
+  const [transactionStatus, setTransactionStatus] = useState('all');
   if (!report && loading) {
     return <div className="mt-7 flex min-h-80 items-center justify-center rounded-3xl border border-border bg-panel"><div className="flex items-center gap-3 text-sm text-text-muted"><RefreshCw size={17} className="animate-spin text-violet" /> Loading financial reports…</div></div>;
   }
@@ -119,6 +125,23 @@ export function AdminReports({ report, range, loading, onRangeChange }: {
   const timeline = rows(report.timeline);
   const paymentKinds = rows(report.paymentKinds);
   const recentPayments = rows(report.recentPayments);
+  const filteredProducts = products.filter((product) => {
+    const category = text(product.category, '').toLowerCase();
+    const matchesCategory = productCategory === 'all' || category === productCategory;
+    const haystack = `${text(product.name, '')} ${text(product.productId, '')} ${category}`.toLowerCase();
+    return matchesCategory && haystack.includes(productSearch.trim().toLowerCase());
+  });
+  const filteredPayments = recentPayments.filter((payment) => {
+    if (transactionStatus !== 'all' && text(payment.status, '').toLowerCase() !== transactionStatus) return false;
+    const fields: Record<string, string> = {
+      customer: text(payment.email, ''),
+      product: text(payment.product_id, ''),
+      reference: `${text(payment.provider_ref, '')} ${text(payment.provider_capture_ref, '')}`,
+      type: text(payment.kind, ''),
+    };
+    const haystack = transactionSearchBy === 'all' ? Object.values(fields).join(' ') : fields[transactionSearchBy] ?? '';
+    return haystack.toLowerCase().includes(transactionSearch.trim().toLowerCase());
+  });
   const maxTimelineValue = Math.max(1, ...timeline.flatMap((item) => [number(item.net_revenue), number(item.provider_cost)]));
 
   return (
@@ -199,7 +222,8 @@ export function AdminReports({ report, range, loading, onRangeChange }: {
 
       <section className="overflow-hidden rounded-3xl border border-border bg-panel">
         <div className="border-b border-border p-5"><div className="flex items-center gap-2"><ReceiptText size={17} className="text-mint" /><h3 className="font-semibold text-text-primary">Every plan, video package and credit pack</h3></div><p className="mt-1 text-[10px] text-text-dim">Exact purchases and money collected for each catalog item in {text(report.rangeLabel).toLowerCase()}, alongside lifetime totals.</p></div>
-        <div className="overflow-x-auto"><table className="w-full min-w-[1160px] text-left text-xs"><thead className="bg-panel-alt text-text-dim"><tr><th className="p-4">Product</th><th>Type</th><th>Price</th><th>Credits</th><th>Period purchases</th><th>Period customers</th><th>Period revenue</th><th>Refunds</th><th>Lifetime purchases</th><th className="pr-4">Lifetime revenue</th></tr></thead><tbody className="divide-y divide-border">{products.map((product) => { const current = row(product.period); const all = row(product.lifetime); return <tr key={text(product.productId)}><td className="p-4"><p className="font-semibold text-text-primary">{text(product.name)}</p><p className="mt-1 font-utility text-[9px] text-text-dim">{text(product.productId)}</p></td><td><span className="rounded-full bg-violet/10 px-2 py-1 text-[9px] capitalize text-violet">{text(product.category)}</span></td><td className="font-semibold text-text-primary">{money(product.priceUsd)}</td><td className="text-text-muted">{count(product.credits)}</td><td className="font-semibold text-mint">{count(current.paid_sales)}</td><td className="text-text-muted">{count(current.buyers)}</td><td className="font-utility font-semibold text-text-primary">{money(current.net_revenue)}</td><td className={number(current.refunded_sales) ? 'text-pink' : 'text-text-muted'}>{count(current.refunded_sales)} · {money(current.refunds)}</td><td className="text-text-muted">{count(all.paid_sales)}</td><td className="pr-4 font-utility font-semibold text-violet">{money(all.net_revenue)}</td></tr>; })}</tbody></table></div>
+        <div className="flex flex-col gap-3 border-b border-border p-3 sm:flex-row"><div className="relative flex-1"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-dim" /><input value={productSearch} onChange={(event) => setProductSearch(event.target.value)} placeholder="Search product, package or plan" className="w-full rounded-xl border border-border bg-bg py-2.5 pl-9 pr-3 text-xs text-text-primary" /></div><select value={productCategory} onChange={(event) => setProductCategory(event.target.value)} className="rounded-xl border border-border bg-bg px-3 py-2.5 text-xs text-text-primary"><option value="all">All product types</option><option value="subscription">Subscriptions</option><option value="video package">Video packages</option><option value="credit pack">Credit packs</option><option value="legacy">Legacy</option></select></div>
+        <div className="overflow-x-auto"><table className="w-full min-w-[1160px] text-left text-xs"><thead className="bg-panel-alt text-text-dim"><tr><th className="p-4">Product</th><th>Type</th><th>Price</th><th>Credits</th><th>Period purchases</th><th>Period customers</th><th>Period revenue</th><th>Refunds</th><th>Lifetime purchases</th><th className="pr-4">Lifetime revenue</th></tr></thead><tbody className="divide-y divide-border">{filteredProducts.map((product) => { const current = row(product.period); const all = row(product.lifetime); return <tr key={text(product.productId)}><td className="p-4"><p className="font-semibold text-text-primary">{text(product.name)}</p><p className="mt-1 font-utility text-[9px] text-text-dim">{text(product.productId)}</p></td><td><span className="rounded-full bg-violet/10 px-2 py-1 text-[9px] capitalize text-violet">{text(product.category)}</span></td><td className="font-semibold text-text-primary">{money(product.priceUsd)}</td><td className="text-text-muted">{count(product.credits)}</td><td className="font-semibold text-mint">{count(current.paid_sales)}</td><td className="text-text-muted">{count(current.buyers)}</td><td className="font-utility font-semibold text-text-primary">{money(current.net_revenue)}</td><td className={number(current.refunded_sales) ? 'text-pink' : 'text-text-muted'}>{count(current.refunded_sales)} · {money(current.refunds)}</td><td className="text-text-muted">{count(all.paid_sales)}</td><td className="pr-4 font-utility font-semibold text-violet">{money(all.net_revenue)}</td></tr>; })}</tbody></table>{!filteredProducts.length && <Empty>No products match these filters.</Empty>}</div>
       </section>
 
       <section className="grid gap-5 lg:grid-cols-3">
@@ -228,7 +252,7 @@ export function AdminReports({ report, range, loading, onRangeChange }: {
 
       <section className="grid gap-5 xl:grid-cols-[.72fr_1.28fr]">
         <div className="overflow-hidden rounded-3xl border border-border bg-panel"><div className="border-b border-border p-5"><h3 className="font-semibold text-text-primary">Payment mix</h3><p className="mt-1 text-[10px] text-text-dim">Transactions grouped by type and status.</p></div><div className="overflow-x-auto"><table className="w-full min-w-[540px] text-left text-xs"><thead className="bg-panel-alt text-text-dim"><tr><th className="p-3">Type</th><th>Status</th><th>Count</th><th>Customers</th><th>Amount</th></tr></thead><tbody className="divide-y divide-border">{paymentKinds.map((item, index) => <tr key={`${text(item.kind)}-${text(item.status)}-${index}`}><td className="p-3 capitalize text-text-muted">{text(item.kind).replaceAll('_', ' ')}</td><td><span className={`rounded-full px-2 py-1 text-[9px] capitalize ${statusClass(item.status)}`}>{text(item.status)}</span></td><td className="text-text-muted">{count(item.transactions)}</td><td className="text-text-muted">{count(item.customers)}</td><td className="font-semibold text-text-primary">{money(item.amount)}</td></tr>)}</tbody></table>{!paymentKinds.length && <Empty>No payments in this period.</Empty>}</div></div>
-        <div className="overflow-hidden rounded-3xl border border-border bg-panel"><div className="border-b border-border p-5"><h3 className="font-semibold text-text-primary">Recent transactions</h3><p className="mt-1 text-[10px] text-text-dim">Latest payments, pending checkouts, refunds, invoices and customer references.</p></div><div className="max-h-[560px] overflow-auto"><table className="w-full min-w-[980px] text-left text-xs"><thead className="sticky top-0 z-10 bg-panel-alt text-text-dim"><tr><th className="p-3">Date</th><th>Customer</th><th>Product</th><th>Type</th><th>Amount</th><th>Credits</th><th>Status</th><th>Invoice</th><th className="pr-3">Reference</th></tr></thead><tbody className="divide-y divide-border">{recentPayments.map((payment) => <tr key={text(payment.id)}><td className="p-3 text-text-dim">{date(payment.created_at)}</td><td className="max-w-52 truncate font-semibold text-text-primary" title={text(payment.email)}>{text(payment.email)}</td><td className="text-text-muted">{text(payment.product_id)}</td><td className="capitalize text-text-muted">{text(payment.kind).replaceAll('_', ' ')}</td><td className="font-semibold text-text-primary">{money(payment.amount_usd)}</td><td className="text-text-muted">{count(payment.credits_granted)}</td><td><span className={`rounded-full px-2 py-1 text-[9px] capitalize ${statusClass(payment.status)}`}>{text(payment.status)}</span></td><td className="text-text-muted">{payment.invoice_emailed_at ? 'Emailed' : 'Not emailed'}</td><td className="max-w-44 truncate pr-3 font-utility text-[9px] text-text-dim" title={text(payment.provider_ref)}>{text(payment.provider_ref)}</td></tr>)}</tbody></table>{!recentPayments.length && <Empty>No transactions in this period.</Empty>}</div></div>
+        <div className="overflow-hidden rounded-3xl border border-border bg-panel"><div className="border-b border-border p-5"><h3 className="font-semibold text-text-primary">Recent transactions</h3><p className="mt-1 text-[10px] text-text-dim">Latest payments, pending checkouts, refunds, invoices and customer references.</p></div><div className="flex flex-col gap-3 border-b border-border p-3 sm:flex-row"><div className="relative flex-1"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-dim" /><input value={transactionSearch} onChange={(event) => setTransactionSearch(event.target.value)} placeholder="Search transactions" className="w-full rounded-xl border border-border bg-bg py-2.5 pl-9 pr-3 text-xs text-text-primary" /></div><select value={transactionSearchBy} onChange={(event) => setTransactionSearchBy(event.target.value)} className="rounded-xl border border-border bg-bg px-3 py-2.5 text-xs text-text-primary"><option value="all">Search everything</option><option value="customer">Customer</option><option value="product">Product</option><option value="reference">Reference</option><option value="type">Payment type</option></select><select value={transactionStatus} onChange={(event) => setTransactionStatus(event.target.value)} className="rounded-xl border border-border bg-bg px-3 py-2.5 text-xs text-text-primary"><option value="all">All statuses</option><option value="paid">Paid</option><option value="pending">Pending</option><option value="refunded">Refunded</option><option value="reversed">Reversed</option></select></div><div className="max-h-[560px] overflow-auto"><table className="w-full min-w-[980px] text-left text-xs"><thead className="sticky top-0 z-10 bg-panel-alt text-text-dim"><tr><th className="p-3">Date</th><th>Customer</th><th>Product</th><th>Type</th><th>Amount</th><th>Credits</th><th>Status</th><th>Invoice</th><th className="pr-3">Reference</th></tr></thead><tbody className="divide-y divide-border">{filteredPayments.map((payment) => <tr key={text(payment.id)}><td className="p-3 text-text-dim">{date(payment.created_at)}</td><td className="max-w-52 truncate font-semibold text-text-primary" title={text(payment.email)}>{text(payment.email)}</td><td className="text-text-muted">{text(payment.product_id)}</td><td className="capitalize text-text-muted">{text(payment.kind).replaceAll('_', ' ')}</td><td className="font-semibold text-text-primary">{money(payment.amount_usd)}</td><td className="text-text-muted">{count(payment.credits_granted)}</td><td><span className={`rounded-full px-2 py-1 text-[9px] capitalize ${statusClass(payment.status)}`}>{text(payment.status)}</span></td><td className="text-text-muted">{payment.invoice_emailed_at ? 'Emailed' : 'Not emailed'}</td><td className="max-w-44 truncate pr-3 font-utility text-[9px] text-text-dim" title={text(payment.provider_ref)}>{text(payment.provider_ref)}</td></tr>)}</tbody></table>{!filteredPayments.length && <Empty>No transactions match these filters.</Empty>}</div></div>
       </section>
     </div>
   );

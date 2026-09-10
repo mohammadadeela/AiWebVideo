@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { ChatWidget } from "@/components/chat/ChatWidget";
 import type { CreationIntent } from "@/components/chat/WebsiteBriefForm";
 import { AuthModal } from "@/components/auth/AuthModal";
@@ -63,6 +63,7 @@ function statusLabel(status: string, progress: number) {
 }
 
 export function DashboardClient() {
+  const [, navigate] = useLocation();
   const [authChecked, setAuthChecked] = useState(false);
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [me, setMe] = useState<Me | null>(null);
@@ -92,6 +93,20 @@ export function DashboardClient() {
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
+
+  useEffect(() => {
+    const restoreDashboardHistory = () => {
+      const params = new URLSearchParams(window.location.search);
+      setSelectedJobId(params.get("job"));
+      setComposerJobId(null);
+      setReuseJobId(params.get("reuse"));
+      setReuseMode(null);
+      setActionMenuId(null);
+      setSidebarOpen(false);
+    };
+    window.addEventListener("popstate", restoreDashboardHistory);
+    return () => window.removeEventListener("popstate", restoreDashboardHistory);
+  }, []);
 
   const refresh = useCallback(async () => {
     try {
@@ -192,7 +207,7 @@ export function DashboardClient() {
     setComposerJobId(null);
     setReuseJobId(null);
     setReuseMode(null);
-    window.history.replaceState({}, "", "/dashboard");
+    navigate("/dashboard");
     setNewProjectKey((value) => value + 1);
     setSidebarOpen(false);
   }
@@ -204,7 +219,7 @@ export function DashboardClient() {
     // restore the exact conversation and live generation state.
     setComposerJobId(jobId);
     setActiveJobId(jobId);
-    window.history.replaceState({}, "", `/dashboard?job=${encodeURIComponent(jobId)}`);
+    navigate(`/dashboard?job=${encodeURIComponent(jobId)}`, { replace: true });
     window.setTimeout(() => void refresh(), 500);
   }
 
@@ -234,11 +249,7 @@ export function DashboardClient() {
   function openProject(jobId: string) {
     setActiveJobId(jobId);
     setSelectedJobId(jobId);
-    window.history.replaceState(
-      {},
-      "",
-      `/dashboard?job=${encodeURIComponent(jobId)}`,
-    );
+    navigate(`/dashboard?job=${encodeURIComponent(jobId)}`);
     setSidebarOpen(false);
   }
 

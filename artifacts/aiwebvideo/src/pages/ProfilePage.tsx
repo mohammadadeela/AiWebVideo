@@ -36,6 +36,7 @@ import {
   type BillingPaymentSummary,
 } from "@/lib/api-client";
 import { useSeo } from "@/lib/useSeo";
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/support";
 
 interface Me {
   email: string;
@@ -647,6 +648,10 @@ export function ProfilePage() {
             </section>
           </div>
         )}
+        <section className="mx-auto mb-10 mt-6 flex w-full max-w-6xl flex-col justify-between gap-3 rounded-2xl border border-violet/20 bg-violet/5 p-5 sm:flex-row sm:items-center">
+          <div><p className="text-sm font-semibold text-text-primary">Need help with your account, billing, or production?</p><p className="mt-1 text-xs text-text-dim">Contact AiWebVideo support and include your account email or production ID.</p></div>
+          <a href={SUPPORT_MAILTO} className="shrink-0 rounded-xl border border-violet/25 bg-violet/10 px-4 py-2.5 text-xs font-semibold text-violet transition hover:bg-violet/15">{SUPPORT_EMAIL}</a>
+        </section>
       </main>
       <Footer />
       {showAuthModal && (
