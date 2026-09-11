@@ -57,6 +57,7 @@ export function ChatWidget({
     readFinishedPanelState(initialChatId),
   );
   const [actionTray, setActionTray] = useState<HTMLElement | null>(null);
+  const [composerDock, setComposerDock] = useState<HTMLElement | null>(null);
   const [startOverButton, setStartOverButton] = useState<HTMLButtonElement | null>(null);
   const [startOverDisabled, setStartOverDisabled] = useState(false);
   const shellRef = useRef<HTMLDivElement>(null);
@@ -72,6 +73,7 @@ export function ChatWidget({
     if (!shell) return;
 
     let currentTray: HTMLElement | null = null;
+    let currentComposer: HTMLElement | null = null;
     let currentStartOver: HTMLButtonElement | null = null;
 
     const syncActionTray = () => {
@@ -86,6 +88,10 @@ export function ChatWidget({
       }
 
       if (!nextTray) {
+        if (currentComposer) {
+          currentComposer = null;
+          setComposerDock(null);
+        }
         if (currentStartOver) {
           currentStartOver = null;
           setStartOverButton(null);
@@ -112,6 +118,10 @@ export function ChatWidget({
 
       const nextComposer = composer && composer.parentElement === nextTray ? composer : null;
       nextComposer?.classList.add("finished-chat-composer");
+      if (nextComposer !== currentComposer) {
+        currentComposer = nextComposer;
+        setComposerDock(nextComposer);
+      }
 
       const nextStartOver = directChildren.find(
         (node): node is HTMLButtonElement =>
@@ -158,7 +168,7 @@ export function ChatWidget({
     });
   };
 
-  const toggle = actionTray
+  const toggle = composerDock
     ? createPortal(
         <button
           type="button"
@@ -174,7 +184,7 @@ export function ChatWidget({
             <ChevronDown size={17} strokeWidth={2.4} />
           )}
         </button>,
-        actionTray,
+        composerDock,
       )
     : null;
 
