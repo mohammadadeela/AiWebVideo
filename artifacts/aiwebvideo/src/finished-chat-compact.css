@@ -1,6 +1,7 @@
 /* Completed-chat UX overrides.
-   The action tray keeps the original strong layout, while one small sticky
-   handle lives inside that tray and collapses every action without hiding chat. */
+   The finished-result panel keeps the original strong action layout. One small
+   centered sticky handle is the only element that remains when the whole panel
+   is tucked away. */
 
 .chat-widget-shell .chat-scroll > div > div:has(> details.group) {
   display: flex !important;
@@ -12,6 +13,7 @@
   pointer-events: auto !important;
   transform: none !important;
   position: relative;
+  transition: gap 240ms cubic-bezier(.2,.8,.2,1);
 }
 
 /* Main post-generation actions: preserve the original strong layout. */
@@ -47,7 +49,7 @@
   font-size: 12px !important;
 }
 
-/* Reuse saved screenshots remains part of the same collapsible action tray. */
+/* Reuse saved screenshots remains part of the same panel. */
 .chat-widget-shell .chat-scroll > div > div:has(> details.group) > details.group {
   order: 2 !important;
   width: 100% !important;
@@ -102,11 +104,16 @@
   aspect-ratio: 16 / 10;
 }
 
-/* Chat stays visible all the time. */
+/* Continue in this chat + composer are part of the same hideable panel. */
 .chat-widget-shell .chat-scroll > div > div:has(> details.group) > details.group + div {
   order: 3 !important;
   margin: 0 !important;
   padding-top: 0 !important;
+  max-height: 180px;
+  opacity: 1;
+  overflow: hidden;
+  transform: translateY(0);
+  transition: max-height 240ms cubic-bezier(.2,.8,.2,1), opacity 170ms ease, transform 240ms cubic-bezier(.2,.8,.2,1), margin 240ms ease;
 }
 
 .chat-widget-shell .chat-scroll > div > div:has(> details.group) > details.group + div > .mb-2.px-1 {
@@ -158,8 +165,7 @@
   transition: max-height 240ms cubic-bezier(.2,.8,.2,1), opacity 170ms ease, transform 240ms cubic-bezier(.2,.8,.2,1), margin 240ms ease;
 }
 
-/* Small sticky tray handle. It is a real child of the post-generation block,
-   so it can never drift onto the video/result like the old absolute control. */
+/* Small sticky pull-tab at the TOP CENTER of the complete bottom panel. */
 .finished-chat-collapse-toggle {
   display: none;
 }
@@ -170,23 +176,23 @@
   top: 8px;
   z-index: 35;
   display: inline-flex !important;
-  width: 38px !important;
-  height: 26px !important;
-  min-width: 38px !important;
-  min-height: 26px !important;
+  width: 40px !important;
+  height: 27px !important;
+  min-width: 40px !important;
+  min-height: 27px !important;
   align-self: center;
-  margin: -1px auto 1px !important;
+  margin: 0 auto 2px !important;
   padding: 0 !important;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(171,136,255,.28) !important;
+  border: 1px solid rgba(171,136,255,.3) !important;
   border-radius: 999px !important;
-  background: linear-gradient(180deg, rgba(44,32,73,.96), rgba(28,21,48,.96)) !important;
-  color: rgba(249,247,255,.94) !important;
-  box-shadow: 0 10px 28px -18px rgba(124,58,237,.95), inset 0 1px 0 rgba(255,255,255,.07);
+  background: linear-gradient(180deg, rgba(44,32,73,.97), rgba(28,21,48,.97)) !important;
+  color: rgba(249,247,255,.95) !important;
+  box-shadow: 0 10px 28px -18px rgba(124,58,237,.95), inset 0 1px 0 rgba(255,255,255,.075), 0 0 0 4px rgba(124,58,237,.035);
   backdrop-filter: blur(14px);
   transform: translateY(0);
-  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 180ms ease, margin 240ms ease;
 }
 
 .chat-widget-shell .chat-scroll > div > div:has(> details.group) > .finished-chat-collapse-toggle::after {
@@ -204,9 +210,9 @@
 
 .chat-widget-shell .chat-scroll > div > div:has(> details.group) > .finished-chat-collapse-toggle:hover {
   transform: translateY(-1px);
-  border-color: rgba(181,147,255,.48) !important;
-  background: linear-gradient(180deg, rgba(53,38,88,.98), rgba(32,23,56,.98)) !important;
-  box-shadow: 0 12px 30px -17px rgba(124,58,237,1), inset 0 1px 0 rgba(255,255,255,.09);
+  border-color: rgba(181,147,255,.5) !important;
+  background: linear-gradient(180deg, rgba(53,38,88,.99), rgba(32,23,56,.99)) !important;
+  box-shadow: 0 12px 30px -17px rgba(124,58,237,1), inset 0 1px 0 rgba(255,255,255,.09), 0 0 0 5px rgba(124,58,237,.045);
 }
 
 .chat-widget-shell .chat-scroll > div > div:has(> details.group) > .finished-chat-collapse-toggle:active {
@@ -218,7 +224,7 @@
   outline-offset: 3px;
 }
 
-/* Neutralize the older rule that hid the entire completed-chat area. */
+/* Keep the completed-chat container alive while the panel is tucked away. */
 .chat-widget-shell.chat-finish-collapsed .chat-scroll:has(> div > div > details.group) {
   min-height: 0 !important;
   max-height: none !important;
@@ -233,37 +239,35 @@
   overflow: visible !important;
   pointer-events: auto !important;
   transform: none !important;
-  gap: 4px !important;
+  gap: 0 !important;
 }
 
-/* Collapse ALL buttons/reference controls downward — including Reuse saved
-   screenshots — but keep the sticky handle + Continue in this chat untouched. */
-.chat-widget-shell.chat-finish-collapsed .chat-scroll > div > div:has(> details.group) > .flex.flex-wrap.gap-2,
-.chat-widget-shell.chat-finish-collapsed .chat-scroll > div > div:has(> details.group) > details.group,
-.chat-widget-shell.chat-finish-collapsed .chat-scroll > div > div:has(> details.group) > button:last-child {
+/* Tuck the ENTIRE bottom panel downward. The only survivor is the pull-tab.
+   This intentionally includes Continue in this chat, its composer, saved
+   screenshots, all action buttons, and Start a separate creation. */
+.chat-widget-shell.chat-finish-collapsed .chat-scroll > div > div:has(> details.group) > :not(.finished-chat-collapse-toggle) {
   max-height: 0 !important;
   min-height: 0 !important;
   opacity: 0 !important;
   overflow: hidden !important;
   pointer-events: none !important;
-  transform: translateY(24px) !important;
-  margin: 0 !important;
+  transform: translateY(30px) !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
   padding-top: 0 !important;
   padding-bottom: 0 !important;
   border-top-width: 0 !important;
   border-bottom-width: 0 !important;
 }
 
-.chat-widget-shell.chat-finish-collapsed .chat-scroll > div > div:has(> details.group) > details.group + div {
-  margin-top: 0 !important;
-  opacity: 1 !important;
-  pointer-events: auto !important;
-  transform: none !important;
-}
-
+/* In the tucked state the up-arrow becomes a small pull tab sitting where the
+   panel used to begin. It always remains clickable to restore the whole block. */
 .chat-widget-shell.chat-finish-collapsed .chat-scroll > div > div:has(> details.group) > .finished-chat-collapse-toggle {
-  border-color: rgba(181,147,255,.4) !important;
-  background: linear-gradient(180deg, rgba(50,36,83,.98), rgba(30,22,53,.98)) !important;
+  top: 8px;
+  margin: 3px auto 0 !important;
+  border-color: rgba(181,147,255,.46) !important;
+  background: linear-gradient(180deg, rgba(50,36,83,.99), rgba(30,22,53,.99)) !important;
+  box-shadow: 0 12px 32px -18px rgba(124,58,237,1), inset 0 1px 0 rgba(255,255,255,.09), 0 0 0 5px rgba(124,58,237,.045);
 }
 
 @media (max-width: 640px) {
@@ -296,9 +300,9 @@
 
   .chat-widget-shell .chat-scroll > div > div:has(> details.group) > .finished-chat-collapse-toggle {
     top: 6px;
-    width: 36px !important;
-    height: 25px !important;
-    min-width: 36px !important;
-    min-height: 25px !important;
+    width: 38px !important;
+    height: 26px !important;
+    min-width: 38px !important;
+    min-height: 26px !important;
   }
 }
