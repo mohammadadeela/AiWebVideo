@@ -60,11 +60,98 @@ export function ChatWidget({
   const [startOverButton, setStartOverButton] = useState<HTMLButtonElement | null>(null);
   const [startOverDisabled, setStartOverDisabled] = useState(false);
   const shellRef = useRef<HTMLDivElement>(null);
+  const openedChatAutoScrollRef = useRef<string | null>(null);
 
   useEffect(() => {
     const nextChatId = resumeJobId ?? initialJobId ?? null;
     setActiveChatId(nextChatId);
     setFinishControlsCollapsed(readFinishedPanelState(nextChatId));
+  }, [initialJobId, resumeJobId]);
+
+  // Every time an existing chat is opened from history/sidebar, land at the
+  // working end of the conversation instead of making the user manually scroll
+  // through the full production again. We wait for restoration to reveal the
+  // real composer, then align both the inner chat scrollers and the page itself.
+  useEffect(() => {
+    const chatId = resumeJobId ?? initialJobId ?? null;
+    const shell = shellRef.current;
+    if (!chatId || !shell) return;
+
+    openedChatAutoScrollRef.current = null;
+    let observer: MutationObserver | null = null;
+    let firstFrame = 0;
+    let secondFrame = 0;
+    let settleTimer = 0;
+    let fallbackTimer = 0;
+
+    const alignToTarget = (target: HTMLElement) => {
+      if (openedChatAutoScrollRef.current === chatId) return;
+      openedChatAutoScrollRef.current = chatId;
+
+      const align = () => {
+        shell.querySelectorAll<HTMLElement>(".chat-scroll").forEach((scroller) => {
+          if (scroller.scrollHeight > scroller.clientHeight) scroller.scrollTop = scroller.scrollHeight;
+        });
+
+        const director = shell.firstElementChild;
+        if (director instanceof HTMLElement && director.scrollHeight > director.clientHeight) {
+          director.scrollTop = director.scrollHeight;
+        }
+
+        target.scrollIntoView({ behavior: "auto", block: "end", inline: "nearest" });
+      };
+
+      firstFrame = window.requestAnimationFrame(() => {
+        secondFrame = window.requestAnimationFrame(align);
+      });
+      // One small settle pass covers restored result cards/media sizing without
+      // creating a long delayed jump after the user starts interacting.
+      settleTimer = window.setTimeout(align, 140);
+    };
+
+    const tryAlignToComposer = () => {
+      if (openedChatAutoScrollRef.current === chatId) return true;
+
+      const finishedComposer = findContinueComposer(shell);
+      if (finishedComposer) {
+        alignToTarget(finishedComposer);
+        return true;
+      }
+
+      const textareas = Array.from(shell.querySelectorAll<HTMLTextAreaElement>("textarea"));
+      const textarea = textareas[textareas.length - 1];
+      const form = textarea?.closest("form");
+      if (form instanceof HTMLElement) {
+        alignToTarget(form);
+        return true;
+      }
+
+      return false;
+    };
+
+    if (!tryAlignToComposer()) {
+      observer = new MutationObserver(() => {
+        if (tryAlignToComposer()) observer?.disconnect();
+      });
+      observer.observe(shell, { childList: true, subtree: true });
+
+      // Rendering/processing chats may intentionally have no composer yet. In
+      // that case still open them at the newest/bottom part of the conversation.
+      fallbackTimer = window.setTimeout(() => {
+        if (openedChatAutoScrollRef.current === chatId) return;
+        const director = shell.firstElementChild;
+        alignToTarget(director instanceof HTMLElement ? director : shell);
+        observer?.disconnect();
+      }, 900);
+    }
+
+    return () => {
+      observer?.disconnect();
+      if (firstFrame) window.cancelAnimationFrame(firstFrame);
+      if (secondFrame) window.cancelAnimationFrame(secondFrame);
+      if (settleTimer) window.clearTimeout(settleTimer);
+      if (fallbackTimer) window.clearTimeout(fallbackTimer);
+    };
   }, [initialJobId, resumeJobId]);
 
   useLayoutEffect(() => {
