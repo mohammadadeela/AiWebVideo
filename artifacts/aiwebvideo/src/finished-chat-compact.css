@@ -1,9 +1,7 @@
-/* Final completed-chat UX overrides.
-   Loaded after finished-chat.css so reopened/old chats render with the same
-   post-generation layout as newly completed chats. */
+/* Completed-chat UX overrides.
+   The action tray keeps the original strong layout, while one centered control
+   above it can collapse every action/reference control without hiding chat. */
 
-/* Restore the strong/original action layout: two main actions side-by-side,
-   then the context-specific full-width action, then saved references, then chat. */
 .chat-widget-shell .chat-scroll > div > div:has(> details.group) {
   display: flex !important;
   flex-direction: column !important;
@@ -15,16 +13,18 @@
   transform: none !important;
 }
 
+/* Main post-generation actions: preserve the original strong layout. */
 .chat-widget-shell .chat-scroll > div > div:has(> details.group) > .flex.flex-wrap.gap-2 {
   order: 1 !important;
   display: grid !important;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px !important;
   width: 100%;
-  max-height: 220px;
+  max-height: 230px;
   opacity: 1;
   overflow: hidden;
-  transition: max-height 220ms ease, opacity 170ms ease, transform 220ms ease, margin 220ms ease;
+  transform: translateY(0);
+  transition: max-height 240ms cubic-bezier(.2,.8,.2,1), opacity 170ms ease, transform 240ms cubic-bezier(.2,.8,.2,1), margin 240ms ease;
 }
 
 .chat-widget-shell .chat-scroll > div > div:has(> details.group) > .flex.flex-wrap.gap-2 > button {
@@ -35,7 +35,7 @@
   font-size: 13px !important;
   font-weight: 650 !important;
   letter-spacing: -0.01em;
-  box-shadow: 0 14px 34px -26px rgba(0, 0, 0, .9);
+  box-shadow: 0 14px 34px -26px rgba(0,0,0,.9);
 }
 
 .chat-widget-shell .chat-scroll > div > div:has(> details.group) > .flex.flex-wrap.gap-2 > button.w-full {
@@ -46,8 +46,7 @@
   font-size: 12px !important;
 }
 
-/* Saved screenshots returns to its useful full-width position, but stays cleaner
-   than the old card and keeps the helper sentence hidden. */
+/* Reuse saved screenshots remains part of the same collapsible action tray. */
 .chat-widget-shell .chat-scroll > div > div:has(> details.group) > details.group {
   order: 2 !important;
   width: 100% !important;
@@ -56,11 +55,12 @@
   max-height: 700px;
   opacity: 1;
   overflow: hidden;
+  transform: translateY(0);
   padding: 0 12px !important;
   border: 1px solid rgba(255,255,255,.07) !important;
   border-radius: 16px !important;
   background: linear-gradient(180deg, rgba(255,255,255,.032), rgba(255,255,255,.018)) !important;
-  transition: max-height 220ms ease, opacity 170ms ease, transform 220ms ease, padding 220ms ease, margin 220ms ease, border-color 180ms ease;
+  transition: max-height 240ms cubic-bezier(.2,.8,.2,1), opacity 170ms ease, transform 240ms cubic-bezier(.2,.8,.2,1), padding 240ms ease, margin 240ms ease, border-color 180ms ease;
 }
 
 .chat-widget-shell .chat-scroll > div > div:has(> details.group) > details.group > summary {
@@ -101,7 +101,7 @@
   aspect-ratio: 16 / 10;
 }
 
-/* Keep the chat composer visible at all times. */
+/* Chat stays visible all the time. */
 .chat-widget-shell .chat-scroll > div > div:has(> details.group) > details.group + div {
   order: 3 !important;
   margin: 0 !important;
@@ -153,61 +153,77 @@
   max-height: 46px;
   opacity: 1;
   overflow: hidden;
-  transition: max-height 220ms ease, opacity 170ms ease, transform 220ms ease, margin 220ms ease;
+  transform: translateY(0);
+  transition: max-height 240ms cubic-bezier(.2,.8,.2,1), opacity 170ms ease, transform 240ms cubic-bezier(.2,.8,.2,1), margin 240ms ease;
 }
 
-/* Professional action tray toggle. It is intentionally larger and readable,
-   instead of the old tiny floating chevron. */
+/* Centered professional chevron ABOVE the whole action tray. Its vertical
+   position is measured from the real action stack so it stays correct for old
+   chats and different result types. */
 .finished-chat-collapse-toggle {
   display: none;
 }
 
-.chat-widget-shell:has(details.group) > .finished-chat-collapse-toggle {
+.chat-widget-shell:has(.chat-scroll details.group) > .finished-chat-collapse-toggle {
   position: absolute;
-  right: 18px !important;
-  bottom: 96px !important;
-  z-index: 50;
+  left: 50% !important;
+  top: var(--finished-actions-toggle-top, -9999px) !important;
+  right: auto !important;
+  bottom: auto !important;
+  z-index: 60;
   display: inline-flex !important;
-  width: auto !important;
-  min-width: 112px;
-  height: 38px !important;
-  padding: 0 12px 0 14px !important;
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  padding: 0 !important;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  border: 1px solid rgba(168, 130, 255, .24) !important;
+  border: 1px solid rgba(171,136,255,.32) !important;
   border-radius: 999px !important;
-  background: linear-gradient(180deg, rgba(42,31,70,.97), rgba(27,20,48,.97)) !important;
-  color: rgba(247,244,255,.92) !important;
-  font-size: 10px;
-  font-weight: 650;
-  letter-spacing: .01em;
-  box-shadow: 0 16px 34px -22px rgba(124,58,237,.9), inset 0 1px 0 rgba(255,255,255,.055);
-  backdrop-filter: blur(16px);
-  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+  background: linear-gradient(180deg, rgba(48,35,80,.98), rgba(29,22,52,.98)) !important;
+  color: rgba(249,247,255,.96) !important;
+  box-shadow: 0 18px 42px -22px rgba(124,58,237,.95), inset 0 1px 0 rgba(255,255,255,.08), 0 0 0 5px rgba(124,58,237,.045);
+  backdrop-filter: blur(18px);
+  transform: translateX(-50%);
+  transition: transform 170ms ease, border-color 170ms ease, background 170ms ease, box-shadow 170ms ease;
 }
 
-.chat-widget-shell:has(details.group) > .finished-chat-collapse-toggle:hover {
-  transform: translateY(-1px);
-  border-color: rgba(168,130,255,.42) !important;
-  background: linear-gradient(180deg, rgba(52,38,86,.99), rgba(31,23,55,.99)) !important;
-  box-shadow: 0 18px 38px -22px rgba(124,58,237,1), inset 0 1px 0 rgba(255,255,255,.07);
+.chat-widget-shell:has(.chat-scroll details.group) > .finished-chat-collapse-toggle::before,
+.chat-widget-shell:has(.chat-scroll details.group) > .finished-chat-collapse-toggle::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 46px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(159,129,225,.28));
+  pointer-events: none;
 }
 
-.chat-widget-shell:has(details.group) > .finished-chat-collapse-toggle:active {
-  transform: translateY(0) scale(.985);
+.chat-widget-shell:has(.chat-scroll details.group) > .finished-chat-collapse-toggle::before {
+  right: calc(100% + 9px);
 }
 
-.chat-widget-shell:has(details.group) > .finished-chat-collapse-toggle span {
-  white-space: nowrap;
+.chat-widget-shell:has(.chat-scroll details.group) > .finished-chat-collapse-toggle::after {
+  left: calc(100% + 9px);
+  transform: rotate(180deg);
 }
 
-/* Neutralize the older collapse rule that hid the entire chat area. */
+.chat-widget-shell:has(.chat-scroll details.group) > .finished-chat-collapse-toggle:hover {
+  transform: translateX(-50%) translateY(-2px);
+  border-color: rgba(181,147,255,.55) !important;
+  background: linear-gradient(180deg, rgba(58,42,96,.99), rgba(33,24,59,.99)) !important;
+  box-shadow: 0 20px 46px -22px rgba(124,58,237,1), inset 0 1px 0 rgba(255,255,255,.1), 0 0 0 6px rgba(124,58,237,.055);
+}
+
+.chat-widget-shell:has(.chat-scroll details.group) > .finished-chat-collapse-toggle:active {
+  transform: translateX(-50%) scale(.96);
+}
+
+/* Neutralize the older rule that hid the entire completed-chat area. */
 .chat-widget-shell.chat-finish-collapsed .chat-scroll:has(> div > div > details.group) {
   min-height: 0 !important;
   max-height: none !important;
   overflow-y: auto !important;
-  padding: inherit;
   background: transparent !important;
   border-top-color: transparent !important;
 }
@@ -221,7 +237,8 @@
   gap: 0 !important;
 }
 
-/* Collapse every post-generation action/control, but NEVER the text composer. */
+/* Collapse ALL buttons/reference controls downward — including Reuse saved
+   screenshots — but keep Continue in this chat + composer untouched. */
 .chat-widget-shell.chat-finish-collapsed .chat-scroll > div > div:has(> details.group) > .flex.flex-wrap.gap-2,
 .chat-widget-shell.chat-finish-collapsed .chat-scroll > div > div:has(> details.group) > details.group,
 .chat-widget-shell.chat-finish-collapsed .chat-scroll > div > div:has(> details.group) > button:last-child {
@@ -230,7 +247,7 @@
   opacity: 0 !important;
   overflow: hidden !important;
   pointer-events: none !important;
-  transform: translateY(12px) !important;
+  transform: translateY(28px) !important;
   margin: 0 !important;
   padding-top: 0 !important;
   padding-bottom: 0 !important;
@@ -246,9 +263,8 @@
 }
 
 .chat-widget-shell.chat-finish-collapsed > .finished-chat-collapse-toggle {
-  bottom: 70px !important;
-  border-color: rgba(168,130,255,.36) !important;
-  background: linear-gradient(180deg, rgba(49,35,82,.99), rgba(30,22,53,.99)) !important;
+  border-color: rgba(181,147,255,.46) !important;
+  background: linear-gradient(180deg, rgba(55,39,92,.99), rgba(32,23,57,.99)) !important;
 }
 
 @media (max-width: 640px) {
@@ -279,14 +295,14 @@
     font-size: 16px !important;
   }
 
-  .chat-widget-shell:has(details.group) > .finished-chat-collapse-toggle {
-    right: 12px !important;
-    bottom: 90px !important;
-    min-width: 104px;
-    height: 38px !important;
+  .chat-widget-shell:has(.chat-scroll details.group) > .finished-chat-collapse-toggle {
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
   }
 
-  .chat-widget-shell.chat-finish-collapsed > .finished-chat-collapse-toggle {
-    bottom: 66px !important;
+  .chat-widget-shell:has(.chat-scroll details.group) > .finished-chat-collapse-toggle::before,
+  .chat-widget-shell:has(.chat-scroll details.group) > .finished-chat-collapse-toggle::after {
+    width: 30px;
   }
 }
