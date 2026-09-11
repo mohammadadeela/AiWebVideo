@@ -1,14 +1,53 @@
-import { useLayoutEffect, useRef, useState, type ComponentProps } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ComponentProps } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { ChatWidget as ChatWidgetBase } from "./ChatWidgetBase";
 
 type ChatWidgetProps = ComponentProps<typeof ChatWidgetBase>;
 
-export function ChatWidget({ className, ...props }: ChatWidgetProps) {
-  const [finishControlsCollapsed, setFinishControlsCollapsed] = useState(false);
+const FINISHED_PANEL_STATE_PREFIX = "aiwebvideo:finished-panel:";
+
+function readFinishedPanelState(chatId: string | null) {
+  if (!chatId || typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(`${FINISHED_PANEL_STATE_PREFIX}${chatId}`) === "collapsed";
+  } catch {
+    return false;
+  }
+}
+
+function writeFinishedPanelState(chatId: string | null, collapsed: boolean) {
+  if (!chatId || typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      `${FINISHED_PANEL_STATE_PREFIX}${chatId}`,
+      collapsed ? "collapsed" : "expanded",
+    );
+  } catch {
+    // A blocked/private storage environment should never break the chat UI.
+  }
+}
+
+export function ChatWidget({
+  className,
+  onJobCreated,
+  initialJobId,
+  resumeJobId,
+  ...props
+}: ChatWidgetProps) {
+  const initialChatId = resumeJobId ?? initialJobId ?? null;
+  const [activeChatId, setActiveChatId] = useState<string | null>(initialChatId);
+  const [finishControlsCollapsed, setFinishControlsCollapsed] = useState(() =>
+    readFinishedPanelState(initialChatId),
+  );
   const [actionTray, setActionTray] = useState<HTMLElement | null>(null);
   const shellRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const nextChatId = resumeJobId ?? initialJobId ?? null;
+    setActiveChatId(nextChatId);
+    setFinishControlsCollapsed(readFinishedPanelState(nextChatId));
+  }, [initialJobId, resumeJobId]);
 
   useLayoutEffect(() => {
     const shell = shellRef.current;
@@ -30,12 +69,26 @@ export function ChatWidget({ className, ...props }: ChatWidgetProps) {
     return () => observer.disconnect();
   }, []);
 
+  const handleJobCreated = (jobId: string) => {
+    setActiveChatId(jobId);
+    setFinishControlsCollapsed(readFinishedPanelState(jobId));
+    onJobCreated?.(jobId);
+  };
+
+  const toggleFinishedPanel = () => {
+    setFinishControlsCollapsed((value) => {
+      const next = !value;
+      writeFinishedPanelState(activeChatId, next);
+      return next;
+    });
+  };
+
   const toggle = actionTray
     ? createPortal(
         <button
           type="button"
           className="finished-chat-collapse-toggle"
-          onClick={() => setFinishControlsCollapsed((value) => !value)}
+          onClick={toggleFinishedPanel}
           aria-label={finishControlsCollapsed ? "Show finished creation panel" : "Hide finished creation panel"}
           aria-expanded={!finishControlsCollapsed}
           title={finishControlsCollapsed ? "Show panel" : "Hide panel"}
@@ -55,7 +108,13 @@ export function ChatWidget({ className, ...props }: ChatWidgetProps) {
       ref={shellRef}
       className={`chat-widget-shell relative min-h-0 w-full ${finishControlsCollapsed ? "chat-finish-collapsed" : ""} ${className ?? ""}`}
     >
-      <ChatWidgetBase {...props} className="h-full w-full" />
+      <ChatWidgetBase
+        {...props}
+        initialJobId={initialJobId}
+        resumeJobId={resumeJobId}
+        onJobCreated={handleJobCreated}
+        className="h-full w-full"
+      />
       {toggle}
     </div>
   );
