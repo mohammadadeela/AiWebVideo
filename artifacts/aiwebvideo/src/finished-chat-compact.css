@@ -1,0 +1,129 @@
+/* Final completed-chat UX overrides.
+   Loaded after finished-chat.css so reopened/old chats render with the same
+   compact controls as newly completed chats. */
+
+/* Hide helper copy under the two compact labels. */
+.chat-widget-shell .chat-scroll > div > div:has(> details.group) > details.group > summary > div > p:not(:first-child),
+.chat-widget-shell .chat-scroll > div > div:has(> details.group) > details.group + div > .mb-2.px-1 > p:not(:first-child) {
+  display: none !important;
+}
+
+/* Keep saved-reference management lightweight. */
+.chat-widget-shell .chat-scroll > div > div:has(> details.group) > details.group:not([open]) {
+  width: fit-content !important;
+  max-width: 100% !important;
+  align-self: flex-start;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.chat-widget-shell .chat-scroll > div > div:has(> details.group) > details.group:not([open]) > summary {
+  width: fit-content !important;
+  min-height: 30px !important;
+  padding: 3px 6px 3px 9px !important;
+  border: 1px solid rgba(255,255,255,.08) !important;
+  border-radius: 999px !important;
+  background: rgba(255,255,255,.025) !important;
+}
+
+.chat-widget-shell .chat-scroll > div > div:has(> details.group) > details.group > summary > div > p:first-child {
+  font-size: 10px !important;
+  line-height: 1rem !important;
+}
+
+.chat-widget-shell .chat-scroll > div > div:has(> details.group) > details.group > summary > span {
+  padding: 2px 6px !important;
+  font-size: 8px !important;
+}
+
+/* Compact the reference cards when the picker is expanded. */
+.chat-widget-shell details.group[open] .chat-scroll > button {
+  width: 9.25rem !important;
+}
+
+.chat-widget-shell details.group[open] .chat-scroll > button img {
+  aspect-ratio: 16 / 10;
+}
+
+/* The product photos/video switch is secondary; do not let it become a giant bar. */
+@media (min-width: 641px) {
+  .chat-widget-shell .chat-scroll > div > div:has(> details.group) > .flex.flex-wrap.gap-2 > button.w-full {
+    width: auto !important;
+    min-width: 0 !important;
+    min-height: 34px !important;
+    flex: 0 0 auto !important;
+    padding-inline: 14px !important;
+    border-radius: 999px !important;
+    font-size: 11px !important;
+  }
+}
+
+/* Continue label is intentionally tiny. */
+.chat-widget-shell .chat-scroll > div > div:has(> details.group) > details.group + div > .mb-2.px-1 {
+  margin: 0 0 3px 2px !important;
+  padding: 0 !important;
+}
+
+.chat-widget-shell .chat-scroll > div > div:has(> details.group) > details.group + div > .mb-2.px-1 > p:first-child {
+  font-size: 9px !important;
+  line-height: 1rem !important;
+  color: rgba(167,159,201,.72) !important;
+}
+
+/* Finished-chat composer: one compact ChatGPT-style row instead of a tall box. */
+.chat-widget-shell .chat-scroll > div > div:has(> details.group) > details.group + div form {
+  min-height: 58px !important;
+  padding: 6px 7px !important;
+  align-items: center !important;
+  gap: 5px !important;
+  border-radius: 20px !important;
+  background: rgba(255,255,255,.052) !important;
+  box-shadow: 0 14px 42px -32px rgba(0,0,0,.9) !important;
+}
+
+.chat-widget-shell .chat-scroll > div > div:has(> details.group) > details.group + div form textarea {
+  min-height: 42px !important;
+  max-height: 88px !important;
+  padding: 10px 7px 7px !important;
+  font-size: 14px !important;
+  line-height: 1.35 !important;
+}
+
+.chat-widget-shell .chat-scroll > div > div:has(> details.group) > details.group + div form textarea::placeholder {
+  font-size: 14px !important;
+}
+
+.chat-widget-shell .chat-scroll > div > div:has(> details.group) > details.group + div form button {
+  width: 34px !important;
+  height: 34px !important;
+}
+
+/* Give the collapse control a clear relation to the post-generation editor. */
+.chat-widget-shell:has(details.group) > .finished-chat-collapse-toggle {
+  right: 10px !important;
+  bottom: 8px !important;
+  width: 32px !important;
+  height: 32px !important;
+}
+
+.chat-widget-shell.chat-finish-collapsed .chat-scroll:has(> div > div > details.group) {
+  min-height: 42px !important;
+  max-height: 42px !important;
+}
+
+@media (max-width: 640px) {
+  .chat-widget-shell details.group[open] .chat-scroll > button {
+    width: 8.5rem !important;
+  }
+
+  .chat-widget-shell .chat-scroll > div > div:has(> details.group) > details.group + div form {
+    min-height: 54px !important;
+    border-radius: 18px !important;
+  }
+
+  .chat-widget-shell .chat-scroll > div > div:has(> details.group) > details.group + div form textarea {
+    min-height: 38px !important;
+    font-size: 16px !important;
+  }
+}
