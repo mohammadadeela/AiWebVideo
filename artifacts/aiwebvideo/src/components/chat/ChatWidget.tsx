@@ -16,10 +16,16 @@ export function ChatWidget({ className, ...props }: ChatWidgetProps) {
         type="button"
         className="finished-chat-collapse-toggle"
         onClick={() => setFinishControlsCollapsed((value) => !value)}
-        aria-label={finishControlsCollapsed ? "Show editing controls" : "Hide editing controls"}
-        title={finishControlsCollapsed ? "Show editing controls" : "Hide editing controls"}
+        aria-label={finishControlsCollapsed ? "Show post-generation actions" : "Hide post-generation actions"}
+        aria-expanded={!finishControlsCollapsed}
+        title={finishControlsCollapsed ? "Show actions" : "Hide actions"}
       >
-        {finishControlsCollapsed ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        <span>{finishControlsCollapsed ? "Show actions" : "Hide actions"}</span>
+        {finishControlsCollapsed ? (
+          <ChevronUp size={19} strokeWidth={2.25} />
+        ) : (
+          <ChevronDown size={19} strokeWidth={2.25} />
+        )}
       </button>
     </div>
   );
