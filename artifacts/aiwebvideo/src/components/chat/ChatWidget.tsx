@@ -36,9 +36,9 @@ export function ChatWidget({ className, ...props }: ChatWidgetProps) {
           type="button"
           className="finished-chat-collapse-toggle"
           onClick={() => setFinishControlsCollapsed((value) => !value)}
-          aria-label={finishControlsCollapsed ? "Show post-generation actions" : "Hide post-generation actions"}
+          aria-label={finishControlsCollapsed ? "Show finished creation panel" : "Hide finished creation panel"}
           aria-expanded={!finishControlsCollapsed}
-          title={finishControlsCollapsed ? "Show actions" : "Hide actions"}
+          title={finishControlsCollapsed ? "Show panel" : "Hide panel"}
         >
           {finishControlsCollapsed ? (
             <ChevronUp size={17} strokeWidth={2.4} />
