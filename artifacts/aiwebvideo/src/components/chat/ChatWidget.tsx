@@ -57,7 +57,6 @@ export function ChatWidget({
     readFinishedPanelState(initialChatId),
   );
   const [actionTray, setActionTray] = useState<HTMLElement | null>(null);
-  const [composerDock, setComposerDock] = useState<HTMLElement | null>(null);
   const [startOverButton, setStartOverButton] = useState<HTMLButtonElement | null>(null);
   const [startOverDisabled, setStartOverDisabled] = useState(false);
   const shellRef = useRef<HTMLDivElement>(null);
@@ -73,7 +72,6 @@ export function ChatWidget({
     if (!shell) return;
 
     let currentTray: HTMLElement | null = null;
-    let currentComposer: HTMLElement | null = null;
     let currentStartOver: HTMLButtonElement | null = null;
 
     const syncActionTray = () => {
@@ -88,10 +86,6 @@ export function ChatWidget({
       }
 
       if (!nextTray) {
-        if (currentComposer) {
-          currentComposer = null;
-          setComposerDock(null);
-        }
         if (currentStartOver) {
           currentStartOver = null;
           setStartOverButton(null);
@@ -118,10 +112,6 @@ export function ChatWidget({
 
       const nextComposer = composer && composer.parentElement === nextTray ? composer : null;
       nextComposer?.classList.add("finished-chat-composer");
-      if (nextComposer !== currentComposer) {
-        currentComposer = nextComposer;
-        setComposerDock(nextComposer);
-      }
 
       const nextStartOver = directChildren.find(
         (node): node is HTMLButtonElement =>
@@ -168,15 +158,15 @@ export function ChatWidget({
     });
   };
 
-  const toggle = composerDock
+  const toggle = actionTray
     ? createPortal(
         <button
           type="button"
           className="finished-chat-collapse-toggle"
           onClick={toggleFinishedPanel}
-          aria-label={finishControlsCollapsed ? "Show creation actions" : "Hide creation actions"}
+          aria-label={finishControlsCollapsed ? "Open creation window" : "Close creation window"}
           aria-expanded={!finishControlsCollapsed}
-          title={finishControlsCollapsed ? "Show actions" : "Hide actions"}
+          title={finishControlsCollapsed ? "Open actions" : "Close actions"}
         >
           {finishControlsCollapsed ? (
             <ChevronUp size={17} strokeWidth={2.4} />
@@ -184,7 +174,7 @@ export function ChatWidget({
             <ChevronDown size={17} strokeWidth={2.4} />
           )}
         </button>,
-        composerDock,
+        actionTray,
       )
     : null;
 
