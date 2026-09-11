@@ -24,8 +24,24 @@ function writeFinishedPanelState(chatId: string | null, collapsed: boolean) {
       collapsed ? "collapsed" : "expanded",
     );
   } catch {
-    // A blocked/private storage environment should never break the chat UI.
+    // Storage being unavailable must never break the chat.
   }
+}
+
+function findContinueComposer(shell: HTMLElement) {
+  const label = Array.from(shell.querySelectorAll("p")).find(
+    (node) => node.textContent?.trim() === "Continue in this chat",
+  );
+  return (label?.parentElement?.parentElement as HTMLElement | null) ?? null;
+}
+
+function clearTrayClasses(tray: HTMLElement | null) {
+  if (!tray) return;
+  tray.classList.remove("finished-action-tray", "has-reuse-details");
+  tray.querySelectorAll(".finished-action-buttons").forEach((node) => node.classList.remove("finished-action-buttons"));
+  tray.querySelectorAll(".finished-reuse-details").forEach((node) => node.classList.remove("finished-reuse-details"));
+  tray.querySelectorAll(".finished-chat-composer").forEach((node) => node.classList.remove("finished-chat-composer"));
+  tray.querySelectorAll(".finished-start-over-original").forEach((node) => node.classList.remove("finished-start-over-original"));
 }
 
 export function ChatWidget({
@@ -41,6 +57,8 @@ export function ChatWidget({
     readFinishedPanelState(initialChatId),
   );
   const [actionTray, setActionTray] = useState<HTMLElement | null>(null);
+  const [reuseSummary, setReuseSummary] = useState<HTMLElement | null>(null);
+  const [startOverButton, setStartOverButton] = useState<HTMLButtonElement | null>(null);
   const shellRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -54,19 +72,78 @@ export function ChatWidget({
     if (!shell) return;
 
     let currentTray: HTMLElement | null = null;
+    let currentSummary: HTMLElement | null = null;
+    let currentStartOver: HTMLButtonElement | null = null;
+
     const syncActionTray = () => {
       const details = shell.querySelector<HTMLDetailsElement>(".chat-scroll details.group");
-      const nextTray = details?.parentElement ?? null;
-      if (nextTray === currentTray) return;
-      currentTray = nextTray;
-      setActionTray(nextTray);
+      const composer = findContinueComposer(shell);
+      const nextTray = details?.parentElement ?? composer?.parentElement ?? null;
+
+      if (nextTray !== currentTray) {
+        clearTrayClasses(currentTray);
+        currentTray = nextTray;
+        setActionTray(nextTray);
+      }
+
+      if (!nextTray) {
+        if (currentSummary) {
+          currentSummary = null;
+          setReuseSummary(null);
+        }
+        if (currentStartOver) {
+          currentStartOver = null;
+          setStartOverButton(null);
+        }
+        return;
+      }
+
+      nextTray.classList.add("finished-action-tray");
+
+      const directChildren = Array.from(nextTray.children).filter(
+        (node): node is HTMLElement => node instanceof HTMLElement,
+      );
+      const actionButtons = directChildren.find(
+        (node) => node.classList.contains("flex") && node.classList.contains("flex-wrap") && node.classList.contains("gap-2"),
+      );
+      actionButtons?.classList.add("finished-action-buttons");
+
+      const nextDetails = directChildren.find(
+        (node): node is HTMLDetailsElement => node instanceof HTMLDetailsElement && node.classList.contains("group"),
+      );
+      nextDetails?.classList.add("finished-reuse-details");
+      nextTray.classList.toggle("has-reuse-details", Boolean(nextDetails));
+
+      const nextComposer = composer && composer.parentElement === nextTray ? composer : null;
+      nextComposer?.classList.add("finished-chat-composer");
+
+      const nextStartOver = directChildren.find(
+        (node): node is HTMLButtonElement =>
+          node instanceof HTMLButtonElement &&
+          !node.classList.contains("finished-chat-collapse-toggle") &&
+          (node.textContent?.trim().startsWith("Start ") ?? false),
+      );
+      nextStartOver?.classList.add("finished-start-over-original");
+
+      const nextSummary = nextDetails?.querySelector<HTMLElement>("summary") ?? null;
+      if (nextSummary !== currentSummary) {
+        currentSummary = nextSummary;
+        setReuseSummary(nextSummary);
+      }
+      if (nextStartOver !== currentStartOver) {
+        currentStartOver = nextStartOver ?? null;
+        setStartOverButton(nextStartOver ?? null);
+      }
     };
 
     syncActionTray();
     const observer = new MutationObserver(syncActionTray);
-    observer.observe(shell, { childList: true, subtree: true });
+    observer.observe(shell, { childList: true, subtree: true, characterData: true });
 
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      clearTrayClasses(currentTray);
+    };
   }, []);
 
   const handleJobCreated = (jobId: string) => {
@@ -89,9 +166,9 @@ export function ChatWidget({
           type="button"
           className="finished-chat-collapse-toggle"
           onClick={toggleFinishedPanel}
-          aria-label={finishControlsCollapsed ? "Show finished creation panel" : "Hide finished creation panel"}
+          aria-label={finishControlsCollapsed ? "Show creation actions" : "Hide creation actions"}
           aria-expanded={!finishControlsCollapsed}
-          title={finishControlsCollapsed ? "Show panel" : "Hide panel"}
+          title={finishControlsCollapsed ? "Show actions" : "Hide actions"}
         >
           {finishControlsCollapsed ? (
             <ChevronUp size={17} strokeWidth={2.4} />
@@ -100,6 +177,25 @@ export function ChatWidget({
           )}
         </button>,
         actionTray,
+      )
+    : null;
+
+  const startOverInline = reuseSummary && startOverButton
+    ? createPortal(
+        <button
+          type="button"
+          className="finished-start-over-inline"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            startOverButton.click();
+          }}
+          disabled={startOverButton.disabled}
+          title={startOverButton.textContent?.trim() || "Start another creation"}
+        >
+          {startOverButton.textContent?.trim() || "Start another creation"}
+        </button>,
+        reuseSummary,
       )
     : null;
 
@@ -116,6 +212,7 @@ export function ChatWidget({
         className="h-full w-full"
       />
       {toggle}
+      {startOverInline}
     </div>
   );
 }
