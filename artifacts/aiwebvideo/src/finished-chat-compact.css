@@ -1,12 +1,24 @@
 /* Completed-chat controls.
-   Keep the chat composer independent from the collapsible result actions.
-   The centered chevron always sits directly above the composer, and collapsing
-   removes the action controls without leaving the old blank footer behind. */
+   The result actions collapse independently from the chat composer. The chevron
+   is physically anchored to the composer, so it stays centered directly above
+   the text box in both expanded and collapsed states with no empty footer. */
+
+/* Tighten the completed-chat footer itself. The normal page/chat background is
+   allowed to show through when collapsed so there is no visible blank block. */
+.chat-widget-shell .chat-scroll:has(.finished-action-tray) {
+  padding-top: 8px !important;
+}
+
+.chat-widget-shell.chat-finish-collapsed .chat-scroll:has(.finished-action-tray) {
+  padding-top: 0 !important;
+  background: transparent !important;
+  border-top-color: transparent !important;
+}
 
 .finished-action-tray {
   display: flex !important;
   flex-direction: column !important;
-  gap: 9px !important;
+  gap: 8px !important;
   width: 100%;
   max-height: none !important;
   opacity: 1 !important;
@@ -14,24 +26,18 @@
   pointer-events: auto !important;
   transform: none !important;
   position: relative;
+  background: transparent !important;
 }
 
-/* Primary result actions stay first and keep the strong two-column layout. */
+/* Primary result actions stay immediately above the saved-reference row. */
 .finished-action-tray > .finished-action-buttons {
   order: 1 !important;
   display: grid !important;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px !important;
   width: 100%;
-  max-height: 280px;
+  margin: 0 !important;
   opacity: 1;
-  overflow: hidden;
-  transform: translateY(0);
-  transition:
-    max-height 220ms cubic-bezier(.2,.8,.2,1),
-    opacity 150ms ease,
-    transform 220ms cubic-bezier(.2,.8,.2,1),
-    margin 220ms ease;
 }
 
 .finished-action-tray > .finished-action-buttons > button {
@@ -52,27 +58,20 @@
   font-size: 12px !important;
 }
 
-/* Saved screenshots is a clean full-width row, matching the finished chat UI. */
+/* Saved screenshots stays compact, full-width, and directly above the composer
+   dock. There is no extra action spacer after this row. */
 .finished-action-tray > .finished-reuse-details {
   order: 2 !important;
   width: 100% !important;
   max-width: 100% !important;
   align-self: stretch !important;
-  max-height: 760px;
-  opacity: 1;
-  overflow: hidden;
-  transform: translateY(0);
+  margin: 0 !important;
   padding: 0 12px !important;
   border: 1px solid rgba(255,255,255,.075) !important;
   border-radius: 16px !important;
   background: linear-gradient(180deg, rgba(255,255,255,.032), rgba(255,255,255,.018)) !important;
-  transition:
-    max-height 220ms cubic-bezier(.2,.8,.2,1),
-    opacity 150ms ease,
-    transform 220ms cubic-bezier(.2,.8,.2,1),
-    padding 220ms ease,
-    margin 220ms ease,
-    border-color 160ms ease;
+  opacity: 1;
+  overflow: hidden;
 }
 
 .finished-reuse-details > summary {
@@ -146,31 +145,50 @@
   aspect-ratio: 16 / 10;
 }
 
-/* The collapse arrow belongs immediately above the text composer. */
-.finished-action-tray > .finished-chat-collapse-toggle {
+/* Composer dock. Its top margin is exactly the space occupied by the centered
+   arrow, so the controls finish close to the chat instead of floating high
+   above it. */
+.finished-action-tray > .finished-chat-composer {
   order: 3 !important;
-  position: relative;
-  z-index: 35;
+  position: relative !important;
+  margin: 34px 0 0 !important;
+  padding-top: 0 !important;
+  max-height: none !important;
+  opacity: 1 !important;
+  overflow: visible !important;
+  transform: none !important;
+  pointer-events: auto !important;
+}
+
+/* The arrow is portaled into the composer itself. This guarantees its center is
+   the exact center of the chat input and keeps it glued to the composer when
+   the result controls disappear. */
+.finished-chat-composer > .finished-chat-collapse-toggle {
+  position: absolute !important;
+  left: 50% !important;
+  top: 0 !important;
+  z-index: 50;
   display: inline-flex !important;
   width: 42px !important;
   height: 28px !important;
   min-width: 42px !important;
   min-height: 28px !important;
-  align-self: center;
-  margin: 0 auto -1px !important;
+  margin: 0 !important;
   padding: 0 !important;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(171,136,255,.31) !important;
+  border: 1px solid rgba(171,136,255,.34) !important;
   border-radius: 999px !important;
-  background: linear-gradient(180deg, rgba(44,32,73,.98), rgba(28,21,48,.98)) !important;
-  color: rgba(249,247,255,.96) !important;
+  background: linear-gradient(180deg, rgba(44,32,73,.985), rgba(28,21,48,.985)) !important;
+  color: rgba(249,247,255,.97) !important;
   box-shadow:
     0 10px 28px -18px rgba(124,58,237,.95),
-    inset 0 1px 0 rgba(255,255,255,.075),
+    inset 0 1px 0 rgba(255,255,255,.08),
     0 0 0 4px rgba(124,58,237,.035);
   backdrop-filter: blur(14px);
-  transform: translateY(0);
+  transform: translate(-50%, calc(-100% - 5px));
+  transform-origin: center;
+  touch-action: manipulation;
   transition:
     transform 170ms ease,
     border-color 170ms ease,
@@ -178,35 +196,23 @@
     box-shadow 170ms ease;
 }
 
-.finished-action-tray > .finished-chat-collapse-toggle:hover {
-  transform: translateY(-1px);
-  border-color: rgba(181,147,255,.52) !important;
-  background: linear-gradient(180deg, rgba(53,38,88,.99), rgba(32,23,56,.99)) !important;
+.finished-chat-composer > .finished-chat-collapse-toggle:hover {
+  transform: translate(-50%, calc(-100% - 6px));
+  border-color: rgba(181,147,255,.55) !important;
+  background: linear-gradient(180deg, rgba(53,38,88,.995), rgba(32,23,56,.995)) !important;
   box-shadow:
     0 12px 30px -17px rgba(124,58,237,1),
-    inset 0 1px 0 rgba(255,255,255,.09),
+    inset 0 1px 0 rgba(255,255,255,.1),
     0 0 0 5px rgba(124,58,237,.045);
 }
 
-.finished-action-tray > .finished-chat-collapse-toggle:active {
-  transform: scale(.96);
+.finished-chat-composer > .finished-chat-collapse-toggle:active {
+  transform: translate(-50%, calc(-100% - 5px)) scale(.96);
 }
 
-.finished-action-tray > .finished-chat-collapse-toggle:focus-visible {
+.finished-chat-composer > .finished-chat-collapse-toggle:focus-visible {
   outline: 2px solid rgba(181,147,255,.62);
   outline-offset: 3px;
-}
-
-/* The composer never participates in the collapse. */
-.finished-action-tray > .finished-chat-composer {
-  order: 4 !important;
-  margin: 0 !important;
-  padding-top: 0 !important;
-  max-height: none !important;
-  opacity: 1 !important;
-  overflow: visible !important;
-  transform: none !important;
-  pointer-events: auto !important;
 }
 
 .finished-chat-composer > .mb-2.px-1 {
@@ -255,18 +261,17 @@
   height: 36px !important;
 }
 
-/* Keep the original event-source button hidden. A single consistent action is
-   rendered below the composer for every completed chat. */
+/* Keep the original start-over button only as the event source. The consistent
+   user-facing action is placed below the composer in every completed chat. */
 .finished-action-tray > .finished-start-over-original {
   display: none !important;
 }
 
 .finished-action-tray > .finished-start-over-dock {
-  order: 5 !important;
+  order: 4 !important;
   align-self: center;
   display: inline-flex;
-  min-height: 34px;
-  max-height: 38px;
+  min-height: 32px;
   align-items: center;
   justify-content: center;
   margin: 0 auto !important;
@@ -278,16 +283,7 @@
   font-size: 10px;
   font-weight: 650;
   line-height: 1;
-  opacity: 1;
-  overflow: hidden;
-  transform: translateY(0);
-  transition:
-    color 160ms ease,
-    background 160ms ease,
-    opacity 150ms ease,
-    transform 220ms cubic-bezier(.2,.8,.2,1),
-    max-height 220ms cubic-bezier(.2,.8,.2,1),
-    margin 220ms ease;
+  transition: color 160ms ease, background 160ms ease, transform 160ms ease;
 }
 
 .finished-action-tray > .finished-start-over-dock:hover {
@@ -304,40 +300,46 @@
   pointer-events: none;
 }
 
-/* Collapsed state: remove result actions and the separate-creation shortcut.
-   Keep only the arrow and the text composer; no 46px placeholder, no empty bar. */
+/* Collapsed means zero layout footprint for result controls. display:none is
+   intentional here: it removes every hidden row, border and margin instead of
+   leaving an animated empty block behind. The only reserved space is the 34px
+   occupied by the arrow directly above the still-visible chat composer. */
 .chat-widget-shell.chat-finish-collapsed .finished-action-tray {
-  gap: 6px !important;
+  gap: 0 !important;
 }
 
 .chat-widget-shell.chat-finish-collapsed .finished-action-tray > .finished-action-buttons,
 .chat-widget-shell.chat-finish-collapsed .finished-action-tray > .finished-reuse-details,
 .chat-widget-shell.chat-finish-collapsed .finished-action-tray > .finished-start-over-dock {
-  max-height: 0 !important;
-  min-height: 0 !important;
-  opacity: 0 !important;
-  overflow: hidden !important;
-  pointer-events: none !important;
-  transform: translateY(14px) !important;
-  margin-top: 0 !important;
-  margin-bottom: 0 !important;
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
-  border-top-width: 0 !important;
-  border-bottom-width: 0 !important;
+  display: none !important;
 }
 
-.chat-widget-shell.chat-finish-collapsed .finished-action-tray > .finished-chat-collapse-toggle {
-  margin: 0 auto -1px !important;
-  border-color: rgba(181,147,255,.47) !important;
-  background: linear-gradient(180deg, rgba(50,36,83,.99), rgba(30,22,53,.99)) !important;
+.chat-widget-shell.chat-finish-collapsed .finished-action-tray > .finished-chat-composer {
+  margin-top: 34px !important;
+}
+
+.chat-widget-shell.chat-finish-collapsed .finished-chat-composer > .finished-chat-collapse-toggle {
+  border-color: rgba(181,147,255,.48) !important;
+  background: linear-gradient(180deg, rgba(50,36,83,.995), rgba(30,22,53,.995)) !important;
   box-shadow:
     0 12px 32px -18px rgba(124,58,237,1),
-    inset 0 1px 0 rgba(255,255,255,.09),
+    inset 0 1px 0 rgba(255,255,255,.095),
     0 0 0 5px rgba(124,58,237,.045);
 }
 
 @media (max-width: 640px) {
+  .chat-widget-shell .chat-scroll:has(.finished-action-tray) {
+    padding-top: 6px !important;
+  }
+
+  .chat-widget-shell.chat-finish-collapsed .chat-scroll:has(.finished-action-tray) {
+    padding-top: 0 !important;
+  }
+
+  .finished-action-tray {
+    gap: 7px !important;
+  }
+
   .finished-action-tray > .finished-action-buttons {
     grid-template-columns: 1fr;
     gap: 8px !important;
@@ -365,6 +367,11 @@
     width: 8.5rem !important;
   }
 
+  .finished-action-tray > .finished-chat-composer,
+  .chat-widget-shell.chat-finish-collapsed .finished-action-tray > .finished-chat-composer {
+    margin-top: 33px !important;
+  }
+
   .finished-chat-composer form {
     min-height: 54px !important;
     border-radius: 18px !important;
@@ -375,7 +382,7 @@
     font-size: 16px !important;
   }
 
-  .finished-action-tray > .finished-chat-collapse-toggle {
+  .finished-chat-composer > .finished-chat-collapse-toggle {
     width: 40px !important;
     height: 27px !important;
     min-width: 40px !important;
@@ -383,7 +390,7 @@
   }
 
   .finished-action-tray > .finished-start-over-dock {
-    min-height: 32px;
+    min-height: 30px;
     font-size: 9.5px;
   }
 }
