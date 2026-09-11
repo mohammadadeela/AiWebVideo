@@ -1,89 +1,37 @@
-/* Completed-chat UX overrides.
-   The creation-action tray is independent from the chat composer. The centered
-   pull-tab controls only finished-result actions/references and is available
-   across website, product, photo and AI-video result layouts. */
+/* Completed-chat controls.
+   Keep the chat composer independent from the collapsible result actions.
+   The centered chevron always sits directly above the composer, and collapsing
+   removes the action controls without leaving the old blank footer behind. */
 
 .finished-action-tray {
   display: flex !important;
   flex-direction: column !important;
-  gap: 10px !important;
+  gap: 9px !important;
+  width: 100%;
   max-height: none !important;
   opacity: 1 !important;
   overflow: visible !important;
   pointer-events: auto !important;
   transform: none !important;
   position: relative;
-  transition: gap 240ms cubic-bezier(.2,.8,.2,1);
 }
 
-/* Arrow occupies the old “Start with another website” slot: top-center of the
-   action area. Sticky keeps it attached to this block rather than the video. */
-.finished-action-tray > .finished-chat-collapse-toggle {
-  order: 0 !important;
-  position: sticky;
-  top: 8px;
-  z-index: 35;
-  display: inline-flex !important;
-  width: 40px !important;
-  height: 27px !important;
-  min-width: 40px !important;
-  min-height: 27px !important;
-  align-self: center;
-  margin: 0 auto 2px !important;
-  padding: 0 !important;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(171,136,255,.3) !important;
-  border-radius: 999px !important;
-  background: linear-gradient(180deg, rgba(44,32,73,.97), rgba(28,21,48,.97)) !important;
-  color: rgba(249,247,255,.95) !important;
-  box-shadow: 0 10px 28px -18px rgba(124,58,237,.95), inset 0 1px 0 rgba(255,255,255,.075), 0 0 0 4px rgba(124,58,237,.035);
-  backdrop-filter: blur(14px);
-  transform: translateY(0);
-  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 180ms ease, margin 240ms ease;
-}
-
-.finished-action-tray > .finished-chat-collapse-toggle::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  bottom: -4px;
-  width: 14px;
-  height: 2px;
-  border-radius: 999px;
-  background: rgba(171,136,255,.18);
-  transform: translateX(-50%);
-  pointer-events: none;
-}
-
-.finished-action-tray > .finished-chat-collapse-toggle:hover {
-  transform: translateY(-1px);
-  border-color: rgba(181,147,255,.5) !important;
-  background: linear-gradient(180deg, rgba(53,38,88,.99), rgba(32,23,56,.99)) !important;
-  box-shadow: 0 12px 30px -17px rgba(124,58,237,1), inset 0 1px 0 rgba(255,255,255,.09), 0 0 0 5px rgba(124,58,237,.045);
-}
-
-.finished-action-tray > .finished-chat-collapse-toggle:active {
-  transform: scale(.96);
-}
-
-.finished-action-tray > .finished-chat-collapse-toggle:focus-visible {
-  outline: 2px solid rgba(181,147,255,.62);
-  outline-offset: 3px;
-}
-
-/* Preserve the strong/original two-column primary action layout. */
+/* Primary result actions stay first and keep the strong two-column layout. */
 .finished-action-tray > .finished-action-buttons {
   order: 1 !important;
   display: grid !important;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px !important;
   width: 100%;
-  max-height: 240px;
+  max-height: 280px;
   opacity: 1;
   overflow: hidden;
   transform: translateY(0);
-  transition: max-height 240ms cubic-bezier(.2,.8,.2,1), opacity 170ms ease, transform 240ms cubic-bezier(.2,.8,.2,1), margin 240ms ease;
+  transition:
+    max-height 220ms cubic-bezier(.2,.8,.2,1),
+    opacity 150ms ease,
+    transform 220ms cubic-bezier(.2,.8,.2,1),
+    margin 220ms ease;
 }
 
 .finished-action-tray > .finished-action-buttons > button {
@@ -99,27 +47,32 @@
 
 .finished-action-tray > .finished-action-buttons > button.w-full {
   grid-column: 1 / -1;
-  width: 100% !important;
   min-height: 46px !important;
   border-radius: 15px !important;
   font-size: 12px !important;
 }
 
-/* Saved screenshots is part of the collapsible ACTION tray. */
+/* Saved screenshots is a clean full-width row, matching the finished chat UI. */
 .finished-action-tray > .finished-reuse-details {
   order: 2 !important;
   width: 100% !important;
   max-width: 100% !important;
   align-self: stretch !important;
-  max-height: 700px;
+  max-height: 760px;
   opacity: 1;
   overflow: hidden;
   transform: translateY(0);
   padding: 0 12px !important;
-  border: 1px solid rgba(255,255,255,.07) !important;
+  border: 1px solid rgba(255,255,255,.075) !important;
   border-radius: 16px !important;
   background: linear-gradient(180deg, rgba(255,255,255,.032), rgba(255,255,255,.018)) !important;
-  transition: max-height 240ms cubic-bezier(.2,.8,.2,1), opacity 170ms ease, transform 240ms cubic-bezier(.2,.8,.2,1), padding 240ms ease, margin 240ms ease, border-color 180ms ease;
+  transition:
+    max-height 220ms cubic-bezier(.2,.8,.2,1),
+    opacity 150ms ease,
+    transform 220ms cubic-bezier(.2,.8,.2,1),
+    padding 220ms ease,
+    margin 220ms ease,
+    border-color 160ms ease;
 }
 
 .finished-reuse-details > summary {
@@ -128,11 +81,16 @@
   align-items: center;
   gap: 8px !important;
   width: 100% !important;
-  min-height: 44px !important;
+  min-height: 48px !important;
   padding: 0 !important;
   border: 0 !important;
   border-radius: 0 !important;
   background: transparent !important;
+  cursor: pointer;
+}
+
+.finished-reuse-details > summary > div {
+  min-width: 0;
 }
 
 .finished-reuse-details > summary > div > p:first-child {
@@ -140,69 +98,43 @@
   font-size: 11px !important;
   line-height: 1rem !important;
   font-weight: 650 !important;
+  color: rgba(248,246,255,.94) !important;
 }
 
-.finished-reuse-details > summary > div > p:not(:first-child),
-.finished-chat-composer > .mb-2.px-1 > p:not(:first-child) {
+.finished-reuse-details > summary > div > p:not(:first-child) {
   display: none !important;
 }
 
 .finished-reuse-details > summary > span {
-  padding: 3px 8px !important;
-  border: 1px solid rgba(255,255,255,.07) !important;
+  padding: 4px 9px !important;
+  border: 1px solid rgba(255,255,255,.075) !important;
   border-radius: 999px !important;
   background: rgba(255,255,255,.045) !important;
   font-size: 9px !important;
+  color: rgba(199,190,229,.88) !important;
 }
 
-/* “Start with another website” / “Start a separate creation” moves into the
-   right side of the saved-screenshots row. The original bottom button is kept
-   only as the event source and hidden when that row exists. */
-.finished-action-tray.has-reuse-details > .finished-start-over-original {
-  display: none !important;
-}
-
-.finished-start-over-inline {
-  min-height: 26px;
-  max-width: 190px;
-  padding: 0 10px;
-  border: 1px solid rgba(171,136,255,.15);
-  border-radius: 999px;
-  background: rgba(127,92,205,.075);
-  color: rgba(192,178,235,.82);
-  font-size: 9px;
-  font-weight: 650;
+.finished-reuse-details > summary::after {
+  content: "⌄";
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+  color: rgba(171,160,207,.82);
+  font-size: 12px;
   line-height: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  transition: color 160ms ease, border-color 160ms ease, background 160ms ease, transform 160ms ease;
+  transition: transform 160ms ease, color 160ms ease;
 }
 
-.finished-start-over-inline:hover {
-  color: rgba(245,241,255,.96);
-  border-color: rgba(171,136,255,.3);
-  background: rgba(127,92,205,.13);
-  transform: translateY(-1px);
+.finished-reuse-details[open] > summary::after {
+  transform: rotate(180deg);
+  color: rgba(242,237,255,.96);
 }
 
-.finished-start-over-inline:active {
-  transform: scale(.98);
-}
-
-.finished-start-over-inline:disabled {
-  opacity: .45;
-  pointer-events: none;
-}
-
-/* If a result type has no saved-reference row, keep start-over as a subtle
-   secondary action and let the same arrow collapse it with all other actions. */
-.finished-action-tray:not(.has-reuse-details) > .finished-start-over-original {
-  order: 2 !important;
-  align-self: center;
-  max-height: 38px;
-  opacity: 1;
-  transition: max-height 240ms cubic-bezier(.2,.8,.2,1), opacity 170ms ease, transform 240ms cubic-bezier(.2,.8,.2,1), margin 240ms ease;
+.finished-reuse-details[open] > div {
+  margin-top: 0 !important;
+  padding-top: 10px !important;
 }
 
 .chat-widget-shell .finished-reuse-details[open] .chat-scroll > button {
@@ -214,9 +146,60 @@
   aspect-ratio: 16 / 10;
 }
 
-/* The chat composer is deliberately OUTSIDE collapse behavior. */
-.finished-action-tray > .finished-chat-composer {
+/* The collapse arrow belongs immediately above the text composer. */
+.finished-action-tray > .finished-chat-collapse-toggle {
   order: 3 !important;
+  position: relative;
+  z-index: 35;
+  display: inline-flex !important;
+  width: 42px !important;
+  height: 28px !important;
+  min-width: 42px !important;
+  min-height: 28px !important;
+  align-self: center;
+  margin: 0 auto -1px !important;
+  padding: 0 !important;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(171,136,255,.31) !important;
+  border-radius: 999px !important;
+  background: linear-gradient(180deg, rgba(44,32,73,.98), rgba(28,21,48,.98)) !important;
+  color: rgba(249,247,255,.96) !important;
+  box-shadow:
+    0 10px 28px -18px rgba(124,58,237,.95),
+    inset 0 1px 0 rgba(255,255,255,.075),
+    0 0 0 4px rgba(124,58,237,.035);
+  backdrop-filter: blur(14px);
+  transform: translateY(0);
+  transition:
+    transform 170ms ease,
+    border-color 170ms ease,
+    background 170ms ease,
+    box-shadow 170ms ease;
+}
+
+.finished-action-tray > .finished-chat-collapse-toggle:hover {
+  transform: translateY(-1px);
+  border-color: rgba(181,147,255,.52) !important;
+  background: linear-gradient(180deg, rgba(53,38,88,.99), rgba(32,23,56,.99)) !important;
+  box-shadow:
+    0 12px 30px -17px rgba(124,58,237,1),
+    inset 0 1px 0 rgba(255,255,255,.09),
+    0 0 0 5px rgba(124,58,237,.045);
+}
+
+.finished-action-tray > .finished-chat-collapse-toggle:active {
+  transform: scale(.96);
+}
+
+.finished-action-tray > .finished-chat-collapse-toggle:focus-visible {
+  outline: 2px solid rgba(181,147,255,.62);
+  outline-offset: 3px;
+}
+
+/* The composer never participates in the collapse. */
+.finished-action-tray > .finished-chat-composer {
+  order: 4 !important;
   margin: 0 !important;
   padding-top: 0 !important;
   max-height: none !important;
@@ -239,6 +222,10 @@
   color: rgba(188,181,218,.78) !important;
 }
 
+.finished-chat-composer > .mb-2.px-1 > p:not(:first-child) {
+  display: none !important;
+}
+
 .finished-chat-composer form {
   min-height: 58px !important;
   padding: 6px 7px !important;
@@ -246,7 +233,9 @@
   gap: 6px !important;
   border-radius: 19px !important;
   background: rgba(255,255,255,.055) !important;
-  box-shadow: 0 16px 46px -34px rgba(0,0,0,.95), inset 0 0 0 1px rgba(255,255,255,.035) !important;
+  box-shadow:
+    0 16px 46px -34px rgba(0,0,0,.95),
+    inset 0 0 0 1px rgba(255,255,255,.035) !important;
 }
 
 .finished-chat-composer form textarea {
@@ -266,21 +255,70 @@
   height: 36px !important;
 }
 
-/* Collapsed state: ONLY finished action controls go down. The text composer
-   remains fully visible and usable. */
+/* Keep the original event-source button hidden. A single consistent action is
+   rendered below the composer for every completed chat. */
+.finished-action-tray > .finished-start-over-original {
+  display: none !important;
+}
+
+.finished-action-tray > .finished-start-over-dock {
+  order: 5 !important;
+  align-self: center;
+  display: inline-flex;
+  min-height: 34px;
+  max-height: 38px;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto !important;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(154,132,222,.86);
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1;
+  opacity: 1;
+  overflow: hidden;
+  transform: translateY(0);
+  transition:
+    color 160ms ease,
+    background 160ms ease,
+    opacity 150ms ease,
+    transform 220ms cubic-bezier(.2,.8,.2,1),
+    max-height 220ms cubic-bezier(.2,.8,.2,1),
+    margin 220ms ease;
+}
+
+.finished-action-tray > .finished-start-over-dock:hover {
+  color: rgba(235,228,255,.98);
+  background: rgba(127,92,205,.08);
+}
+
+.finished-action-tray > .finished-start-over-dock:active {
+  transform: scale(.98);
+}
+
+.finished-action-tray > .finished-start-over-dock:disabled {
+  opacity: .45;
+  pointer-events: none;
+}
+
+/* Collapsed state: remove result actions and the separate-creation shortcut.
+   Keep only the arrow and the text composer; no 46px placeholder, no empty bar. */
 .chat-widget-shell.chat-finish-collapsed .finished-action-tray {
-  gap: 5px !important;
+  gap: 6px !important;
 }
 
 .chat-widget-shell.chat-finish-collapsed .finished-action-tray > .finished-action-buttons,
 .chat-widget-shell.chat-finish-collapsed .finished-action-tray > .finished-reuse-details,
-.chat-widget-shell.chat-finish-collapsed .finished-action-tray > .finished-start-over-original {
+.chat-widget-shell.chat-finish-collapsed .finished-action-tray > .finished-start-over-dock {
   max-height: 0 !important;
   min-height: 0 !important;
   opacity: 0 !important;
   overflow: hidden !important;
   pointer-events: none !important;
-  transform: translateY(26px) !important;
+  transform: translateY(14px) !important;
   margin-top: 0 !important;
   margin-bottom: 0 !important;
   padding-top: 0 !important;
@@ -290,10 +328,13 @@
 }
 
 .chat-widget-shell.chat-finish-collapsed .finished-action-tray > .finished-chat-collapse-toggle {
-  margin: 2px auto 1px !important;
-  border-color: rgba(181,147,255,.46) !important;
+  margin: 0 auto -1px !important;
+  border-color: rgba(181,147,255,.47) !important;
   background: linear-gradient(180deg, rgba(50,36,83,.99), rgba(30,22,53,.99)) !important;
-  box-shadow: 0 12px 32px -18px rgba(124,58,237,1), inset 0 1px 0 rgba(255,255,255,.09), 0 0 0 5px rgba(124,58,237,.045);
+  box-shadow:
+    0 12px 32px -18px rgba(124,58,237,1),
+    inset 0 1px 0 rgba(255,255,255,.09),
+    0 0 0 5px rgba(124,58,237,.045);
 }
 
 @media (max-width: 640px) {
@@ -311,17 +352,13 @@
   }
 
   .finished-reuse-details > summary {
-    grid-template-columns: minmax(0,1fr) auto;
+    grid-template-columns: minmax(0,1fr) auto auto;
+    min-height: 46px !important;
   }
 
   .finished-reuse-details > summary > span {
-    display: none;
-  }
-
-  .finished-start-over-inline {
-    max-width: 148px;
-    padding-inline: 8px;
-    font-size: 8.5px;
+    padding-inline: 7px !important;
+    font-size: 8.5px !important;
   }
 
   .chat-widget-shell .finished-reuse-details[open] .chat-scroll > button {
@@ -339,10 +376,14 @@
   }
 
   .finished-action-tray > .finished-chat-collapse-toggle {
-    top: 6px;
-    width: 38px !important;
-    height: 26px !important;
-    min-width: 38px !important;
-    min-height: 26px !important;
+    width: 40px !important;
+    height: 27px !important;
+    min-width: 40px !important;
+    min-height: 27px !important;
+  }
+
+  .finished-action-tray > .finished-start-over-dock {
+    min-height: 32px;
+    font-size: 9.5px;
   }
 }

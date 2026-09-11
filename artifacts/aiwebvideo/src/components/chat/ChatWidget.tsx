@@ -57,8 +57,8 @@ export function ChatWidget({
     readFinishedPanelState(initialChatId),
   );
   const [actionTray, setActionTray] = useState<HTMLElement | null>(null);
-  const [reuseSummary, setReuseSummary] = useState<HTMLElement | null>(null);
   const [startOverButton, setStartOverButton] = useState<HTMLButtonElement | null>(null);
+  const [startOverDisabled, setStartOverDisabled] = useState(false);
   const shellRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -72,7 +72,6 @@ export function ChatWidget({
     if (!shell) return;
 
     let currentTray: HTMLElement | null = null;
-    let currentSummary: HTMLElement | null = null;
     let currentStartOver: HTMLButtonElement | null = null;
 
     const syncActionTray = () => {
@@ -87,13 +86,10 @@ export function ChatWidget({
       }
 
       if (!nextTray) {
-        if (currentSummary) {
-          currentSummary = null;
-          setReuseSummary(null);
-        }
         if (currentStartOver) {
           currentStartOver = null;
           setStartOverButton(null);
+          setStartOverDisabled(false);
         }
         return;
       }
@@ -125,20 +121,22 @@ export function ChatWidget({
       );
       nextStartOver?.classList.add("finished-start-over-original");
 
-      const nextSummary = nextDetails?.querySelector<HTMLElement>("summary") ?? null;
-      if (nextSummary !== currentSummary) {
-        currentSummary = nextSummary;
-        setReuseSummary(nextSummary);
-      }
       if (nextStartOver !== currentStartOver) {
         currentStartOver = nextStartOver ?? null;
         setStartOverButton(nextStartOver ?? null);
       }
+      setStartOverDisabled(Boolean(nextStartOver?.disabled));
     };
 
     syncActionTray();
     const observer = new MutationObserver(syncActionTray);
-    observer.observe(shell, { childList: true, subtree: true, characterData: true });
+    observer.observe(shell, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: ["disabled"],
+    });
 
     return () => {
       observer.disconnect();
@@ -180,22 +178,22 @@ export function ChatWidget({
       )
     : null;
 
-  const startOverInline = reuseSummary && startOverButton
+  const startOverDock = actionTray && startOverButton
     ? createPortal(
         <button
           type="button"
-          className="finished-start-over-inline"
+          className="finished-start-over-dock"
           onClick={(event) => {
             event.preventDefault();
             event.stopPropagation();
             startOverButton.click();
           }}
-          disabled={startOverButton.disabled}
-          title={startOverButton.textContent?.trim() || "Start another creation"}
+          disabled={startOverDisabled}
+          title="Start a separate creation"
         >
-          {startOverButton.textContent?.trim() || "Start another creation"}
+          Start a separate creation
         </button>,
-        reuseSummary,
+        actionTray,
       )
     : null;
 
@@ -212,7 +210,7 @@ export function ChatWidget({
         className="h-full w-full"
       />
       {toggle}
-      {startOverInline}
+      {startOverDock}
     </div>
   );
 }
