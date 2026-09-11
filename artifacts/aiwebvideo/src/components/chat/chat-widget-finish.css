@@ -1,0 +1,117 @@
+/* Completed-chat controls: compact utilities first, primary actions immediately above the composer. */
+.chat-widget-shell div:has(> details.group) {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.chat-widget-shell div:has(> details.group) > * {
+  margin-top: 0 !important;
+}
+
+/* Saved-reference management is a lightweight utility, not a full card. */
+.chat-widget-shell div:has(> details.group) > details.group {
+  order: 1;
+  max-width: 100%;
+  transition: border-color 160ms ease, background-color 160ms ease, width 160ms ease;
+}
+
+.chat-widget-shell div:has(> details.group) > details.group:not([open]) {
+  width: fit-content;
+  align-self: flex-end;
+  border: 1px solid rgba(255, 255, 255, 0.07) !important;
+  border-radius: 999px !important;
+  background: rgba(255, 255, 255, 0.025) !important;
+  padding: 0 !important;
+}
+
+.chat-widget-shell div:has(> details.group) > details.group[open] {
+  width: 100%;
+  align-self: stretch;
+  border-radius: 16px !important;
+  padding: 0 0.65rem 0.65rem !important;
+}
+
+.chat-widget-shell div:has(> details.group) > details.group > summary {
+  min-height: 30px !important;
+  gap: 0.4rem !important;
+  padding: 0 0.65rem;
+}
+
+.chat-widget-shell div:has(> details.group) > details.group > summary::-webkit-details-marker {
+  display: none;
+}
+
+.chat-widget-shell div:has(> details.group) > details.group > summary > div > p:first-child {
+  font-size: 10px !important;
+  line-height: 1.15rem !important;
+  font-weight: 600 !important;
+  white-space: nowrap;
+}
+
+/* Remove the explanatory sentence under “Reuse saved screenshots”. */
+.chat-widget-shell div:has(> details.group) > details.group > summary > div > p:nth-child(2) {
+  display: none !important;
+}
+
+.chat-widget-shell div:has(> details.group) > details.group > summary > span {
+  border: 0 !important;
+  background: rgba(255, 255, 255, 0.045) !important;
+  padding: 0.2rem 0.45rem !important;
+  font-size: 8px !important;
+  line-height: 1rem !important;
+}
+
+/* The two main next-step actions should sit directly above the chat composer. */
+.chat-widget-shell div:has(> details.group) > div:first-child {
+  order: 2;
+  gap: 0.5rem !important;
+}
+
+.chat-widget-shell div:has(> details.group) > div:first-child > button {
+  min-height: 42px !important;
+  border-radius: 14px !important;
+}
+
+/* Composer block. Keep its label tiny and remove helper copy underneath it. */
+.chat-widget-shell div:has(> details.group) > details.group + div {
+  order: 3;
+  padding-top: 0.1rem !important;
+}
+
+.chat-widget-shell div:has(> details.group) > details.group + div > div:first-child {
+  margin-bottom: 0.35rem !important;
+  padding-inline: 0.15rem !important;
+}
+
+.chat-widget-shell div:has(> details.group) > details.group + div > div:first-child > p:first-child {
+  font-size: 9px !important;
+  line-height: 1rem !important;
+  font-weight: 600 !important;
+  color: rgba(255, 255, 255, 0.58) !important;
+}
+
+/* Remove the explanatory sentence under “Continue in this chat”. */
+.chat-widget-shell div:has(> details.group) > details.group + div > div:first-child > p:nth-child(2) {
+  display: none !important;
+}
+
+.chat-widget-shell div:has(> details.group) > button:last-child {
+  order: 4;
+}
+
+@media (max-width: 640px) {
+  .chat-widget-shell div:has(> details.group) > details.group:not([open]) {
+    align-self: flex-start;
+  }
+
+  .chat-widget-shell div:has(> details.group) > div:first-child {
+    display: grid !important;
+    grid-template-columns: 1fr;
+  }
+
+  .chat-widget-shell div:has(> details.group) > div:first-child > button {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+}
