@@ -21,11 +21,27 @@ const FRIENDLY_FIELD_NAMES: Record<string, string> = {
   mode: 'generation mode',
 };
 
+// These codes describe site-owner/provider configuration, not an action a
+// customer can fix. Admins keep the exact diagnostic; normal users receive one
+// stable public checkout code instead of learning which backend setting failed.
+const PRIVATE_CONFIGURATION_CODES = new Set([
+  'BILLING_NOT_CONFIGURED',
+  'PAYPAL_AUTH_FAILED',
+  'PAYPAL_WEBHOOK_NOT_CONFIGURED',
+  'PAYPAL_PLANS_NOT_CONFIGURED',
+  'APP_URL_NOT_CONFIGURED',
+  'INVALID_ORIGIN',
+]);
+
+function publicErrorCode(code: string): string {
+  return PRIVATE_CONFIGURATION_CODES.has(code) ? 'CHECKOUT_UNAVAILABLE' : code;
+}
+
 export function sendError(res: Response, err: unknown, exposeTechnical = res.locals.isAdmin === true): void {
   if (err instanceof AppError) {
     res.status(err.status).json({
       error: exposeTechnical ? err.message : publicApiErrorMessage(err.message),
-      code: err.code,
+      code: exposeTechnical ? err.code : publicErrorCode(err.code),
       ...(exposeTechnical ? { technical: true } : {}),
     });
     return;
