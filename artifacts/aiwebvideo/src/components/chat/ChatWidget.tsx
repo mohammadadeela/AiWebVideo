@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState, type ComponentProps } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { ChatWidget as ChatWidgetBase } from "./ChatWidgetBase";
 
@@ -6,43 +7,48 @@ type ChatWidgetProps = ComponentProps<typeof ChatWidgetBase>;
 
 export function ChatWidget({ className, ...props }: ChatWidgetProps) {
   const [finishControlsCollapsed, setFinishControlsCollapsed] = useState(false);
+  const [actionTray, setActionTray] = useState<HTMLElement | null>(null);
   const shellRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
     const shell = shellRef.current;
     if (!shell) return;
 
-    let frame = 0;
-    const positionToggle = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => {
-        const details = shell.querySelector<HTMLDetailsElement>(".chat-scroll details.group");
-        const actionStack = details?.parentElement;
-        if (!actionStack) {
-          shell.style.removeProperty("--finished-actions-toggle-top");
-          return;
-        }
-        const shellRect = shell.getBoundingClientRect();
-        const stackRect = actionStack.getBoundingClientRect();
-        const top = Math.max(8, stackRect.top - shellRect.top - 48);
-        shell.style.setProperty("--finished-actions-toggle-top", `${top}px`);
-      });
+    let currentTray: HTMLElement | null = null;
+    const syncActionTray = () => {
+      const details = shell.querySelector<HTMLDetailsElement>(".chat-scroll details.group");
+      const nextTray = details?.parentElement ?? null;
+      if (nextTray === currentTray) return;
+      currentTray = nextTray;
+      setActionTray(nextTray);
     };
 
-    positionToggle();
-    const resizeObserver = new ResizeObserver(positionToggle);
-    resizeObserver.observe(shell);
-    const mutationObserver = new MutationObserver(positionToggle);
-    mutationObserver.observe(shell, { childList: true, subtree: true });
-    window.addEventListener("resize", positionToggle);
+    syncActionTray();
+    const observer = new MutationObserver(syncActionTray);
+    observer.observe(shell, { childList: true, subtree: true });
 
-    return () => {
-      cancelAnimationFrame(frame);
-      resizeObserver.disconnect();
-      mutationObserver.disconnect();
-      window.removeEventListener("resize", positionToggle);
-    };
+    return () => observer.disconnect();
   }, []);
+
+  const toggle = actionTray
+    ? createPortal(
+        <button
+          type="button"
+          className="finished-chat-collapse-toggle"
+          onClick={() => setFinishControlsCollapsed((value) => !value)}
+          aria-label={finishControlsCollapsed ? "Show post-generation actions" : "Hide post-generation actions"}
+          aria-expanded={!finishControlsCollapsed}
+          title={finishControlsCollapsed ? "Show actions" : "Hide actions"}
+        >
+          {finishControlsCollapsed ? (
+            <ChevronUp size={17} strokeWidth={2.4} />
+          ) : (
+            <ChevronDown size={17} strokeWidth={2.4} />
+          )}
+        </button>,
+        actionTray,
+      )
+    : null;
 
   return (
     <div
@@ -50,20 +56,7 @@ export function ChatWidget({ className, ...props }: ChatWidgetProps) {
       className={`chat-widget-shell relative min-h-0 w-full ${finishControlsCollapsed ? "chat-finish-collapsed" : ""} ${className ?? ""}`}
     >
       <ChatWidgetBase {...props} className="h-full w-full" />
-      <button
-        type="button"
-        className="finished-chat-collapse-toggle"
-        onClick={() => setFinishControlsCollapsed((value) => !value)}
-        aria-label={finishControlsCollapsed ? "Show post-generation actions" : "Hide post-generation actions"}
-        aria-expanded={!finishControlsCollapsed}
-        title={finishControlsCollapsed ? "Show actions" : "Hide actions"}
-      >
-        {finishControlsCollapsed ? (
-          <ChevronUp size={22} strokeWidth={2.25} />
-        ) : (
-          <ChevronDown size={22} strokeWidth={2.25} />
-        )}
-      </button>
+      {toggle}
     </div>
   );
 }
