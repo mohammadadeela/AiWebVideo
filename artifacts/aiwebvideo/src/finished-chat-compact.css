@@ -1,9 +1,9 @@
 /* Completed-chat UX overrides.
-   The finished-result panel keeps the original strong action layout. One small
-   centered sticky handle is the only element that remains when the whole panel
-   is tucked away. */
+   The creation-action tray is independent from the chat composer. The centered
+   pull-tab controls only finished-result actions/references and is available
+   across website, product, photo and AI-video result layouts. */
 
-.chat-widget-shell .chat-scroll > div > div:has(> details.group) {
+.finished-action-tray {
   display: flex !important;
   flex-direction: column !important;
   gap: 10px !important;
@@ -16,161 +16,9 @@
   transition: gap 240ms cubic-bezier(.2,.8,.2,1);
 }
 
-/* Main post-generation actions: preserve the original strong layout. */
-.chat-widget-shell .chat-scroll > div > div:has(> details.group) > .flex.flex-wrap.gap-2 {
-  order: 1 !important;
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 10px !important;
-  width: 100%;
-  max-height: 230px;
-  opacity: 1;
-  overflow: hidden;
-  transform: translateY(0);
-  transition: max-height 240ms cubic-bezier(.2,.8,.2,1), opacity 170ms ease, transform 240ms cubic-bezier(.2,.8,.2,1), margin 240ms ease;
-}
-
-.chat-widget-shell .chat-scroll > div > div:has(> details.group) > .flex.flex-wrap.gap-2 > button {
-  width: 100% !important;
-  min-width: 0 !important;
-  min-height: 50px !important;
-  border-radius: 16px !important;
-  font-size: 13px !important;
-  font-weight: 650 !important;
-  letter-spacing: -0.01em;
-  box-shadow: 0 14px 34px -26px rgba(0,0,0,.9);
-}
-
-.chat-widget-shell .chat-scroll > div > div:has(> details.group) > .flex.flex-wrap.gap-2 > button.w-full {
-  grid-column: 1 / -1;
-  width: 100% !important;
-  min-height: 46px !important;
-  border-radius: 15px !important;
-  font-size: 12px !important;
-}
-
-/* Reuse saved screenshots remains part of the same panel. */
-.chat-widget-shell .chat-scroll > div > div:has(> details.group) > details.group {
-  order: 2 !important;
-  width: 100% !important;
-  max-width: 100% !important;
-  align-self: stretch !important;
-  max-height: 700px;
-  opacity: 1;
-  overflow: hidden;
-  transform: translateY(0);
-  padding: 0 12px !important;
-  border: 1px solid rgba(255,255,255,.07) !important;
-  border-radius: 16px !important;
-  background: linear-gradient(180deg, rgba(255,255,255,.032), rgba(255,255,255,.018)) !important;
-  transition: max-height 240ms cubic-bezier(.2,.8,.2,1), opacity 170ms ease, transform 240ms cubic-bezier(.2,.8,.2,1), padding 240ms ease, margin 240ms ease, border-color 180ms ease;
-}
-
-.chat-widget-shell .chat-scroll > div > div:has(> details.group) > details.group > summary {
-  width: 100% !important;
-  min-height: 44px !important;
-  padding: 0 !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-}
-
-.chat-widget-shell .chat-scroll > div > div:has(> details.group) > details.group > summary > div > p:first-child {
-  margin: 0 !important;
-  font-size: 11px !important;
-  line-height: 1rem !important;
-  font-weight: 650 !important;
-}
-
-.chat-widget-shell .chat-scroll > div > div:has(> details.group) > details.group > summary > div > p:not(:first-child),
-.chat-widget-shell .chat-scroll > div > div:has(> details.group) > details.group + div > .mb-2.px-1 > p:not(:first-child) {
-  display: none !important;
-}
-
-.chat-widget-shell .chat-scroll > div > div:has(> details.group) > details.group > summary > span {
-  padding: 3px 8px !important;
-  border: 1px solid rgba(255,255,255,.07) !important;
-  border-radius: 999px !important;
-  background: rgba(255,255,255,.045) !important;
-  font-size: 9px !important;
-}
-
-.chat-widget-shell details.group[open] .chat-scroll > button {
-  width: 9.5rem !important;
-  border-radius: 14px !important;
-}
-
-.chat-widget-shell details.group[open] .chat-scroll > button img {
-  aspect-ratio: 16 / 10;
-}
-
-/* Continue in this chat + composer are part of the same hideable panel. */
-.chat-widget-shell .chat-scroll > div > div:has(> details.group) > details.group + div {
-  order: 3 !important;
-  margin: 0 !important;
-  padding-top: 0 !important;
-  max-height: 180px;
-  opacity: 1;
-  overflow: hidden;
-  transform: translateY(0);
-  transition: max-height 240ms cubic-bezier(.2,.8,.2,1), opacity 170ms ease, transform 240ms cubic-bezier(.2,.8,.2,1), margin 240ms ease;
-}
-
-.chat-widget-shell .chat-scroll > div > div:has(> details.group) > details.group + div > .mb-2.px-1 {
-  margin: 0 0 4px 3px !important;
-  padding: 0 !important;
-}
-
-.chat-widget-shell .chat-scroll > div > div:has(> details.group) > details.group + div > .mb-2.px-1 > p:first-child {
-  margin: 0 !important;
-  font-size: 10px !important;
-  line-height: 1rem !important;
-  font-weight: 600 !important;
-  color: rgba(188,181,218,.78) !important;
-}
-
-.chat-widget-shell .chat-scroll > div > div:has(> details.group) > details.group + div form {
-  min-height: 58px !important;
-  padding: 6px 7px !important;
-  align-items: center !important;
-  gap: 6px !important;
-  border-radius: 19px !important;
-  background: rgba(255,255,255,.055) !important;
-  box-shadow: 0 16px 46px -34px rgba(0,0,0,.95), inset 0 0 0 1px rgba(255,255,255,.035) !important;
-}
-
-.chat-widget-shell .chat-scroll > div > div:has(> details.group) > details.group + div form textarea {
-  min-height: 40px !important;
-  max-height: 92px !important;
-  padding: 9px 8px 6px !important;
-  font-size: 14px !important;
-  line-height: 1.35 !important;
-}
-
-.chat-widget-shell .chat-scroll > div > div:has(> details.group) > details.group + div form textarea::placeholder {
-  font-size: 14px !important;
-}
-
-.chat-widget-shell .chat-scroll > div > div:has(> details.group) > details.group + div form button {
-  width: 36px !important;
-  height: 36px !important;
-}
-
-.chat-widget-shell .chat-scroll > div > div:has(> details.group) > button:last-child {
-  order: 4 !important;
-  max-height: 46px;
-  opacity: 1;
-  overflow: hidden;
-  transform: translateY(0);
-  transition: max-height 240ms cubic-bezier(.2,.8,.2,1), opacity 170ms ease, transform 240ms cubic-bezier(.2,.8,.2,1), margin 240ms ease;
-}
-
-/* Small sticky pull-tab at the TOP CENTER of the complete bottom panel. */
-.finished-chat-collapse-toggle {
-  display: none;
-}
-
-.chat-widget-shell .chat-scroll > div > div:has(> details.group) > .finished-chat-collapse-toggle {
+/* Arrow occupies the old “Start with another website” slot: top-center of the
+   action area. Sticky keeps it attached to this block rather than the video. */
+.finished-action-tray > .finished-chat-collapse-toggle {
   order: 0 !important;
   position: sticky;
   top: 8px;
@@ -195,7 +43,7 @@
   transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 180ms ease, margin 240ms ease;
 }
 
-.chat-widget-shell .chat-scroll > div > div:has(> details.group) > .finished-chat-collapse-toggle::after {
+.finished-action-tray > .finished-chat-collapse-toggle::after {
   content: "";
   position: absolute;
   left: 50%;
@@ -208,50 +56,231 @@
   pointer-events: none;
 }
 
-.chat-widget-shell .chat-scroll > div > div:has(> details.group) > .finished-chat-collapse-toggle:hover {
+.finished-action-tray > .finished-chat-collapse-toggle:hover {
   transform: translateY(-1px);
   border-color: rgba(181,147,255,.5) !important;
   background: linear-gradient(180deg, rgba(53,38,88,.99), rgba(32,23,56,.99)) !important;
   box-shadow: 0 12px 30px -17px rgba(124,58,237,1), inset 0 1px 0 rgba(255,255,255,.09), 0 0 0 5px rgba(124,58,237,.045);
 }
 
-.chat-widget-shell .chat-scroll > div > div:has(> details.group) > .finished-chat-collapse-toggle:active {
+.finished-action-tray > .finished-chat-collapse-toggle:active {
   transform: scale(.96);
 }
 
-.chat-widget-shell .chat-scroll > div > div:has(> details.group) > .finished-chat-collapse-toggle:focus-visible {
+.finished-action-tray > .finished-chat-collapse-toggle:focus-visible {
   outline: 2px solid rgba(181,147,255,.62);
   outline-offset: 3px;
 }
 
-/* Keep the completed-chat container alive while the panel is tucked away. */
-.chat-widget-shell.chat-finish-collapsed .chat-scroll:has(> div > div > details.group) {
-  min-height: 0 !important;
-  max-height: none !important;
-  overflow-y: auto !important;
-  background: transparent !important;
-  border-top-color: transparent !important;
+/* Preserve the strong/original two-column primary action layout. */
+.finished-action-tray > .finished-action-buttons {
+  order: 1 !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px !important;
+  width: 100%;
+  max-height: 240px;
+  opacity: 1;
+  overflow: hidden;
+  transform: translateY(0);
+  transition: max-height 240ms cubic-bezier(.2,.8,.2,1), opacity 170ms ease, transform 240ms cubic-bezier(.2,.8,.2,1), margin 240ms ease;
 }
 
-.chat-widget-shell.chat-finish-collapsed .chat-scroll > div > div:has(> details.group) {
+.finished-action-tray > .finished-action-buttons > button {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 50px !important;
+  border-radius: 16px !important;
+  font-size: 13px !important;
+  font-weight: 650 !important;
+  letter-spacing: -.01em;
+  box-shadow: 0 14px 34px -26px rgba(0,0,0,.9);
+}
+
+.finished-action-tray > .finished-action-buttons > button.w-full {
+  grid-column: 1 / -1;
+  width: 100% !important;
+  min-height: 46px !important;
+  border-radius: 15px !important;
+  font-size: 12px !important;
+}
+
+/* Saved screenshots is part of the collapsible ACTION tray. */
+.finished-action-tray > .finished-reuse-details {
+  order: 2 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  align-self: stretch !important;
+  max-height: 700px;
+  opacity: 1;
+  overflow: hidden;
+  transform: translateY(0);
+  padding: 0 12px !important;
+  border: 1px solid rgba(255,255,255,.07) !important;
+  border-radius: 16px !important;
+  background: linear-gradient(180deg, rgba(255,255,255,.032), rgba(255,255,255,.018)) !important;
+  transition: max-height 240ms cubic-bezier(.2,.8,.2,1), opacity 170ms ease, transform 240ms cubic-bezier(.2,.8,.2,1), padding 240ms ease, margin 240ms ease, border-color 180ms ease;
+}
+
+.finished-reuse-details > summary {
+  display: grid !important;
+  grid-template-columns: minmax(0,1fr) auto auto;
+  align-items: center;
+  gap: 8px !important;
+  width: 100% !important;
+  min-height: 44px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.finished-reuse-details > summary > div > p:first-child {
+  margin: 0 !important;
+  font-size: 11px !important;
+  line-height: 1rem !important;
+  font-weight: 650 !important;
+}
+
+.finished-reuse-details > summary > div > p:not(:first-child),
+.finished-chat-composer > .mb-2.px-1 > p:not(:first-child) {
+  display: none !important;
+}
+
+.finished-reuse-details > summary > span {
+  padding: 3px 8px !important;
+  border: 1px solid rgba(255,255,255,.07) !important;
+  border-radius: 999px !important;
+  background: rgba(255,255,255,.045) !important;
+  font-size: 9px !important;
+}
+
+/* “Start with another website” / “Start a separate creation” moves into the
+   right side of the saved-screenshots row. The original bottom button is kept
+   only as the event source and hidden when that row exists. */
+.finished-action-tray.has-reuse-details > .finished-start-over-original {
+  display: none !important;
+}
+
+.finished-start-over-inline {
+  min-height: 26px;
+  max-width: 190px;
+  padding: 0 10px;
+  border: 1px solid rgba(171,136,255,.15);
+  border-radius: 999px;
+  background: rgba(127,92,205,.075);
+  color: rgba(192,178,235,.82);
+  font-size: 9px;
+  font-weight: 650;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.finished-start-over-inline:hover {
+  color: rgba(245,241,255,.96);
+  border-color: rgba(171,136,255,.3);
+  background: rgba(127,92,205,.13);
+  transform: translateY(-1px);
+}
+
+.finished-start-over-inline:active {
+  transform: scale(.98);
+}
+
+.finished-start-over-inline:disabled {
+  opacity: .45;
+  pointer-events: none;
+}
+
+/* If a result type has no saved-reference row, keep start-over as a subtle
+   secondary action and let the same arrow collapse it with all other actions. */
+.finished-action-tray:not(.has-reuse-details) > .finished-start-over-original {
+  order: 2 !important;
+  align-self: center;
+  max-height: 38px;
+  opacity: 1;
+  transition: max-height 240ms cubic-bezier(.2,.8,.2,1), opacity 170ms ease, transform 240ms cubic-bezier(.2,.8,.2,1), margin 240ms ease;
+}
+
+.chat-widget-shell .finished-reuse-details[open] .chat-scroll > button {
+  width: 9.5rem !important;
+  border-radius: 14px !important;
+}
+
+.chat-widget-shell .finished-reuse-details[open] .chat-scroll > button img {
+  aspect-ratio: 16 / 10;
+}
+
+/* The chat composer is deliberately OUTSIDE collapse behavior. */
+.finished-action-tray > .finished-chat-composer {
+  order: 3 !important;
+  margin: 0 !important;
+  padding-top: 0 !important;
   max-height: none !important;
   opacity: 1 !important;
   overflow: visible !important;
-  pointer-events: auto !important;
   transform: none !important;
-  gap: 0 !important;
+  pointer-events: auto !important;
 }
 
-/* Tuck the ENTIRE bottom panel downward. The only survivor is the pull-tab.
-   This intentionally includes Continue in this chat, its composer, saved
-   screenshots, all action buttons, and Start a separate creation. */
-.chat-widget-shell.chat-finish-collapsed .chat-scroll > div > div:has(> details.group) > :not(.finished-chat-collapse-toggle) {
+.finished-chat-composer > .mb-2.px-1 {
+  margin: 0 0 4px 3px !important;
+  padding: 0 !important;
+}
+
+.finished-chat-composer > .mb-2.px-1 > p:first-child {
+  margin: 0 !important;
+  font-size: 10px !important;
+  line-height: 1rem !important;
+  font-weight: 600 !important;
+  color: rgba(188,181,218,.78) !important;
+}
+
+.finished-chat-composer form {
+  min-height: 58px !important;
+  padding: 6px 7px !important;
+  align-items: center !important;
+  gap: 6px !important;
+  border-radius: 19px !important;
+  background: rgba(255,255,255,.055) !important;
+  box-shadow: 0 16px 46px -34px rgba(0,0,0,.95), inset 0 0 0 1px rgba(255,255,255,.035) !important;
+}
+
+.finished-chat-composer form textarea {
+  min-height: 40px !important;
+  max-height: 92px !important;
+  padding: 9px 8px 6px !important;
+  font-size: 14px !important;
+  line-height: 1.35 !important;
+}
+
+.finished-chat-composer form textarea::placeholder {
+  font-size: 14px !important;
+}
+
+.finished-chat-composer form button {
+  width: 36px !important;
+  height: 36px !important;
+}
+
+/* Collapsed state: ONLY finished action controls go down. The text composer
+   remains fully visible and usable. */
+.chat-widget-shell.chat-finish-collapsed .finished-action-tray {
+  gap: 5px !important;
+}
+
+.chat-widget-shell.chat-finish-collapsed .finished-action-tray > .finished-action-buttons,
+.chat-widget-shell.chat-finish-collapsed .finished-action-tray > .finished-reuse-details,
+.chat-widget-shell.chat-finish-collapsed .finished-action-tray > .finished-start-over-original {
   max-height: 0 !important;
   min-height: 0 !important;
   opacity: 0 !important;
   overflow: hidden !important;
   pointer-events: none !important;
-  transform: translateY(30px) !important;
+  transform: translateY(26px) !important;
   margin-top: 0 !important;
   margin-bottom: 0 !important;
   padding-top: 0 !important;
@@ -260,45 +289,56 @@
   border-bottom-width: 0 !important;
 }
 
-/* In the tucked state the up-arrow becomes a small pull tab sitting where the
-   panel used to begin. It always remains clickable to restore the whole block. */
-.chat-widget-shell.chat-finish-collapsed .chat-scroll > div > div:has(> details.group) > .finished-chat-collapse-toggle {
-  top: 8px;
-  margin: 3px auto 0 !important;
+.chat-widget-shell.chat-finish-collapsed .finished-action-tray > .finished-chat-collapse-toggle {
+  margin: 2px auto 1px !important;
   border-color: rgba(181,147,255,.46) !important;
   background: linear-gradient(180deg, rgba(50,36,83,.99), rgba(30,22,53,.99)) !important;
   box-shadow: 0 12px 32px -18px rgba(124,58,237,1), inset 0 1px 0 rgba(255,255,255,.09), 0 0 0 5px rgba(124,58,237,.045);
 }
 
 @media (max-width: 640px) {
-  .chat-widget-shell .chat-scroll > div > div:has(> details.group) > .flex.flex-wrap.gap-2 {
+  .finished-action-tray > .finished-action-buttons {
     grid-template-columns: 1fr;
     gap: 8px !important;
   }
 
-  .chat-widget-shell .chat-scroll > div > div:has(> details.group) > .flex.flex-wrap.gap-2 > button.w-full {
+  .finished-action-tray > .finished-action-buttons > button.w-full {
     grid-column: auto;
   }
 
-  .chat-widget-shell .chat-scroll > div > div:has(> details.group) > .flex.flex-wrap.gap-2 > button {
+  .finished-action-tray > .finished-action-buttons > button {
     min-height: 46px !important;
   }
 
-  .chat-widget-shell details.group[open] .chat-scroll > button {
+  .finished-reuse-details > summary {
+    grid-template-columns: minmax(0,1fr) auto;
+  }
+
+  .finished-reuse-details > summary > span {
+    display: none;
+  }
+
+  .finished-start-over-inline {
+    max-width: 148px;
+    padding-inline: 8px;
+    font-size: 8.5px;
+  }
+
+  .chat-widget-shell .finished-reuse-details[open] .chat-scroll > button {
     width: 8.5rem !important;
   }
 
-  .chat-widget-shell .chat-scroll > div > div:has(> details.group) > details.group + div form {
+  .finished-chat-composer form {
     min-height: 54px !important;
     border-radius: 18px !important;
   }
 
-  .chat-widget-shell .chat-scroll > div > div:has(> details.group) > details.group + div form textarea {
+  .finished-chat-composer form textarea {
     min-height: 38px !important;
     font-size: 16px !important;
   }
 
-  .chat-widget-shell .chat-scroll > div > div:has(> details.group) > .finished-chat-collapse-toggle {
+  .finished-action-tray > .finished-chat-collapse-toggle {
     top: 6px;
     width: 38px !important;
     height: 26px !important;
