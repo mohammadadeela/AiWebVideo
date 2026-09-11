@@ -1,5 +1,11 @@
 const TECHNICAL_ERROR_PATTERN = /(?:exact error\s*:|\{\s*"?error"?\s*:|\b(?:INVALID_ARGUMENT|RESOURCE_EXHAUSTED|PERMISSION_DENIED|UNAUTHENTICATED|INTERNAL|UNAVAILABLE|DEADLINE_EXCEEDED)\b|\b(?:ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENOTFOUND)\b|personGeneration|allow_adult|generateAudio|negative.?prompt|googleapis\.com|@google\/genai|\bat\s+\S+\s+\([^)]*:\d+:\d+\))/i;
 
+// Configuration diagnostics are useful to administrators and server logs, but
+// never useful to a customer. Keep provider credentials, environment details,
+// webhook/catalog setup and application-origin configuration behind the API
+// privacy boundary even when the original error is human-readable.
+const PRIVATE_CONFIGURATION_ERROR_PATTERN = /(?:client\s*id|client\s*secret|checkout credentials|credentials were rejected|live\s*\/\s*sandbox|sandbox\s*\/\s*live|same REST application|PAYPAL_(?:CLIENT|ENV|WEBHOOK)|webhook(?:s| id)?|catalog(?:ue)? product|subscription plans? could not be configured|application URL is not configured|public HTTPS application URL|payment notifications could not be configured|configured application URL)/i;
+
 function compact(message: string): string {
   return message.replace(/\s+/g, ' ').trim();
 }
@@ -8,12 +14,24 @@ export function containsTechnicalError(message: string): boolean {
   return TECHNICAL_ERROR_PATTERN.test(message);
 }
 
+export function containsPrivateConfigurationError(message: string): boolean {
+  return PRIVATE_CONFIGURATION_ERROR_PATTERN.test(message);
+}
+
 /**
  * Converts provider/implementation errors into safe, actionable API messages.
  * Human-authored messages without technical markers pass through unchanged.
  */
 export function publicApiErrorMessage(message: string): string {
   const value = compact(message);
+
+  // Payment/provider configuration is an owner concern. Customers should only
+  // know that checkout is temporarily unavailable, never which credential,
+  // mode, webhook or application setting is wrong.
+  if (containsPrivateConfigurationError(value)) {
+    return 'Checkout is temporarily unavailable. Please try again shortly.';
+  }
+
   if (!containsTechnicalError(value)) return value;
 
   if (/429|RESOURCE_EXHAUSTED|rate.?limit|quota|capacity|spend.?based/i.test(value)) {
