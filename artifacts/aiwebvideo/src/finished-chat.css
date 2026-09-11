@@ -1,0 +1,141 @@
+/* Finished chat controls — compact ChatGPT-style follow-up layout.
+   Scoped structurally to the done-state control stack: it is the only chat
+   input stack with a direct reusable-screenshots <details> element. */
+.chat-scroll > div:has(> details > summary) {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Put the lightweight screenshot utility first, then the two primary actions,
+   then the actual chat composer. This keeps the important buttons directly
+   above the text box instead of separating them with a large settings card. */
+.chat-scroll > div:has(> details > summary) > details {
+  order: 1;
+  width: 100%;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.chat-scroll > div:has(> details > summary) > .flex.flex-wrap.gap-2 {
+  order: 2;
+  margin: 0;
+  gap: 8px;
+}
+
+.chat-scroll > div:has(> details > summary) > details + div {
+  order: 3;
+  margin: 0;
+}
+
+.chat-scroll > div:has(> details > summary) > button:last-child {
+  order: 4;
+}
+
+/* Reuse screenshots becomes a small utility pill instead of a full-width card. */
+.chat-scroll > div:has(> details > summary) > details > summary {
+  width: fit-content;
+  min-height: 30px !important;
+  padding: 4px 5px 4px 10px;
+  gap: 7px !important;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.025);
+  transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
+}
+
+.chat-scroll > div:has(> details > summary) > details > summary:hover {
+  border-color: rgba(139, 92, 246, 0.28);
+  background: rgba(139, 92, 246, 0.07);
+}
+
+.chat-scroll > div:has(> details > summary) > details > summary > div {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.chat-scroll > div:has(> details > summary) > details > summary > div > p:first-child {
+  margin: 0 !important;
+  font-size: 10px !important;
+  line-height: 1.1rem;
+  font-weight: 600;
+  color: rgba(245, 243, 255, 0.82);
+  white-space: nowrap;
+}
+
+/* Remove the long helper sentence under Reuse saved screenshots. */
+.chat-scroll > div:has(> details > summary) > details > summary > div > p:not(:first-child) {
+  display: none !important;
+}
+
+.chat-scroll > div:has(> details > summary) > details > summary > span {
+  padding: 3px 7px !important;
+  border: 0 !important;
+  background: rgba(255, 255, 255, 0.045) !important;
+  font-size: 8px !important;
+  line-height: 1rem;
+}
+
+/* When opened, keep the picker full-width and visually separated, while the
+   closed state stays tiny. */
+.chat-scroll > div:has(> details > summary) > details[open] {
+  border-radius: 14px !important;
+  background: rgba(255, 255, 255, 0.018) !important;
+}
+
+.chat-scroll > div:has(> details > summary) > details[open] > summary {
+  margin: 6px 6px 0;
+}
+
+.chat-scroll > div:has(> details > summary) > details[open] > div {
+  margin-top: 7px !important;
+  padding: 10px 6px 2px !important;
+}
+
+/* Continue in this chat becomes a tiny section label immediately above the
+   composer. The explanatory sentence is intentionally removed. */
+.chat-scroll > div:has(> details > summary) > details + div > .mb-2.px-1 {
+  width: fit-content;
+  margin: 0 0 5px 2px !important;
+  padding: 0 !important;
+}
+
+.chat-scroll > div:has(> details > summary) > details + div > .mb-2.px-1 > p:first-child {
+  margin: 0 !important;
+  font-size: 9px !important;
+  line-height: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: rgba(167, 159, 201, 0.8);
+}
+
+/* Remove “Edit freely. Credits are checked…” under Continue in this chat. */
+.chat-scroll > div:has(> details > summary) > details + div > .mb-2.px-1 > p:not(:first-child) {
+  display: none !important;
+}
+
+/* Keep the two main actions visually prominent but a little tighter, and make
+   them the last controls the eye sees before the composer. */
+.chat-scroll > div:has(> details > summary) > .flex.flex-wrap.gap-2 > button {
+  min-height: 44px;
+  border-radius: 14px !important;
+}
+
+@media (max-width: 640px) {
+  .chat-scroll > div:has(> details > summary) {
+    gap: 7px;
+  }
+
+  .chat-scroll > div:has(> details > summary) > .flex.flex-wrap.gap-2 {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .chat-scroll > div:has(> details > summary) > .flex.flex-wrap.gap-2 > button {
+    width: 100%;
+    min-width: 0 !important;
+  }
+}
