@@ -1,5 +1,10 @@
 import { query } from './pool.js';
 import { logger } from './logger.js';
+import {
+  isPaidProviderReservationActive,
+  type PaidGenerationSnapshot,
+  type PaidGenerationStage,
+} from './generation-authorization.js';
 
 export type ProviderQueueKind = 'storyboard' | 'image' | 'video' | 'tts';
 
@@ -8,7 +13,7 @@ type QueueItem<T> = {
   kind: ProviderQueueKind;
   model: string;
   operation: string;
-  jobId?: string;
+  jobId: string;
   ownerKey: string;
   enqueuedAt: number;
   attempt: number;
@@ -131,6 +136,26 @@ async function ownerForJob(jobId?: string) {
   }
 }
 
+function providerStage(kind: ProviderQueueKind): PaidGenerationStage {
+  return kind === 'storyboard' ? 'storyboarding' : 'rendering';
+}
+
+/** Re-check funding after any queue wait and again before every retry. */
+async function assertQueuedProviderAuthorization(item: QueueItem<unknown>) {
+  const { rows } = await query<PaidGenerationSnapshot>(
+    `SELECT user_id, status, credits_spent
+       FROM jobs
+      WHERE id=$1 AND deleted_at IS NULL`,
+    [item.jobId]
+  );
+  const expectedStage = providerStage(item.kind);
+  if (!isPaidProviderReservationActive(rows[0], expectedStage)) {
+    throw new Error(
+      `Paid provider call blocked: job ${item.jobId} no longer has an active ${expectedStage} credit reservation.`
+    );
+  }
+}
+
 async function publishQueueStatus(item: QueueItem<unknown>, position: number, waitMs: number) {
   if (!item.jobId || waitMs < 600) return;
   const seconds = Math.max(1, Math.ceil(waitMs / 1000));
@@ -201,28 +226,30 @@ async function drain(kind: ProviderQueueKind, model: string) {
     state.lastOwner = item.ownerKey;
     state.starts.push(Date.now());
 
-    void item.task().then(
-      (value) => item.resolve(value),
-      (error) => {
-        const maxRetries = envNumber('GEMINI_QUEUE_RATE_LIMIT_RETRIES', 5, 0, 10);
-        if (item.attempt < maxRetries && isRateLimitError(error)) {
-          const delayMs = retryAfterMs(error, item.attempt);
-          item.attempt += 1;
-          item.enqueuedAt = Date.now();
-          state.blockedUntil = Math.max(state.blockedUntil, Date.now() + delayMs);
-          state.waiting.push(item);
-          logger.warn({ kind, model, operation: item.operation, jobId: item.jobId, delayMs, attempt: item.attempt }, '[provider-queue] provider rate limited; queued for retry');
-          void publishQueueStatus(item, state.waiting.length, delayMs);
-        } else {
-          item.reject(error);
-        }
-      },
-    ).finally(() => {
-      state.active = Math.max(0, state.active - 1);
-      const ownerActive = Math.max(0, (state.activeByOwner.get(item.ownerKey) ?? 1) - 1);
-      if (ownerActive) state.activeByOwner.set(item.ownerKey, ownerActive); else state.activeByOwner.delete(item.ownerKey);
-      void drain(kind, model);
-    });
+    void assertQueuedProviderAuthorization(item)
+      .then(() => item.task())
+      .then(
+        (value) => item.resolve(value),
+        (error) => {
+          const maxRetries = envNumber('GEMINI_QUEUE_RATE_LIMIT_RETRIES', 5, 0, 10);
+          if (item.attempt < maxRetries && isRateLimitError(error)) {
+            const delayMs = retryAfterMs(error, item.attempt);
+            item.attempt += 1;
+            item.enqueuedAt = Date.now();
+            state.blockedUntil = Math.max(state.blockedUntil, Date.now() + delayMs);
+            state.waiting.push(item);
+            logger.warn({ kind, model, operation: item.operation, jobId: item.jobId, delayMs, attempt: item.attempt }, '[provider-queue] provider rate limited; queued for retry');
+            void publishQueueStatus(item, state.waiting.length, delayMs);
+          } else {
+            item.reject(error);
+          }
+        },
+      ).finally(() => {
+        state.active = Math.max(0, state.active - 1);
+        const ownerActive = Math.max(0, (state.activeByOwner.get(item.ownerKey) ?? 1) - 1);
+        if (ownerActive) state.activeByOwner.set(item.ownerKey, ownerActive); else state.activeByOwner.delete(item.ownerKey);
+        void drain(kind, model);
+      });
   }
 
   if (state.waiting.length) {
@@ -235,7 +262,7 @@ export async function runQueuedProviderCall<T>(input: {
   kind: ProviderQueueKind;
   model: string;
   operation: string;
-  jobId?: string;
+  jobId: string;
   task: () => Promise<T>;
 }): Promise<T> {
   const ownerKey = await ownerForJob(input.jobId);

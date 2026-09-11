@@ -1,15 +1,17 @@
-import { test } from 'node:test';
-import assert from 'node:assert/strict';
+import { test } from "node:test";
+import assert from "node:assert/strict";
 import {
   buildStoryboardPrompt,
   buildFallbackStoryboard,
+  MASTER_CREATIVE_DIRECTOR_SYSTEM,
+  remapStoryboardScenesToCaptures,
   stableVariantSeed,
   storyboardModelName,
   isGenerativeVideoMode,
   type StoryboardInput,
   type StoryboardScene,
-} from '../src/lib/gemini.js';
-import { videoCreditCost, videoCreditQuote, normalizedGeneratedSeconds } from '../src/lib/credits.js';
+} from "../src/lib/gemini.js";
+import { videoCreditCost, videoCreditQuote, normalizedGeneratedSeconds } from "../src/lib/credits.js";
 import {
   VIDEO_MASTER_PROMPTS,
   GLOBAL_AI_VIDEO_RULES,
@@ -18,73 +20,87 @@ import {
   buildContinuousExtensionPrompt,
   buildContinuousVideoPrompt,
   INTERNAL_MASTER_VIDEO_QUALITY_DIRECTIVE,
-} from '../src/lib/video-prompts.js';
-import { continuousExtensionCount, continuousOperationCount, selectContinuousReferenceIndices } from '../src/lib/veo.js';
-import { imageModelName, INTERNAL_MASTER_IMAGE_QUALITY_DIRECTIVE } from '../src/lib/imagen.js';
-import { scriptModelName, ttsModelName } from '../src/lib/voiceover.js';
+} from "../src/lib/video-prompts.js";
+import {
+  continuousExtensionCount,
+  continuousOperationCount,
+  selectContinuousReferenceIndices,
+} from "../src/lib/veo.js";
+import {
+  imageModelName,
+  INTERNAL_MASTER_IMAGE_QUALITY_DIRECTIVE,
+  MARKETING_PHOTO_MASTER_PROMPTS,
+  MARKETING_PHOTO_SET_ROLES,
+  selectMarketingPhotoReferences,
+} from "../src/lib/imagen.js";
+import { scriptModelName, ttsModelName } from "../src/lib/voiceover.js";
 
 function plannerInput(overrides: Partial<StoryboardInput> = {}): StoryboardInput {
   return {
-    siteUrl: 'https://example-store.com',
-    pageTitle: 'Example Store | أصنافنا',
-    description: 'A real storefront',
+    siteUrl: "https://example-store.com",
+    pageTitle: "Example Store | أصنافنا",
+    description: "A real storefront",
     screenshotBase64: null,
     fullPageScreenshotBase64: null,
     referenceCaptures: [
-      { label: 'Homepage', base64: 'aGVsbG8=' },
-      { label: 'Product page — real option selected', base64: 'd29ybGQ=' },
-      { label: 'Added to cart', base64: 'cGFnZQ==' },
-      { label: 'Shopping cart', base64: 'Y2FydA==' },
-      { label: 'Checkout — real entry state', base64: 'Y2hlY2tvdXQ=' },
-      { label: 'AI assistant / live chat', base64: 'Y2hhdA==' },
+      { label: "Homepage", base64: "aGVsbG8=" },
+      { label: "Product page — real option selected", base64: "d29ybGQ=" },
+      { label: "Added to cart", base64: "cGFnZQ==" },
+      { label: "Shopping cart", base64: "Y2FydA==" },
+      { label: "Checkout — real entry state", base64: "Y2hlY2tvdXQ=" },
+      { label: "AI assistant / live chat", base64: "Y2hhdA==" },
     ],
-    mode: 'video',
-    vibeBrief: 'Premium editorial',
+    mode: "video",
+    vibeBrief: "Premium editorial",
     targetDurationSeconds: 24,
     featuresText: null,
     creativeBrief: null,
-    aspectRatio: '16:9',
-    outputQuality: '1080p',
+    aspectRatio: "16:9",
+    outputQuality: "1080p",
     frameRate: 24,
-    variationKey: 'job-a:1:seed-a',
+    variationKey: "job-a:1:seed-a",
     ...overrides,
   };
 }
 
-test('blank optional model variables use the quality defaults instead of triggering generic fallback planning', { concurrency: false }, () => {
-  const storyboardBefore = process.env.GEMINI_STORYBOARD_MODEL;
-  const ttsBefore = process.env.GEMINI_TTS_MODEL;
-  const imageBefore = process.env.GEMINI_IMAGE_MODEL;
-  try {
-    process.env.GEMINI_STORYBOARD_MODEL = '   ';
-    process.env.GEMINI_TTS_MODEL = '';
-    process.env.GEMINI_IMAGE_MODEL = ' ';
-    assert.equal(storyboardModelName(), 'gemini-3.6-flash');
-    assert.equal(scriptModelName(), 'gemini-3.6-flash');
-    assert.equal(ttsModelName(), 'gemini-3.1-flash-tts-preview');
-    assert.equal(imageModelName(), 'gemini-3.1-flash-image');
-  } finally {
-    if (storyboardBefore === undefined) delete process.env.GEMINI_STORYBOARD_MODEL;
-    else process.env.GEMINI_STORYBOARD_MODEL = storyboardBefore;
-    if (ttsBefore === undefined) delete process.env.GEMINI_TTS_MODEL;
-    else process.env.GEMINI_TTS_MODEL = ttsBefore;
-    if (imageBefore === undefined) delete process.env.GEMINI_IMAGE_MODEL;
-    else process.env.GEMINI_IMAGE_MODEL = imageBefore;
-  }
-});
+test(
+  "blank optional model variables use the quality defaults instead of triggering generic fallback planning",
+  { concurrency: false },
+  () => {
+    const storyboardBefore = process.env.GEMINI_STORYBOARD_MODEL;
+    const ttsBefore = process.env.GEMINI_TTS_MODEL;
+    const imageBefore = process.env.GEMINI_IMAGE_MODEL;
+    try {
+      process.env.GEMINI_STORYBOARD_MODEL = "   ";
+      process.env.GEMINI_TTS_MODEL = "";
+      process.env.GEMINI_IMAGE_MODEL = " ";
+      assert.equal(storyboardModelName(), "gemini-3.6-flash");
+      assert.equal(scriptModelName(), "gemini-3.6-flash");
+      assert.equal(ttsModelName(), "gemini-3.1-flash-tts-preview");
+      assert.equal(imageModelName(), "gemini-3.1-flash-image");
+    } finally {
+      if (storyboardBefore === undefined) delete process.env.GEMINI_STORYBOARD_MODEL;
+      else process.env.GEMINI_STORYBOARD_MODEL = storyboardBefore;
+      if (ttsBefore === undefined) delete process.env.GEMINI_TTS_MODEL;
+      else process.env.GEMINI_TTS_MODEL = ttsBefore;
+      if (imageBefore === undefined) delete process.env.GEMINI_IMAGE_MODEL;
+      else process.env.GEMINI_IMAGE_MODEL = imageBefore;
+    }
+  },
+);
 
-const MODE_SIGNATURES: Array<[StoryboardInput['mode'], string]> = [
-  ['video', 'PROMO VIDEO — AI-generated premium website commercial'],
-  ['tutorial', 'HOW TO USE — AI-generated first-time-user walkthrough'],
-  ['buy', 'HOW TO BUY / CONVERT — AI-generated transaction journey'],
-  ['tour', 'FEATURE TOUR — AI-generated feature-by-feature showcase'],
-  ['demo', 'CINEMATIC BRAND FILM — fully AI-generated premium product film'],
-  ['photos', 'PHOTOS — premium marketing image creation'],
-  ['icon', 'WEBSITE ICON — four premium square brand-mark concepts'],
-  ['both', 'VIDEO + PHOTOS — true AI-generated commercial plus creative marketing stills'],
-  ['mockup', 'DIGITAL PRODUCT MOCKUP / MOTION GRAPHIC VIDEO — social-feed-style product reveal'],
-  ['linkedin', 'LINKEDIN VIDEO — professional feed story'],
-  ['custom', 'CUSTOM IDEA — the customer\'s own personal video, AI-directed. This is NOT a website commercial'],
+const MODE_SIGNATURES: Array<[StoryboardInput["mode"], string]> = [
+  ["video", "PROMO VIDEO — AI-generated premium website commercial"],
+  ["tutorial", "HOW TO USE — AI-generated first-time-user walkthrough"],
+  ["buy", "HOW TO BUY / CONVERT — AI-generated transaction journey"],
+  ["tour", "FEATURE TOUR — AI-generated feature-by-feature showcase"],
+  ["demo", "CINEMATIC BRAND FILM — fully AI-generated premium product film"],
+  ["photos", "PHOTOS — premium marketing image creation"],
+  ["icon", "WEBSITE ICON — four premium square brand-mark concepts"],
+  ["both", "VIDEO + PHOTOS — true AI-generated commercial plus creative marketing stills"],
+  ["mockup", "DIGITAL PRODUCT MOCKUP / MOTION GRAPHIC VIDEO — social-feed-style product reveal"],
+  ["linkedin", "LINKEDIN VIDEO — professional feed story"],
+  ["custom", "CUSTOM IDEA — the customer's own personal video, AI-directed. This is NOT a website commercial"],
 ];
 
 for (const [mode, signature] of MODE_SIGNATURES) {
@@ -95,256 +111,387 @@ for (const [mode, signature] of MODE_SIGNATURES) {
   });
 }
 
-test('all video-producing modes explicitly plan true AI video', () => {
-  for (const mode of ['video', 'tutorial', 'buy', 'tour', 'demo', 'both', 'mockup', 'linkedin', 'custom'] as const) {
+test("all video-producing modes explicitly plan true AI video", () => {
+  for (const mode of ["video", "tutorial", "buy", "tour", "demo", "both", "mockup", "linkedin", "custom"] as const) {
     assert.equal(isGenerativeVideoMode(mode), true);
     const { prompt } = buildStoryboardPrompt(plannerInput({ mode }));
-    assert.ok(prompt.includes(mode === 'custom' ? 'final result is ONE continuous film generated by an AI VIDEO model' : 'final deliverable is ONE continuous AI-generated film'));
-    if (mode === 'custom') {
-      assert.ok(prompt.includes('Never plan a slideshow of stills, screenshot pans, Ken-Burns moves, code-drawn motion'));
-      assert.ok(prompt.includes('sourceIndices may choose up to 3 uploaded reference images as identity/product/place/style references'));
+    assert.ok(
+      prompt.includes(
+        mode === "custom"
+          ? "final result is ONE continuous film generated by an AI VIDEO model"
+          : "final deliverable is ONE continuous AI-generated film",
+      ),
+    );
+    if (mode === "custom") {
+      assert.ok(
+        prompt.includes("Never plan a slideshow of stills, screenshot pans, Ken-Burns moves, code-drawn motion"),
+      );
+      assert.ok(
+        prompt.includes(
+          "sourceIndices may choose up to 3 uploaded reference images as identity/product/place/style references",
+        ),
+      );
     } else {
-      assert.ok(prompt.includes('Do not plan screenshot pans, Ken-Burns moves, code-drawn cursors, slideshow transitions'));
-      assert.ok(prompt.includes('sourceIndices select the real grounding state(s) for the AI video model'));
+      assert.ok(
+        prompt.includes("Do not plan screenshot pans, Ken-Burns moves, code-drawn cursors, slideshow transitions"),
+      );
+      assert.ok(prompt.includes("sourceIndices select the real grounding state(s) for the AI video model"));
     }
   }
 });
 
-test('AI-video planning protects real UI text and forbids fabricated states', () => {
-  const { prompt } = buildStoryboardPrompt(plannerInput({ mode: 'buy' }));
-  assert.ok(prompt.includes('Treat existing text inside a capture as protected source pixels'));
-  assert.ok(prompt.includes('correctly spelled ENGLISH only'));
-  assert.ok(prompt.includes('Never direct the visual model to synthesize Arabic, Korean, Cyrillic, Chinese'));
-  assert.ok(prompt.includes('Never invent a product, page, feature, modal, cart state, checkout state'));
-  assert.ok(prompt.includes('real BEFORE state first and the real AFTER state second'));
-  assert.ok(prompt.includes('Never let a continuation boundary interrupt the click or state change'));
+test("AI-video planning protects real UI text and forbids fabricated states", () => {
+  const { prompt } = buildStoryboardPrompt(plannerInput({ mode: "buy" }));
+  assert.ok(prompt.includes("Treat existing text inside a capture as protected source pixels"));
+  assert.ok(prompt.includes("correctly spelled ENGLISH only"));
+  assert.ok(prompt.includes("Never direct the visual model to synthesize Arabic, Korean, Cyrillic, Chinese"));
+  assert.ok(prompt.includes("Never invent a product, page, feature, modal, cart state, checkout state"));
+  assert.ok(prompt.includes("real BEFORE state first and the real AFTER state second"));
+  assert.ok(prompt.includes("Never let a continuation boundary interrupt the click or state change"));
 });
 
-test('buy master adapts ecommerce to SaaS/service/booking conversion journeys', () => {
-  const { prompt } = buildStoryboardPrompt(plannerInput({ mode: 'buy' }));
-  assert.ok(prompt.includes('storefront/category -> product -> option/size/color if captured -> add to cart -> cart -> checkout if captured'));
-  assert.ok(prompt.includes('SaaS/service/booking sites'));
-  assert.ok(prompt.includes('plan selection, booking, signup, or checkout'));
+test("buy master adapts ecommerce to SaaS/service/booking conversion journeys", () => {
+  const { prompt } = buildStoryboardPrompt(plannerInput({ mode: "buy" }));
+  assert.ok(
+    prompt.includes(
+      "storefront/category -> product -> option/size/color if captured -> add to cart -> cart -> checkout if captured",
+    ),
+  );
+  assert.ok(prompt.includes("SaaS/service/booking sites"));
+  assert.ok(prompt.includes("plan selection, booking, signup, or checkout"));
 });
 
-test('tutorial and feature tour discover supported real interactions', () => {
-  const tutorial = buildStoryboardPrompt(plannerInput({ mode: 'tutorial' })).prompt;
-  assert.ok(tutorial.includes('browse, search, filter, open item, choose option, use a tool, open chat'));
-  const tour = buildStoryboardPrompt(plannerInput({ mode: 'tour' })).prompt;
-  assert.ok(tour.includes('chat/AI assistant'));
-  assert.ok(tour.includes('Long tours must keep introducing new content'));
+test("tutorial and feature tour discover supported real interactions", () => {
+  const tutorial = buildStoryboardPrompt(plannerInput({ mode: "tutorial" })).prompt;
+  assert.ok(tutorial.includes("browse, search, filter, open item, choose option, use a tool, open chat"));
+  const tour = buildStoryboardPrompt(plannerInput({ mode: "tour" })).prompt;
+  assert.ok(tour.includes("chat/AI assistant"));
+  assert.ok(tour.includes("Long tours must keep introducing new content"));
 });
 
-test('duration policy keeps short clips complete and long films non-repetitive', () => {
+test("duration policy keeps short clips complete and long films non-repetitive", () => {
   const shortPrompt = buildStoryboardPrompt(plannerInput({ targetDurationSeconds: 8 })).prompt;
-  assert.ok(shortPrompt.includes('For 8-second videos, tell a complete micro-story'));
-  assert.ok(shortPrompt.includes('Do not cram in unfinished steps'));
+  assert.ok(shortPrompt.includes("For 8-second videos, tell a complete micro-story"));
+  assert.ok(shortPrompt.includes("Do not cram in unfinished steps"));
   const longPrompt = buildStoryboardPrompt(plannerInput({ targetDurationSeconds: 64 })).prompt;
-  assert.ok(longPrompt.includes('For 48-64 seconds'));
-  assert.ok(longPrompt.includes('no filler, no recycled feature, no identical motion loops'));
+  assert.ok(longPrompt.includes("For 48-64 seconds"));
+  assert.ok(longPrompt.includes("no filler, no recycled feature, no identical motion loops"));
 });
 
-test('photos remain a separate AI image pipeline with UI-text protection', () => {
-  const { prompt, isPhotos } = buildStoryboardPrompt(plannerInput({ mode: 'photos' }));
+test("photos remain a separate AI image pipeline with UI-text protection", () => {
+  const { prompt, isPhotos } = buildStoryboardPrompt(plannerInput({ mode: "photos" }));
   assert.equal(isPhotos, true);
-  assert.ok(prompt.includes('PHOTO MODE — REFERENCE-BASED CREATIVE EDITING'));
-  assert.ok(prompt.includes('final marketing photos MAY be creatively transformed'));
-  assert.ok(prompt.includes('treat its existing text as protected source pixels'));
+  assert.ok(prompt.includes("PHOTO MODE — REFERENCE-BASED CREATIVE EDITING"));
+  assert.ok(prompt.includes("final marketing photos MAY be creatively transformed"));
+  assert.ok(prompt.includes("treat its existing text as protected source pixels"));
 });
 
-test('website icon mode plans four square brand-grounded concepts', () => {
-  const { prompt, isPhotos, sceneCount } = buildStoryboardPrompt(plannerInput({ mode: 'icon', aspectRatio: '1:1' }));
+test("website icon mode plans four square brand-grounded concepts", () => {
+  const { prompt, isPhotos, sceneCount } = buildStoryboardPrompt(plannerInput({ mode: "icon", aspectRatio: "1:1" }));
   assert.equal(isPhotos, true);
   assert.equal(sceneCount, 4);
-  assert.ok(prompt.includes('WEBSITE ICON MODE — SQUARE BRAND-IDENTITY CONCEPTS'));
-  assert.ok(prompt.includes('favicon, mobile shortcut, social avatar, and branded video ending'));
-  const fallback = buildFallbackStoryboard(plannerInput({ mode: 'icon', aspectRatio: '1:1' }));
+  assert.ok(prompt.includes("WEBSITE ICON MODE — SQUARE BRAND-IDENTITY CONCEPTS"));
+  assert.ok(prompt.includes("favicon, mobile shortcut, social avatar, and branded video ending"));
+  const fallback = buildFallbackStoryboard(plannerInput({ mode: "icon", aspectRatio: "1:1" }));
   assert.equal(fallback.scenes.length, 4);
   assert.ok(fallback.scenes.every((scene) => scene.durationSeconds === 0 && scene.sourceIndices?.length === 0));
-  assert.equal(videoCreditCost('icon', true, 56), 8);
+  assert.equal(videoCreditCost("icon", true, 56), 8);
 });
 
-test('video + photos keeps true AI video and creative AI photos separate', () => {
-  const { prompt } = buildStoryboardPrompt(plannerInput({ mode: 'both' }));
-  assert.ok(prompt.includes('VIDEO + PHOTOS — TWO AI PIPELINES'));
-  assert.ok(prompt.includes('generate one continuous film with the selected AI video model'));
-  assert.ok(prompt.includes('PHOTO OUTPUT: may creatively transform'));
+test("video + photos keeps true AI video and creative AI photos separate", () => {
+  const { prompt } = buildStoryboardPrompt(plannerInput({ mode: "both" }));
+  assert.ok(prompt.includes("VIDEO + PHOTOS — TWO AI PIPELINES"));
+  assert.ok(prompt.includes("generate one continuous film with the selected AI video model"));
+  assert.ok(prompt.includes("PHOTO OUTPUT: may creatively transform"));
 });
 
-test('custom instructions supplement rather than replace the master rules', () => {
-  const { prompt } = buildStoryboardPrompt(plannerInput({
-    mode: 'video',
-    creativeBrief: 'Focus on dresses and finish on the real checkout entry.',
-  }));
-  assert.ok(prompt.includes('Focus on dresses and finish on the real checkout entry.'));
-  assert.ok(prompt.includes('PROMO VIDEO — AI-generated premium website commercial'));
-  assert.ok(prompt.includes('AI VIDEO REFERENCE LOCK — REAL WEBSITE, GENERATED MOTION'));
+test("custom instructions supplement rather than replace the master rules", () => {
+  const { prompt } = buildStoryboardPrompt(
+    plannerInput({
+      mode: "video",
+      creativeBrief: "Focus on dresses and finish on the real checkout entry.",
+    }),
+  );
+  assert.ok(prompt.includes("Focus on dresses and finish on the real checkout entry."));
+  assert.ok(prompt.includes("PROMO VIDEO — AI-generated premium website commercial"));
+  assert.ok(prompt.includes("AI VIDEO REFERENCE LOCK — REAL WEBSITE, GENERATED MOTION"));
 });
 
-test('prompt includes capture context, delivery format, duration and AI reference semantics', () => {
+test("every planner feature silently combines the full customer brief with the master creative system", () => {
+  const customerBrief = "Keep the exact blue shoe, use warm sunset light, no people, and finish on a low macro angle.";
+  for (const mode of [
+    "video",
+    "tutorial",
+    "buy",
+    "tour",
+    "demo",
+    "photos",
+    "icon",
+    "both",
+    "mockup",
+    "linkedin",
+    "custom",
+    "ai-video",
+    "product-video",
+    "talking-scene",
+  ]) {
+    const { prompt } = buildStoryboardPrompt(plannerInput({ mode, creativeBrief: customerBrief }));
+    assert.ok(prompt.includes(customerBrief), `${mode} lost the customer brief`);
+    assert.ok(prompt.includes("HIDDEN MASTER CREATIVE-DIRECTOR SYSTEM"));
+    assert.ok(prompt.includes("highest-priority art direction"));
+    assert.ok(prompt.includes("MODE-SPECIFIC MASTER DIRECTION"));
+  }
+  assert.ok(MASTER_CREATIVE_DIRECTOR_SYSTEM.includes("actual visual evidence"));
+  assert.ok(MASTER_CREATIVE_DIRECTOR_SYSTEM.includes("silent final quality check"));
+});
+
+test("prompt includes capture context, delivery format, duration and AI reference semantics", () => {
   const { prompt, captureCount, sceneCount } = buildStoryboardPrompt(plannerInput({ targetDurationSeconds: 24 }));
   assert.equal(captureCount, 6);
   assert.equal(sceneCount, 3);
-  assert.ok(prompt.includes('Attached are 6 labeled real website screenshots'));
-  assert.ok(prompt.includes('DELIVERY: 16:9, 1080p, 24 FPS'));
-  assert.ok(prompt.includes('Create exactly 3 timeline beats spanning ONE continuous 24s AI-generated film'));
+  assert.ok(prompt.includes("Attached are 6 labeled real website screenshots"));
+  assert.ok(prompt.includes("DELIVERY: 16:9, 1080p, 24 FPS"));
+  assert.ok(prompt.includes("Create exactly 3 timeline beats spanning ONE continuous 24s AI-generated film"));
 });
 
-test('runtime master prompts exist for every video feature', () => {
-  for (const mode of ['video', 'tutorial', 'buy', 'tour', 'demo', 'both', 'mockup', 'linkedin', 'custom']) {
+test("runtime master prompts exist for every video feature", () => {
+  for (const mode of ["video", "tutorial", "buy", "tour", "demo", "both", "mockup", "linkedin", "custom"]) {
     assert.ok(VIDEO_MASTER_PROMPTS[mode]?.length > 120, `missing runtime master prompt for ${mode}`);
   }
-  assert.ok(GLOBAL_AI_VIDEO_RULES.includes('final deliverable must be one continuous video generated by the selected AI video provider'));
-  assert.ok(GLOBAL_AI_VIDEO_RULES.includes('Treat text already inside a supplied capture as protected source pixels'));
-  assert.ok(GLOBAL_AI_VIDEO_RULES.includes('Never synthesize Arabic, Korean, Cyrillic, Chinese'));
-  assert.ok(GLOBAL_AI_VIDEO_RULES.includes('Never cut in the middle of a meaningful click'));
+  assert.ok(
+    GLOBAL_AI_VIDEO_RULES.includes(
+      "final deliverable must be one continuous video generated by the selected AI video provider",
+    ),
+  );
+  assert.ok(GLOBAL_AI_VIDEO_RULES.includes("Treat text already inside a supplied capture as protected source pixels"));
+  assert.ok(GLOBAL_AI_VIDEO_RULES.includes("Never synthesize Arabic, Korean, Cyrillic, Chinese"));
+  assert.ok(GLOBAL_AI_VIDEO_RULES.includes("Never cut in the middle of a meaningful click"));
 });
 
-test('every generated image receives prompt-fidelity and English-only visible-text safeguards', () => {
-  assert.ok(INTERNAL_MASTER_IMAGE_QUALITY_DIRECTIVE.includes("customer's complete request is the highest-priority art direction"));
-  assert.ok(INTERNAL_MASTER_IMAGE_QUALITY_DIRECTIVE.includes('correctly spelled ENGLISH'));
-  assert.ok(INTERNAL_MASTER_IMAGE_QUALITY_DIRECTIVE.includes('Never synthesize Arabic, Korean, Cyrillic, Chinese'));
-  assert.ok(INTERNAL_MASTER_IMAGE_QUALITY_DIRECTIVE.includes('protected source pixels'));
+test("every generated image receives prompt-fidelity and English-only visible-text safeguards", () => {
+  assert.ok(
+    INTERNAL_MASTER_IMAGE_QUALITY_DIRECTIVE.includes(
+      "customer's complete request is the highest-priority art direction",
+    ),
+  );
+  assert.ok(INTERNAL_MASTER_IMAGE_QUALITY_DIRECTIVE.includes("correctly spelled ENGLISH"));
+  assert.ok(INTERNAL_MASTER_IMAGE_QUALITY_DIRECTIVE.includes("Never synthesize Arabic, Korean, Cyrillic, Chinese"));
+  assert.ok(INTERNAL_MASTER_IMAGE_QUALITY_DIRECTIVE.includes("protected source pixels"));
 });
 
-test('runtime interaction prompt requires a grounded completed action and suitable audio', () => {
+test("every photo feature receives its own hidden master and four distinct campaign roles", () => {
+  assert.ok(MARKETING_PHOTO_MASTER_PROMPTS["product-photos"].includes("exact referenced product"));
+  assert.ok(MARKETING_PHOTO_MASTER_PROMPTS["website-photos"].includes("real captures"));
+  assert.ok(MARKETING_PHOTO_MASTER_PROMPTS["mixed-campaign"].includes("campaign's video"));
+  assert.equal(MARKETING_PHOTO_SET_ROLES.length, 4);
+  assert.equal(new Set(MARKETING_PHOTO_SET_ROLES).size, 4);
+});
+
+test("a four-photo campaign rotates through large uploaded reference sets", () => {
+  const references = Array.from({ length: 10 }, (_, index) => Buffer.from(`reference-${index}`));
+  const selectedAcrossSet = Array.from({ length: 4 }, (_, sceneIndex) =>
+    selectMarketingPhotoReferences(references, sceneIndex).map((buffer) => buffer.toString()),
+  ).flat();
+  for (let index = 0; index < references.length; index += 1) {
+    assert.ok(
+      selectedAcrossSet.includes(`reference-${index}`),
+      `reference ${index} was never sent to an image generation`,
+    );
+  }
+});
+
+test("runtime interaction prompt requires a grounded completed action and suitable audio", () => {
   const scene: StoryboardScene = {
     sceneNumber: 1,
     durationSeconds: 8,
-    sceneType: 'interaction',
-    shotDescription: 'Use the real product state, click Add to Cart, and arrive at the real cart state.',
+    sceneType: "interaction",
+    shotDescription: "Use the real product state, click Add to Cart, and arrive at the real cart state.",
     sourceIndices: [1, 2],
-    composition: 'single',
-    motion: 'static',
+    composition: "single",
+    motion: "static",
     focusX: 0.5,
     focusY: 0.5,
-    onScreenCopy: '',
-    transition: '',
+    onScreenCopy: "",
+    transition: "",
   };
   const prompt = buildAiVideoScenePrompt({
-    mode: 'buy', siteTitle: 'Example Store', concept: 'purchase journey', vibe: 'premium', scene,
-    sceneIndex: 0, totalScenes: 3, targetDurationSeconds: 24, nativeAudio: true,
-    referenceLabels: ['Product page — real option selected', 'Added to cart'], variantSeed: 12, aspectRatio: '16:9',
+    mode: "buy",
+    siteTitle: "Example Store",
+    concept: "purchase journey",
+    vibe: "premium",
+    scene,
+    sceneIndex: 0,
+    totalScenes: 3,
+    targetDurationSeconds: 24,
+    nativeAudio: true,
+    referenceLabels: ["Product page — real option selected", "Added to cart"],
+    variantSeed: 12,
+    aspectRatio: "16:9",
   });
-  assert.ok(prompt.includes('Create ONE premium, photorealistic, commercial-grade Veo shot'));
-  assert.ok(prompt.includes('perform the real supported action'));
-  assert.ok(prompt.includes('hold the resolved state long enough to understand it'));
-  assert.ok(prompt.includes('generate native cinematic ambience/music'));
-  assert.ok(!prompt.includes('GLOBAL_AI_VIDEO_RULES'));
+  assert.ok(prompt.includes("Create ONE premium, photorealistic, commercial-grade Veo shot"));
+  assert.ok(prompt.includes("perform the real supported action"));
+  assert.ok(prompt.includes("hold the resolved state long enough to understand it"));
+  assert.ok(prompt.includes("generate native cinematic ambience/music"));
+  assert.ok(!prompt.includes("GLOBAL_AI_VIDEO_RULES"));
   // Keep the per-scene execution prompt comfortably compact for video-model limits.
   assert.ok(prompt.length < 5200, `runtime scene prompt is too large: ${prompt.length} chars`);
 });
 
-test('square runtime prompt reserves the center safe area', () => {
+test("square runtime prompt reserves the center safe area", () => {
   const scene: StoryboardScene = {
-    sceneNumber: 1, durationSeconds: 8, sceneType: 'hook', shotDescription: 'Reveal the real homepage.', sourceIndices: [0],
-    composition: 'single', motion: 'static', focusX: 0.5, focusY: 0.5, onScreenCopy: '', transition: '',
+    sceneNumber: 1,
+    durationSeconds: 8,
+    sceneType: "hook",
+    shotDescription: "Reveal the real homepage.",
+    sourceIndices: [0],
+    composition: "single",
+    motion: "static",
+    focusX: 0.5,
+    focusY: 0.5,
+    onScreenCopy: "",
+    transition: "",
   };
   const prompt = buildAiVideoScenePrompt({
-    mode: 'video', siteTitle: 'Example', concept: 'promo', vibe: 'clean', scene,
-    sceneIndex: 0, totalScenes: 1, targetDurationSeconds: 8, nativeAudio: false, aspectRatio: '1:1',
+    mode: "video",
+    siteTitle: "Example",
+    concept: "promo",
+    vibe: "clean",
+    scene,
+    sceneIndex: 0,
+    totalScenes: 1,
+    targetDurationSeconds: 8,
+    nativeAudio: false,
+    aspectRatio: "1:1",
   });
-  assert.ok(prompt.includes('central square-safe area'));
+  assert.ok(prompt.includes("central square-safe area"));
 });
 
-test('music-only runtime prompt strictly forbids talking and vocals', () => {
+test("music-only runtime prompt strictly forbids talking and vocals", () => {
   const scene: StoryboardScene = {
-    sceneNumber: 1, durationSeconds: 8, sceneType: 'hook', shotDescription: 'Reveal the real homepage.', sourceIndices: [0],
-    composition: 'single', motion: 'static', focusX: 0.5, focusY: 0.5, onScreenCopy: '', transition: '',
+    sceneNumber: 1,
+    durationSeconds: 8,
+    sceneType: "hook",
+    shotDescription: "Reveal the real homepage.",
+    sourceIndices: [0],
+    composition: "single",
+    motion: "static",
+    focusX: 0.5,
+    focusY: 0.5,
+    onScreenCopy: "",
+    transition: "",
   };
   const prompt = buildAiVideoScenePrompt({
-    mode: 'video', siteTitle: 'Example', concept: 'promo', vibe: 'clean', scene,
-    sceneIndex: 0, totalScenes: 1, targetDurationSeconds: 8, nativeAudio: true, musicOnly: true,
+    mode: "video",
+    siteTitle: "Example",
+    concept: "promo",
+    vibe: "clean",
+    scene,
+    sceneIndex: 0,
+    totalScenes: 1,
+    targetDurationSeconds: 8,
+    nativeAudio: true,
+    musicOnly: true,
   });
-  assert.ok(prompt.includes('MUSIC ONLY'));
-  assert.ok(prompt.includes('Absolutely no talking, narration, dialogue, vocals'));
+  assert.ok(prompt.includes("MUSIC ONLY"));
+  assert.ok(prompt.includes("Absolutely no talking, narration, dialogue, vocals"));
 });
 
-test('variation key changes the seed and remains deterministic for the same key', () => {
-  const a = buildStoryboardPrompt(plannerInput({ variationKey: 'job:1:version-a' }));
-  const b = buildStoryboardPrompt(plannerInput({ variationKey: 'job:2:version-b' }));
-  const a2 = buildStoryboardPrompt(plannerInput({ variationKey: 'job:1:version-a' }));
+test("variation key changes the seed and remains deterministic for the same key", () => {
+  const a = buildStoryboardPrompt(plannerInput({ variationKey: "job:1:version-a" }));
+  const b = buildStoryboardPrompt(plannerInput({ variationKey: "job:2:version-b" }));
+  const a2 = buildStoryboardPrompt(plannerInput({ variationKey: "job:1:version-a" }));
   assert.notEqual(a.variantSeed, b.variantSeed);
   assert.notEqual(a.prompt, b.prompt);
   assert.equal(a.variantSeed, a2.variantSeed);
   assert.ok(a.prompt.includes(`CREATIVE VARIATION ID: ${a.variantSeed}`));
-  assert.equal(stableVariantSeed('job:1:version-a'), a.variantSeed);
+  assert.equal(stableVariantSeed("job:1:version-a"), a.variantSeed);
 });
 
-test('fallback AI-video storyboard uses only real capture indexes and no generated copy', () => {
+test("fallback AI-video storyboard uses only real capture indexes and no generated copy", () => {
   const storyboard = buildFallbackStoryboard(plannerInput({ targetDurationSeconds: 24 }));
   assert.equal(storyboard.scenes.length, 3);
   assert.equal(storyboard.voiceoverScript, null);
   for (const scene of storyboard.scenes) {
     assert.equal(scene.durationSeconds, 8);
-    assert.equal(scene.onScreenCopy, '');
-    assert.equal(scene.composition, 'single');
-    assert.equal(scene.motion, 'static');
+    assert.equal(scene.onScreenCopy, "");
+    assert.equal(scene.composition, "single");
+    assert.equal(scene.motion, "static");
     assert.ok((scene.sourceIndices ?? []).every((index) => index >= 0 && index < 6));
   }
 });
 
-test('fallback photo storyboard plans four creative images with no capture indexes', () => {
-  const storyboard = buildFallbackStoryboard(plannerInput({ mode: 'photos' }));
+test("fallback photo storyboard plans four creative images with no capture indexes", () => {
+  const storyboard = buildFallbackStoryboard(plannerInput({ mode: "photos" }));
   assert.equal(storyboard.scenes.length, 4);
   for (const scene of storyboard.scenes) {
     assert.deepEqual(scene.sourceIndices, []);
-    assert.equal(scene.motion, 'static');
+    assert.equal(scene.motion, "static");
   }
 });
 
-test('two variation seeds produce different fallback reference choices', () => {
-  const a = buildFallbackStoryboard(plannerInput({ variationKey: 'seed-one' }));
-  const b = buildFallbackStoryboard(plannerInput({ variationKey: 'seed-two' }));
+test("two variation seeds produce different fallback reference choices", () => {
+  const a = buildFallbackStoryboard(plannerInput({ variationKey: "seed-one" }));
+  const b = buildFallbackStoryboard(plannerInput({ variationKey: "seed-two" }));
   assert.notEqual(a.variantSeed, b.variantSeed);
-  assert.notDeepEqual(a.scenes.map((scene) => scene.sourceIndices), b.scenes.map((scene) => scene.sourceIndices));
+  assert.notDeepEqual(
+    a.scenes.map((scene) => scene.sourceIndices),
+    b.scenes.map((scene) => scene.sourceIndices),
+  );
 });
 
-test('mockup mode plans a fast social-feed-style product reveal, not a website tour', () => {
-  const { prompt } = buildStoryboardPrompt(plannerInput({ mode: 'mockup' }));
-  assert.ok(prompt.includes('social-feed-style product reveal'));
-  assert.ok(prompt.includes('hook on the strongest page first'));
-  assert.ok(prompt.includes('final deliverable is ONE continuous AI-generated film'));
-  assert.ok(prompt.includes('scroll-stopping'));
+test("mockup mode plans a fast social-feed-style product reveal, not a website tour", () => {
+  const { prompt } = buildStoryboardPrompt(plannerInput({ mode: "mockup" }));
+  assert.ok(prompt.includes("social-feed-style product reveal"));
+  assert.ok(prompt.includes("hook on the strongest page first"));
+  assert.ok(prompt.includes("final deliverable is ONE continuous AI-generated film"));
+  assert.ok(prompt.includes("scroll-stopping"));
 });
 
-test('mockup fallback storyboard flips through distinct real pages/panels', () => {
-  const storyboard = buildFallbackStoryboard(plannerInput({ mode: 'mockup', targetDurationSeconds: 32 }));
+test("mockup fallback storyboard flips through distinct real pages/panels", () => {
+  const storyboard = buildFallbackStoryboard(plannerInput({ mode: "mockup", targetDurationSeconds: 32 }));
   assert.equal(storyboard.scenes.length, 4);
   const descriptions = storyboard.scenes.map((scene) => scene.shotDescription);
-  assert.equal(new Set(descriptions).size, descriptions.length, 'each mockup fallback scene should be a distinct direction');
-  for (const scene of storyboard.scenes) assert.equal(scene.onScreenCopy, '');
+  assert.equal(
+    new Set(descriptions).size,
+    descriptions.length,
+    "each mockup fallback scene should be a distinct direction",
+  );
+  for (const scene of storyboard.scenes) assert.equal(scene.onScreenCopy, "");
 });
 
-test('custom mode lets the user\'s written brief drive the film while keeping the AI-video guardrail — and is NOT the website pipeline', () => {
-  const { prompt } = buildStoryboardPrompt(plannerInput({
-    mode: 'custom',
-    creativeBrief: 'Show the product spinning slowly with dramatic red lighting, no people.',
-  }));
-  assert.ok(prompt.includes('Show the product spinning slowly with dramatic red lighting, no people.'));
-  assert.ok(prompt.includes('that is the actual brief for this film'));
+test("custom mode lets the user's written brief drive the film while keeping the AI-video guardrail — and is NOT the website pipeline", () => {
+  const { prompt } = buildStoryboardPrompt(
+    plannerInput({
+      mode: "custom",
+      creativeBrief: "Show the product spinning slowly with dramatic red lighting, no people.",
+    }),
+  );
+  assert.ok(prompt.includes("Show the product spinning slowly with dramatic red lighting, no people."));
+  assert.ok(prompt.includes("that is the actual brief for this film"));
   // Custom mode must still inherit the non-negotiable real-video guardrail...
-  assert.ok(prompt.includes('final result is ONE continuous film generated by an AI VIDEO model'));
+  assert.ok(prompt.includes("final result is ONE continuous film generated by an AI VIDEO model"));
   // ...but must NOT inherit the website/ecommerce-specific policy — a
   // personal idea video is a fundamentally different product from the
   // website-ad pipeline and must not be told to plan cart/checkout scenes.
-  assert.ok(prompt.includes('NOT A WEBSITE COMMERCIAL'));
-  assert.ok(!prompt.includes('cart state, checkout state'));
-  assert.ok(!prompt.includes('AI VIDEO REFERENCE LOCK — REAL WEBSITE'));
+  assert.ok(prompt.includes("NOT A WEBSITE COMMERCIAL"));
+  assert.ok(!prompt.includes("cart state, checkout state"));
+  assert.ok(!prompt.includes("AI VIDEO REFERENCE LOCK — REAL WEBSITE"));
 });
 
-test('custom mode explicitly permits and directs dialogue for a people-talking / scenario idea', () => {
-  const { prompt } = buildStoryboardPrompt(plannerInput({
-    mode: 'custom',
-    creativeBrief: 'Two friends in a kitchen, one excitedly telling the other about a new gadget.',
-  }));
-  assert.ok(prompt.includes('Two friends in a kitchen, one excitedly telling the other about a new gadget.'));
-  assert.ok(prompt.includes('people talking, a conversation, narration, or a testimonial'));
-  assert.ok(prompt.includes('direct real dialogue/performance'));
+test("custom mode explicitly permits and directs dialogue for a people-talking / scenario idea", () => {
+  const { prompt } = buildStoryboardPrompt(
+    plannerInput({
+      mode: "custom",
+      creativeBrief: "Two friends in a kitchen, one excitedly telling the other about a new gadget.",
+    }),
+  );
+  assert.ok(prompt.includes("Two friends in a kitchen, one excitedly telling the other about a new gadget."));
+  assert.ok(prompt.includes("people talking, a conversation, narration, or a testimonial"));
+  assert.ok(prompt.includes("direct real dialogue/performance"));
 });
 
-test('custom/scenario fallback uses up to three rotating asset references per scene', () => {
-  const fallback = buildFallbackStoryboard(plannerInput({ mode: 'custom', targetDurationSeconds: 32 }));
+test("custom/scenario fallback uses up to three rotating asset references per scene", () => {
+  const fallback = buildFallbackStoryboard(plannerInput({ mode: "custom", targetDurationSeconds: 32 }));
   assert.equal(fallback.scenes.length, 4);
   for (const scene of fallback.scenes) {
     assert.equal(scene.sourceIndices?.length, 3);
@@ -353,23 +500,23 @@ test('custom/scenario fallback uses up to three rotating asset references per sc
   assert.notDeepEqual(fallback.scenes[0].sourceIndices, fallback.scenes[1].sourceIndices);
 });
 
-test('text-only custom idea is planned independently with no fake screenshot index', () => {
+test("text-only custom idea is planned independently with no fake screenshot index", () => {
   const input = plannerInput({
-    siteUrl: 'upload://custom-idea',
-    pageTitle: 'Coffee shop morning story',
+    siteUrl: "upload://custom-idea",
+    pageTitle: "Coffee shop morning story",
     description: null,
-    mode: 'custom',
-    creativeBrief: 'A cozy coffee shop morning with steam rising from a cup.',
+    mode: "custom",
+    creativeBrief: "A cozy coffee shop morning with steam rising from a cup.",
     referenceCaptures: [],
     screenshotBase64: null,
     fullPageScreenshotBase64: null,
   });
   const plan = buildStoryboardPrompt(input);
   assert.equal(plan.captureCount, 0);
-  assert.ok(plan.prompt.includes('a website is not involved'));
-  assert.ok(plan.prompt.includes('No reference image is attached or required'));
-  assert.ok(plan.prompt.includes('always use [] because this is direct text-to-video with no reference images'));
-  assert.ok(!plan.prompt.includes('Attached are 1 labeled real website screenshots'));
+  assert.ok(plan.prompt.includes("a website is not involved"));
+  assert.ok(plan.prompt.includes("No reference image is attached or required"));
+  assert.ok(plan.prompt.includes("always use [] because this is direct text-to-video with no reference images"));
+  assert.ok(!plan.prompt.includes("Attached are 1 labeled real website screenshots"));
 
   const fallback = buildFallbackStoryboard(input);
   assert.equal(fallback.scenes.length, 3);
@@ -377,66 +524,83 @@ test('text-only custom idea is planned independently with no fake screenshot ind
   assert.ok(fallback.concept.includes("customer's written idea"));
 });
 
-test('runtime custom scene supports native conversation audio without a reference image', () => {
+test("runtime custom scene supports native conversation audio without a reference image", () => {
   const scene: StoryboardScene = {
     sceneNumber: 1,
     durationSeconds: 8,
-    sceneType: 'hook',
-    shotDescription: 'Two friends talk naturally in a bright kitchen.',
+    sceneType: "hook",
+    shotDescription: "Two friends talk naturally in a bright kitchen.",
     sourceIndices: [],
-    composition: 'single',
-    motion: 'static',
+    composition: "single",
+    motion: "static",
     focusX: 0.5,
     focusY: 0.5,
-    onScreenCopy: '',
-    transition: '',
+    onScreenCopy: "",
+    transition: "",
   };
   const prompt = buildAiVideoScenePrompt({
-    mode: 'custom', siteTitle: 'Kitchen conversation', concept: 'friendly product conversation', vibe: 'warm', scene,
-    sceneIndex: 0, totalScenes: 1, targetDurationSeconds: 8, creativeBrief: 'Two friends speak about a gadget.',
-    nativeAudio: true, separateNarration: false, referenceLabels: [], aspectRatio: '16:9',
+    mode: "custom",
+    siteTitle: "Kitchen conversation",
+    concept: "friendly product conversation",
+    vibe: "warm",
+    scene,
+    sceneIndex: 0,
+    totalScenes: 1,
+    targetDurationSeconds: 8,
+    creativeBrief: "Two friends speak about a gadget.",
+    nativeAudio: true,
+    separateNarration: false,
+    referenceLabels: [],
+    aspectRatio: "16:9",
   });
-  assert.ok(prompt.includes('No image reference is supplied. Generate this shot directly from the written direction.'));
-  assert.ok(prompt.includes('generate only the requested natural dialogue'));
-  assert.ok(!prompt.includes('Use the 1 supplied image reference'));
+  assert.ok(prompt.includes("No image reference is supplied. Generate this shot directly from the written direction."));
+  assert.ok(prompt.includes("generate only the requested natural dialogue"));
+  assert.ok(!prompt.includes("Use the 1 supplied image reference"));
 });
 
-test('mockup and custom are true AI-video modes with the standard per-second credit cost', () => {
-  assert.equal(isGenerativeVideoMode('mockup'), true);
-  assert.equal(isGenerativeVideoMode('custom'), true);
-  assert.equal(videoCreditCost('mockup', true, 8), videoCreditCost('video', true, 8));
-  assert.equal(videoCreditCost('custom', false, 24), videoCreditCost('video', false, 24));
+test("mockup and custom are true AI-video modes with the standard per-second credit cost", () => {
+  assert.equal(isGenerativeVideoMode("mockup"), true);
+  assert.equal(isGenerativeVideoMode("custom"), true);
+  assert.equal(videoCreditCost("mockup", true, 8), videoCreditCost("video", true, 8));
+  assert.equal(videoCreditCost("custom", false, 24), videoCreditCost("video", false, 24));
 });
 
-test('eighteen selected references can plan the maximum 2m24s continuous production', () => {
+test("eighteen selected references can plan the maximum 2m24s continuous production", () => {
   const referenceCaptures = Array.from({ length: 18 }, (_, index) => ({
     label: `Selected customer reference ${index + 1}`,
-    base64: Buffer.from(`reference-${index + 1}`).toString('base64'),
+    base64: Buffer.from(`reference-${index + 1}`).toString("base64"),
   }));
   const plan = buildStoryboardPrompt(plannerInput({ referenceCaptures, targetDurationSeconds: 144 }));
   assert.equal(plan.captureCount, 18);
   assert.equal(plan.sceneCount, 18);
-  assert.ok(plan.prompt.includes('ONE continuous 144s AI-generated film'));
+  assert.ok(plan.prompt.includes("ONE continuous 144s AI-generated film"));
   const fallback = buildFallbackStoryboard(plannerInput({ referenceCaptures, targetDurationSeconds: 144 }));
   assert.equal(fallback.scenes.length, 18);
   assert.equal(fallback.targetDurationSeconds, 144);
-  assert.equal(fallback.scenes.reduce((sum, beat) => sum + beat.durationSeconds, 0), 144);
+  assert.equal(
+    fallback.scenes.reduce((sum, beat) => sum + beat.durationSeconds, 0),
+    144,
+  );
 });
 
-test('video quotes preserve exact whole-second customer durations up to 2m24s', () => {
-  assert.equal(normalizedGeneratedSeconds(10), 10, 'continuous mastering preserves the exact requested whole second');
-  const exact1080 = videoCreditQuote('video', false, 37, '1080p');
+test("video quotes preserve exact whole-second customer durations up to 2m24s", () => {
+  assert.equal(normalizedGeneratedSeconds(10), 10, "continuous mastering preserves the exact requested whole second");
+  const exact1080 = videoCreditQuote("video", false, 37, "1080p");
   assert.deepEqual(exact1080, {
-    generatedSeconds: 37, perSecondCredits: 4, videoCredits: 148,
-    photoCredits: 0, narrationCredits: 6, totalCredits: 154,
+    generatedSeconds: 37,
+    perSecondCredits: 4,
+    videoCredits: 148,
+    photoCredits: 0,
+    narrationCredits: 6,
+    totalCredits: 154,
   });
-  const max4k = videoCreditQuote('video', true, 144, '4k');
+  const max4k = videoCreditQuote("video", true, 144, "4k");
   assert.equal(max4k.generatedSeconds, 144);
   assert.equal(max4k.totalCredits, 864);
   assert.equal(buildFallbackStoryboard(plannerInput({ targetDurationSeconds: 144 })).scenes.length, 18);
 });
 
-test('continuous Veo operation counts cover exact requested durations without clip stitching', () => {
+test("continuous Veo operation counts cover exact requested durations without clip stitching", () => {
   assert.equal(continuousExtensionCount(8), 0);
   assert.equal(continuousOperationCount(8), 1);
   assert.equal(continuousExtensionCount(9), 1);
@@ -446,89 +610,163 @@ test('continuous Veo operation counts cover exact requested durations without cl
   assert.equal(continuousOperationCount(144), 21);
 });
 
-test('all public video features receive the hidden continuous-film master quality directive', () => {
-  for (const mode of ['video', 'both', 'demo', 'tutorial', 'tour', 'buy', 'mockup', 'linkedin', 'custom', 'ai-video', 'product-video', 'talking-scene']) {
+test("all public video features receive the hidden continuous-film master quality directive", () => {
+  for (const mode of [
+    "video",
+    "both",
+    "demo",
+    "tutorial",
+    "tour",
+    "buy",
+    "mockup",
+    "linkedin",
+    "custom",
+    "ai-video",
+    "product-video",
+    "talking-scene",
+  ]) {
     assert.ok(VIDEO_MASTER_PROMPTS[mode]?.length > 120, `missing runtime prompt for ${mode}`);
     const prompt = buildContinuousVideoPrompt({
       mode,
-      siteTitle: 'Example',
-      concept: 'Professional campaign',
-      vibe: 'premium',
+      siteTitle: "Example",
+      concept: "Professional campaign",
+      vibe: "premium",
       scenes: buildFallbackStoryboard(plannerInput({ targetDurationSeconds: 17 })).scenes,
       targetDurationSeconds: 17,
-      creativeBrief: 'Customer wants a clean premium launch.',
-      referenceLabels: mode === 'ai-video' || mode === 'talking-scene' ? [] : ['Homepage', 'Feature page'],
-      aspectRatio: '16:9',
-      outputQuality: '1080p',
+      creativeBrief: "Customer wants a clean premium launch.",
+      referenceLabels: mode === "ai-video" || mode === "talking-scene" ? [] : ["Homepage", "Feature page"],
+      aspectRatio: "16:9",
+      outputQuality: "1080p",
       nativeAudio: true,
       variantSeed: 4,
     });
-    assert.ok(prompt.includes('Customer wants a clean premium launch.'));
-    assert.ok(prompt.includes('MASTER FILM PLAN — ONE CONTINUOUS AI-GENERATED PRODUCTION'));
-    assert.ok(prompt.includes('MASTER PRODUCTION STANDARD — ALWAYS APPLY'));
-    assert.ok(prompt.includes('final delivery is exactly 17 seconds'));
-    assert.ok(prompt.includes('Never replay the opening'));
+    assert.ok(prompt.includes("Customer wants a clean premium launch."));
+    assert.ok(prompt.includes("MASTER FILM PLAN — ONE CONTINUOUS AI-GENERATED PRODUCTION"));
+    assert.ok(prompt.includes("MASTER PRODUCTION STANDARD — ALWAYS APPLY"));
+    assert.ok(prompt.includes("final delivery is exactly 17 seconds"));
+    assert.ok(prompt.includes("Never replay the opening"));
   }
-  assert.ok(INTERNAL_MASTER_VIDEO_QUALITY_DIRECTIVE.includes('Typography is a quality-critical area'));
-  assert.ok(INTERNAL_MASTER_VIDEO_QUALITY_DIRECTIVE.includes('Maintain continuity across the entire film'));
+  assert.ok(INTERNAL_MASTER_VIDEO_QUALITY_DIRECTIVE.includes("Typography is a quality-critical area"));
+  assert.ok(INTERNAL_MASTER_VIDEO_QUALITY_DIRECTIVE.includes("Maintain continuity across the entire film"));
 });
 
-test('the complete customer prompt reaches both the master and legacy scene renderers without tail truncation', () => {
-  const marker = 'TAIL_REQUIREMENT_KEEP_THE_RED_SILK_AND_END_WITH_A_WIDE_CAMERA';
-  const detailedBrief = `${'Detailed customer requirement. '.repeat(250)}\n${marker}`;
-  const storyboard = buildFallbackStoryboard(plannerInput({ mode: 'ai-video', creativeBrief: detailedBrief }));
+test("the complete customer prompt reaches both the master and legacy scene renderers without tail truncation", () => {
+  const marker = "TAIL_REQUIREMENT_KEEP_THE_RED_SILK_AND_END_WITH_A_WIDE_CAMERA";
+  const detailedBrief = `${"Detailed customer requirement. ".repeat(250)}\n${marker}`;
+  const storyboard = buildFallbackStoryboard(plannerInput({ mode: "ai-video", creativeBrief: detailedBrief }));
   const master = buildContinuousVideoPrompt({
-    mode: 'ai-video', siteTitle: 'Detailed production', concept: 'Exact brief', vibe: 'cinematic',
-    scenes: storyboard.scenes, targetDurationSeconds: 24, creativeBrief: detailedBrief,
-    referenceLabels: [], aspectRatio: '16:9', outputQuality: '1080p', frameRate: 30, nativeAudio: true,
+    mode: "ai-video",
+    siteTitle: "Detailed production",
+    concept: "Exact brief",
+    vibe: "cinematic",
+    scenes: storyboard.scenes,
+    targetDurationSeconds: 24,
+    creativeBrief: detailedBrief,
+    referenceLabels: [],
+    aspectRatio: "16:9",
+    outputQuality: "1080p",
+    frameRate: 30,
+    nativeAudio: true,
   });
   assert.ok(master.includes(marker));
   assert.ok(master.includes(detailedBrief));
-  assert.ok(master.includes('1080p · 30fps'));
+  assert.ok(master.includes("1080p · 30fps"));
 
   const scenePrompt = buildAiVideoScenePrompt({
-    mode: 'ai-video', siteTitle: 'Detailed production', concept: 'Exact brief', vibe: 'cinematic',
-    scene: storyboard.scenes[0], sceneIndex: 0, totalScenes: storyboard.scenes.length,
-    targetDurationSeconds: 24, creativeBrief: detailedBrief, nativeAudio: true,
+    mode: "ai-video",
+    siteTitle: "Detailed production",
+    concept: "Exact brief",
+    vibe: "cinematic",
+    scene: storyboard.scenes[0],
+    sceneIndex: 0,
+    totalScenes: storyboard.scenes.length,
+    targetDurationSeconds: 24,
+    creativeBrief: detailedBrief,
+    nativeAudio: true,
   });
   assert.ok(scenePrompt.includes(marker));
 });
 
-test('continuous generation windows prevent premature endings and protect the trimmed final window', () => {
+test("continuous generation windows prevent premature endings and protect the trimmed final window", () => {
   const master = buildContinuousVideoPrompt({
-    mode: 'video', siteTitle: 'Example', concept: 'Product story', vibe: 'premium',
+    mode: "video",
+    siteTitle: "Example",
+    concept: "Product story",
+    vibe: "premium",
     scenes: buildFallbackStoryboard(plannerInput({ targetDurationSeconds: 32 })).scenes,
-    targetDurationSeconds: 32, creativeBrief: 'Show three products, then resolve only at the end.',
-    referenceLabels: ['Product', 'Homepage'], aspectRatio: '9:16', outputQuality: '1080p',
-    frameRate: 24, nativeAudio: true,
+    targetDurationSeconds: 32,
+    creativeBrief: "Show three products, then resolve only at the end.",
+    referenceLabels: ["Product", "Homepage"],
+    aspectRatio: "9:16",
+    outputQuality: "1080p",
+    frameRate: 24,
+    nativeAudio: true,
   });
   const base = buildContinuousBasePrompt(master, 32);
   const middle = buildContinuousExtensionPrompt(master, 8, 32);
   const final = buildContinuousExtensionPrompt(master, 29, 32);
 
-  assert.ok(base.startsWith('CURRENT GENERATION WINDOW — OPENING WINDOW: 0-8s OF 32s'));
-  assert.ok(base.includes('THIS IS NOT THE END OF THE FILM'));
-  assert.ok(middle.startsWith('CURRENT GENERATION WINDOW — CONTINUATION WINDOW: 8-15s OF 32s'));
-  assert.ok(middle.includes('Do not show a closing card, logo reveal'));
-  assert.ok(final.startsWith('CURRENT GENERATION WINDOW — CONTINUATION WINDOW: 29-32s OF 32s'));
-  assert.ok(final.includes('THIS IS THE FINAL WINDOW'));
-  assert.ok(final.includes('within the FIRST 3 usable seconds'));
-  assert.ok(final.includes('Never synthesize non-English or pseudo-language lettering'));
+  assert.ok(base.startsWith("CURRENT GENERATION WINDOW — OPENING WINDOW: 0-8s OF 32s"));
+  assert.ok(base.includes("THIS IS NOT THE END OF THE FILM"));
+  assert.ok(middle.startsWith("CURRENT GENERATION WINDOW — CONTINUATION WINDOW: 8-15s OF 32s"));
+  assert.ok(middle.includes("Do not show a closing card, logo reveal"));
+  assert.ok(final.startsWith("CURRENT GENERATION WINDOW — CONTINUATION WINDOW: 29-32s OF 32s"));
+  assert.ok(final.includes("THIS IS THE FINAL WINDOW"));
+  assert.ok(final.includes("within the FIRST 3 usable seconds"));
+  assert.ok(final.includes("Never synthesize non-English or pseudo-language lettering"));
 });
 
-test('extension prompts retain the full master direction instead of truncating its tail', () => {
-  const tail = 'MASTER_TAIL_MUST_REACH_EVERY_EXTENSION';
-  const master = `${'x'.repeat(9000)}${tail}`;
+test("extension prompts retain the full master direction instead of truncating its tail", () => {
+  const tail = "MASTER_TAIL_MUST_REACH_EVERY_EXTENSION";
+  const master = `${"x".repeat(9000)}${tail}`;
   const extension = buildContinuousExtensionPrompt(master, 15, 32);
   assert.ok(extension.endsWith(tail));
 });
 
-test('continuous render references follow storyboard-selected captures, not the first three files', () => {
-  const scenes = [
-    { sourceIndices: [5, 2] },
-    { sourceIndices: [5, 4] },
-    { sourceIndices: [1] },
-  ];
+test("continuous render references follow storyboard-selected captures, not the first three files", () => {
+  const scenes = [{ sourceIndices: [5, 2] }, { sourceIndices: [5, 4] }, { sourceIndices: [1] }];
   assert.deepEqual(selectContinuousReferenceIndices(scenes, 7), [5, 2, 4]);
   assert.deepEqual(selectContinuousReferenceIndices([{ sourceIndices: [] }], 2), [0, 1]);
+});
+
+test("stable scene capture ids are remapped to the exact reordered provider buffers", () => {
+  const scenes = remapStoryboardScenesToCaptures(
+    {
+      scenes: [
+        {
+          sceneNumber: 1,
+          durationSeconds: 8,
+          sceneType: "hook",
+          shotDescription: "Use the selected product.",
+          sourceIndices: [4],
+          composition: "single",
+          motion: "static",
+          focusX: 0.5,
+          focusY: 0.5,
+          onScreenCopy: "",
+          transition: "",
+        },
+        {
+          sceneNumber: 2,
+          durationSeconds: 8,
+          sceneType: "interaction",
+          shotDescription: "Move from product to cart.",
+          sourceIndices: [1, 5],
+          composition: "single",
+          motion: "static",
+          focusX: 0.5,
+          focusY: 0.5,
+          onScreenCopy: "",
+          transition: "",
+        },
+      ],
+      sceneCaptureIds: [["page-5.jpg"], ["page-2.jpg", "interaction-cart.jpg"]],
+    },
+    ["interaction-cart.jpg", "page-5.jpg", "page-2.jpg"],
+  );
+  assert.deepEqual(
+    scenes.map((scene) => scene.sourceIndices),
+    [[1], [2, 0]],
+  );
+  assert.deepEqual(selectContinuousReferenceIndices(scenes, 3), [1, 2, 0]);
 });

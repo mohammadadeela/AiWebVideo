@@ -1,14 +1,13 @@
 import type { StoryboardScene } from './gemini.js';
 
 export const VIDEO_MASTER_PROMPTS: Record<string, string> = {
-
-  "ai-video": `AI VIDEO — ORIGINAL PROMPT-DRIVEN FILM
+  'ai-video': `AI VIDEO — ORIGINAL PROMPT-DRIVEN FILM
 Create one coherent original AI-generated film directly from the customer's written idea. Do not introduce website, ecommerce, dashboard, browser, or product-ad language unless the customer actually asked for it. Optional reference images are identity/style anchors only. Preserve any referenced person, product, place or object consistently for the entire film. Follow the requested narrative, mood, action, camera and audio direction with a complete beginning-to-ending arc.`,
 
-  "product-video": `PRODUCT VIDEO — REFERENCE-FAITHFUL COMMERCIAL FILM
+  'product-video': `PRODUCT VIDEO — REFERENCE-FAITHFUL COMMERCIAL FILM
 Create one premium continuous product film grounded in the customer's real product images. Preserve exact product shape, proportions, materials, colors, logos, stitching, hardware, packaging and small details. Never redesign or substitute the product. Build an elegant commercial arc around the real item using believable motion, macro details, hero angles, lighting and environments that support the customer's brief. Do not invent prices, claims, labels or readable packaging text.`,
 
-  "talking-scene": `TALKING SCENE — PERFORMANCE-FIRST CONTINUOUS VIDEO
+  'talking-scene': `TALKING SCENE — PERFORMANCE-FIRST CONTINUOUS VIDEO
 Create one coherent dialogue/performance video from the customer's scenario. Preserve speaker identity, wardrobe, setting and eyelines throughout. Make speech, mouth movement, gestures, reactions, pauses and turn-taking feel natural. If exact dialogue is supplied, keep the spoken wording faithful and do not add unrelated lines. Optional reference images are identity/style anchors, not separate scenes. Use professional camera blocking and audio continuity from beginning to end.`,
   video: `PROMO VIDEO — AI-GENERATED WEBSITE COMMERCIAL
 Create a real AI-generated commercial, not a slideshow and not a screen recording. Study the supplied website captures and identify what the website actually sells or does. Use the real UI, products, brand, colors, navigation, and visible content as the source of truth. Animate the website naturally with purposeful cursor/touch interaction only when an actual visible control supports it. Build a strong advertising arc: immediate hook, different real benefits/pages/products, satisfying interaction moments, and a clean branded ending. Do not repeat the same page or movement just to fill time.`,
@@ -35,18 +34,20 @@ Create the fast, scroll-stopping style used to advertise digital products (templ
 Create a polished, credible video for the LinkedIn feed using the real website as evidence. Open with a concise problem/result hook, demonstrate the strongest real workflow, feature or product proof, and resolve on a clean branded state. Use restrained professional motion, readable pacing and business-appropriate sound design. Keep the composition safe for desktop and mobile LinkedIn feeds. Never invent metrics, customers, testimonials, prices, claims, endorsements or capabilities that are not supported by the supplied captures.`,
 
   custom: `CUSTOM IDEA — THE CUSTOMER'S OWN VIDEO, NOT A WEBSITE COMMERCIAL
-The customer's own written brief is the actual creative direction for this complete film — a personal or creative production (a product idea, a lifestyle scene, a narrative moment, a conversation, a testimonial, or anything else they imagined), not a fixed template and not an ecommerce/website promo. Follow it closely and specifically. Reference images are optional: with none, generate directly from the written idea. If a supplied image shows something real, keep it recognizable and never fabricate text/prices/logos that would misrepresent it. The whole film is true AI-generated video, never code-driven motion or stitched unrelated scenes. If the brief describes people talking or a conversation, direct real dialogue and performance. Where the brief leaves a creative choice open, make a strong, exciting, professional choice rather than defaulting to something bland or website-like.`,
+The customer's own written brief is the actual creative direction for this complete film — a personal or creative production (a product idea, a lifestyle scene, a narrative moment, a conversation, a testimonial, or anything else they imagined), not a fixed template and not an ecommerce/website promo. Follow it closely and specifically. Reference images are optional: with none, generate directly from the written idea. If a supplied image shows something real, keep it recognizable and never fabricate text/prices/logos that would misrepresent it. The whole film is true AI-generated video, never code-driven motion or stitched unrelated scenes. If the brief describes people talking or a conversation, direct real dialogue and performance. Where the brief leaves a creative choice open, make a strong, exciting, professional choice rather than defaulting to something bland or website-like.`
 };
 
 export const GLOBAL_AI_VIDEO_RULES = `
 NON-NEGOTIABLE WEBSITE FIDELITY RULES
 - The supplied screenshots are the visual source of truth. Use them as starting/end/reference frames for AI video generation.
+- Treat text already inside a supplied capture as protected source pixels: preserve it visually rather than asking the model to typeset it again.
 - Never rewrite, translate, correct, relabel, respell, replace, or hallucinate visible website text. Preserve Arabic and English wording, logos, prices, product names, buttons, labels, and brand marks exactly as shown whenever they are visible.
 - Never invent a product, page, modal, control, cart state, checkout state, payment state, confirmation, feature, claim, review, statistic, discount, field value, or navigation item that is not supported by the supplied captures.
 - You MAY generate natural motion, cursor movement, taps/clicks, scrolling-like movement, dimensional camera movement, UI transitions, reflections, depth, lighting, or cinematic surroundings, but the action must remain grounded in real controls/states from the references.
 - For an interaction, the action and its result must both be supported. If a "before" capture exists but no "after" state exists, show the action only if the result is not displayed; otherwise omit the action rather than inventing what happens.
 - Never create random captions, subtitles, fake CTA cards, fake browser text, or generated marketing copy. If the customer's brief explicitly requires added on-screen copy, the added copy must be short, simple, correctly spelled ENGLISH only, placed outside the website UI, and must never cover important interface content.
 - For non-English websites, DO NOT translate or regenerate the site's existing text. Keep the captured source-language UI as visual ground truth, avoid extreme close-ups on dense typography, and use English only for any newly added title/CTA copy. Brand names and proper names stay unchanged.
+- Never synthesize Arabic, Korean, Cyrillic, Chinese, or other non-Latin lettering inside generated frames. Existing non-English text may appear only as protected source imagery from a supplied reference.
 - Avoid morphing or warping text, logos, faces, products, or UI geometry. Keep interface planes stable and readable while motion occurs.
 - Do not turn the website into a generic stock video. The website and its real content must stay central.
 
@@ -126,20 +127,35 @@ export interface VideoScenePromptInput {
 
 export function buildAiVideoScenePrompt(input: VideoScenePromptInput) {
   const {
-    mode, siteTitle, concept, vibe, scene, sceneIndex, totalScenes,
-    targetDurationSeconds, creativeBrief, nativeAudio, musicOnly, separateNarration,
-    referenceLabels, variantSeed, aspectRatio, previousSceneSummary, nextSceneSummary,
+    mode,
+    siteTitle,
+    concept,
+    vibe,
+    scene,
+    sceneIndex,
+    totalScenes,
+    targetDurationSeconds,
+    creativeBrief,
+    nativeAudio,
+    musicOnly,
+    separateNarration,
+    referenceLabels,
+    variantSeed,
+    aspectRatio,
+    previousSceneSummary,
+    nextSceneSummary
   } = input;
   const isCustom = mode === 'custom';
-  const position = sceneIndex === 0 ? 'opening' : sceneIndex === totalScenes - 1 ? 'closing' : `middle ${sceneIndex + 1}`;
-  const refs = (referenceLabels ?? []).filter(Boolean).slice(0, 3).map((value) => compactText(value, 90));
+  const position =
+    sceneIndex === 0 ? 'opening' : sceneIndex === totalScenes - 1 ? 'closing' : `middle ${sceneIndex + 1}`;
+  const refs = (referenceLabels ?? [])
+    .filter(Boolean)
+    .slice(0, 3)
+    .map((value) => compactText(value, 90));
 
-  // Veo 3.1 has a finite prompt budget. The old runtime prompt repeated the
-  // full master policy + execution policy + project metadata, which could push
-  // the actual scene direction and customer brief too far down the prompt.
-  // Keep the storyboard planner rich, but make the *video-model* prompt lean,
-  // scene-first, and cinematic so the instructions that matter most survive.
-  const safeBrief = compactText(creativeBrief, 1400);
+  // Keep the runtime prompt scene-first, but never truncate the customer's
+  // actual request: late exclusions and ending details are often decisive.
+  const safeBrief = creativeBrief?.trim() ?? '';
   const safeScene = compactText(scene.shotDescription, 1100);
   const safeConcept = compactText(concept, 260);
   const safeVibe = compactText(vibe, 140);
@@ -155,13 +171,15 @@ export function buildAiVideoScenePrompt(input: VideoScenePromptInput) {
       ? `The supplied website capture${refs.length === 1 ? '' : 's'} are ground truth. Preserve visible UI, logo, wording, prices, controls and product identity exactly; do not invent interface states.`
       : 'Keep all visible brand/UI facts conservative and do not invent unsupported details.';
 
-  const interactionRule = scene.sceneType === 'interaction' && !isCustom
-    ? 'For the interaction, perform the real supported action on the real visible control, show only the grounded outcome, then hold the resolved state long enough to understand it before the cut.'
-    : 'Give this 8-second clip one clear visual beat that fully resolves before the cut.';
+  const interactionRule =
+    scene.sceneType === 'interaction' && !isCustom
+      ? 'For the interaction, perform the real supported action on the real visible control, show only the grounded outcome, then hold the resolved state long enough to understand it before the cut.'
+      : 'Give this 8-second clip one clear visual beat that fully resolves before the cut.';
 
-  const formatRule = aspectRatio === '1:1'
-    ? 'Square delivery is center-cropped from a wider provider frame: keep faces, products, devices, logos, and essential action inside the central square-safe area for the entire shot.'
-    : '';
+  const formatRule =
+    aspectRatio === '1:1'
+      ? 'Square delivery is center-cropped from a wider provider frame: keep faces, products, devices, logos, and essential action inside the central square-safe area for the entire shot.'
+      : '';
 
   const audioRule = !nativeAudio
     ? 'Visuals must work silently.'
@@ -218,6 +236,9 @@ ${audioRule}`;
  */
 export const INTERNAL_MASTER_VIDEO_QUALITY_DIRECTIVE = `
 MASTER PRODUCTION STANDARD — ALWAYS APPLY
+- Treat the customer's complete prompt as the creative contract and highest-priority art direction. Preserve every compatible subject, product, action, setting, mood, color, camera, pacing, audio, dialogue, exclusion and ending request. The hidden master direction may intelligently complete unspecified choices, but must never replace, dilute, contradict or genericize what the customer asked for.
+- Before generating, silently resolve the brief into non-negotiables and open creative decisions. Choose one confident central idea plus a consistent visual bible (world, palette, lighting, lens language, movement, texture, performance and sound), then make every moment support that idea. Avoid a random collection of fashionable effects.
+- Aim for portfolio-grade commercial direction: an immediate visual hook, clear subject hierarchy, purposeful progression, memorable detail, controlled contrast, emotionally appropriate rhythm and a satisfying payoff. Beauty must serve the requested message rather than obscuring it.
 - Produce one coherent finished film for the full requested duration. Do not make independent clips that are later treated as unrelated scenes. The film must feel as if it was directed and generated as one continuous production with consistent subjects, products, locations, lighting, grade, camera language and story progression.
 - The customer's prompt controls WHAT the film should communicate. These master rules control HOW professionally it is executed; never override a specific safe customer request merely to force a generic ad template.
 - Start with useful visual information immediately. No black frames, loading cards, placeholder screens, dead air, test patterns, countdowns or generic AI intros.
@@ -243,6 +264,7 @@ export interface ContinuousVideoPromptInput {
   referenceLabels?: string[];
   aspectRatio?: '16:9' | '9:16' | '1:1';
   outputQuality?: '1080p' | '4k';
+  frameRate?: 24 | 30 | 60;
   nativeAudio: boolean;
   musicOnly?: boolean;
   separateNarration?: boolean;
@@ -266,30 +288,43 @@ export function buildContinuousVideoPrompt(input: ContinuousVideoPromptInput) {
     referenceLabels,
     aspectRatio,
     outputQuality,
+    frameRate,
     nativeAudio,
     musicOnly,
     separateNarration,
-    variantSeed,
+    variantSeed
   } = input;
   const isCustom = mode === 'custom';
   const isStudioVideo = ['custom', 'ai-video', 'product-video', 'talking-scene'].includes(mode);
   const isPromptFirstStudio = ['custom', 'ai-video', 'talking-scene'].includes(mode);
-  const safeBrief = compactText(creativeBrief, 2200);
+  // The customer's request is the production contract. Keep it complete so a
+  // late detail or exclusion is never silently lost before the final model.
+  const safeBrief = creativeBrief?.trim() ?? '';
   const safeConcept = compactText(concept, 420);
   const safeVibe = compactText(vibe, 240);
-  const refs = (referenceLabels ?? []).filter(Boolean).slice(0, 8).map((value) => compactText(value, 120));
+  const refs = (referenceLabels ?? [])
+    .filter(Boolean)
+    .slice(0, 8)
+    .map((value) => compactText(value, 120));
   let timelineCursor = 0;
-  const timeline = (scenes ?? []).slice(0, 24).map((scene, index) => {
-    const remaining = Math.max(1, targetDurationSeconds - timelineCursor);
-    const fallbackBeat = Math.max(1, Math.round((targetDurationSeconds - timelineCursor) / Math.max(1, scenes.length - index)));
-    const beatSeconds = Math.min(remaining, Math.max(1, Math.round(scene.durationSeconds || fallbackBeat)));
-    const start = timelineCursor;
-    const end = index === Math.min(23, scenes.length - 1)
-      ? targetDurationSeconds
-      : Math.min(targetDurationSeconds, start + beatSeconds);
-    timelineCursor = end;
-    return `${start}-${end}s: ${compactText(scene.shotDescription, 430)}`;
-  }).join('\n');
+  const timeline = (scenes ?? [])
+    .slice(0, 24)
+    .map((scene, index) => {
+      const remaining = Math.max(1, targetDurationSeconds - timelineCursor);
+      const fallbackBeat = Math.max(
+        1,
+        Math.round((targetDurationSeconds - timelineCursor) / Math.max(1, scenes.length - index))
+      );
+      const beatSeconds = Math.min(remaining, Math.max(1, Math.round(scene.durationSeconds || fallbackBeat)));
+      const start = timelineCursor;
+      const end =
+        index === Math.min(23, scenes.length - 1)
+          ? targetDurationSeconds
+          : Math.min(targetDurationSeconds, start + beatSeconds);
+      timelineCursor = end;
+      return `${start}-${end}s: ${compactText(scene.shotDescription, 430)}`;
+    })
+    .join('\n');
 
   const referenceRule = isStudioVideo
     ? mode === 'product-video'
@@ -314,13 +349,15 @@ export function buildContinuousVideoPrompt(input: ContinuousVideoPromptInput) {
           : 'Generate tasteful native ambience/music and scene effects; do not add unrelated dialogue, and leave room for the separate narration track.';
 
   const modeRules = compactText(modePrompt(mode), 1200);
-  const formatRule = aspectRatio === '1:1'
-    ? 'The provider generates a wide continuity source that is mastered to square; keep every essential face, product, device, logo and action inside the central square-safe area for the entire film.'
-    : aspectRatio === '9:16' && targetDurationSeconds > 8
-      ? 'The provider must extend a 16:9 continuity source, then mastering crops it to 9:16. Compose EVERY essential face, product, device, logo, readable UI area and action inside the central portrait-safe 9:16 region from first frame to last. Never place essential content near the left/right edges.'
-      : `Compose natively for ${aspectRatio ?? '16:9'}.`;
+  const formatRule =
+    aspectRatio === '1:1'
+      ? 'The provider generates a wide continuity source that is mastered to square; keep every essential face, product, device, logo and action inside the central square-safe area for the entire film.'
+      : aspectRatio === '9:16' && targetDurationSeconds > 8
+        ? 'The provider must extend a 16:9 continuity source, then mastering crops it to 9:16. Compose EVERY essential face, product, device, logo, readable UI area and action inside the central portrait-safe 9:16 region from first frame to last. Never place essential content near the left/right edges.'
+        : `Compose natively for ${aspectRatio ?? '16:9'}.`;
 
-  return `Create ONE complete, coherent, premium AI-generated video for the entire requested duration: exactly ${targetDurationSeconds} seconds in the final delivery. This is one film, not a collection of separately generated scenes.
+  return `MASTER FILM PLAN — ONE CONTINUOUS AI-GENERATED PRODUCTION
+Create ONE complete, coherent, premium AI-generated video; the final delivery is exactly ${targetDurationSeconds} seconds. This is one film, not a collection of separately generated scenes.
 
 CUSTOMER DIRECTION
 ${safeBrief || 'Use the strongest professional interpretation of the selected production mode and source material.'}
@@ -330,7 +367,7 @@ Subject / brand: ${compactText(siteTitle, 140)}
 Concept: ${safeConcept || 'Premium directed film'}
 Mood / grade: ${safeVibe || 'premium, modern, cinematic'}
 Mode: ${mode}
-Requested delivery: ${aspectRatio ?? '16:9'} · ${outputQuality ?? '1080p'} · cinematic 24fps
+Requested delivery: ${aspectRatio ?? '16:9'} · ${outputQuality ?? '1080p'} · ${frameRate ?? 24}fps
 Variation key: ${variantSeed ?? 0}
 
 MODE-SPECIFIC INTENT
@@ -361,5 +398,17 @@ A single polished film that looks intentionally directed from first frame to las
 
 /** Keep extension prompts compact while retaining the permanent master rules. */
 export function buildContinuousExtensionPrompt(masterPrompt: string, currentSeconds: number, targetSeconds: number) {
-  return `CONTINUE THE EXACT SAME EXISTING VIDEO. Do not restart, recap, repeat the opening, change identity, or create a disconnected new scene. Continue naturally from the final frame and audio state already present. The complete film target is ${targetSeconds}s; approximately ${currentSeconds}s already exists. Progress the story toward the next unfinished beat and preserve the same people/products/brand/environment/grade/camera language. Resolve actions before moving on.\n\nMASTER DIRECTION (continue obeying it):\n${compactText(masterPrompt, 7000)}`;
+  const endSeconds = Math.min(targetSeconds, currentSeconds + 7);
+  const finalWindow = endSeconds >= targetSeconds;
+  return `CURRENT GENERATION WINDOW — CONTINUATION WINDOW: ${currentSeconds}-${endSeconds}s OF ${targetSeconds}s
+CONTINUE THE EXACT SAME EXISTING VIDEO from its final frame and audio state. Never replay the opening, recap, reset the set, change identity, repeat an earlier action, or create a disconnected new scene.
+${
+  finalWindow
+    ? `THIS IS THE FINAL WINDOW. Resolve the remaining action and reach the intended payoff within the FIRST ${Math.max(1, endSeconds - currentSeconds)} usable seconds, then hold a deliberate stable ending. Do not cut mid-action, mid-word or during a transition.`
+    : 'THIS IS NOT THE END OF THE FILM. Advance toward the next unfinished timeline beat. Do not show a closing card, logo reveal, final CTA, fade-out or resolved ending yet; leave natural motion and audio continuity for the next extension.'
+}
+Preserve the same people, products, brand, environment, grade, camera language and sound world. Never synthesize non-English or pseudo-language lettering; preserve any real source text only as stable referenced imagery.
+
+MASTER DIRECTION (continue obeying every customer detail and production rule):
+${masterPrompt}`;
 }

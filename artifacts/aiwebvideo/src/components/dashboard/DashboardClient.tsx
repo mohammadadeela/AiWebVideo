@@ -8,13 +8,7 @@ import { Wordmark } from "@/components/ui/Wordmark";
 import { UserMenu, formatCredits } from "@/components/account/UserMenu";
 import { CreditUpgradeNotice } from "@/components/account/CreditUpgradeNotice";
 import { watchAuthState } from "@/lib/firebase/client";
-import {
-  deleteSavedChat,
-  fetchMe,
-  fetchUserJobs,
-  updateSavedChat,
-  type UserJobSummary,
-} from "@/lib/api-client";
+import { deleteSavedChat, fetchMe, fetchUserJobs, updateSavedChat, type UserJobSummary } from "@/lib/api-client";
 import { type JobMode } from "@/components/chat/types";
 import {
   CircleUserRound,
@@ -27,10 +21,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import {
-  clearActiveJobId,
-  setActiveJobId,
-} from "@/lib/guestSession";
+import { clearActiveJobId, setActiveJobId } from "@/lib/guestSession";
 
 interface Me {
   email: string;
@@ -39,12 +30,7 @@ interface Me {
   isAdmin: boolean;
 }
 
-const ACTIVE_STATUSES = new Set([
-  "queued",
-  "capturing",
-  "storyboarding",
-  "rendering",
-]);
+const ACTIVE_STATUSES = new Set(["queued", "capturing", "storyboarding", "rendering"]);
 
 function relativeTime(value: string) {
   const date = new Date(value);
@@ -57,8 +43,7 @@ function relativeTime(value: string) {
 
 function statusLabel(status: string, progress: number) {
   if (status === "captured") return "Ready to continue";
-  if (ACTIVE_STATUSES.has(status))
-    return `Running · ${Math.max(0, Math.min(100, Math.round(progress)))}%`;
+  if (ACTIVE_STATUSES.has(status)) return `Running · ${Math.max(0, Math.min(100, Math.round(progress)))}%`;
   return status;
 }
 
@@ -83,7 +68,11 @@ export function DashboardClient() {
   );
   const initialCreationIntent = useMemo<CreationIntent | undefined>(() => {
     const requested = new URLSearchParams(window.location.search).get("create");
-    return requested === "website" || requested === "video" || requested === "photo" || requested === "product-video" || requested === "scenario"
+    return requested === "website" ||
+      requested === "video" ||
+      requested === "photo" ||
+      requested === "product-video" ||
+      requested === "scenario"
       ? requested
       : undefined;
   }, []);
@@ -110,21 +99,12 @@ export function DashboardClient() {
 
   const refresh = useCallback(async () => {
     try {
-      const [account, history] = await Promise.all([
-        fetchMe(),
-        fetchUserJobs(),
-      ]);
+      const [account, history] = await Promise.all([fetchMe(), fetchUserJobs()]);
       setMe(account);
-      setJobs(
-        Array.isArray(history.jobs)
-          ? history.jobs.filter((job) => job && typeof job.id === "string")
-          : [],
-      );
+      setJobs(Array.isArray(history.jobs) ? history.jobs.filter((job) => job && typeof job.id === "string") : []);
       setError(null);
     } catch {
-      setError(
-        "We could not refresh your workspace. Please try again in a moment.",
-      );
+      setError("We could not refresh your workspace. Please try again in a moment.");
     }
   }, []);
 
@@ -154,10 +134,7 @@ export function DashboardClient() {
   useEffect(() => {
     if (!isSignedIn) return;
     const hasRunningJob = jobs.some((job) => ACTIVE_STATUSES.has(job.status));
-    const timer = window.setInterval(
-      () => void refresh(),
-      hasRunningJob ? 3_000 : 20_000,
-    );
+    const timer = window.setInterval(() => void refresh(), hasRunningJob ? 3_000 : 20_000);
     return () => window.clearInterval(timer);
   }, [isSignedIn, jobs, refresh]);
 
@@ -185,21 +162,12 @@ export function DashboardClient() {
     };
   }, [sidebarOpen]);
 
-  const runningJobs = useMemo(
-    () => jobs.filter((job) => ACTIVE_STATUSES.has(job.status)),
-    [jobs],
-  );
+  const runningJobs = useMemo(() => jobs.filter((job) => ACTIVE_STATUSES.has(job.status)), [jobs]);
 
   const filteredJobs = useMemo(
-    () =>
-      jobs.filter((job) =>
-        `${job.title} ${job.sourceUrl} ${job.mode}`
-          .toLowerCase()
-          .includes(query.toLowerCase()),
-      ),
+    () => jobs.filter((job) => `${job.title} ${job.sourceUrl} ${job.mode}`.toLowerCase().includes(query.toLowerCase())),
     [jobs, query],
   );
-
 
   function startNew() {
     clearActiveJobId();
@@ -234,8 +202,7 @@ export function DashboardClient() {
   }
 
   async function removeChat(item: UserJobSummary) {
-    if (!window.confirm(`Delete “${item.title}” from your production history?`))
-      return;
+    if (!window.confirm(`Delete “${item.title}” from your production history?`)) return;
     try {
       await deleteSavedChat(item.id);
       if ((selectedJobId ?? composerJobId) === item.id) startNew();
@@ -265,12 +232,9 @@ export function DashboardClient() {
       <main className="flex min-h-screen items-center justify-center px-5">
         <div className="max-w-md rounded-3xl border border-border bg-panel p-8 text-center">
           <img src="/logo.svg" alt="" className="mx-auto h-12 w-12" />
-          <h1 className="mt-4 font-display text-xl font-bold text-text-primary">
-            Sign in to open your workspace
-          </h1>
+          <h1 className="mt-4 font-display text-xl font-bold text-text-primary">Sign in to open your workspace</h1>
           <p className="mt-2 text-sm text-text-muted">
-            Your projects, files, credits, and billing stay connected to your
-            account.
+            Your projects, files, credits, and billing stay connected to your account.
           </p>
           <Button className="mt-6" onClick={() => setShowAuthModal(true)}>
             Sign in to workspace
@@ -330,10 +294,7 @@ export function DashboardClient() {
           New creation
         </button>
         <div className="relative mt-3">
-          <Search
-            size={15}
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-dim"
-          />
+          <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-dim" />
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -370,22 +331,13 @@ export function DashboardClient() {
                   key={job.id}
                   href={`/dashboard?job=${encodeURIComponent(job.id)}`}
                   onClick={(event) => {
-                    if (
-                      event.button !== 0 ||
-                      event.metaKey ||
-                      event.ctrlKey ||
-                      event.shiftKey ||
-                      event.altKey
-                    )
-                      return;
+                    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
                     event.preventDefault();
                     openProject(job.id);
                   }}
                   className="block rounded-lg px-2 py-1.5 text-left transition hover:bg-white/5"
                 >
-                  <p className="truncate text-[11px] font-medium text-text-primary">
-                    {job.title}
-                  </p>
+                  <p className="truncate text-[11px] font-medium text-text-primary">{job.title}</p>
                   <div className="mt-1 flex items-center gap-2">
                     <span className="h-1 flex-1 overflow-hidden rounded-full bg-white/10">
                       <span
@@ -419,14 +371,7 @@ export function DashboardClient() {
                     // middle-click, and Cmd/Ctrl-click work like any normal
                     // link. Only a plain left-click is intercepted for
                     // in-app SPA navigation.
-                    if (
-                      event.button !== 0 ||
-                      event.metaKey ||
-                      event.ctrlKey ||
-                      event.shiftKey ||
-                      event.altKey
-                    )
-                      return;
+                    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
                     event.preventDefault();
                     openProject(item.id);
                   }}
@@ -436,18 +381,9 @@ export function DashboardClient() {
                     <span
                       className={`h-1.5 w-1.5 shrink-0 rounded-full ${item.status === "done" ? "bg-mint" : item.status === "failed" ? "bg-pink" : "bg-violet animate-pulse-soft"}`}
                     />
-                    {item.pinned && (
-                      <Pin
-                        size={11}
-                        className="shrink-0 fill-violet text-violet"
-                      />
-                    )}
-                    <span className="min-w-0 flex-1 truncate text-xs font-medium text-text-primary">
-                      {item.title}
-                    </span>
-                    <span className="text-[10px] text-text-dim">
-                      {relativeTime(item.updatedAt)}
-                    </span>
+                    {item.pinned && <Pin size={11} className="shrink-0 fill-violet text-violet" />}
+                    <span className="min-w-0 flex-1 truncate text-xs font-medium text-text-primary">{item.title}</span>
+                    <span className="text-[10px] text-text-dim">{relativeTime(item.updatedAt)}</span>
                   </div>
                   <div className="mt-1 flex items-center gap-2 pl-3.5">
                     <p className="min-w-0 flex-1 truncate text-[10px] capitalize text-text-dim">
@@ -467,11 +403,7 @@ export function DashboardClient() {
                 </a>
                 <button
                   type="button"
-                  onClick={() =>
-                    setActionMenuId((value) =>
-                      value === item.id ? null : item.id,
-                    )
-                  }
+                  onClick={() => setActionMenuId((value) => (value === item.id ? null : item.id))}
                   className="absolute right-1 top-1 flex h-10 w-10 items-center justify-center rounded-lg text-text-dim opacity-100 hover:bg-white/10 hover:text-text-primary sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
                   aria-label={`Production options for ${item.title}`}
                 >
@@ -501,9 +433,7 @@ export function DashboardClient() {
             ))}
             {!filteredJobs.length && (
               <p className="px-3 py-6 text-center text-xs text-text-dim">
-                {query
-                  ? "No matching projects."
-                  : "Your first project will appear here."}
+                {query ? "No matching projects." : "Your first project will appear here."}
               </p>
             )}
           </div>
@@ -524,16 +454,10 @@ export function DashboardClient() {
               className="flex items-center gap-2.5 rounded-xl border border-border bg-panel/60 p-2.5 transition hover:bg-panel sm:gap-3 sm:p-3"
             >
               <span className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-panel-alt text-text-primary sm:h-9 sm:w-9">
-                <CircleUserRound
-                  size={19}
-                  strokeWidth={1.8}
-                  aria-hidden="true"
-                />
+                <CircleUserRound size={19} strokeWidth={1.8} aria-hidden="true" />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-xs font-semibold text-text-primary">
-                  {me.email}
-                </span>
+                <span className="block truncate text-xs font-semibold text-text-primary">{me.email}</span>
                 <span className="block text-[10px] capitalize text-text-muted">
                   {me.plan} · {formatCredits(me.creditsBalance)} credits
                 </span>
@@ -564,9 +488,7 @@ export function DashboardClient() {
               <p className="text-sm font-semibold text-text-primary">
                 {selectedJobId || composerJobId ? "Creative chat" : "New creation"}
               </p>
-              <p className="hidden text-[10px] text-text-dim sm:block">
-                AI video, product media and website campaigns
-              </p>
+              <p className="hidden text-[10px] text-text-dim sm:block">AI video, product media and website campaigns</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -580,30 +502,17 @@ export function DashboardClient() {
               </Link>
             )}
             <Link
-              href={
-                me && me.creditsBalance <= 0
-                  ? "/pricing#buy-credits"
-                  : "/pricing"
-              }
+              href={me && me.creditsBalance <= 0 ? "/pricing#buy-credits" : "/pricing"}
               className={`hidden rounded-full border px-3 py-1.5 text-xs sm:block ${me && me.creditsBalance <= 0 ? "border-violet/40 bg-violet/10 font-semibold text-violet hover:bg-violet/15" : "border-border bg-panel text-text-muted hover:text-text-primary"}`}
             >
-              {me && me.creditsBalance <= 0
-                ? "Recharge credits"
-                : `${formatCredits(me?.creditsBalance)} credits`}
+              {me && me.creditsBalance <= 0 ? "Recharge credits" : `${formatCredits(me?.creditsBalance)} credits`}
             </Link>
-            {me && (
-              <UserMenu
-                email={me.email}
-                plan={me.plan}
-                creditsBalance={me.creditsBalance}
-                isAdmin={me.isAdmin}
-              />
-            )}
+            {me && <UserMenu email={me.email} plan={me.plan} creditsBalance={me.creditsBalance} isAdmin={me.isAdmin} />}
           </div>
         </header>
 
         <main
-          className={`flex h-[calc(100dvh-3.5rem)] flex-col p-2.5 sm:h-[calc(100dvh-4rem)] sm:p-5 lg:p-6 ${selectedJobId || composerJobId ? "overflow-hidden" : "overflow-y-auto"}`}
+          className={`flex h-[calc(100dvh-3.5rem)] flex-col sm:h-[calc(100dvh-4rem)] ${selectedJobId || composerJobId ? "overflow-hidden" : "overflow-y-auto p-2.5 sm:p-5 lg:p-6"}`}
         >
           {error && (
             <div className="mx-auto mb-4 w-full max-w-4xl shrink-0 rounded-xl border border-pink/20 bg-pink/5 px-4 py-3 text-xs text-text-muted">
@@ -612,30 +521,30 @@ export function DashboardClient() {
           )}
           {me && me.creditsBalance <= 0 && (
             <div className="mx-auto mb-4 w-full max-w-4xl shrink-0">
-              <CreditUpgradeNotice
-                plan={me.plan}
-                creditsBalance={me.creditsBalance}
-              />
+              <CreditUpgradeNotice plan={me.plan} creditsBalance={me.creditsBalance} />
             </div>
           )}
           {selectedJobId ? (
-            <div className="mx-auto flex h-full min-h-0 w-full max-w-5xl flex-col">
+            <div className="flex h-full min-h-0 w-full flex-col">
               <ChatWidget
                 key={selectedJobId}
                 resumeJobId={selectedJobId}
+                immersive
                 className="h-full"
-                onJobCreated={() =>
-                  window.setTimeout(() => void refresh(), 1200)
-                }
+                onJobCreated={() => window.setTimeout(() => void refresh(), 1200)}
               />
             </div>
           ) : (
-            <div className={`mx-auto w-full ${composerJobId ? "flex h-full max-w-5xl min-h-0 flex-col" : "max-w-6xl pb-5 sm:pb-8"}`}>
+            <div
+              className={`mx-auto w-full ${composerJobId ? "flex h-full min-h-0 flex-col" : "max-w-6xl pb-5 sm:pb-8"}`}
+            >
               {!composerJobId && (
                 <div className="mb-3 flex items-center justify-between gap-3 px-1">
                   <div>
                     <p className="font-display text-base font-semibold text-white sm:text-xl">Create</p>
-                    <p className="mt-0.5 hidden text-[11px] text-text-dim sm:block">Start with the website URL or choose another creation mode below.</p>
+                    <p className="mt-0.5 hidden text-[11px] text-text-dim sm:block">
+                      Start with the website URL or choose another creation mode below.
+                    </p>
                   </div>
                 </div>
               )}
@@ -647,6 +556,7 @@ export function DashboardClient() {
                   initialMode={reuseMode}
                   expandInitialPanel
                   initialCreationIntent={initialCreationIntent}
+                  immersive
                   className={composerJobId ? "h-full min-h-0 w-full" : "w-full"}
                   onJobCreated={registerComposerJob}
                 />

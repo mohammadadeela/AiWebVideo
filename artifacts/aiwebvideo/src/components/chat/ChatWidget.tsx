@@ -59,7 +59,11 @@ import {
   type WebsiteGenerationSettings,
 } from "./WebsiteBriefForm";
 import { GenerationCanvas, type ProductionKind } from "./GenerationCanvas";
-import { clearPublicCreatorHandoff, loadPublicCreatorHandoff, savePublicCreatorHandoff } from "@/lib/publicCreatorHandoff";
+import {
+  clearPublicCreatorHandoff,
+  loadPublicCreatorHandoff,
+  savePublicCreatorHandoff,
+} from "@/lib/publicCreatorHandoff";
 
 type Stage = "awaiting_url" | WorkflowStage;
 
@@ -74,7 +78,6 @@ function durationLabel(seconds: number) {
   if (seconds < 60) return `${seconds}s`;
   return `${Math.floor(seconds / 60)}m${seconds % 60 ? ` ${seconds % 60}s` : ""}`;
 }
-
 
 function isPublicCreatorPath() {
   return window.location.pathname === "/" || window.location.pathname.startsWith("/studio");
@@ -96,7 +99,9 @@ function websiteBrandName(sourceUrl?: string | null, title?: string | null) {
   if (sourceUrl && !sourceUrl.startsWith("upload://")) {
     try {
       return new URL(sourceUrl).hostname.replace(/^www\./i, "");
-    } catch { /* use title below */ }
+    } catch {
+      /* use title below */
+    }
   }
   const compactTitle = (title || "").split(/[|·—]/)[0]?.trim();
   return compactTitle || "Website";
@@ -119,63 +124,38 @@ const RESTORABLE_WITH_STORYBOARD = new Set<WorkflowStage>([
   "ready_to_render",
 ]);
 
-function resolveResumeStage(
-  saved: JobStatusResponse,
-  workflow: JobWorkflowState | null,
-): WorkflowStage {
+function resolveResumeStage(saved: JobStatusResponse, workflow: JobWorkflowState | null): WorkflowStage {
   // Server process status always wins over a cached UI step. This is what
   // makes closing the tab during generation safe: the provider continues,
   // and reopening reconnects to that same job rather than starting another.
   if (saved.status === "rendering") return "rendering";
   if (saved.status === "done") return "done";
-  if (saved.status === "failed" || saved.status === "cancelled")
-    return "failed";
+  if (saved.status === "failed" || saved.status === "cancelled") return "failed";
 
   // A public guest website preview intentionally stops after browser capture.
   // Do not auto-start direction until the visitor continues into Workspace.
-  if (workflow?.stage === "preview_ready" && saved.captureMetadata && !saved.storyboard)
-    return "preview_ready";
+  if (workflow?.stage === "preview_ready" && saved.captureMetadata && !saved.storyboard) return "preview_ready";
 
   // Website productions are intentionally automatic. If capture finished but
   // the storyboard has not started yet, reconnect through the live capture
   // stage so the transition effect can launch planning. This also repairs jobs
   // created by an older frontend that did not persist websiteAutoFlow in time.
-  if (
-    saved.captureMetadata &&
-    !saved.storyboard &&
-    !saved.sourceUrl.startsWith("upload://")
-  )
-    return "capturing";
+  if (saved.captureMetadata && !saved.storyboard && !saved.sourceUrl.startsWith("upload://")) return "capturing";
 
   // A storyboard can finish while the tab is hidden/reloaded. Re-enter the
   // storyboarding stage for website jobs so the existing auto-render effect
   // can immediately continue into final generation instead of parking forever
   // on a ready state.
-  if (
-    saved.status === "storyboarding" &&
-    saved.storyboard &&
-    !saved.sourceUrl.startsWith("upload://")
-  )
+  if (saved.status === "storyboarding" && saved.storyboard && !saved.sourceUrl.startsWith("upload://"))
     return "storyboarding";
 
-  if (saved.status === "storyboarding" && !saved.storyboard)
-    return "storyboarding";
-  if (
-    (saved.status === "capturing" || saved.status === "queued") &&
-    !saved.captureMetadata
-  )
-    return "capturing";
+  if (saved.status === "storyboarding" && !saved.storyboard) return "storyboarding";
+  if ((saved.status === "capturing" || saved.status === "queued") && !saved.captureMetadata) return "capturing";
 
   const candidate = workflow?.stage;
-  if (saved.storyboard)
-    return candidate && RESTORABLE_WITH_STORYBOARD.has(candidate)
-      ? candidate
-      : "ready_to_render";
-  if (candidate && RESTORABLE_BEFORE_STORYBOARD.has(candidate))
-    return candidate;
-  return saved.sourceUrl.startsWith("upload://")
-    ? "awaiting_mode"
-    : "awaiting_private_pages";
+  if (saved.storyboard) return candidate && RESTORABLE_WITH_STORYBOARD.has(candidate) ? candidate : "ready_to_render";
+  if (candidate && RESTORABLE_BEFORE_STORYBOARD.has(candidate)) return candidate;
+  return saved.sourceUrl.startsWith("upload://") ? "awaiting_mode" : "awaiting_private_pages";
 }
 
 const MODE_DEFAULT_VIBES: Record<JobMode, string> = {
@@ -197,10 +177,7 @@ const isImageMode = (value: JobMode) => value === "photos" || value === "icon";
 let msgCounter = 0;
 const nextId = () => `m${++msgCounter}`;
 
-function doneResultMessage(
-  job: JobStatusResponse,
-  onUnlock: () => void,
-): ReactNode {
+function doneResultMessage(job: JobStatusResponse, onUnlock: () => void): ReactNode {
   const label =
     job.mode === "photos"
       ? "Your AI photo campaign is ready."
@@ -224,7 +201,9 @@ function doneResultMessage(
 
 const HIDDEN_RESTORED_MESSAGE_KINDS = new Set(["source_continuation"]);
 
-function resultSourceKind(job: Pick<JobStatusResponse, "sourceUrl" | "captureMetadata">): "website" | "studio" | "upload" {
+function resultSourceKind(
+  job: Pick<JobStatusResponse, "sourceUrl" | "captureMetadata">,
+): "website" | "studio" | "upload" {
   const sourceType = job.captureMetadata?.sourceType;
   if (sourceType === "studio") return "studio";
   if (sourceType === "upload" || job.sourceUrl.startsWith("upload://")) return "upload";
@@ -236,9 +215,7 @@ function restoredMessageContent(
   onUnlock: () => void,
   sourceKind: "website" | "studio" | "upload" = "website",
 ): ReactNode {
-  const assets = Array.isArray(message.payload?.resultAssets)
-    ? (message.payload?.resultAssets as JobAsset[])
-    : [];
+  const assets = Array.isArray(message.payload?.resultAssets) ? (message.payload?.resultAssets as JobAsset[]) : [];
   if (message.kind === "result" && assets.length > 0) {
     return (
       <div className="space-y-3">
@@ -258,17 +235,11 @@ function storyboardSummaryMessage(
 ): ReactNode {
   const sb = job.storyboard;
   if (!sb) return null;
-  const scenes = Array.isArray(sb.scenes)
-    ? sb.scenes.filter((scene) => scene && typeof scene === "object")
-    : [];
-  const ideas = Array.isArray(sb.ideas)
-    ? sb.ideas.filter((idea): idea is string => typeof idea === "string")
-    : [];
+  const scenes = Array.isArray(sb.scenes) ? sb.scenes.filter((scene) => scene && typeof scene === "object") : [];
+  const ideas = Array.isArray(sb.ideas) ? sb.ideas.filter((idea): idea is string => typeof idea === "string") : [];
   return (
     <div className="space-y-2">
-      <p className="font-semibold text-text-primary">
-        {sb.concept || "Production plan"}
-      </p>
+      <p className="font-semibold text-text-primary">{sb.concept || "Production plan"}</p>
       <p className="text-text-muted">
         {isImageMode(mode)
           ? `${scenes.length} marketing image${scenes.length === 1 ? "" : "s"}.`
@@ -281,17 +252,9 @@ function storyboardSummaryMessage(
       </p>
       <div className="space-y-1.5">
         {scenes.map((scene, index) => (
-          <div
-            key={scene.sceneNumber ?? index}
-            className="rounded-xl border border-white/5 bg-white/[.025] px-3 py-2"
-          >
+          <div key={scene.sceneNumber ?? index} className="rounded-xl border border-white/5 bg-white/[.025] px-3 py-2">
             <p className="text-[10px] font-semibold uppercase tracking-[.14em] text-violet">
-              {isImageMode(mode)
-                ? mode === "icon"
-                  ? "Icon"
-                  : "Image"
-                : "Beat"}{" "}
-              {scene.sceneNumber ?? index + 1}
+              {isImageMode(mode) ? (mode === "icon" ? "Icon" : "Image") : "Beat"} {scene.sceneNumber ?? index + 1}
             </p>
             <p className="mt-1 text-xs leading-relaxed text-text-muted">
               {scene.shotDescription || "Timeline beat ready"}
@@ -301,9 +264,7 @@ function storyboardSummaryMessage(
       </div>
       {ideas.length > 0 && (
         <details className="text-xs text-text-muted">
-          <summary className="cursor-pointer text-text-dim hover:text-text-muted">
-            Other creative directions
-          </summary>
+          <summary className="cursor-pointer text-text-dim hover:text-text-muted">Other creative directions</summary>
           <ul className="mt-1 space-y-1 list-disc list-inside">
             {ideas.map((idea, i) => (
               <li key={i}>{idea}</li>
@@ -324,6 +285,7 @@ export function ChatWidget({
   expandInitialPanel = false,
   initialCreationIntent,
   compactLanding = false,
+  immersive = false,
 }: {
   className?: string;
   onJobCreated?: (jobId: string) => void;
@@ -333,9 +295,12 @@ export function ChatWidget({
   expandInitialPanel?: boolean;
   initialCreationIntent?: CreationIntent;
   compactLanding?: boolean;
+  /** Borderless full-workspace presentation used by the authenticated chat. */
+  immersive?: boolean;
 }) {
   const reopeningExistingChat = Boolean(resumeJobId || initialJobId);
-  const streamlinedInitialComposer = compactLanding || isWorkspacePath() || window.location.pathname.startsWith("/studio");
+  const streamlinedInitialComposer =
+    compactLanding || isWorkspacePath() || window.location.pathname.startsWith("/studio");
   const [messages, setMessages] = useState<Message[]>(() =>
     reopeningExistingChat
       ? []
@@ -377,13 +342,10 @@ export function ChatWidget({
   const [featuresText, setFeaturesText] = useState<string | null>(null);
   const [creativeBrief, setCreativeBrief] = useState<string | null>(null);
   const [manualRenderAfterPlan, setManualRenderAfterPlan] = useState(false);
-  const [aspectRatio, setAspectRatio] = useState<"16:9" | "9:16" | "1:1">(
-    "16:9",
-  );
+  const [aspectRatio, setAspectRatio] = useState<"16:9" | "9:16" | "1:1">("16:9");
   const [outputQuality, setOutputQuality] = useState<"1080p" | "4k">("1080p");
   const [frameRate, setFrameRate] = useState<24 | 30 | 60>(24);
-  const [activeCaptureMetadata, setActiveCaptureMetadata] =
-    useState<CaptureMetadata | null>(null);
+  const [activeCaptureMetadata, setActiveCaptureMetadata] = useState<CaptureMetadata | null>(null);
   const [selectedCaptureIds, setSelectedCaptureIds] = useState<string[]>([]);
   const selectionKeyRef = useRef("");
   const chatRootRef = useRef<HTMLDivElement>(null);
@@ -407,8 +369,7 @@ export function ChatWidget({
     narrationLanguage: string;
   } | null>(null);
 
-  const pollingActive =
-    stage === "capturing" || stage === "storyboarding" || stage === "rendering";
+  const pollingActive = stage === "capturing" || stage === "storyboarding" || stage === "rendering";
   const { job, error: pollError } = useJobPolling(jobId, pollingActive);
   const estimatedCredits = estimateRenderCredits(
     mode,
@@ -416,7 +377,11 @@ export function ChatWidget({
     job?.storyboard?.targetDurationSeconds || durationSeconds,
     job?.storyboard?.outputQuality ?? outputQuality,
   );
-  const estimatedShortfall = Math.max(0, estimatedCredits - creditBalance);
+  const currentReservedCredits =
+    stage === "ready_to_render" || stage === "rendering" ? Math.max(0, job?.creditsSpent ?? 0) : 0;
+  const estimatedAdditionalCredits = Math.max(0, estimatedCredits - currentReservedCredits);
+  const estimatedShortfall = Math.max(0, estimatedAdditionalCredits - creditBalance);
+  const nextVersionShortfall = Math.max(0, estimatedCredits - creditBalance);
   const projectCaptureMetadata = activeCaptureMetadata ?? job?.captureMetadata;
   const isStudioProject = projectCaptureMetadata?.sourceType === "studio";
   const productionKind: ProductionKind =
@@ -432,10 +397,7 @@ export function ChatWidget({
             ? "ai-video"
             : "website-video";
   const liveReferenceItems = captureMediaItems(projectCaptureMetadata);
-  const activeSceneCount = Math.max(
-    1,
-    Math.ceil((job?.storyboard?.targetDurationSeconds || durationSeconds) / 8),
-  );
+  const activeSceneCount = Math.max(1, Math.ceil((job?.storyboard?.targetDurationSeconds || durationSeconds) / 8));
   const sceneAssignments = useMemo(() => {
     const exactSceneRefs = job?.storyboard?.sceneCaptureIds;
     if (Array.isArray(exactSceneRefs) && exactSceneRefs.length > 0) {
@@ -534,10 +496,7 @@ export function ChatWidget({
       setSelectedCaptureIds(workflow.selectedCaptureIds);
       setAudioMode(workflow.audioMode);
       setNarrationLanguage(workflow.narrationLanguage);
-      if (
-        workflow.websiteAutoFlow &&
-        !saved.sourceUrl.startsWith("upload://")
-      ) {
+      if (workflow.websiteAutoFlow && !saved.sourceUrl.startsWith("upload://")) {
         websiteRequestRef.current = {
           brief: workflow.creativeBrief ?? "",
           mode:
@@ -554,25 +513,17 @@ export function ChatWidget({
     } else {
       setManualRenderAfterPlan(false);
       setMode(saved.mode);
-      if (saved.storyboard?.targetDurationSeconds)
-        setDurationSeconds(saved.storyboard.targetDurationSeconds);
-      if (saved.storyboard?.aspectRatio)
-        setAspectRatio(saved.storyboard.aspectRatio);
-      if (saved.storyboard?.outputQuality)
-        setOutputQuality(saved.storyboard.outputQuality);
+      if (saved.storyboard?.targetDurationSeconds) setDurationSeconds(saved.storyboard.targetDurationSeconds);
+      if (saved.storyboard?.aspectRatio) setAspectRatio(saved.storyboard.aspectRatio);
+      if (saved.storyboard?.outputQuality) setOutputQuality(saved.storyboard.outputQuality);
       if (saved.storyboard?.frameRate) setFrameRate(saved.storyboard.frameRate);
-      if (saved.storyboard?.creativeBrief !== undefined)
-        setCreativeBrief(saved.storyboard.creativeBrief ?? null);
-      if (saved.storyboard?.selectedCaptureIds)
-        setSelectedCaptureIds(saved.storyboard.selectedCaptureIds);
+      if (saved.storyboard?.creativeBrief !== undefined) setCreativeBrief(saved.storyboard.creativeBrief ?? null);
+      if (saved.storyboard?.selectedCaptureIds) setSelectedCaptureIds(saved.storyboard.selectedCaptureIds);
     }
     if (saved.captureMetadata) {
       const allIds = autoSelectCaptureIds(saved.captureMetadata, 30);
       selectionKeyRef.current = `${saved.id}:${allIds.join("|")}`;
-      if (
-        !workflow?.selectedCaptureIds.length &&
-        !saved.storyboard?.selectedCaptureIds?.length
-      )
+      if (!workflow?.selectedCaptureIds.length && !saved.storyboard?.selectedCaptureIds?.length)
         setSelectedCaptureIds(allIds);
     }
     return workflow;
@@ -601,10 +552,7 @@ export function ChatWidget({
       requestedDurationSeconds: websiteRequestRef.current?.durationSeconds,
     };
     saveLocalJobWorkflow(jobId, workflowState);
-    const timer = window.setTimeout(
-      () => void saveJobWorkflow(jobId, workflowState).catch(() => {}),
-      180,
-    );
+    const timer = window.setTimeout(() => void saveJobWorkflow(jobId, workflowState).catch(() => {}), 180);
     return () => window.clearTimeout(timer);
   }, [
     jobId,
@@ -667,20 +615,14 @@ export function ChatWidget({
 
       const scrollerRect = scroller.getBoundingClientRect();
       const targetRect = target.getBoundingClientRect();
-      const targetTop = Math.max(
-        0,
-        scroller.scrollTop + targetRect.top - scrollerRect.top,
-      );
+      const targetTop = Math.max(0, scroller.scrollTop + targetRect.top - scrollerRect.top);
       scroller.scrollTo({ top: targetTop, behavior });
 
       // Outside Workspace, keep the Director header visible and place the
       // live production panel directly beneath it and the sticky site nav.
       if (!window.location.pathname.startsWith("/dashboard")) {
         const stickyHeaderOffset = window.matchMedia?.("(max-width: 767px)").matches ? 64 : 82;
-        const pageTop = Math.max(
-          0,
-          window.scrollY + root.getBoundingClientRect().top - stickyHeaderOffset,
-        );
+        const pageTop = Math.max(0, window.scrollY + root.getBoundingClientRect().top - stickyHeaderOffset);
         window.scrollTo({ top: pageTop, behavior });
       }
     };
@@ -702,11 +644,7 @@ export function ChatWidget({
     };
   }, [pollingActive, jobId]);
 
-  function persist(
-    role: "user" | "assistant",
-    content: ReactNode,
-    kind = "text",
-  ) {
+  function persist(role: "user" | "assistant", content: ReactNode, kind = "text") {
     const activeJobId = jobIdRef.current;
     if (!activeJobId || typeof content !== "string") return;
     void saveJobMessage(activeJobId, role, content, kind).catch(() => {});
@@ -733,9 +671,7 @@ export function ChatWidget({
         setActiveCaptureMetadata(saved.captureMetadata);
         setMode(initialMode ?? saved.mode);
         capturedRef.current = true;
-        const transcript: Message[] = (
-          Array.isArray(saved.messages) ? saved.messages : []
-        )
+        const transcript: Message[] = (Array.isArray(saved.messages) ? saved.messages : [])
           .filter((message) => !HIDDEN_RESTORED_MESSAGE_KINDS.has(message.kind))
           .map((message) => ({
             id: message.id,
@@ -747,25 +683,17 @@ export function ChatWidget({
           {
             id: nextId(),
             role: "bot",
-            content: (
-              <SiteCard
-                sourceUrl={saved.sourceUrl}
-                metadata={saved.captureMetadata}
-              />
-            ),
+            content: <SiteCard sourceUrl={saved.sourceUrl} metadata={saved.captureMetadata} />,
           },
         ];
         if (initialMode) {
-          const label =
-            MODE_OPTIONS.find((option) => option.mode === initialMode)?.label ??
-            "Continue creating";
+          const label = MODE_OPTIONS.find((option) => option.mode === initialMode)?.label ?? "Continue creating";
           reopenedMessages.push({ id: nextId(), role: "user", content: label });
           if (initialMode === "photos") {
             reopenedMessages.push({
               id: nextId(),
               role: "bot",
-              content:
-                "Your project references are ready. Choose the format for the new photo set.",
+              content: "Your project references are ready. Choose the format for the new photo set.",
             });
             setStage("awaiting_format");
           } else if (initialMode === "icon") {
@@ -783,8 +711,7 @@ export function ChatWidget({
             reopenedMessages.push({
               id: nextId(),
               role: "bot",
-              content:
-                "Your saved website capture is ready—no rescan needed. How long should this production be?",
+              content: "Your saved website capture is ready—no rescan needed. How long should this production be?",
             });
             setStage("awaiting_duration");
           }
@@ -792,8 +719,7 @@ export function ChatWidget({
           reopenedMessages.push({
             id: nextId(),
             role: "bot",
-            content:
-              "Saved capture loaded. What would you like to create from it?",
+            content: "Saved capture loaded. What would you like to create from it?",
           });
           setStage("awaiting_mode");
         }
@@ -805,9 +731,7 @@ export function ChatWidget({
       .catch(() => {
         workflowReadyRef.current = true;
         setRestoring(false);
-        pushBot(
-          "We could not reopen that saved project. Please choose another chat or start a new one.",
-        );
+        pushBot("We could not reopen that saved project. Please choose another chat or start a new one.");
         setStage("failed");
       });
     return () => {
@@ -832,18 +756,16 @@ export function ChatWidget({
         const workflow = restoreWorkflow(saved);
         const resumedStage = resolveResumeStage(saved, workflow);
 
-        const visibleSavedMessages = (
-          Array.isArray(saved.messages) ? saved.messages : []
-        ).filter((message) => !HIDDEN_RESTORED_MESSAGE_KINDS.has(message.kind));
+        const visibleSavedMessages = (Array.isArray(saved.messages) ? saved.messages : []).filter(
+          (message) => !HIDDEN_RESTORED_MESSAGE_KINDS.has(message.kind),
+        );
         let latestResultIndex = -1;
         if (resumedStage === "done") {
           visibleSavedMessages.forEach((message, index) => {
             if (message.kind === "result") latestResultIndex = index;
           });
         }
-        const savedFinalResult = latestResultIndex >= 0
-          ? visibleSavedMessages[latestResultIndex]
-          : null;
+        const savedFinalResult = latestResultIndex >= 0 ? visibleSavedMessages[latestResultIndex] : null;
         const transcript: Message[] = visibleSavedMessages
           .filter((_message, index) => index !== latestResultIndex)
           .map((message) => ({
@@ -856,12 +778,7 @@ export function ChatWidget({
           rebuilt.push({
             id: nextId(),
             role: "bot",
-            content: (
-              <SiteCard
-                sourceUrl={saved.sourceUrl}
-                metadata={saved.captureMetadata}
-              />
-            ),
+            content: <SiteCard sourceUrl={saved.sourceUrl} metadata={saved.captureMetadata} />,
           });
         }
         if (saved.storyboard) {
@@ -892,15 +809,23 @@ export function ChatWidget({
           // Capture and storyboard context is reconstructed above; always put
           // the durable output after it so reopening the conversation leaves
           // the generated video/photo set as the final chat message.
-          rebuilt.push(savedFinalResult ? {
-            id: savedFinalResult.id,
-            role: savedFinalResult.role === "user" ? "user" : "bot",
-            content: restoredMessageContent(savedFinalResult, () => setShowAuthModal(true), resultSourceKind(saved)),
-          } : {
-            id: nextId(),
-            role: "bot",
-            content: doneResultMessage(saved, () => setShowAuthModal(true)),
-          });
+          rebuilt.push(
+            savedFinalResult
+              ? {
+                  id: savedFinalResult.id,
+                  role: savedFinalResult.role === "user" ? "user" : "bot",
+                  content: restoredMessageContent(
+                    savedFinalResult,
+                    () => setShowAuthModal(true),
+                    resultSourceKind(saved),
+                  ),
+                }
+              : {
+                  id: nextId(),
+                  role: "bot",
+                  content: doneResultMessage(saved, () => setShowAuthModal(true)),
+                },
+          );
           setMessages(rebuilt);
           setStage("done");
         } else if (resumedStage === "failed") {
@@ -911,8 +836,7 @@ export function ChatWidget({
             content:
               saved.status === "cancelled"
                 ? "Stopped — all reserved credits for this render were restored."
-                : saved.errorMessage ||
-                  "The render didn't finish. Try again or start over with a different URL.",
+                : saved.errorMessage || "The render didn't finish. Try again or start over with a different URL.",
           });
           setMessages(rebuilt);
           setStage("failed");
@@ -927,9 +851,7 @@ export function ChatWidget({
       .catch(() => {
         workflowReadyRef.current = true;
         setRestoring(false);
-        pushBot(
-          "We could not reopen that chat. Please choose another chat or start a new one.",
-        );
+        pushBot("We could not reopen that chat. Please choose another chat or start a new one.");
         setStage("failed");
       });
     return () => {
@@ -945,13 +867,7 @@ export function ChatWidget({
   }, [job, jobId, stage]);
 
   useEffect(() => {
-    if (
-      stage !== "capturing" ||
-      !job ||
-      job.id !== jobId ||
-      capturedRef.current
-    )
-      return;
+    if (stage !== "capturing" || !job || job.id !== jobId || capturedRef.current) return;
 
     if (job.status === "cancelled") {
       capturedRef.current = true;
@@ -963,10 +879,7 @@ export function ChatWidget({
 
     if (job.status === "failed") {
       capturedRef.current = true;
-      pushBot(
-        job.errorMessage ||
-          "We couldn't load that site. Check the URL and try again.",
-      );
+      pushBot(job.errorMessage || "We couldn't load that site. Check the URL and try again.");
       setStage("failed");
       return;
     }
@@ -1019,16 +932,30 @@ export function ChatWidget({
       setSelectedCaptureIds(ids);
       setManualRenderAfterPlan(true);
       const previewWorkflow: JobWorkflowState = {
-        savedAt: Date.now(), stage: "preview_ready", mode: request?.mode ?? "video",
-        durationSeconds: request?.durationSeconds === "auto" || request?.durationSeconds === undefined ? Math.max(8, Math.min(32, Math.max(1, metadata.pageCount || ids.length) * 8)) : request.durationSeconds,
-        featuresText: null, creativeBrief: request?.brief ?? creativeBrief ?? "",
-        aspectRatio: request?.aspectRatio ?? aspectRatio, outputQuality: request?.outputQuality ?? outputQuality, frameRate: 24,
-        selectedCaptureIds: ids, audioMode: request?.audioMode ?? audioMode, narrationLanguage: request?.narrationLanguage ?? narrationLanguage,
-        websiteAutoFlow: true, manualRenderAfterPlan: true, requestedDurationSeconds: request?.durationSeconds ?? "auto",
+        savedAt: Date.now(),
+        stage: "preview_ready",
+        mode: request?.mode ?? "video",
+        durationSeconds:
+          request?.durationSeconds === "auto" || request?.durationSeconds === undefined
+            ? Math.max(8, Math.min(32, Math.max(1, metadata.pageCount || ids.length) * 8))
+            : request.durationSeconds,
+        featuresText: null,
+        creativeBrief: request?.brief ?? creativeBrief ?? "",
+        aspectRatio: request?.aspectRatio ?? aspectRatio,
+        outputQuality: request?.outputQuality ?? outputQuality,
+        frameRate: 24,
+        selectedCaptureIds: ids,
+        audioMode: request?.audioMode ?? audioMode,
+        narrationLanguage: request?.narrationLanguage ?? narrationLanguage,
+        websiteAutoFlow: true,
+        manualRenderAfterPlan: true,
+        requestedDurationSeconds: request?.durationSeconds ?? "auto",
       };
       saveLocalJobWorkflow(job.id, previewWorkflow);
       void saveJobWorkflow(job.id, previewWorkflow).catch(() => {});
-      pushBot("That is your real website. I’ve saved the strongest pages and tab icon. Continue when you’re ready — account creation comes next, before AI direction or paid generation.");
+      pushBot(
+        "That is your real website. I’ve saved the strongest pages and tab icon. Continue when you’re ready — account creation comes next, before AI direction or paid generation.",
+      );
       setStage("preview_ready");
       return;
     }
@@ -1039,8 +966,7 @@ export function ChatWidget({
         pushBot(
           "Your references are ready. Sign in once to add them after sign-in, then I’ll continue this same production.",
         );
-        pendingActionRef.current = () =>
-          performWebsiteAttachmentUpload(job.id, pendingReferences);
+        pendingActionRef.current = () => performWebsiteAttachmentUpload(job.id, pendingReferences);
         setShowAuthModal(true);
         setStage("awaiting_private_pages");
       } else {
@@ -1067,13 +993,7 @@ export function ChatWidget({
 
   // Storyboard stage
   useEffect(() => {
-    if (
-      stage !== "storyboarding" ||
-      !job ||
-      job.id !== jobId ||
-      storyboardedRef.current
-    )
-      return;
+    if (stage !== "storyboarding" || !job || job.id !== jobId || storyboardedRef.current) return;
     if (job.status === "cancelled") {
       storyboardedRef.current = true;
       pushBot("Stopped — no credits were spent on planning.");
@@ -1106,14 +1026,18 @@ export function ChatWidget({
       if (usedSceneIds.length) setSelectedCaptureIds(usedSceneIds);
       pushBot(storyboardSummaryMessage(job, mode, aspectRatio, frameRate));
       if (!isSignedIn) {
-        pushBot("Your production plan is ready. Sign in to continue automatically into final generation, or unlock when you’re ready.");
+        pushBot(
+          "Your production plan is ready. Sign in to continue automatically into final generation, or unlock when you’re ready.",
+        );
         showLockedTeaser();
         setStage("ready_to_render");
         return;
       }
       if (manualRenderAfterPlan) {
         autoRenderRef.current = false;
-        pushBot("Your saved setup and direction are ready. Review them once, then click Generate when you want to spend credits and start the final video.");
+        pushBot(
+          "Your saved setup and direction are ready, and the production credits are reserved. Review the plan once, then start the final generation when you are ready.",
+        );
         setStage("ready_to_render");
         return;
       }
@@ -1130,47 +1054,40 @@ export function ChatWidget({
   // Render stage
   const renderedRef = useRef(false);
   useEffect(() => {
-    if (
-      stage !== "rendering" ||
-      !job ||
-      job.id !== jobId ||
-      renderedRef.current
-    )
-      return;
+    if (stage !== "rendering" || !job || job.id !== jobId || renderedRef.current) return;
     if (job.status === "done") {
       renderedRef.current = true;
-      void fetchMe().then((account) => setCreditBalance(account.creditsBalance)).catch(() => {});
+      void fetchMe()
+        .then((account) => setCreditBalance(account.creditsBalance))
+        .catch(() => {});
       pushBot(doneResultMessage(job, () => setShowAuthModal(true)));
       setStage("done");
     } else if (job.status === "cancelled") {
       renderedRef.current = true;
-      void fetchMe().then((account) => setCreditBalance(account.creditsBalance)).catch(() => {});
+      void fetchMe()
+        .then((account) => setCreditBalance(account.creditsBalance))
+        .catch(() => {});
       pushBot("Stopped — all reserved credits for this render were restored.");
       setCancelling(false);
       setStage("failed");
     } else if (job.status === "failed") {
       renderedRef.current = true;
-      void fetchMe().then((account) => setCreditBalance(account.creditsBalance)).catch(() => {});
-      pushBot(
-        job.errorMessage ||
-          "The render didn't finish. Try again or start over with a different URL.",
-      );
-      // Never let a retry reuse the same job/storyboard that just failed —
-      // the backend now refuses that anyway (RENDER_ALREADY_FAILED), and
-      // reusing it would replay the exact same edit plan on the next click.
-      // Automatically prepare a brand-new job + a brand-new storyboard from
-      // the same saved screenshots and the same creative choices, so the
-      // next "Generate" click is guaranteed to be a fresh attempt.
-      void prepareFreshVersionAfterFailure(job.id);
+      void fetchMe()
+        .then((account) => setCreditBalance(account.creditsBalance))
+        .catch(() => {});
+      pushBot(job.errorMessage || "The render didn't finish. Try again or start over with a different URL.");
+      // Stop here. A failed provider attempt must never trigger another paid
+      // planning or generation request automatically. The user can edit a new
+      // direction explicitly; that path is credit-gated again before AI runs.
+      setCancelling(false);
+      setStage("failed");
     }
   }, [job, stage]);
 
   useEffect(() => {
     if (pollError && !pollNoticeRef.current) {
       pollNoticeRef.current = true;
-      pushBot(
-        "The connection paused briefly. Your project is safe and we are reconnecting automatically.",
-      );
+      pushBot("The connection paused briefly. Your project is safe and we are reconnecting automatically.");
     }
     if (!pollError) pollNoticeRef.current = false;
   }, [pollError]);
@@ -1187,9 +1104,13 @@ export function ChatWidget({
       await savePhotoDraft(attachmentDraftKey, buildDraftItems(referenceFiles));
     }
     savePublicCreatorHandoff({
-      kind: "website", url, brief, settings: { ...settings }, attachmentDraftKey,
+      kind: "website",
+      url,
+      brief,
+      settings: { ...settings },
+      attachmentDraftKey,
     });
-    window.location.assign('/dashboard?create=website&handoff=1');
+    window.location.assign("/dashboard?create=website&handoff=1");
   }
 
   async function performLandingWebsitePreview(
@@ -1203,9 +1124,13 @@ export function ChatWidget({
     // and useful screenshots, then stop before AI direction/rendering.
     setManualRenderAfterPlan(true);
     websiteRequestRef.current = {
-      brief, mode: settings.mode, durationSeconds: settings.durationSeconds,
-      aspectRatio: settings.aspectRatio, outputQuality: settings.outputQuality,
-      audioMode: settings.audioMode, narrationLanguage: settings.narrationLanguage,
+      brief,
+      mode: settings.mode,
+      durationSeconds: settings.durationSeconds,
+      aspectRatio: settings.aspectRatio,
+      outputQuality: settings.outputQuality,
+      audioMode: settings.audioMode,
+      narrationLanguage: settings.narrationLanguage,
     };
     setMode(settings.mode);
     setCreativeBrief(brief);
@@ -1238,18 +1163,36 @@ export function ChatWidget({
       }
 
       const request = websiteRequestRef.current;
-      if (!request) throw new Error("Your saved website setup could not be restored. Please reopen the preview and try again.");
+      if (!request)
+        throw new Error("Your saved website setup could not be restored. Please reopen the preview and try again.");
       const metadata = (await fetchJob(activeJobId)).captureMetadata;
-      const ids = autoSelectCaptureIds(metadata, Math.min(8, Math.max(3, Math.ceil((request.durationSeconds === "auto" ? 32 : request.durationSeconds) / 8) * 2)));
-      const seconds = request.durationSeconds === "auto"
-        ? Math.max(8, Math.min(32, Math.max(1, metadata?.pageCount || ids.length) * 8))
-        : request.durationSeconds;
+      const ids = autoSelectCaptureIds(
+        metadata,
+        Math.min(
+          8,
+          Math.max(3, Math.ceil((request.durationSeconds === "auto" ? 32 : request.durationSeconds) / 8) * 2),
+        ),
+      );
+      const seconds =
+        request.durationSeconds === "auto"
+          ? Math.max(8, Math.min(32, Math.max(1, metadata?.pageCount || ids.length) * 8))
+          : request.durationSeconds;
       const workflow: JobWorkflowState = {
-        savedAt: Date.now(), stage: "capturing", mode: request.mode,
-        durationSeconds: seconds, featuresText: null, creativeBrief: request.brief,
-        aspectRatio: request.aspectRatio, outputQuality: request.outputQuality, frameRate: 24,
-        selectedCaptureIds: ids, audioMode: request.audioMode, narrationLanguage: request.narrationLanguage,
-        websiteAutoFlow: true, manualRenderAfterPlan: true, requestedDurationSeconds: request.durationSeconds,
+        savedAt: Date.now(),
+        stage: "capturing",
+        mode: request.mode,
+        durationSeconds: seconds,
+        featuresText: null,
+        creativeBrief: request.brief,
+        aspectRatio: request.aspectRatio,
+        outputQuality: request.outputQuality,
+        frameRate: 24,
+        selectedCaptureIds: ids,
+        audioMode: request.audioMode,
+        narrationLanguage: request.narrationLanguage,
+        websiteAutoFlow: true,
+        manualRenderAfterPlan: true,
+        requestedDurationSeconds: request.durationSeconds,
       };
       saveLocalJobWorkflow(activeJobId, workflow);
       await saveJobWorkflow(activeJobId, workflow);
@@ -1277,7 +1220,9 @@ export function ChatWidget({
       window.location.assign(destination);
       return false;
     }
-    pendingActionRef.current = () => { window.location.assign(destination); };
+    pendingActionRef.current = () => {
+      window.location.assign(destination);
+    };
     setShowAuthModal(true);
     return false;
   }
@@ -1301,7 +1246,14 @@ export function ChatWidget({
       },
       attachmentDraftKey,
     });
-    const mappedCreate = request.studioKind === "idea" ? "video" : request.studioKind === "scenario" ? "scenario" : request.mode === "photos" ? "photo" : "product-video";
+    const mappedCreate =
+      request.studioKind === "idea"
+        ? "video"
+        : request.studioKind === "scenario"
+          ? "scenario"
+          : request.mode === "photos"
+            ? "photo"
+            : "product-video";
     window.location.assign(`/dashboard?create=${encodeURIComponent(mappedCreate)}&handoff=1`);
   }
 
@@ -1327,8 +1279,7 @@ export function ChatWidget({
     setFrameRate(24);
     setAudioMode(settings.audioMode);
     setNarrationLanguage(settings.narrationLanguage);
-    if (settings.durationSeconds !== "auto")
-      setDurationSeconds(settings.durationSeconds);
+    if (settings.durationSeconds !== "auto") setDurationSeconds(settings.durationSeconds);
     pendingWebsiteAttachmentsRef.current = referenceFiles;
     await handleUrlSubmit(url, brief);
   }
@@ -1362,14 +1313,10 @@ export function ChatWidget({
     try {
       normalized = normalizeWebsiteUrl(url);
     } catch (error) {
-      pushBot(
-        error instanceof Error ? error.message : "Enter a valid website name.",
-      );
+      pushBot(error instanceof Error ? error.message : "Enter a valid website name.");
       return;
     }
-    pushUser(
-      brief ? `${normalized}\nPromotion direction: ${brief}` : normalized,
-    );
+    pushUser(brief ? `${normalized}\nPromotion direction: ${brief}` : normalized);
     setActiveCaptureMetadata(null);
     setSelectedCaptureIds([]);
     setBusy(true);
@@ -1383,7 +1330,10 @@ export function ChatWidget({
       const res = await startCapture(normalized, brief, setupSummary);
       selectJobId(res.jobId);
       if (isPublicCreatorPath() && !isSignedIn && pendingWebsiteAttachmentsRef.current.length) {
-        await savePhotoDraft(`landing-preview-refs-${res.jobId}`, buildDraftItems(pendingWebsiteAttachmentsRef.current)).catch(() => {});
+        await savePhotoDraft(
+          `landing-preview-refs-${res.jobId}`,
+          buildDraftItems(pendingWebsiteAttachmentsRef.current),
+        ).catch(() => {});
       }
 
       // Persist the automatic website workflow immediately, before a route
@@ -1409,7 +1359,10 @@ export function ChatWidget({
           requestedDurationSeconds: pendingRequest.durationSeconds,
         };
         saveLocalJobWorkflow(res.jobId, initialWorkflow);
-        await saveJobWorkflow(res.jobId, initialWorkflow).catch(() => ({ saved: true as const, updatedAt: "" }));
+        await saveJobWorkflow(res.jobId, initialWorkflow).catch(() => ({
+          saved: true as const,
+          updatedAt: "",
+        }));
       }
 
       onJobCreated?.(res.jobId);
@@ -1452,9 +1405,7 @@ export function ChatWidget({
       setCreditBalance(quote.balance);
       if (!quote.affordable) {
         const needed = quote.shortfall;
-        setPaywallContext(
-          `Add ${needed} more credit${needed === 1 ? "" : "s"} before AI production starts`,
-        );
+        setPaywallContext(`Add ${needed} more credit${needed === 1 ? "" : "s"} before AI production starts`);
         setShowPaywall(true);
         pushBot(
           `Your source and references are saved. This production needs ${quote.totalCredits} credits and you have ${quote.balance}. Add ${needed} more before AI planning or any paid generation API starts. Nothing paid has started yet.`,
@@ -1468,10 +1419,7 @@ export function ChatWidget({
     }
   }
 
-  async function startWebsiteStoryboard(
-    activeJobId: string,
-    metadata: CaptureMetadata | null,
-  ) {
+  async function startWebsiteStoryboard(activeJobId: string, metadata: CaptureMetadata | null) {
     if (!metadata || !activeJobId) return;
 
     // Prefer the exact request from the composer. If the component remounted
@@ -1517,18 +1465,27 @@ export function ChatWidget({
     setSelectedCaptureIds(captureIds);
     setAudioMode(request.audioMode);
     setNarrationLanguage(request.narrationLanguage);
-    pushBot(`The website capture is ready and visible below. I selected ${usefulPageCount} strong story beat${usefulPageCount === 1 ? "" : "s"} and a ${durationLabel(smartDuration)} production. Now I’m directing the hook, scene order, motion and ending.`);
+    pushBot(
+      `The website capture is ready and visible below. I selected ${usefulPageCount} strong story beat${usefulPageCount === 1 ? "" : "s"} and a ${durationLabel(smartDuration)} production. Now I’m directing the hook, scene order, motion and ending.`,
+    );
     storyboardedRef.current = false;
     setStage("storyboarding");
     try {
-      const storyboardResponse = await requestStoryboard(activeJobId, request.mode, MODE_DEFAULT_VIBES[request.mode], smartDuration, undefined, {
-        creativeBrief: request.brief || undefined,
-        aspectRatio: request.aspectRatio,
-        outputQuality: request.outputQuality,
-        audioMode: request.audioMode,
-        frameRate: 24,
-        selectedCaptureIds: captureIds,
-      });
+      const storyboardResponse = await requestStoryboard(
+        activeJobId,
+        request.mode,
+        MODE_DEFAULT_VIBES[request.mode],
+        smartDuration,
+        undefined,
+        {
+          creativeBrief: request.brief || undefined,
+          aspectRatio: request.aspectRatio,
+          outputQuality: request.outputQuality,
+          audioMode: request.audioMode,
+          frameRate: 24,
+          selectedCaptureIds: captureIds,
+        },
+      );
       if (storyboardResponse.creditsRemaining !== undefined) setCreditBalance(storyboardResponse.creditsRemaining);
     } catch (error) {
       storyboardedRef.current = false;
@@ -1571,14 +1528,15 @@ export function ChatWidget({
   function continueAfterPrivatePages() {
     pushUser("Continue with captured pages");
     if (websiteRequestRef.current && (activeCaptureMetadata ?? job?.captureMetadata)) {
-      pushBot("Great. I’m directing the production from the captured pages now. The same chat will show the plan, progress and final result.");
-      void startWebsiteStoryboard(
-        jobId ?? "",
-        activeCaptureMetadata ?? job?.captureMetadata ?? null,
+      pushBot(
+        "Great. I’m directing the production from the captured pages now. The same chat will show the plan, progress and final result.",
       );
+      void startWebsiteStoryboard(jobId ?? "", activeCaptureMetadata ?? job?.captureMetadata ?? null);
       return;
     }
-    pushBot("Great. What do you want to generate? You can still add your own creative prompt and photos during the next steps.");
+    pushBot(
+      "Great. What do you want to generate? You can still add your own creative prompt and photos during the next steps.",
+    );
     setStage("awaiting_mode");
   }
 
@@ -1589,14 +1547,9 @@ export function ChatWidget({
       await claimJob(jobId).catch(() => ({ claimed: false }));
       const result = await uploadPrivatePages(jobId, files);
       const refreshed = await fetchJob(jobId).catch(() => null);
-      if (refreshed?.captureMetadata)
-        setActiveCaptureMetadata(refreshed.captureMetadata);
-      pushUser(
-        `Added ${result.added} private-page screenshot${result.added === 1 ? "" : "s"}`,
-      );
-      pushBot(
-        "Private pages added to this project. What do you want to generate?",
-      );
+      if (refreshed?.captureMetadata) setActiveCaptureMetadata(refreshed.captureMetadata);
+      pushUser(`Added ${result.added} private-page screenshot${result.added === 1 ? "" : "s"}`);
+      pushBot("Private pages added to this project. What do you want to generate?");
       setStage("awaiting_mode");
       if (redirectAfterAuthRef.current) {
         redirectAfterAuthRef.current = false;
@@ -1620,10 +1573,7 @@ export function ChatWidget({
       const pendingJobId = jobId;
       pendingActionRef.current = () =>
         performPrivatePageUpload(files).then((succeeded) => {
-          if (succeeded)
-            void clearPhotoDraft(`private-pages-${pendingJobId}`).catch(
-              () => {},
-            );
+          if (succeeded) void clearPhotoDraft(`private-pages-${pendingJobId}`).catch(() => {});
           return succeeded;
         });
       setShowAuthModal(true);
@@ -1635,9 +1585,7 @@ export function ChatWidget({
   async function handlePhotoUploadSubmit(files: File[]) {
     setActiveCaptureMetadata(null);
     setSelectedCaptureIds([]);
-    pushUser(
-      `Uploaded ${files.length} photo${files.length === 1 ? "" : "s"}`,
-    );
+    pushUser(`Uploaded ${files.length} photo${files.length === 1 ? "" : "s"}`);
     setBusy(true);
     capturedRef.current = false;
     setStage("capturing");
@@ -1774,8 +1722,7 @@ export function ChatWidget({
   }
 
   function handleModeSelect(label: string) {
-    const selected: JobMode =
-      MODE_OPTIONS.find((o) => o.label === label)?.mode ?? "video";
+    const selected: JobMode = MODE_OPTIONS.find((o) => o.label === label)?.mode ?? "video";
     pushUser(label);
     setMode(selected);
     setFeaturesText(null);
@@ -1792,9 +1739,7 @@ export function ChatWidget({
       );
       setStage("awaiting_brief");
     } else {
-      const mediaCount = captureMediaItems(
-        activeCaptureMetadata ?? job?.captureMetadata,
-      ).length;
+      const mediaCount = captureMediaItems(activeCaptureMetadata ?? job?.captureMetadata).length;
       const recommended = Math.min(144, Math.max(8, mediaCount * 8));
       pushBot(
         mediaCount > 1
@@ -1807,9 +1752,7 @@ export function ChatWidget({
 
   function handleDurationSelect(seconds: number, label: string) {
     if (selectedCaptureIds.length === 0) {
-      pushBot(
-        "Choose at least one photo or screenshot before setting the video length.",
-      );
+      pushBot("Choose at least one photo or screenshot before setting the video length.");
       return;
     }
     pushUser(label);
@@ -1861,8 +1804,7 @@ export function ChatWidget({
   }
 
   function handleFormatSelect(label: string) {
-    const option =
-      FORMAT_OPTIONS.find((item) => item.label === label) ?? FORMAT_OPTIONS[0];
+    const option = FORMAT_OPTIONS.find((item) => item.label === label) ?? FORMAT_OPTIONS[0];
     pushUser(label);
     setAspectRatio(option.aspectRatio);
     setOutputQuality(option.outputQuality);
@@ -1893,7 +1835,11 @@ export function ChatWidget({
     if (!jobId) return;
     const vibe = MODE_DEFAULT_VIBES[mode];
     const canStartPaidPlanning = await ensureCreditsBeforePaidPlanning(
-      jobId, mode, durationSeconds, outputQuality, audioMode,
+      jobId,
+      mode,
+      durationSeconds,
+      outputQuality,
+      audioMode,
     );
     if (!canStartPaidPlanning) return;
     setBusy(true);
@@ -1911,36 +1857,27 @@ export function ChatWidget({
               : mode === "photos"
                 ? "Planning campaign images from the website source and your direction."
                 : mode === "icon"
-          ? "Planning four distinct square icon concepts from the website’s real identity, captured icon/logo, colors, purpose, and your direction."
-          : mode === "both"
-            ? "Planning one campaign from the captured website states and brand references, with coordinated video and campaign photography."
-            : mode === "demo"
-              ? "Planning a true AI-generated cinematic brand film grounded in your real logo, products, UI, and captured brand content. Each scene will be generated as video rather than created by moving screenshots with code."
-              : mode === "mockup"
-                ? "Planning a fast, AI-generated social-feed-style reveal of your real pages/photos — the flip-through style used to advertise products and digital downloads on TikTok, Reels, and Pinterest."
-                : mode === "custom"
-                  ? "Planning your custom concept as real AI-generated video, grounded in your captured pages/photos."
-                  : "Planning one continuous AI-generated website film from your real saved captures. The screenshots are grounding references for the full film, not separate clips. Visible UI text, prices, products and branding must stay faithful to the captured website.",
+                  ? "Planning four distinct square icon concepts from the website’s real identity, captured icon/logo, colors, purpose, and your direction."
+                  : mode === "both"
+                    ? "Planning one campaign from the captured website states and brand references, with coordinated video and campaign photography."
+                    : mode === "demo"
+                      ? "Planning a true AI-generated cinematic brand film grounded in your real logo, products, UI, and captured brand content. Each scene will be generated as video rather than created by moving screenshots with code."
+                      : mode === "mockup"
+                        ? "Planning a fast, AI-generated social-feed-style reveal of your real pages/photos — the flip-through style used to advertise products and digital downloads on TikTok, Reels, and Pinterest."
+                        : mode === "custom"
+                          ? "Planning your custom concept as real AI-generated video, grounded in your captured pages/photos."
+                          : "Planning one continuous AI-generated website film from your real saved captures. The screenshots are grounding references for the full film, not separate clips. Visible UI text, prices, products and branding must stay faithful to the captured website.",
     );
     try {
       const requestedJobId = jobId;
-      const response = await requestStoryboard(
-        requestedJobId,
-        mode,
-        vibe,
-        durationSeconds,
-        featuresText ?? undefined,
-        {
-          creativeBrief:
-            (briefOverride === undefined ? creativeBrief : briefOverride) ??
-            undefined,
-          aspectRatio,
-          outputQuality,
-          audioMode,
-          frameRate,
-          selectedCaptureIds,
-        },
-      );
+      const response = await requestStoryboard(requestedJobId, mode, vibe, durationSeconds, featuresText ?? undefined, {
+        creativeBrief: (briefOverride === undefined ? creativeBrief : briefOverride) ?? undefined,
+        aspectRatio,
+        outputQuality,
+        audioMode,
+        frameRate,
+        selectedCaptureIds,
+      });
       if (response.creditsRemaining !== undefined) setCreditBalance(response.creditsRemaining);
       if (response.jobId !== requestedJobId) {
         selectJobId(response.jobId);
@@ -2046,14 +1983,14 @@ export function ChatWidget({
               : mode === "photos"
                 ? "Generating the website campaign image set now, grounded in the captured brand and product references."
                 : mode === "icon"
-          ? "Creating four polished square website-icon concepts. Each one uses a different professional direction while staying grounded in the real site, brand colors and captured mark."
-          : mode === "both"
-            ? `Creating both deliverables in parallel: a true AI-generated ${durationLabel(durationSeconds)} website video grounded in the selected site states, plus four AI marketing photos based on the captured brand/products.`
-            : mode === "demo"
-              ? `Generating one continuous ${durationLabel(durationSeconds)} cinematic brand film grounded in your real logo, products, UI and captured brand content. Longer durations continue the same Veo video instead of stitching unrelated clips.`
-              : isVideo && durationSeconds > 8
-                ? `Generating one continuous ${durationLabel(durationSeconds)} AI video from the selected real website references. Important actions resolve naturally, and longer durations continue the same Veo-generated film instead of stitching separate scene clips.`
-                : "Generating a complete short AI-video beat from the strongest real website state. The key action is planned to finish inside the clip instead of being cut off, while visible UI text and brand details must stay faithful to the reference.",
+                  ? "Creating four polished square website-icon concepts. Each one uses a different professional direction while staying grounded in the real site, brand colors and captured mark."
+                  : mode === "both"
+                    ? `Creating both deliverables in parallel: a true AI-generated ${durationLabel(durationSeconds)} website video grounded in the selected site states, plus four AI marketing photos based on the captured brand/products.`
+                    : mode === "demo"
+                      ? `Generating one continuous ${durationLabel(durationSeconds)} cinematic brand film grounded in your real logo, products, UI and captured brand content. Longer durations continue the same Veo video instead of stitching unrelated clips.`
+                      : isVideo && durationSeconds > 8
+                        ? `Generating one continuous ${durationLabel(durationSeconds)} AI video from the selected real website references. Important actions resolve naturally, and longer durations continue the same Veo-generated film instead of stitching separate scene clips.`
+                        : "Generating a complete short AI-video beat from the strongest real website state. The key action is planned to finish inside the clip instead of being cut off, while visible UI text and brand details must stay faithful to the reference.",
     );
     try {
       const renderResponse = await requestRender(jobId, audioMode, narrationLanguage);
@@ -2068,20 +2005,10 @@ export function ChatWidget({
       if (err instanceof ApiError && err.code === "PLAN_REQUIRED") {
         setStage("ready_to_render");
         showLockedTeaser();
-      } else if (
-        err instanceof ApiError &&
-        err.code === "INSUFFICIENT_CREDITS"
-      ) {
-        const required = estimateRenderCredits(
-          mode,
-          skipVoiceover,
-          durationSeconds,
-          outputQuality,
-        );
+      } else if (err instanceof ApiError && err.code === "INSUFFICIENT_CREDITS") {
+        const required = estimateRenderCredits(mode, skipVoiceover, durationSeconds, outputQuality);
         const shortfall = Math.max(0, required - creditBalance);
-        setPaywallContext(
-          `Add ${shortfall} credit${shortfall === 1 ? "" : "s"} to generate this saved production`,
-        );
+        setPaywallContext(`Add ${shortfall} credit${shortfall === 1 ? "" : "s"} to generate this saved production`);
         pushBot(
           `This production needs ${required} credits. You have ${creditBalance}, so you need ${shortfall} more. Nothing was charged and your project is saved. Choose a shorter version, reduce the selected media, or add credits.`,
         );
@@ -2136,7 +2063,11 @@ export function ChatWidget({
     const sourceJobId = jobId;
     const vibe = MODE_DEFAULT_VIBES[mode];
     const canStartPaidPlanning = await ensureCreditsBeforePaidPlanning(
-      sourceJobId, mode, durationSeconds, outputQuality, audioMode,
+      sourceJobId,
+      mode,
+      durationSeconds,
+      outputQuality,
+      audioMode,
     );
     if (!canStartPaidPlanning) return;
     const label =
@@ -2163,21 +2094,14 @@ export function ChatWidget({
       // The storyboard endpoint automatically creates an immutable child job
       // when the current result is complete. That keeps one visible chat while
       // preserving every previous output.
-      const response = await requestStoryboard(
-        sourceJobId,
-        mode,
-        vibe,
-        durationSeconds,
-        featuresText ?? undefined,
-        {
-          creativeBrief: creativeBrief ?? undefined,
-          aspectRatio,
-          outputQuality,
-          audioMode,
-          frameRate,
-          selectedCaptureIds,
-        },
-      );
+      const response = await requestStoryboard(sourceJobId, mode, vibe, durationSeconds, featuresText ?? undefined, {
+        creativeBrief: creativeBrief ?? undefined,
+        aspectRatio,
+        outputQuality,
+        audioMode,
+        frameRate,
+        selectedCaptureIds,
+      });
       if (response.creditsRemaining !== undefined) setCreditBalance(response.creditsRemaining);
       if (response.jobId !== sourceJobId) {
         selectJobId(response.jobId);
@@ -2200,7 +2124,11 @@ export function ChatWidget({
     const nextBrief = text.trim();
     const vibe = MODE_DEFAULT_VIBES[mode];
     const canStartPaidPlanning = await ensureCreditsBeforePaidPlanning(
-      sourceJobId, mode, durationSeconds, outputQuality, audioMode,
+      sourceJobId,
+      mode,
+      durationSeconds,
+      outputQuality,
+      audioMode,
     );
     if (!canStartPaidPlanning) return;
     pushUser(nextBrief);
@@ -2210,21 +2138,14 @@ export function ChatWidget({
     renderedRef.current = false;
     setStage("storyboarding");
     try {
-      const response = await requestStoryboard(
-        sourceJobId,
-        mode,
-        vibe,
-        durationSeconds,
-        featuresText ?? undefined,
-        {
-          creativeBrief: nextBrief,
-          aspectRatio,
-          outputQuality,
-          audioMode,
-          frameRate,
-          selectedCaptureIds,
-        },
-      );
+      const response = await requestStoryboard(sourceJobId, mode, vibe, durationSeconds, featuresText ?? undefined, {
+        creativeBrief: nextBrief,
+        aspectRatio,
+        outputQuality,
+        audioMode,
+        frameRate,
+        selectedCaptureIds,
+      });
       if (response.creditsRemaining !== undefined) setCreditBalance(response.creditsRemaining);
       if (response.jobId !== sourceJobId) {
         selectJobId(response.jobId);
@@ -2261,7 +2182,9 @@ export function ChatWidget({
         setFrameRate(24);
         setAudioMode("silent");
         pushUser("Create product photos");
-        pushBot("Product references are ready. Describe the new photo campaign or choose the best direction automatically.");
+        pushBot(
+          "Product references are ready. Describe the new photo campaign or choose the best direction automatically.",
+        );
         setStage("awaiting_brief");
       } else {
         if (audioMode === "silent") setAudioMode("native_audio");
@@ -2272,66 +2195,6 @@ export function ChatWidget({
     } catch (err) {
       pushBot(errorMessage(err));
       setStage("done");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  /**
-   * Runs automatically after a render fails. Gets a brand-new job (fresh copy
-   * of the saved screenshots, new job id) and a brand-new storyboard (fresh
-   * AI planning attempt, new variant seed) using the same creative choices
-   * the user already made, so the next "Generate" click can never replay the
-   * exact plan that just failed.
-   */
-  async function prepareFreshVersionAfterFailure(failedJobId: string) {
-    const vibe = MODE_DEFAULT_VIBES[mode];
-    setBusy(true);
-    storyboardedRef.current = true;
-    renderedRef.current = false;
-    pushBot(
-      isImageMode(mode)
-        ? `Preparing a fresh ${mode === "icon" ? "website-icon" : "marketing-image"} plan from your saved brand references…`
-        : "Preparing a fresh direction from your project references so the next attempt uses a brand-new scene plan…",
-    );
-    try {
-      const reused = await reuseSavedCapture(failedJobId);
-      selectJobId(reused.jobId);
-      onJobCreated?.(reused.jobId);
-      capturedRef.current = true;
-      const canStartPaidPlanning = await ensureCreditsBeforePaidPlanning(
-        reused.jobId, mode, durationSeconds, outputQuality, audioMode,
-      );
-      if (!canStartPaidPlanning) {
-        setStage("failed");
-        return;
-      }
-      setStage("storyboarding");
-      const response = await requestStoryboard(
-        reused.jobId,
-        mode,
-        vibe,
-        durationSeconds,
-        featuresText ?? undefined,
-        {
-          creativeBrief: creativeBrief ?? undefined,
-          aspectRatio,
-          outputQuality,
-          audioMode,
-          frameRate,
-          selectedCaptureIds,
-        },
-      );
-      if (response.creditsRemaining !== undefined) setCreditBalance(response.creditsRemaining);
-      if (response.jobId !== reused.jobId) {
-        selectJobId(response.jobId);
-        onJobCreated?.(response.jobId);
-      }
-      storyboardedRef.current = false;
-    } catch (err) {
-      storyboardedRef.current = false;
-      pushBot(errorMessage(err));
-      setStage("failed");
     } finally {
       setBusy(false);
     }
@@ -2380,11 +2243,16 @@ export function ChatWidget({
       const refreshed = await fetchJob(targetJobId);
       if (refreshed.captureMetadata) {
         setActiveCaptureMetadata(refreshed.captureMetadata);
-        const nextIds = autoSelectCaptureIds(refreshed.captureMetadata, Math.max(activeSceneCount, selectedCaptureIds.length || 1));
+        const nextIds = autoSelectCaptureIds(
+          refreshed.captureMetadata,
+          Math.max(activeSceneCount, selectedCaptureIds.length || 1),
+        );
         setSelectedCaptureIds(nextIds);
       }
       pushUser(`${response.added} attached image${response.added === 1 ? "" : "s"}`, "attachment");
-      pushBot(`${response.added} image${response.added === 1 ? " is" : "s are"} now attached to this conversation and available as generation references.`);
+      pushBot(
+        `${response.added} image${response.added === 1 ? " is" : "s are"} now attached to this conversation and available as generation references.`,
+      );
     } catch (err) {
       pushBot(errorMessage(err));
     } finally {
@@ -2413,13 +2281,7 @@ export function ChatWidget({
             ? "Change the scene direction"
             : "Change the creative direction",
       );
-      if (saved.captureMetadata)
-        pushBot(
-          <SiteCard
-            sourceUrl={saved.sourceUrl}
-            metadata={saved.captureMetadata}
-          />,
-        );
+      if (saved.captureMetadata) pushBot(<SiteCard sourceUrl={saved.sourceUrl} metadata={saved.captureMetadata} />);
       pushBot(
         previousMode === "photos"
           ? "Describe the photo change you want — background, product focus, studio style, lifestyle setup, lighting, crop, or campaign mood. The project references stay attached."
@@ -2443,27 +2305,20 @@ export function ChatWidget({
   return (
     <div
       ref={chatRootRef}
-      className={`relative flex min-h-0 flex-col overflow-hidden ${compactLanding ? "rounded-[20px] sm:rounded-[24px]" : "rounded-[20px] sm:rounded-[30px]"} border border-white/10 bg-[linear-gradient(180deg,rgba(34,24,62,.96),rgba(17,12,30,.98))] shadow-[0_34px_110px_-48px_rgba(139,92,246,.8)] backdrop-blur-2xl ${className ?? ""}`}
+      className={`relative flex min-h-0 flex-col overflow-hidden ${immersive ? "bg-bg" : `${compactLanding ? "rounded-[20px] sm:rounded-[24px]" : "rounded-[20px] sm:rounded-[30px]"} border border-white/10 bg-[linear-gradient(180deg,rgba(34,24,62,.96),rgba(17,12,30,.98))] shadow-[0_34px_110px_-48px_rgba(139,92,246,.8)] backdrop-blur-2xl`} ${className ?? ""}`}
     >
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-violet/10 to-transparent" />
+      {!immersive && (
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-violet/10 to-transparent" />
+      )}
       {/* Header — hidden on the compact public landing composer because the mode tabs already explain the tool. */}
-      <div className={`${streamlinedInitialComposer && stage === "awaiting_url" ? "hidden" : "relative flex items-center gap-3 border-b border-border bg-white/[.018] px-4 py-3.5 sm:px-5"}`}>
-        <img
-          src="/logo.svg"
-          alt=""
-          width={26}
-          height={26}
-          className="shrink-0 rounded-md"
-        />
+      <div
+        className={`${immersive || (streamlinedInitialComposer && stage === "awaiting_url") ? "hidden" : "relative flex items-center gap-3 border-b border-border bg-white/[.018] px-4 py-3.5 sm:px-5"}`}
+      >
+        <img src="/logo.svg" alt="" width={26} height={26} className="shrink-0 rounded-md" />
         <div className="min-w-0 flex-1">
-          <p className="font-display text-[13.5px] font-semibold text-text-primary">
-            AiWebVideo Director
-          </p>
+          <p className="font-display text-[13.5px] font-semibold text-text-primary">AiWebVideo Director</p>
           <p className="flex items-center gap-1.5 text-[11px] text-text-muted">
-            <span
-              className="h-1.5 w-1.5 rounded-full bg-mint"
-              aria-hidden="true"
-            />
+            <span className="h-1.5 w-1.5 rounded-full bg-mint" aria-hidden="true" />
             {productionKind === "product-photos"
               ? "Product campaign · one conversation"
               : productionKind === "product-video"
@@ -2503,472 +2358,524 @@ export function ChatWidget({
       {(stage !== "awaiting_url" || restoring) && (
         <div
           ref={scrollRef}
-          className="chat-scroll relative flex-1 min-h-0 space-y-3 overflow-y-auto bg-[linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,0))] px-4 py-5 sm:px-5"
+          className={`chat-scroll relative min-h-0 flex-1 overflow-y-auto ${immersive ? "bg-bg px-3 py-5 sm:px-8 sm:py-8" : "bg-[linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,0))] px-4 py-5 sm:px-5"}`}
         >
-          {restoring ? (
-            <div className="flex min-h-[260px] items-center justify-center sm:min-h-[360px]">
-              <div className="w-full max-w-sm rounded-2xl border border-white/[.08] bg-white/[.025] px-4 py-6 text-center sm:rounded-3xl sm:px-6 sm:py-8">
-                <span className="mx-auto block h-9 w-9 animate-spin rounded-full border-2 border-violet/30 border-t-mint" aria-hidden="true" />
-                <p className="mt-4 font-display text-sm font-semibold text-text-primary">Reconnecting your production</p>
-                <p className="mt-1.5 text-[11px] leading-relaxed text-text-dim">Restoring the conversation, exact settings and live generation state.</p>
+          <div className={`${immersive ? "mx-auto w-full max-w-5xl space-y-6" : "w-full space-y-3"}`}>
+            {restoring ? (
+              <div className="flex min-h-[260px] items-center justify-center sm:min-h-[360px]">
+                <div className="w-full max-w-sm rounded-2xl border border-white/[.08] bg-white/[.025] px-4 py-6 text-center sm:rounded-3xl sm:px-6 sm:py-8">
+                  <span
+                    className="mx-auto block h-9 w-9 animate-spin rounded-full border-2 border-violet/30 border-t-mint"
+                    aria-hidden="true"
+                  />
+                  <p className="mt-4 font-display text-sm font-semibold text-text-primary">
+                    Reconnecting your production
+                  </p>
+                  <p className="mt-1.5 text-[11px] leading-relaxed text-text-dim">
+                    Restoring the conversation, exact settings and live generation state.
+                  </p>
+                </div>
               </div>
-            </div>
-          ) : (
-            messages.map((m) =>
-              m.hidden ? null : (
-                <ChatBubble key={m.id} role={m.role}>
-                  {m.content}
-                </ChatBubble>
-              ),
-            )
-          )}
-          {!restoring && pollingActive && (
-            <div ref={generationProcessRef} className="scroll-mt-24">
-            <GenerationCanvas
-              status={
-                job?.status ??
-                (stage === "capturing"
-                  ? "capturing"
-                  : stage === "storyboarding"
-                    ? "storyboarding"
-                    : "rendering")
-              }
-              progress={
-                job?.progress ??
-                (stage === "capturing"
-                  ? 12
-                  : stage === "storyboarding"
-                    ? 52
-                    : 80)
-              }
-              statusMessage={job?.statusMessage}
-              etaSeconds={job?.etaSeconds}
-              onCancel={jobId ? () => void handleCancelJob() : undefined}
-              cancelling={cancelling}
-              aspectRatio={aspectRatio}
-              productionKind={productionKind}
-              referenceItems={liveReferenceItems}
-              sceneAssignments={sceneAssignments}
-              brandMarkUrl={projectCaptureMetadata?.logoUrl ?? null}
-              brandName={websiteBrandName(job?.sourceUrl, projectCaptureMetadata?.title)}
-            />
-            </div>
-          )}
+            ) : (
+              messages.map((m) =>
+                m.hidden ? null : (
+                  <ChatBubble key={m.id} role={m.role} immersive={immersive}>
+                    {m.content}
+                  </ChatBubble>
+                ),
+              )
+            )}
+            {!restoring && pollingActive && (
+              <div ref={generationProcessRef} className="scroll-mt-24">
+                <GenerationCanvas
+                  status={
+                    job?.status ??
+                    (stage === "capturing" ? "capturing" : stage === "storyboarding" ? "storyboarding" : "rendering")
+                  }
+                  progress={job?.progress ?? (stage === "capturing" ? 12 : stage === "storyboarding" ? 52 : 80)}
+                  statusMessage={job?.statusMessage}
+                  etaSeconds={job?.etaSeconds}
+                  onCancel={jobId ? () => void handleCancelJob() : undefined}
+                  cancelling={cancelling}
+                  aspectRatio={aspectRatio}
+                  productionKind={productionKind}
+                  referenceItems={liveReferenceItems}
+                  sceneAssignments={sceneAssignments}
+                  brandMarkUrl={projectCaptureMetadata?.logoUrl ?? null}
+                  brandName={websiteBrandName(job?.sourceUrl, projectCaptureMetadata?.title)}
+                />
+              </div>
+            )}
+          </div>
         </div>
       )}
 
       {/* Input area */}
       {!restoring && (
-      <div
-        className={`chat-scroll space-y-2.5 ${stage === "awaiting_url" ? "min-h-0 overflow-y-auto bg-transparent p-0" : stage === "done" ? "shrink-0 max-h-[42dvh] overflow-y-auto border-t border-white/[.07] bg-[linear-gradient(180deg,rgba(9,8,18,.72),rgba(19,15,32,.95))] p-3 sm:max-h-[36vh] sm:p-4" : "shrink-0 max-h-[68dvh] overflow-y-auto border-t border-white/[.07] bg-[linear-gradient(180deg,rgba(9,8,18,.72),rgba(19,15,32,.95))] p-3 sm:max-h-[72vh] sm:p-4"}`}
-      >
-        {stage === "awaiting_url" && (
-          <WebsiteBriefForm
-            onSubmit={handleWebsiteSubmit}
-            onStudioSubmit={handleStudioSubmit}
-            initialCreationIntent={initialCreationIntent}
-            disabled={busy}
-            showCreditPricing={!isPublicCreatorPath()}
-            landingWebsitePreview={isPublicCreatorPath()}
-            onIntentRequest={handlePublicIntentRequest}
-            compactLayout={streamlinedInitialComposer}
-          />
-        )}
-        {stage === "preview_ready" && (
-          <div className="space-y-3">
-            <div className="rounded-2xl border border-mint/25 bg-mint/[.055] p-4">
-              <p className="font-utility text-[9px] font-semibold uppercase tracking-[.16em] text-mint">Website preview ready</p>
-              <p className="mt-1 text-sm font-semibold text-white">We reached your website successfully.</p>
-              <p className="mt-1 text-[11px] leading-5 text-text-muted">Your domain, promotion brief, favicon and useful screenshots are saved for free. Continue when you are ready; credits are checked before any paid AI planning, video, image or voice provider starts.</p>
-            </div>
-            <Button
-              variant="primary"
-              size="lg"
-              className="w-full"
-              onClick={() => {
-                if (!isPublicCreatorPath() && isSignedIn && jobId) {
-                  void startWebsiteStoryboard(jobId, activeCaptureMetadata ?? job?.captureMetadata ?? null);
-                } else {
-                  continueLandingPreview();
-                }
-              }}
-              disabled={busy}
-            >
-              {!isPublicCreatorPath() && isSignedIn ? "Continue to AI production" : "Continue in Workspace"}
-            </Button>
-            <p className="text-center text-[10px] text-text-dim">Website preview and screenshots are free. No generation credits are used here.</p>
-          </div>
-        )}
-        {stage === "awaiting_private_pages" && (
-          <div className="space-y-2.5">
-            <PhotoUploadPicker
-              onSubmit={handlePrivatePageUpload}
-              disabled={busy}
-              isAdmin={isAdmin}
-              draftKey={`private-pages-${jobId ?? "pending"}`}
-              title="Paste or add private/admin page screenshots"
-              buttonLabel="Add"
-              helper={
-                isAdmin
-                  ? "Administrator upload · add any number of authorized screenshots"
-                  : "Paste with Ctrl+V / Cmd+V or choose screens you are authorized to use"
-              }
-            />
-            <Button
-              variant="secondary"
-              size="md"
-              className="w-full"
-              onClick={continueAfterPrivatePages}
-              disabled={busy}
-            >
-              Continue without private pages
-            </Button>
-          </div>
-        )}
-        {stage === "awaiting_mode" && (
-          <QuickReplyChips
-            options={MODE_OPTIONS.map((o) => o.label)}
-            onSelect={handleModeSelect}
-            disabled={busy}
-          />
-        )}
-        {stage === "awaiting_duration" && (
-          <MediaPlanningPanel
-            metadata={activeCaptureMetadata ?? job?.captureMetadata}
-            selectedIds={selectedCaptureIds}
-            onSelectionChange={setSelectedCaptureIds}
-            onChooseDuration={handleDurationSelect}
-            creditBalance={creditBalance}
-            isSignedIn={isSignedIn}
-            disabled={busy}
-          />
-        )}
-        {stage === "awaiting_format" && (
-          <QuickReplyChips
-            options={FORMAT_OPTIONS.map((o) => o.label)}
-            onSelect={handleFormatSelect}
-            disabled={busy}
-          />
-        )}
-        {stage === "awaiting_features" && (
-          <>
-            <QuickReplyChips
-              options={["Detect the strongest features"]}
-              onSelect={handleFeaturesAuto}
-              disabled={busy}
-            />
-            <ChatInputBar
-              placeholder="e.g. search, wishlist, live chat, fast checkout…"
-              onSubmit={handleFeaturesSubmit}
-              onFiles={handleChatAttachments}
-              disabled={busy}
-            />
-          </>
-        )}
-        {stage === "awaiting_brief" && (
-          <>
-            {mode !== "photos" && (
-              <QuickReplyChips
-                options={["Create with best direction"]}
-                onSelect={handleBriefPreset}
+        <div
+          className={`chat-scroll ${stage === "awaiting_url" ? "min-h-0 overflow-y-auto bg-transparent p-0" : immersive ? (stage === "done" ? "shrink-0 bg-[linear-gradient(180deg,rgba(14,11,25,0),rgba(14,11,25,.98)_22%)] px-3 pb-4 pt-5 sm:px-8 sm:pb-6" : "shrink-0 max-h-[70dvh] overflow-y-auto bg-[linear-gradient(180deg,rgba(14,11,25,0),rgba(14,11,25,.98)_18%)] px-3 pb-4 pt-5 sm:px-8 sm:pb-6") : stage === "done" ? "shrink-0 max-h-[42dvh] space-y-2.5 overflow-y-auto border-t border-white/[.07] bg-[linear-gradient(180deg,rgba(9,8,18,.72),rgba(19,15,32,.95))] p-3 sm:max-h-[36vh] sm:p-4" : "shrink-0 max-h-[68dvh] space-y-2.5 overflow-y-auto border-t border-white/[.07] bg-[linear-gradient(180deg,rgba(9,8,18,.72),rgba(19,15,32,.95))] p-3 sm:max-h-[72vh] sm:p-4"}`}
+        >
+          <div className={`${immersive ? "mx-auto w-full max-w-5xl space-y-2.5" : "space-y-2.5"}`}>
+            {stage === "awaiting_url" && (
+              <WebsiteBriefForm
+                onSubmit={handleWebsiteSubmit}
+                onStudioSubmit={handleStudioSubmit}
+                initialCreationIntent={initialCreationIntent}
                 disabled={busy}
+                showCreditPricing={!isPublicCreatorPath()}
+                landingWebsitePreview={isPublicCreatorPath()}
+                onIntentRequest={handlePublicIntentRequest}
+                compactLayout={streamlinedInitialComposer}
               />
             )}
-            <ChatInputBar
-              multiline
-              placeholder={
-                mode === "photos"
-                  ? "Describe the marketing edit: e.g. use the black dress, luxury beige studio, soft shadows, Instagram ad style, no added text…"
-                  : mode === "icon"
-                    ? "Optional: e.g. elegant minimal symbol, use the real gold and cream palette, keep the existing L idea, no words…"
-                    : mode === "both"
-                      ? "Optional: video focus + photo style, e.g. fast luxury video; create clean studio product ads from the captured products…"
-                      : "Optional: e.g. focus on dresses, make the pacing faster, show add-to-cart clearly, end on checkout…"
-              }
-              onSubmit={handleBriefSubmit}
-              onFiles={handleChatAttachments}
-              disabled={busy}
-            />
-          </>
-        )}
-        {stage === "ready_to_render" && (
-          <div className="space-y-3">
-            <div
-              className={`rounded-2xl border p-4 ${estimatedShortfall > 0 && isSignedIn ? "border-amber-300/30 bg-amber-300/10" : "border-mint/25 bg-mint/[.06]"}`}
-            >
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="font-utility text-[9px] uppercase tracking-[.16em] text-mint">
-                    {mode === "photos"
-                      ? "Photo campaign ready"
-                      : isStudioProject
-                        ? "AI video plan ready"
-                        : "Website film plan ready"}
+            {stage === "preview_ready" && (
+              <div className="space-y-3">
+                <div className="rounded-2xl border border-mint/25 bg-mint/[.055] p-4">
+                  <p className="font-utility text-[9px] font-semibold uppercase tracking-[.16em] text-mint">
+                    Website preview ready
                   </p>
-                  <p className="mt-1 text-sm font-semibold text-white">
-                    {mode === "photos"
-                      ? "AI-directed photo campaign"
-                      : isStudioProject
-                        ? projectCaptureMetadata?.studioKind === "product"
-                          ? "AI-directed product video"
-                          : projectCaptureMetadata?.studioKind === "scenario"
-                            ? "AI-directed talking scene"
-                            : "AI-directed original video"
-                        : "AI-selected website film"}
+                  <p className="mt-1 text-sm font-semibold text-white">We reached your website successfully.</p>
+                  <p className="mt-1 text-[11px] leading-5 text-text-muted">
+                    Your domain, promotion brief, favicon and useful screenshots are saved for free. Continue when you
+                    are ready; credits are checked before any paid AI planning, video, image or voice provider starts.
                   </p>
                 </div>
-                <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 font-utility text-[10px] text-white">
-                  {estimatedCredits} credits
-                </span>
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-2 text-[10px] text-text-muted sm:grid-cols-4">
-                <span className="rounded-lg bg-black/15 px-2.5 py-2">
-                  {durationLabel(
-                    job?.storyboard?.targetDurationSeconds || durationSeconds,
-                  )}
-                </span>
-                <span className="rounded-lg bg-black/15 px-2.5 py-2">
-                  {aspectRatio}
-                </span>
-                <span className="rounded-lg bg-black/15 px-2.5 py-2">
-                  {outputQuality === "4k" ? ((job?.storyboard?.targetDurationSeconds || durationSeconds) > 8 ? "4K mastered" : "4K native") : ((job?.storyboard?.targetDurationSeconds || durationSeconds) > 8 ? "1080p master" : "1080p native")}
-                </span>
-                <span className="rounded-lg bg-black/15 px-2.5 py-2">
-                  {audioMode === "voice_music"
-                    ? `Narrated · ${narrationLanguage.toUpperCase()}`
-                    : audioMode === "native_audio"
-                      ? "Scene audio"
-                      : audioMode === "music_only"
-                        ? "Music only"
-                        : "Silent"}
-                </span>
-              </div>
-              {isSignedIn && (
-                <p className="mt-3 text-[10px] font-semibold text-text-muted">
-                  Balance: {creditBalance}
-                  {estimatedShortfall > 0
-                    ? ` · ${estimatedShortfall} more credits needed`
-                    : " · ready — automatic generation pauses only when you need to choose credits or make changes"}
+                <Button
+                  variant="primary"
+                  size="lg"
+                  className="w-full"
+                  onClick={() => {
+                    if (!isPublicCreatorPath() && isSignedIn && jobId) {
+                      void startWebsiteStoryboard(jobId, activeCaptureMetadata ?? job?.captureMetadata ?? null);
+                    } else {
+                      continueLandingPreview();
+                    }
+                  }}
+                  disabled={busy}
+                >
+                  {!isPublicCreatorPath() && isSignedIn ? "Continue to AI production" : "Continue in Workspace"}
+                </Button>
+                <p className="text-center text-[10px] text-text-dim">
+                  Website preview and screenshots are free. No generation credits are used here.
                 </p>
-              )}
-            </div>
-            <Button
-              variant="primary"
-              size="lg"
-              className="w-full"
-              onClick={handleGenerate}
-              disabled={busy}
-            >
-              {isSignedIn
-                ? estimatedShortfall > 0
-                  ? `Add ${estimatedShortfall} credits and continue`
-                  : mode === "photos"
-                    ? `Generate the AI photo campaign · ${estimatedCredits} credits`
-                    : `Generate the final video · ${estimatedCredits} credits`
-                : "Sign in and generate"}
-            </Button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => {
-                storyboardedRef.current = false;
-                pushBot(
-                  isStudioProject
-                    ? "Tell me what you want changed in the creative direction and I’ll prepare a fresh plan from this project."
-                    : "Tell me what you want changed in the promotion and I’ll prepare a fresh creative plan from the saved website.",
-                );
-                setStage("awaiting_brief");
-              }}
-              className="w-full rounded-xl py-2 text-[11px] font-semibold text-text-dim transition hover:bg-white/[.035] hover:text-white disabled:opacity-50"
-            >
-              {isStudioProject ? "Adjust the creative direction" : "Adjust the promotion brief"}
-            </button>
-          </div>
-        )}
-        {stage === "done" && (
-          <div className="space-y-3">
-            <div className="grid gap-2 sm:grid-cols-2">
-              <Button
-                variant="primary"
-                size="md"
-                className="w-full"
-                onClick={() => void handleRegenerateResult()}
-                disabled={busy}
-              >
-                {productionKind === "product-photos" || productionKind === "campaign-photos"
-                  ? "New photo direction"
-                  : productionKind === "product-video"
-                    ? "New product video"
-                    : productionKind === "talking-scene"
-                      ? "New take"
-                      : productionKind === "ai-video"
-                        ? "New video direction"
-                        : "New campaign cut"}
-              </Button>
-              <Button
-                variant="secondary"
-                size="md"
-                className="w-full"
-                onClick={() => void handleRemixResult()}
-                disabled={busy}
-              >
-                Change direction
-              </Button>
-
-              {productionKind === "product-photos" && (
-                <Button
-                  variant="secondary"
-                  size="md"
-                  className="w-full sm:col-span-2"
-                  onClick={() => void handleSwitchProductResult("video")}
-                  disabled={busy}
-                >
-                  Turn these product references into video
-                </Button>
-              )}
-              {productionKind === "product-video" && (
-                <Button
-                  variant="secondary"
-                  size="md"
-                  className="w-full sm:col-span-2"
-                  onClick={() => void handleSwitchProductResult("photos")}
-                  disabled={busy}
-                >
-                  Create product photos in this chat
-                </Button>
-              )}
-            </div>
-
-            {liveReferenceItems.length > 0 && (
-              <details className="group rounded-2xl border border-white/[.08] bg-white/[.025] p-3">
-                <summary className="flex min-h-10 list-none items-center justify-between gap-3 cursor-pointer">
-                  <div>
-                    <p className="text-[11px] font-semibold text-text-primary">Reuse saved screenshots</p>
-                    <p className="mt-0.5 text-[10px] text-text-dim">{selectedCaptureIds.length} selected · open only when you want to change the next cut</p>
-                  </div>
-                  <span className="rounded-full border border-white/[.08] bg-white/[.04] px-2.5 py-1 text-[9px] text-text-muted group-open:text-white">Manage</span>
-                </summary>
-                <div className="mt-3 border-t border-white/[.06] pt-3">
-                  <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
-                    <p className="max-w-xl text-[10px] leading-5 text-text-dim">Scroll sideways to review all saved screenshots. Click any one to include or remove it for the next version. Tagged cards show their current scene slot.</p>
-                    <div className="flex flex-wrap gap-2 text-[9px]">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedCaptureIds(autoSelectCaptureIds(projectCaptureMetadata, Math.min(30, activeSceneCount)))}
-                      className="rounded-full border border-white/[.08] bg-white/[.04] px-2.5 py-1 text-text-muted transition hover:bg-white/[.08] hover:text-white"
-                    >
-                      Auto-pick best
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedCaptureIds([])}
-                      className="rounded-full border border-white/[.08] bg-white/[.04] px-2.5 py-1 text-text-muted transition hover:bg-white/[.08] hover:text-white"
-                    >
-                      Clear
-                    </button>
-                  </div>
-                </div>
-                <div className="mb-3 flex flex-wrap gap-2 text-[9px] text-text-dim">
-                  <span className="rounded-full border border-mint/20 bg-mint/10 px-2.5 py-1 text-mint">{selectedCaptureIds.length} selected</span>
-                  <span className="rounded-full border border-white/[.08] bg-white/[.03] px-2.5 py-1">Choose up to {Math.min(30, activeSceneCount)} priority references</span>
-                  <span className="rounded-full border border-white/[.08] bg-white/[.03] px-2.5 py-1">Film timeline: {activeSceneCount} beat{activeSceneCount === 1 ? "" : "s"}</span>
-                </div>
-                <div className="chat-scroll flex gap-3 overflow-x-auto pb-2">
-                  {liveReferenceItems.map((item, index) => {
-                    const selected = selectedCaptureIds.includes(item.id);
-                    const sceneNumber = sceneAssignments[item.id];
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => toggleCaptureSelection(item.id)}
-                        className={`group w-48 shrink-0 overflow-hidden rounded-2xl border text-left transition sm:w-56 ${selected ? "border-violet/40 bg-violet/[.08] shadow-[0_18px_36px_-28px_rgba(139,92,246,.95)]" : "border-white/[.08] bg-black/15 hover:border-white/[.14] hover:bg-white/[.04]"}`}
-                      >
-                        <div className="relative">
-                          <img src={item.url} alt={item.title} className="aspect-[16/10] w-full object-cover object-top" />
-                          <span className="absolute left-2 top-2 rounded-full border border-black/10 bg-black/60 px-2 py-1 font-utility text-[8px] uppercase tracking-[.14em] text-white/85">{String(index + 1).padStart(2, "0")}</span>
-                          {sceneNumber && <span className="absolute right-2 top-2 rounded-full border border-violet/25 bg-violet/95 px-2 py-1 font-utility text-[8px] font-bold uppercase tracking-[.14em] text-white">S{sceneNumber}</span>}
-                          {selected && <span className="absolute left-2 bottom-2 rounded-full border border-mint/20 bg-mint/90 px-2 py-1 font-utility text-[8px] uppercase tracking-[.12em] text-[#07131a]">Selected</span>}
-                        </div>
-                        <div className="border-t border-white/[.06] px-3 py-2.5">
-                          <p className="truncate text-[10px] text-white/85">{item.title}</p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-                </div>
-              </details>
-            )}
-
-            <div className="rounded-2xl border border-white/[.08] bg-white/[.025] p-3">
-              <div className="mb-2 px-1">
-                <p className="text-[11px] font-semibold text-text-primary">Continue in this chat</p>
-                <p className="mt-0.5 text-[10px] text-text-dim">Your finished result stays above while the next version is created.</p>
               </div>
-              <ChatInputBar
-                multiline
-                placeholder={
-                  productionKind === "product-photos" || productionKind === "campaign-photos"
-                    ? "e.g. Make the next set brighter with a clean studio background…"
-                    : productionKind === "talking-scene"
-                      ? "e.g. Make the dialogue shorter and the camera more cinematic…"
-                      : productionKind === "product-video"
-                        ? "e.g. Make the next video faster with a premium product reveal…"
-                        : productionKind === "website-video"
-                          ? "e.g. Focus more on checkout and make the opening faster…"
-                          : "e.g. Change the mood, pacing, camera, or scene direction…"
-                }
-                onSubmit={handleContinueAfterResult}
-                onFiles={handleChatAttachments}
+            )}
+            {stage === "awaiting_private_pages" && (
+              <div className="space-y-2.5">
+                <PhotoUploadPicker
+                  onSubmit={handlePrivatePageUpload}
+                  disabled={busy}
+                  isAdmin={isAdmin}
+                  draftKey={`private-pages-${jobId ?? "pending"}`}
+                  title="Paste or add private/admin page screenshots"
+                  buttonLabel="Add"
+                  helper={
+                    isAdmin
+                      ? "Administrator upload · add any number of authorized screenshots"
+                      : "Paste with Ctrl+V / Cmd+V or choose screens you are authorized to use"
+                  }
+                />
+                <Button
+                  variant="secondary"
+                  size="md"
+                  className="w-full"
+                  onClick={continueAfterPrivatePages}
+                  disabled={busy}
+                >
+                  Continue without private pages
+                </Button>
+              </div>
+            )}
+            {stage === "awaiting_mode" && (
+              <QuickReplyChips options={MODE_OPTIONS.map((o) => o.label)} onSelect={handleModeSelect} disabled={busy} />
+            )}
+            {stage === "awaiting_duration" && (
+              <MediaPlanningPanel
+                metadata={activeCaptureMetadata ?? job?.captureMetadata}
+                selectedIds={selectedCaptureIds}
+                onSelectionChange={setSelectedCaptureIds}
+                onChooseDuration={handleDurationSelect}
+                creditBalance={creditBalance}
+                isSignedIn={isSignedIn}
                 disabled={busy}
               />
-            </div>
-
-            <button
-              type="button"
-              onClick={handleStartOver}
-              disabled={busy}
-              className="flex min-h-11 w-full items-center justify-center rounded-xl text-[11px] font-semibold text-text-dim transition hover:bg-white/[.035] hover:text-text-primary disabled:opacity-50"
-            >
-              {isStudioProject ? "Start a separate creation" : "Start with another website"}
-            </button>
-          </div>
-        )}
-        {stage === "failed" && (
-          <div className="grid gap-2 sm:grid-cols-2">
-            {activeCaptureMetadata && (
-              <Button
-                variant="primary"
-                size="md"
-                className="w-full"
-                onClick={() => void handleRemixResult()}
-                disabled={busy}
-              >
-                Try a new direction
-              </Button>
             )}
-            <Button
-              variant="secondary"
-              size="md"
-              className="w-full"
-              onClick={handleStartOver}
-              disabled={busy}
-            >
-              {isStudioProject ? "Start a separate creation" : "Use another website"}
-            </Button>
+            {stage === "awaiting_format" && (
+              <QuickReplyChips
+                options={FORMAT_OPTIONS.map((o) => o.label)}
+                onSelect={handleFormatSelect}
+                disabled={busy}
+              />
+            )}
+            {stage === "awaiting_features" && (
+              <>
+                <QuickReplyChips
+                  options={["Detect the strongest features"]}
+                  onSelect={handleFeaturesAuto}
+                  disabled={busy}
+                />
+                <ChatInputBar
+                  placeholder="e.g. search, wishlist, live chat, fast checkout…"
+                  onSubmit={handleFeaturesSubmit}
+                  onFiles={handleChatAttachments}
+                  disabled={busy}
+                />
+              </>
+            )}
+            {stage === "awaiting_brief" && (
+              <>
+                {mode !== "photos" && (
+                  <QuickReplyChips
+                    options={["Create with best direction"]}
+                    onSelect={handleBriefPreset}
+                    disabled={busy}
+                  />
+                )}
+                <ChatInputBar
+                  multiline
+                  placeholder={
+                    mode === "photos"
+                      ? "Describe the marketing edit: e.g. use the black dress, luxury beige studio, soft shadows, Instagram ad style, no added text…"
+                      : mode === "icon"
+                        ? "Optional: e.g. elegant minimal symbol, use the real gold and cream palette, keep the existing L idea, no words…"
+                        : mode === "both"
+                          ? "Optional: video focus + photo style, e.g. fast luxury video; create clean studio product ads from the captured products…"
+                          : "Optional: e.g. focus on dresses, make the pacing faster, show add-to-cart clearly, end on checkout…"
+                  }
+                  onSubmit={handleBriefSubmit}
+                  onFiles={handleChatAttachments}
+                  disabled={busy}
+                />
+              </>
+            )}
+            {stage === "ready_to_render" && (
+              <div className="space-y-3">
+                <div
+                  className={`rounded-2xl border p-4 ${estimatedShortfall > 0 && isSignedIn ? "border-amber-300/30 bg-amber-300/10" : "border-mint/25 bg-mint/[.06]"}`}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="font-utility text-[9px] uppercase tracking-[.16em] text-mint">
+                        {mode === "photos"
+                          ? "Photo campaign ready"
+                          : isStudioProject
+                            ? "AI video plan ready"
+                            : "Website film plan ready"}
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-white">
+                        {mode === "photos"
+                          ? "AI-directed photo campaign"
+                          : isStudioProject
+                            ? projectCaptureMetadata?.studioKind === "product"
+                              ? "AI-directed product video"
+                              : projectCaptureMetadata?.studioKind === "scenario"
+                                ? "AI-directed talking scene"
+                                : "AI-directed original video"
+                            : "AI-selected website film"}
+                      </p>
+                    </div>
+                    <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 font-utility text-[10px] text-white">
+                      {estimatedAdditionalCredits > 0
+                        ? `${estimatedAdditionalCredits} more credits`
+                        : `${estimatedCredits} credits reserved`}
+                    </span>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-[10px] text-text-muted sm:grid-cols-4">
+                    <span className="rounded-lg bg-black/15 px-2.5 py-2">
+                      {durationLabel(job?.storyboard?.targetDurationSeconds || durationSeconds)}
+                    </span>
+                    <span className="rounded-lg bg-black/15 px-2.5 py-2">{aspectRatio}</span>
+                    <span className="rounded-lg bg-black/15 px-2.5 py-2">
+                      {outputQuality === "4k"
+                        ? (job?.storyboard?.targetDurationSeconds || durationSeconds) > 8
+                          ? "4K mastered"
+                          : "4K native"
+                        : (job?.storyboard?.targetDurationSeconds || durationSeconds) > 8
+                          ? "1080p master"
+                          : "1080p native"}
+                    </span>
+                    <span className="rounded-lg bg-black/15 px-2.5 py-2">
+                      {audioMode === "voice_music"
+                        ? `Narrated · ${narrationLanguage.toUpperCase()}`
+                        : audioMode === "native_audio"
+                          ? "Scene audio"
+                          : audioMode === "music_only"
+                            ? "Music only"
+                            : "Silent"}
+                    </span>
+                  </div>
+                  {isSignedIn && (
+                    <p className="mt-3 text-[10px] font-semibold text-text-muted">
+                      Balance: {creditBalance}
+                      {estimatedShortfall > 0
+                        ? ` · ${estimatedShortfall} more credits needed`
+                        : estimatedAdditionalCredits > 0
+                          ? " · ready for the final charge"
+                          : " · ready — no second charge for this production"}
+                    </p>
+                  )}
+                </div>
+                <Button variant="primary" size="lg" className="w-full" onClick={handleGenerate} disabled={busy}>
+                  {isSignedIn
+                    ? estimatedShortfall > 0
+                      ? `Add ${estimatedShortfall} credits and continue`
+                      : estimatedAdditionalCredits === 0
+                        ? mode === "photos"
+                          ? "Start final photo generation · credits reserved"
+                          : "Start final video generation · credits reserved"
+                        : mode === "photos"
+                          ? `Generate the AI photo campaign · ${estimatedAdditionalCredits} more credits`
+                          : `Generate the final video · ${estimatedAdditionalCredits} more credits`
+                    : "Sign in and generate"}
+                </Button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    storyboardedRef.current = false;
+                    pushBot(
+                      isStudioProject
+                        ? "Tell me what you want changed in the creative direction and I’ll prepare a fresh plan from this project."
+                        : "Tell me what you want changed in the promotion and I’ll prepare a fresh creative plan from the saved website.",
+                    );
+                    setStage("awaiting_brief");
+                  }}
+                  className="w-full rounded-xl py-2 text-[11px] font-semibold text-text-dim transition hover:bg-white/[.035] hover:text-white disabled:opacity-50"
+                >
+                  {isStudioProject ? "Adjust the creative direction" : "Adjust the promotion brief"}
+                </button>
+              </div>
+            )}
+            {stage === "done" && (
+              <div className="space-y-2.5">
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="primary"
+                    size="md"
+                    className="min-w-[13rem] flex-1 !rounded-2xl"
+                    onClick={() => void handleRegenerateResult()}
+                    disabled={busy}
+                  >
+                    {nextVersionShortfall > 0
+                      ? `Add ${nextVersionShortfall} credits for another version`
+                      : `${
+                          productionKind === "product-photos" || productionKind === "campaign-photos"
+                            ? "Create another photo set"
+                            : productionKind === "product-video"
+                              ? "Create another product video"
+                              : productionKind === "talking-scene"
+                                ? "Create another take"
+                                : productionKind === "ai-video"
+                                  ? "Create another video"
+                                  : "Create another campaign cut"
+                        } · ${estimatedCredits} credits`}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="md"
+                    className="min-w-[11rem] flex-1 !rounded-2xl border-white/[.08] bg-white/[.045]"
+                    onClick={() => void handleRemixResult()}
+                    disabled={busy}
+                  >
+                    Edit direction first
+                  </Button>
+
+                  {productionKind === "product-photos" && (
+                    <Button
+                      variant="secondary"
+                      size="md"
+                      className="w-full !rounded-2xl border-white/[.08] bg-white/[.035]"
+                      onClick={() => void handleSwitchProductResult("video")}
+                      disabled={busy}
+                    >
+                      Use these references for a product video
+                    </Button>
+                  )}
+                  {productionKind === "product-video" && (
+                    <Button
+                      variant="secondary"
+                      size="md"
+                      className="w-full !rounded-2xl border-white/[.08] bg-white/[.035]"
+                      onClick={() => void handleSwitchProductResult("photos")}
+                      disabled={busy}
+                    >
+                      Use these references for product photos
+                    </Button>
+                  )}
+                </div>
+
+                {liveReferenceItems.length > 0 && (
+                  <details
+                    className={`group rounded-2xl ${immersive ? "bg-white/[.03] px-3 py-2" : "border border-white/[.08] bg-white/[.025] p-3"}`}
+                  >
+                    <summary className="flex min-h-10 list-none items-center justify-between gap-3 cursor-pointer">
+                      <div>
+                        <p className="text-[11px] font-semibold text-text-primary">Reuse saved screenshots</p>
+                        <p className="mt-0.5 text-[10px] text-text-dim">
+                          {selectedCaptureIds.length} selected · open only when you want to change the next cut
+                        </p>
+                      </div>
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-[9px] text-text-muted group-open:text-white ${immersive ? "bg-white/[.06]" : "border border-white/[.08] bg-white/[.04]"}`}
+                      >
+                        Manage
+                      </span>
+                    </summary>
+                    <div className="mt-3 border-t border-white/[.06] pt-3">
+                      <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+                        <p className="max-w-xl text-[10px] leading-5 text-text-dim">
+                          Scroll sideways to review all saved screenshots. Click any one to include or remove it for the
+                          next version. Tagged cards show their current scene slot.
+                        </p>
+                        <div className="flex flex-wrap gap-2 text-[9px]">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSelectedCaptureIds(
+                                autoSelectCaptureIds(projectCaptureMetadata, Math.min(30, activeSceneCount)),
+                              )
+                            }
+                            className="rounded-full border border-white/[.08] bg-white/[.04] px-2.5 py-1 text-text-muted transition hover:bg-white/[.08] hover:text-white"
+                          >
+                            Auto-pick best
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedCaptureIds([])}
+                            className="rounded-full border border-white/[.08] bg-white/[.04] px-2.5 py-1 text-text-muted transition hover:bg-white/[.08] hover:text-white"
+                          >
+                            Clear
+                          </button>
+                        </div>
+                      </div>
+                      <div className="mb-3 flex flex-wrap gap-2 text-[9px] text-text-dim">
+                        <span className="rounded-full border border-mint/20 bg-mint/10 px-2.5 py-1 text-mint">
+                          {selectedCaptureIds.length} selected
+                        </span>
+                        <span className="rounded-full border border-white/[.08] bg-white/[.03] px-2.5 py-1">
+                          Choose up to {Math.min(30, activeSceneCount)} priority references
+                        </span>
+                        <span className="rounded-full border border-white/[.08] bg-white/[.03] px-2.5 py-1">
+                          Film timeline: {activeSceneCount} beat
+                          {activeSceneCount === 1 ? "" : "s"}
+                        </span>
+                      </div>
+                      <div className="chat-scroll flex gap-3 overflow-x-auto pb-2">
+                        {liveReferenceItems.map((item, index) => {
+                          const selected = selectedCaptureIds.includes(item.id);
+                          const sceneNumber = sceneAssignments[item.id];
+                          return (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onClick={() => toggleCaptureSelection(item.id)}
+                              className={`group w-48 shrink-0 overflow-hidden rounded-2xl border text-left transition sm:w-56 ${selected ? "border-violet/40 bg-violet/[.08] shadow-[0_18px_36px_-28px_rgba(139,92,246,.95)]" : "border-white/[.08] bg-black/15 hover:border-white/[.14] hover:bg-white/[.04]"}`}
+                            >
+                              <div className="relative">
+                                <img
+                                  src={item.url}
+                                  alt={item.title}
+                                  className="aspect-[16/10] w-full object-cover object-top"
+                                />
+                                <span className="absolute left-2 top-2 rounded-full border border-black/10 bg-black/60 px-2 py-1 font-utility text-[8px] uppercase tracking-[.14em] text-white/85">
+                                  {String(index + 1).padStart(2, "0")}
+                                </span>
+                                {sceneNumber && (
+                                  <span className="absolute right-2 top-2 rounded-full border border-violet/25 bg-violet/95 px-2 py-1 font-utility text-[8px] font-bold uppercase tracking-[.14em] text-white">
+                                    S{sceneNumber}
+                                  </span>
+                                )}
+                                {selected && (
+                                  <span className="absolute left-2 bottom-2 rounded-full border border-mint/20 bg-mint/90 px-2 py-1 font-utility text-[8px] uppercase tracking-[.12em] text-[#07131a]">
+                                    Selected
+                                  </span>
+                                )}
+                              </div>
+                              <div className="border-t border-white/[.06] px-3 py-2.5">
+                                <p className="truncate text-[10px] text-white/85">{item.title}</p>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </details>
+                )}
+
+                <div className={immersive ? "pt-1" : "rounded-2xl border border-white/[.08] bg-white/[.025] p-3"}>
+                  <div className="mb-2 px-1">
+                    <p className="text-[11px] font-semibold text-text-primary">Continue in this chat</p>
+                    <p className="mt-0.5 text-[10px] text-text-dim">
+                      Edit freely. Credits are checked before any new AI generation begins.
+                    </p>
+                  </div>
+                  <ChatInputBar
+                    multiline
+                    placeholder={
+                      productionKind === "product-photos" || productionKind === "campaign-photos"
+                        ? "e.g. Make the next set brighter with a clean studio background…"
+                        : productionKind === "talking-scene"
+                          ? "e.g. Make the dialogue shorter and the camera more cinematic…"
+                          : productionKind === "product-video"
+                            ? "e.g. Make the next video faster with a premium product reveal…"
+                            : productionKind === "website-video"
+                              ? "e.g. Focus more on checkout and make the opening faster…"
+                              : "e.g. Change the mood, pacing, camera, or scene direction…"
+                    }
+                    onSubmit={handleContinueAfterResult}
+                    onFiles={handleChatAttachments}
+                    disabled={busy}
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleStartOver}
+                  disabled={busy}
+                  className="mx-auto flex min-h-9 items-center justify-center rounded-full px-4 text-[10px] font-semibold text-text-dim transition hover:bg-white/[.035] hover:text-text-primary disabled:opacity-50"
+                >
+                  {isStudioProject ? "Start a separate creation" : "Start with another website"}
+                </button>
+              </div>
+            )}
+            {stage === "failed" && (
+              <div className="space-y-2.5">
+                <div className="flex flex-wrap gap-2">
+                  {activeCaptureMetadata && (
+                    <Button
+                      variant="primary"
+                      size="md"
+                      className="min-w-[13rem] flex-1 !rounded-2xl"
+                      onClick={() => void handleRemixResult()}
+                      disabled={busy}
+                    >
+                      Edit a fresh direction
+                    </Button>
+                  )}
+                  <Button
+                    variant="secondary"
+                    size="md"
+                    className="min-w-[13rem] flex-1 !rounded-2xl border-white/[.08] bg-white/[.045]"
+                    onClick={handleStartOver}
+                    disabled={busy}
+                  >
+                    {isStudioProject ? "Start a separate creation" : "Use another website"}
+                  </Button>
+                </div>
+                <p className="px-1 text-center text-[10px] text-text-dim">
+                  Nothing restarts automatically. Credits are verified and reserved before a new paid AI request.
+                </p>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </div>
       )}
 
       {showPaywall && (
         <PaywallModal
           onClose={() => setShowPaywall(false)}
           context={paywallContext}
-          durationSeconds={
-            job?.storyboard?.targetDurationSeconds || durationSeconds
-          }
+          durationSeconds={job?.storyboard?.targetDurationSeconds || durationSeconds}
           mode={mode}
           outputQuality={job?.storyboard?.outputQuality ?? outputQuality}
           skipVoiceover={skipVoiceover}
@@ -2984,9 +2891,7 @@ export function ChatWidget({
             setShowAuthModal(false);
             const resume = pendingActionRef.current;
             pendingActionRef.current = null;
-            const isPublicCreator =
-              window.location.pathname === "/" ||
-              window.location.pathname.startsWith("/studio");
+            const isPublicCreator = window.location.pathname === "/" || window.location.pathname.startsWith("/studio");
 
             // On a public creator/landing page, authentication should always
             // finish in Workspace. If Generate/upload was waiting on auth, let
@@ -3012,8 +2917,7 @@ function errorMessage(err: unknown): string {
     const friendly: Record<string, string> = {
       RATE_LIMITED:
         "The studio is handling several website previews right now. Please wait a few minutes, then try again.",
-      SSRF_BLOCKED:
-        "That address cannot be opened safely. Please use a public website URL.",
+      SSRF_BLOCKED: "That address cannot be opened safely. Please use a public website URL.",
       VALIDATION_ERROR: "Please check what you entered and try again.",
       PROMPT_REQUIRED: "Add a clear prompt describing what you want before generating.",
       PRODUCT_PHOTO_REQUIRED: "Attach at least one real product photo before generating.",
@@ -3024,32 +2928,20 @@ function errorMessage(err: unknown): string {
         "Your production plan is ready. Choose a production option when you want to create the final files.",
       INSUFFICIENT_CREDITS:
         "Your project is saved, but this version needs more production credits. Nothing was charged.",
-      RENDER_ALREADY_STARTED:
-        "This production is already running. Progress will update here automatically.",
+      RENDER_ALREADY_STARTED: "This production is already running. Progress will update here automatically.",
       RENDER_ALREADY_FAILED:
-        "That version already tried once and failed. Preparing a fresh version to try again…",
-      STORYBOARD_NOT_READY:
-        "The production plan is still being prepared. Please give it another moment.",
-      BILLING_NOT_CONFIGURED:
-        "Checkout is temporarily unavailable. Your project is saved; please try again shortly.",
-      PRICE_NOT_CONFIGURED:
-        "That purchase option is temporarily unavailable. Your project is saved.",
-      INTERNAL_ERROR:
-        "We could not complete that step right now. Your work is safe; please try again shortly.",
-      NOT_FOUND:
-        "That project could not be found. Start a new project from the website URL.",
+        "That version already tried once and is closed. Edit a fresh direction when you want to try again; nothing restarts automatically.",
+      STORYBOARD_NOT_READY: "The production plan is still being prepared. Please give it another moment.",
+      BILLING_NOT_CONFIGURED: "Checkout is temporarily unavailable. Your project is saved; please try again shortly.",
+      PRICE_NOT_CONFIGURED: "That purchase option is temporarily unavailable. Your project is saved.",
+      INTERNAL_ERROR: "We could not complete that step right now. Your work is safe; please try again shortly.",
+      NOT_FOUND: "That project could not be found. Start a new project from the website URL.",
     };
-    return (
-      friendly[err.code ?? ""] ??
-      "We could not complete that step. Your project is safe; please try again."
-    );
+    return friendly[err.code ?? ""] ?? "We could not complete that step. Your project is safe; please try again.";
   }
   // Anything else (network drops, unexpected exceptions) should never leak
   // technical details — show a calm, professional message instead.
-  if (
-    err instanceof TypeError ||
-    (err instanceof Error && /fetch|network|load failed/i.test(err.message))
-  ) {
+  if (err instanceof TypeError || (err instanceof Error && /fetch|network|load failed/i.test(err.message))) {
     return "We're having trouble connecting. Please check your internet connection and try again.";
   }
   return "Something unexpected happened on our side. Please try again in a moment — if it keeps happening, we're on it.";

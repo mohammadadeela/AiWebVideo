@@ -1,8 +1,15 @@
-import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent, type FormEvent, type KeyboardEvent } from 'react';
-import { Paperclip } from 'lucide-react';
-import { Button } from '@/components/ui/app-button';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type DragEvent,
+  type FormEvent,
+  type KeyboardEvent,
+} from "react";
+import { ArrowUp, Paperclip } from "lucide-react";
 
-const CHAT_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const CHAT_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const CHAT_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 
 export function ChatInputBar({
@@ -20,7 +27,7 @@ export function ChatInputBar({
   prefix?: string;
   onFiles?: (files: File[]) => void | Promise<void>;
 }) {
-  const [value, setValue] = useState('');
+  const [value, setValue] = useState("");
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const dragDepthRef = useRef(0);
@@ -34,15 +41,15 @@ export function ChatInputBar({
     const resetWhenLeavingWindow = (event: globalThis.DragEvent) => {
       if (event.relatedTarget === null) resetDragState();
     };
-    window.addEventListener('drop', resetDragState, true);
-    window.addEventListener('dragend', resetDragState, true);
-    window.addEventListener('dragleave', resetWhenLeavingWindow, true);
-    window.addEventListener('blur', resetDragState);
+    window.addEventListener("drop", resetDragState, true);
+    window.addEventListener("dragend", resetDragState, true);
+    window.addEventListener("dragleave", resetWhenLeavingWindow, true);
+    window.addEventListener("blur", resetDragState);
     return () => {
-      window.removeEventListener('drop', resetDragState, true);
-      window.removeEventListener('dragend', resetDragState, true);
-      window.removeEventListener('dragleave', resetWhenLeavingWindow, true);
-      window.removeEventListener('blur', resetDragState);
+      window.removeEventListener("drop", resetDragState, true);
+      window.removeEventListener("dragend", resetDragState, true);
+      window.removeEventListener("dragleave", resetWhenLeavingWindow, true);
+      window.removeEventListener("blur", resetDragState);
     };
   }, []);
 
@@ -50,7 +57,7 @@ export function ChatInputBar({
     const trimmed = value.trim();
     if (!trimmed || disabled) return;
     onSubmit(trimmed);
-    setValue('');
+    setValue("");
   }
 
   function handleSubmit(e: FormEvent) {
@@ -59,7 +66,7 @@ export function ChatInputBar({
   }
 
   function handleTextareaKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       submitValue();
     }
@@ -70,11 +77,11 @@ export function ChatInputBar({
     let error: string | null = null;
     for (const file of files) {
       if (!CHAT_IMAGE_TYPES.includes(file.type)) {
-        error = 'Attach JPEG, PNG, or WEBP images.';
+        error = "Attach JPEG, PNG, or WEBP images.";
         continue;
       }
       if (file.size > CHAT_IMAGE_MAX_BYTES) {
-        error = `${file.name || 'That image'} is larger than 10MB.`;
+        error = `${file.name || "That image"} is larger than 10MB.`;
         continue;
       }
       accepted.push(file);
@@ -91,11 +98,11 @@ export function ChatInputBar({
 
   function handlePaste(event: ClipboardEvent<HTMLInputElement | HTMLTextAreaElement>) {
     if (!onFiles || disabled) return;
-    const directFiles = Array.from(event.clipboardData.files ?? []).filter((file) => file.type.startsWith('image/'));
+    const directFiles = Array.from(event.clipboardData.files ?? []).filter((file) => file.type.startsWith("image/"));
     const itemFiles = directFiles.length
       ? []
       : Array.from(event.clipboardData.items ?? [])
-          .filter((item) => item.kind === 'file' && item.type.startsWith('image/'))
+          .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
           .map((item) => item.getAsFile())
           .filter((file): file is File => Boolean(file));
     const images = directFiles.length ? directFiles : itemFiles;
@@ -113,12 +120,11 @@ export function ChatInputBar({
   }
 
   function isFileDrag(event: DragEvent<HTMLFormElement>) {
-    return Array.from(event.dataTransfer.types ?? []).includes('Files');
+    return Array.from(event.dataTransfer.types ?? []).includes("Files");
   }
 
-  const fieldClass = `font-utility flex-1 rounded-[22px] border border-white/[.11] bg-white/[.05] px-4 py-3 text-base text-text-primary
-    shadow-[inset_0_1px_0_rgba(255,255,255,.04)] transition-colors placeholder:font-body placeholder:text-text-dim
-    focus:border-violet/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet/20 disabled:opacity-50`;
+  const fieldClass = `font-utility min-w-0 flex-1 bg-transparent px-2 py-2 text-base text-text-primary
+    placeholder:font-body placeholder:text-text-dim focus-visible:outline-none disabled:opacity-50`;
 
   return (
     <div className="space-y-1.5">
@@ -133,7 +139,7 @@ export function ChatInputBar({
         onDragOver={(event) => {
           if (!onFiles || disabled || !isFileDrag(event)) return;
           event.preventDefault();
-          event.dataTransfer.dropEffect = 'copy';
+          event.dataTransfer.dropEffect = "copy";
         }}
         onDragLeave={(event) => {
           if (!dragging) return;
@@ -142,7 +148,7 @@ export function ChatInputBar({
           if (dragDepthRef.current === 0) setDragging(false);
         }}
         onDrop={handleDrop}
-        className={`relative flex items-end gap-2.5 rounded-[24px] transition ${dragging ? 'ring-2 ring-mint/30' : ''}`}
+        className={`relative flex items-end gap-1.5 rounded-[26px] bg-white/[.065] p-2 shadow-[0_20px_55px_-32px_rgba(0,0,0,.9)] ring-1 transition ${dragging ? "ring-2 ring-mint/40 bg-mint/[.055]" : "ring-white/[.1] focus-within:ring-violet/35"}`}
       >
         {onFiles && (
           <>
@@ -150,11 +156,11 @@ export function ChatInputBar({
               ref={fileInputRef}
               type="file"
               multiple
-              accept={CHAT_IMAGE_TYPES.join(',')}
+              accept={CHAT_IMAGE_TYPES.join(",")}
               className="hidden"
               onChange={(event) => {
                 sendFiles(Array.from(event.target.files ?? []));
-                event.target.value = '';
+                event.target.value = "";
               }}
             />
             <button
@@ -163,7 +169,7 @@ export function ChatInputBar({
               disabled={disabled}
               aria-label="Attach photos or screenshots"
               title="Attach photos or screenshots"
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/[.1] bg-white/[.04] text-text-muted transition hover:border-violet/35 hover:bg-violet/[.08] hover:text-white disabled:opacity-50"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-text-muted transition hover:bg-white/[.075] hover:text-white disabled:opacity-50"
             >
               <Paperclip size={17} />
             </button>
@@ -171,18 +177,18 @@ export function ChatInputBar({
         )}
         {multiline ? (
           <textarea
-            rows={3}
+            rows={2}
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={handleTextareaKeyDown}
             onPaste={handlePaste}
             placeholder={placeholder}
             disabled={disabled}
-            className={`${fieldClass} min-h-24 resize-none leading-relaxed`}
+            className={`${fieldClass} min-h-[4.5rem] resize-none leading-relaxed`}
           />
         ) : (
-          <div className={`${fieldClass} flex min-w-0 items-center gap-1 p-0 pr-3 focus-within:border-violet/45`}>
-            {prefix && <span className="shrink-0 pl-4 text-sm text-violet">{prefix}</span>}
+          <div className={`${fieldClass} flex items-center gap-1 p-0`}>
+            {prefix && <span className="shrink-0 pl-2 text-sm text-violet">{prefix}</span>}
             <input
               type="text"
               value={value}
@@ -190,18 +196,22 @@ export function ChatInputBar({
               onPaste={handlePaste}
               placeholder={placeholder}
               disabled={disabled}
-              className="min-w-0 flex-1 bg-transparent py-3 text-base text-text-primary outline-none placeholder:text-text-dim"
+              className="min-w-0 flex-1 bg-transparent px-2 py-2.5 text-base text-text-primary outline-none placeholder:text-text-dim"
             />
           </div>
         )}
-        <Button type="submit" variant="primary" size="md" className="shrink-0 rounded-2xl px-5" disabled={disabled || !value.trim()}>
-          Send
-        </Button>
+        <button
+          type="submit"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-signature text-white shadow-[0_10px_28px_-14px_rgba(139,92,246,.95)] transition hover:brightness-110 active:scale-95 disabled:pointer-events-none disabled:opacity-35"
+          disabled={disabled || !value.trim()}
+          aria-label="Send message"
+          title="Send"
+        >
+          <ArrowUp size={18} strokeWidth={2.4} />
+        </button>
       </form>
-      {onFiles && (
-        <p className={`px-1 text-[9px] ${attachmentError ? 'text-amber-300' : 'text-text-dim'}`}>
-          {attachmentError ?? 'Paste an image directly, drag it into the chat, or use the attachment button.'}
-        </p>
+      {onFiles && attachmentError && (
+        <p className={`px-1 text-[9px] ${attachmentError ? "text-amber-300" : "text-text-dim"}`}>{attachmentError}</p>
       )}
     </div>
   );

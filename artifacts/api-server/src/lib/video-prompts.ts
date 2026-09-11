@@ -8,7 +8,7 @@ export {
   GLOBAL_AI_VIDEO_RULES,
   buildAiVideoScenePrompt,
   INTERNAL_MASTER_VIDEO_QUALITY_DIRECTIVE,
-  buildContinuousExtensionPrompt,
+  buildContinuousExtensionPrompt
 } from './video-prompts-legacy.js';
 
 export type { VideoScenePromptInput } from './video-prompts-legacy.js';
@@ -32,11 +32,9 @@ export interface ContinuousVideoPromptInput {
 }
 
 export function buildContinuousVideoPrompt(input: ContinuousVideoPromptInput) {
-  // The legacy creative prompt did not use frameRate as creative direction.
-  // Strip only that compatibility field and pass every real customer setting
-  // and storyboard detail through unchanged.
-  const { frameRate: _frameRate, ...legacyInput } = input;
-  return buildLegacyContinuousVideoPrompt(legacyInput);
+  // Keep the proven creative direction while forwarding every customer
+  // setting and the complete brief to the final media-model prompt.
+  return buildLegacyContinuousVideoPrompt(input);
 }
 
 /**
@@ -46,8 +44,9 @@ export function buildContinuousVideoPrompt(input: ContinuousVideoPromptInput) {
  */
 export function buildContinuousBasePrompt(masterPrompt: string, targetSeconds: number) {
   if (targetSeconds <= 8) return masterPrompt;
-  return `OPENING OF THE SAME CONTINUOUS FILM — do not finish the full story yet.
-Begin immediately with the strongest visual hook, establish the subject/brand/world, and leave natural motion that can continue seamlessly into the next extension. No black intro, no early closing card, no recap.
+  const endSeconds = Math.min(8, targetSeconds);
+  return `CURRENT GENERATION WINDOW — OPENING WINDOW: 0-${endSeconds}s OF ${targetSeconds}s
+THIS IS NOT THE END OF THE FILM. Begin immediately with the strongest visual hook, establish the subject/brand/world, and leave meaningful natural motion that can continue seamlessly into the next extension. Do not resolve the full story, show a closing card, replay a title, fade to black, or create dead air in this opening window.
 
 ${masterPrompt}`;
 }

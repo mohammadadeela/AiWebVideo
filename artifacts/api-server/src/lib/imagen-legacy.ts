@@ -8,20 +8,23 @@ import { query } from './pool.js';
 import { GEMINI_COST_CATALOG, recordGenerationCost } from './costs.js';
 import { runQueuedProviderCall } from './provider-queue.js';
 
-
 const execFileAsync = promisify(execFile);
 
 // Server-only quality rules appended to every image-generation request.
 // Customer prompts still control the creative direction; these rules provide
 // permanent fidelity, typography and commercial-quality guardrails.
-const INTERNAL_MASTER_IMAGE_QUALITY_DIRECTIVE = `
+export const INTERNAL_MASTER_IMAGE_QUALITY_DIRECTIVE = `
 MASTER IMAGE QUALITY STANDARD — ALWAYS APPLY
+- The customer's complete request is the highest-priority art direction. Preserve every compatible subject, product, composition, background, color, lighting, mood, camera/crop, text, exclusion and output request. The hidden master direction may make excellent choices only where the customer left room; never replace their idea with a generic campaign template.
+- Treat every attached image as an actual visual reference. Preserve the exact identity of real products, people, logos, UI, packaging and places. Decide one coherent art direction—palette, light, lens, material treatment, depth and negative space—then execute it with portfolio-grade commercial taste.
 - Preserve the exact identity of every supplied real product, person, logo and brand asset. Do not redesign, recolor, replace or simplify source details unless the customer explicitly requests that exact change.
-- No random text, fake prices, fake product names, fake Arabic/English, misspelled logos, watermarks or unrelated brand marks. If exact text is not required, omit generated text entirely.
+- Treat existing text inside supplied references as protected source pixels: preserve it visually and never retype, translate, correct or redraw it.
+- No random text, fake prices, fake product names, misspelled logos, watermarks or unrelated brand marks. If the customer explicitly asks for new visible copy, it must be short, natural and correctly spelled ENGLISH only; proper brand names remain unchanged. Never synthesize Arabic, Korean, Cyrillic, Chinese or pseudo-language lettering. If exact new text is not required, omit generated text entirely.
 - Premium commercial photography quality: realistic materials, accurate geometry, natural light behavior, controlled highlights, clean shadows, coherent reflections, high micro-detail and believable depth.
 - Avoid duplicated objects, extra limbs, warped hands/faces, melted edges, distorted logos, inconsistent product proportions, oversharpening, heavy blur, excessive bloom and stock-template styling.
 - Respect the requested aspect ratio and keep the main subject safely composed for the final crop.
 - Return one polished final image, not a contact sheet, collage, before/after panel or explanatory layout unless the customer explicitly asked for that format.
+- Before returning, silently inspect prompt coverage, reference identity, anatomy, product geometry, logo/text fidelity, edge quality, composition, lighting logic and crop safety. Correct any avoidable defect.
 `;
 
 function imageOutputFrame(aspectRatio: '16:9' | '9:16' | '1:1', quality: '1080p' | '4k') {
@@ -36,16 +39,28 @@ async function masterGeneratedImage(
   sourceFilename: string,
   finalFilename: string,
   aspectRatio: '16:9' | '9:16' | '1:1',
-  outputQuality: '1080p' | '4k',
+  outputQuality: '1080p' | '4k'
 ) {
   const { width, height } = imageOutputFrame(aspectRatio, outputQuality);
   const source = path.join(ASSETS_DIR, jobId, sourceFilename);
   const output = path.join(ASSETS_DIR, jobId, finalFilename);
-  await execFileAsync('ffmpeg', [
-    '-y', '-hide_banner', '-loglevel', 'error', '-i', source,
-    '-vf', `scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height},setsar=1`,
-    '-frames:v', '1', output,
-  ], { timeout: 2 * 60_000, maxBuffer: 4 * 1024 * 1024 });
+  await execFileAsync(
+    'ffmpeg',
+    [
+      '-y',
+      '-hide_banner',
+      '-loglevel',
+      'error',
+      '-i',
+      source,
+      '-vf',
+      `scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height},setsar=1`,
+      '-frames:v',
+      '1',
+      output
+    ],
+    { timeout: 2 * 60_000, maxBuffer: 4 * 1024 * 1024 }
+  );
   await fs.rm(source, { force: true }).catch(() => {});
   const stat = await fs.stat(output);
   if (!stat.size) throw new Error('Generated image mastering produced an empty file.');
@@ -61,7 +76,36 @@ function getClient() {
   return client;
 }
 
-export interface GeneratedImage { url: string; aspectRatio: string; }
+export interface GeneratedImage {
+  url: string;
+  aspectRatio: string;
+}
+
+export type MarketingPhotoKind = 'product-photos' | 'website-photos' | 'mixed-campaign';
+
+export const MARKETING_PHOTO_MASTER_PROMPTS: Record<MarketingPhotoKind, string> = {
+  'product-photos': `PRODUCT PHOTO MASTER — make the exact referenced product the unmistakable hero. Preserve its silhouette, construction, material, colorway, logos, hardware, stitching, packaging and small identifiers. Create a genuinely shoot-worthy commercial setup around it; never swap, redesign or "improve" the item itself.`,
+  'website-photos': `WEBSITE CAMPAIGN PHOTO MASTER — study the real captures to understand what the brand sells, its palette, audience and strongest authentic product/visual. Create a standalone campaign asset that unmistakably belongs to this business; never turn it into a generic website screenshot or invent an unsupported offer.`,
+  'mixed-campaign': `MIXED CAMPAIGN PHOTO MASTER — create a still that complements the same campaign's video while standing on its own. Match the central concept, brand world and product identity, but use a distinct, intentional composition suited to a premium social or advertising placement.`
+};
+
+export const MARKETING_PHOTO_SET_ROLES = [
+  'HERO FRAME — the clearest, most arresting campaign image with immediate subject hierarchy and premium negative space.',
+  'DETAIL FRAME — reveal a meaningful material, feature, texture, angle or product benefit through a clearly different composition and scale.',
+  'WORLD FRAME — place the real subject/product in a believable editorial, lifestyle or brand environment that supports the user request.',
+  'SIGNATURE FRAME — deliver a memorable final campaign variation with a fresh composition and the strongest polished brand mood.'
+] as const;
+
+/** Rotate large reference sets so four generated photos collectively use all inputs. */
+export function selectMarketingPhotoReferences(referenceImages: Buffer[], sceneIndex: number, limit = 4) {
+  const usable = referenceImages.filter((buffer) => buffer.length > 0);
+  if (usable.length <= limit) return usable;
+  const start = (Math.max(0, sceneIndex) * limit) % usable.length;
+  return Array.from(
+    { length: Math.min(limit, usable.length) },
+    (_, offset) => usable[(start + offset) % usable.length]
+  );
+}
 
 /**
  * Shared image-generation plumbing used by both photo-mode marketing images
@@ -79,34 +123,43 @@ async function runImageGeneration(
   referenceImages: Buffer[],
   aspectRatio: '16:9' | '9:16' | '1:1',
   outputQuality: '1080p' | '4k',
-  operation = 'marketing_image',
+  operation = 'marketing_image'
 ): Promise<GeneratedImage> {
   const geminiImageModel = process.env.GEMINI_IMAGE_MODEL ?? 'gemini-3.1-flash-image';
   console.info(
     `[${logLabel}] job=${jobId} scene=${sceneIndex} provider=gemini ` +
-    `model=${geminiImageModel} reference_assets=${referenceImages.length}`,
+      `model=${geminiImageModel} reference_assets=${referenceImages.length}`
   );
 
-  const input: Array<{ type: 'image'; data: string; mime_type: string } | { type: 'text'; text: string }> = referenceImages
-    .filter((buffer) => buffer.length > 0)
-    .slice(0, 4)
-    .map((buffer) => ({ type: 'image' as const, data: buffer.toString('base64'), mime_type: 'image/jpeg' }));
-  input.push({ type: 'text', text: `${prompt}\n\n${INTERNAL_MASTER_IMAGE_QUALITY_DIRECTIVE}` });
+  const input: Array<{ type: 'image'; data: string; mime_type: string } | { type: 'text'; text: string }> =
+    referenceImages
+      .filter((buffer) => buffer.length > 0)
+      .slice(0, 4)
+      .map((buffer) => ({
+        type: 'image' as const,
+        data: buffer.toString('base64'),
+        mime_type: 'image/jpeg'
+      }));
+  input.push({
+    type: 'text',
+    text: `${prompt}\n\n${INTERNAL_MASTER_IMAGE_QUALITY_DIRECTIVE}`
+  });
 
   const interaction = await runQueuedProviderCall({
     kind: 'image',
     model: geminiImageModel,
     operation,
     jobId,
-    task: () => getClient().interactions.create({
-      model: geminiImageModel,
-      input,
-      response_format: {
-        type: 'image',
-        aspect_ratio: aspectRatio,
-        image_size: outputQuality === '4k' ? '4K' : '2K',
-      },
-    }),
+    task: () =>
+      getClient().interactions.create({
+        model: geminiImageModel,
+        input,
+        response_format: {
+          type: 'image',
+          aspect_ratio: aspectRatio,
+          image_size: outputQuality === '4k' ? '4K' : '2K'
+        }
+      })
   });
 
   const image = interaction.output_image;
@@ -119,11 +172,18 @@ async function runImageGeneration(
   // pixel dimensions in the downloaded result.
   const url = await masterGeneratedImage(jobId, rawFilename, filename, aspectRatio, outputQuality);
   const defaultCost = outputQuality === '4k' ? GEMINI_COST_CATALOG.image.fourK : GEMINI_COST_CATALOG.image.twoK;
-  const configuredCost = Number(process.env[outputQuality === '4k' ? 'GEMINI_IMAGE_COST_4K_USD' : 'GEMINI_IMAGE_COST_2K_USD'] ?? defaultCost);
+  const configuredCost = Number(
+    process.env[outputQuality === '4k' ? 'GEMINI_IMAGE_COST_4K_USD' : 'GEMINI_IMAGE_COST_2K_USD'] ?? defaultCost
+  );
   await recordGenerationCost({
-    jobId, provider: 'gemini', model: geminiImageModel, operation,
-    quantity: 1, unit: 'image', unitCostUsd: Math.max(0, configuredCost),
-    metadata: { image: sceneIndex + 1, quality: outputQuality },
+    jobId,
+    provider: 'gemini',
+    model: geminiImageModel,
+    operation,
+    quantity: 1,
+    unit: 'image',
+    unitCostUsd: Math.max(0, configuredCost),
+    metadata: { image: sceneIndex + 1, quality: outputQuality }
   });
   return { url, aspectRatio };
 }
@@ -145,7 +205,7 @@ export async function generateIdeaSeedImage(
   referenceImages: Buffer[],
   aspectRatio: '16:9' | '9:16' | '1:1',
   outputQuality: '1080p' | '4k',
-  variantLabel: string,
+  variantLabel: string
 ): Promise<GeneratedImage> {
   const prompt = `Create ONE photorealistic concept image to serve as the visual foundation for a short AI-generated video.
 
@@ -171,7 +231,7 @@ REQUIREMENTS:
     referenceImages,
     aspectRatio,
     outputQuality,
-    'idea_seed_image',
+    'idea_seed_image'
   );
 }
 
@@ -183,14 +243,15 @@ export async function generateWebsiteIcon(
   vibe: string,
   referenceImages: Buffer[],
   outputQuality: '1080p' | '4k',
-  customBrief?: string | null,
+  customBrief?: string | null
 ): Promise<GeneratedImage> {
-  if (!referenceImages.length) throw new Error('No captured website brand references are available for icon generation.');
+  if (!referenceImages.length)
+    throw new Error('No captured website brand references are available for icon generation.');
   const directions = [
     'A refined minimal symbol with exceptional small-size clarity and balanced negative space.',
     'A premium dimensional emblem with subtle depth, controlled highlights, and a modern app-icon finish.',
     'A bold geometric brand mark distilled from the website visual identity, recognizable in one glance.',
-    'An elegant editorial icon with a distinctive silhouette and a sophisticated brand-appropriate color treatment.',
+    'An elegant editorial icon with a distinctive silhouette and a sophisticated brand-appropriate color treatment.'
   ];
   const prompt = `Design ONE original square website/app icon concept for "${siteTitle}" using the attached real website screenshots and captured icon/logo as brand references.
 
@@ -224,7 +285,7 @@ ${vibe}`;
     referenceImages,
     '1:1',
     outputQuality,
-    'website_icon_generation',
+    'website_icon_generation'
   );
 }
 
@@ -246,13 +307,21 @@ export async function generateMarketingPhoto(
   aspectRatio: '16:9' | '9:16' | '1:1',
   outputQuality: '1080p' | '4k',
   customBrief?: string | null,
+  featureKind: MarketingPhotoKind = 'website-photos'
 ): Promise<GeneratedImage> {
   if (!referenceImages.length) {
     throw new Error('No captured website images are available to use as references for the marketing photo.');
   }
 
-  const userDirection = customBrief?.trim() || 'Create the strongest premium marketing image based on the captured website and products.';
-  const prompt = `Create ONE premium marketing campaign image for "${siteTitle}" using the attached website captures as the source references.
+  const userDirection =
+    customBrief?.trim() || 'Create the strongest premium marketing image based on the captured website and products.';
+  const prompt = `Create ONE premium marketing campaign image for "${siteTitle}" using every relevant attached reference image as visual evidence.
+
+HIDDEN FEATURE-SPECIFIC MASTER DIRECTION:
+${MARKETING_PHOTO_MASTER_PROMPTS[featureKind]}
+
+THIS IMAGE'S ROLE IN THE FOUR-IMAGE SET:
+${MARKETING_PHOTO_SET_ROLES[sceneIndex % MARKETING_PHOTO_SET_ROLES.length]}
 
 USER REQUEST — FOLLOW THIS CLOSELY:
 ${userDirection}
@@ -267,7 +336,7 @@ MOOD:
 ${vibe}
 
 SOURCE-OF-TRUTH RULES:
-- The attached screenshots define the real brand, products, colors, logos, product shapes, materials, clothing, shoes, packaging, and visual identity.
+- The attached website screenshots and/or uploaded product photos are actual provider inputs. Together they define the real brand, products, colors, logos, product shapes, materials, clothing, shoes, packaging, people/places when present, and visual identity.
 - Preserve recognizable product identity and brand identity. Do not substitute a different product, logo, garment, colorway, or design unless the user explicitly requested that exact change.
 - If a real person/model from a source image remains in the result, preserve their recognizable appearance and clothing unless the user explicitly requests a different marketing treatment.
 
@@ -286,9 +355,18 @@ CRITICAL TEXT / UI SAFETY:
 - When in doubt, omit generated text and let the product/visual carry the ad.
 
 QUALITY:
-Premium commercial art direction, realistic materials and fabric, accurate product geometry, natural highlights, controlled reflections, intentional negative space, clean shadows, balanced composition, high-end fashion/SaaS advertising finish as appropriate to the source site. Avoid distorted faces or hands, duplicated products, extra limbs, warped logos, random text, watermarks, unrelated brands, oversaturation, blur, low-resolution details, and stock-template styling.`;
+Premium commercial art direction, realistic materials and fabric, accurate product geometry, natural highlights, controlled reflections, intentional negative space, clean shadows, balanced composition, high-end fashion/SaaS/product advertising finish as appropriate to the source. Make this composition meaningfully different from the other three set roles. Avoid distorted faces or hands, duplicated products, extra limbs, warped logos, random text, watermarks, unrelated brands, oversaturation, blur, low-resolution details, and stock-template styling.`;
 
-  return runImageGeneration(jobId, sceneIndex, 'photo', 'photo', prompt, referenceImages, aspectRatio, outputQuality);
+  return runImageGeneration(
+    jobId,
+    sceneIndex,
+    'photo',
+    'photo',
+    prompt,
+    selectMarketingPhotoReferences(referenceImages, sceneIndex),
+    aspectRatio,
+    outputQuality
+  );
 }
 
 /**
@@ -310,10 +388,12 @@ export async function generateCinematicSceneImage(
   referenceImages: Buffer[],
   aspectRatio: '16:9' | '9:16' | '1:1',
   outputQuality: '1080p' | '4k',
-  customBrief?: string | null,
+  customBrief?: string | null
 ): Promise<GeneratedImage> {
   if (!referenceImages.length) {
-    throw new Error('No captured website images are available to use as brand/product references for this cinematic scene.');
+    throw new Error(
+      'No captured website images are available to use as brand/product references for this cinematic scene.'
+    );
   }
 
   const captionInstruction = onScreenCopy?.trim()
@@ -349,5 +429,14 @@ QUALITY:
 Photoreal materials and reflections, accurate device geometry, clean shadows, balanced composition, high-end product-launch commercial finish. Avoid distorted hands/faces, warped logos, illegible or garbled text, watermarks, unrelated brands, oversaturation, blur, and stock-template styling.
 ${customBrief?.trim() ? `\nADDITIONAL CUSTOMER NOTES:\n${customBrief.trim()}` : ''}`;
 
-  return runImageGeneration(jobId, sceneIndex, 'demo-scene', 'demo-scene', prompt, referenceImages, aspectRatio, outputQuality);
+  return runImageGeneration(
+    jobId,
+    sceneIndex,
+    'demo-scene',
+    'demo-scene',
+    prompt,
+    referenceImages,
+    aspectRatio,
+    outputQuality
+  );
 }

@@ -1,4 +1,9 @@
 import { pool, query } from './pool.js';
+import {
+  isPaidProviderCallAuthorized,
+  type PaidGenerationSnapshot,
+  type PaidGenerationStage
+} from './generation-authorization.js';
 import { persistAssetUrlToR2 } from './r2-storage.js';
 
 export interface UserRow {
@@ -70,7 +75,7 @@ export async function getOrCreateUser(
   email: string,
   adminEmail?: string,
   authProvider = 'firebase',
-  emailVerified = false,
+  emailVerified = false
 ): Promise<UserRow> {
   const isAdmin = adminEmail && email.toLowerCase() === adminEmail.toLowerCase();
   const { rows } = await query<UserRow>(
@@ -87,7 +92,15 @@ export async function getOrCreateUser(
            last_sign_in_at = NOW(),
            updated_at = NOW()
      RETURNING *`,
-    [firebaseUid, email, isAdmin ? 'agency' : 'free', isAdmin ? 999999 : 0, Boolean(isAdmin), authProvider, emailVerified]
+    [
+      firebaseUid,
+      email,
+      isAdmin ? 'agency' : 'free',
+      isAdmin ? 999999 : 0,
+      Boolean(isAdmin),
+      authProvider,
+      emailVerified
+    ]
   );
   const user = rows[0];
   // If admin and not already on agency/999999, upgrade
@@ -111,11 +124,7 @@ export async function getUserById(id: string): Promise<UserRow | null> {
   return rows[0] ?? null;
 }
 
-export async function recordUserSignIn(
-  userId: string,
-  authProvider: string,
-  emailVerified?: boolean,
-): Promise<void> {
+export async function recordUserSignIn(userId: string, authProvider: string, emailVerified?: boolean): Promise<void> {
   await query(
     `UPDATE users SET
        last_sign_in_at=NOW(),
@@ -148,7 +157,15 @@ export async function createLocalUser(
        email_verified=users.email_verified OR EXCLUDED.email_verified,
        updated_at=NOW()
      RETURNING *`,
-    [localIdentity, email, passwordHash, isAdmin ? 'agency' : 'free', isAdmin ? 999999 : 0, Boolean(isAdmin), emailVerified]
+    [
+      localIdentity,
+      email,
+      passwordHash,
+      isAdmin ? 'agency' : 'free',
+      isAdmin ? 999999 : 0,
+      Boolean(isAdmin),
+      emailVerified
+    ]
   );
   return rows[0];
 }
@@ -185,7 +202,9 @@ export async function upsertPendingVerification(
 }
 
 export async function getPendingVerification(email: string): Promise<PendingVerificationRow | null> {
-  const { rows } = await query<PendingVerificationRow>('SELECT * FROM pending_verifications WHERE email=$1 LIMIT 1', [email]);
+  const { rows } = await query<PendingVerificationRow>('SELECT * FROM pending_verifications WHERE email=$1 LIMIT 1', [
+    email
+  ]);
   return rows[0] ?? null;
 }
 
@@ -254,7 +273,7 @@ export async function getRecentPasswordHashes(userId: string, limit = 5): Promis
   const { rows } = await query<{ password_hash: string }>(
     `SELECT password_hash FROM password_history
      WHERE user_id=$1 ORDER BY created_at DESC, id DESC LIMIT $2`,
-    [userId, safeLimit],
+    [userId, safeLimit]
   );
   return rows.map((row) => row.password_hash);
 }
@@ -263,29 +282,26 @@ export async function getRecentPasswordHashes(userId: string, limit = 5): Promis
 export async function rotateLocalPassword(
   userId: string,
   expectedCurrentHash: string,
-  passwordHash: string,
+  passwordHash: string
 ): Promise<UserRow | null> {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     const { rows } = await client.query<{ password_hash: string | null }>(
       'SELECT password_hash FROM users WHERE id=$1 FOR UPDATE',
-      [userId],
+      [userId]
     );
     const currentHash = rows[0]?.password_hash;
     if (!currentHash || currentHash !== expectedCurrentHash) {
       await client.query('ROLLBACK');
       return null;
     }
-    await client.query(
-      'INSERT INTO password_history(user_id,password_hash) VALUES ($1,$2)',
-      [userId, currentHash],
-    );
+    await client.query('INSERT INTO password_history(user_id,password_hash) VALUES ($1,$2)', [userId, currentHash]);
     const updated = await client.query<UserRow>(
       `UPDATE users
        SET password_hash=$2,email_verified=TRUE,session_version=session_version+1,updated_at=NOW()
        WHERE id=$1 RETURNING *`,
-      [userId, passwordHash],
+      [userId, passwordHash]
     );
     await client.query(
       `DELETE FROM password_history
@@ -293,7 +309,7 @@ export async function rotateLocalPassword(
          SELECT id FROM password_history WHERE user_id=$1
          ORDER BY created_at DESC,id DESC LIMIT 5
        )`,
-      [userId],
+      [userId]
     );
     await client.query('COMMIT');
     return updated.rows[0] ?? null;
@@ -326,11 +342,17 @@ export async function spendCredits(userId: string, amount: number): Promise<numb
 
 export type RenderClaimResult =
   | { ok: true; remaining: number }
-  | { ok: false; reason: 'not_found' | 'not_owner' | 'already_started' | 'already_failed' | 'insufficient_credits' };
+  | {
+      ok: false;
+      reason: 'not_found' | 'not_owner' | 'already_started' | 'already_failed' | 'insufficient_credits';
+    };
 
 export type GenerationReserveResult =
   | { ok: true; remaining: number }
-  | { ok: false; reason: 'not_found' | 'not_owner' | 'already_started' | 'already_failed' | 'insufficient_credits' };
+  | {
+      ok: false;
+      reason: 'not_found' | 'not_owner' | 'already_started' | 'already_failed' | 'insufficient_credits';
+    };
 
 /**
  * Atomically reserves the full production cost before any paid AI/provider
@@ -340,14 +362,21 @@ export type GenerationReserveResult =
  * cannot pass a stale balance check while the first one is planning. The
  * render claim below reuses this reservation instead of charging twice.
  */
-export async function reserveGenerationCredits(jobId: string, userId: string, amount: number): Promise<GenerationReserveResult> {
-  if (!Number.isSafeInteger(amount) || amount <= 0) throw new Error('A generation reservation must be a positive whole number of credits.');
+export async function reserveGenerationCredits(
+  jobId: string,
+  userId: string,
+  amount: number
+): Promise<GenerationReserveResult> {
+  if (!Number.isSafeInteger(amount) || amount <= 0)
+    throw new Error('A generation reservation must be a positive whole number of credits.');
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const { rows: jobs } = await client.query<{ user_id: string | null; status: string; credits_spent: number }>(
-      'SELECT user_id, status, credits_spent FROM jobs WHERE id=$1 AND deleted_at IS NULL FOR UPDATE', [jobId]
-    );
+    const { rows: jobs } = await client.query<{
+      user_id: string | null;
+      status: string;
+      credits_spent: number;
+    }>('SELECT user_id, status, credits_spent FROM jobs WHERE id=$1 AND deleted_at IS NULL FOR UPDATE', [jobId]);
     const job = jobs[0];
     if (!job) {
       await client.query('ROLLBACK');
@@ -382,12 +411,16 @@ export async function reserveGenerationCredits(jobId: string, userId: string, am
       `UPDATE jobs SET user_id=$1, credits_spent=$3, error_message=NULL, updated_at=NOW() WHERE id=$2`,
       [userId, jobId, amount]
     );
-    await client.query(
-      'INSERT INTO credit_transactions (user_id, job_id, delta, reason) VALUES ($1,$2,$3,$4)',
-      [userId, jobId, -amount, `Production reservation ${jobId}`]
-    );
+    await client.query('INSERT INTO credit_transactions (user_id, job_id, delta, reason) VALUES ($1,$2,$3,$4)', [
+      userId,
+      jobId,
+      -amount,
+      `Production reservation ${jobId}`
+    ]);
     await client.query('COMMIT');
-    console.info(`[credits] production reserved job=${jobId} user=${userId} amount=${amount} remaining=${users[0].credits_balance}`);
+    console.info(
+      `[credits] production reserved job=${jobId} user=${userId} amount=${amount} remaining=${users[0].credits_balance}`
+    );
     return { ok: true, remaining: users[0].credits_balance };
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
@@ -398,18 +431,43 @@ export async function reserveGenerationCredits(jobId: string, userId: string, am
 }
 
 /**
+ * Re-read the authoritative job immediately before a paid provider call. This
+ * makes the credit reservation a runtime invariant rather than relying only
+ * on the earlier HTTP-handler branch or a client-side balance check.
+ */
+export async function assertPaidProviderAuthorization(
+  jobId: string,
+  userId: string,
+  requiredCredits: number,
+  expectedStage: PaidGenerationStage
+): Promise<void> {
+  const { rows } = await query<PaidGenerationSnapshot>(
+    `SELECT user_id, status, credits_spent
+       FROM jobs
+      WHERE id=$1 AND deleted_at IS NULL`,
+    [jobId]
+  );
+  if (!isPaidProviderCallAuthorized(rows[0], userId, requiredCredits, expectedStage)) {
+    throw new Error(`Paid provider call blocked: job ${jobId} has no valid ${expectedStage} credit reservation.`);
+  }
+}
+
+/**
  * Atomically claims a job and settles the already-reserved production cost.
  * If final settings cost more or less than planning reserved, only the delta is
  * charged/refunded. This prevents double-charging between planning and render.
  */
 export async function claimRenderAndSpend(jobId: string, userId: string, amount: number): Promise<RenderClaimResult> {
-  if (!Number.isSafeInteger(amount) || amount <= 0) throw new Error('A render charge must be a positive whole number of credits.');
+  if (!Number.isSafeInteger(amount) || amount <= 0)
+    throw new Error('A render charge must be a positive whole number of credits.');
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const { rows: jobs } = await client.query<{ user_id: string | null; status: string; credits_spent: number }>(
-      'SELECT user_id, status, credits_spent FROM jobs WHERE id=$1 AND deleted_at IS NULL FOR UPDATE', [jobId]
-    );
+    const { rows: jobs } = await client.query<{
+      user_id: string | null;
+      status: string;
+      credits_spent: number;
+    }>('SELECT user_id, status, credits_spent FROM jobs WHERE id=$1 AND deleted_at IS NULL FOR UPDATE', [jobId]);
     const job = jobs[0];
     if (!job) {
       await client.query('ROLLBACK');
@@ -443,23 +501,28 @@ export async function claimRenderAndSpend(jobId: string, userId: string, amount:
         return { ok: false, reason: 'insufficient_credits' };
       }
       remaining = users[0].credits_balance;
-      await client.query(
-        'INSERT INTO credit_transactions (user_id, job_id, delta, reason) VALUES ($1,$2,$3,$4)',
-        [userId, jobId, -extraCharge, `Render adjustment ${jobId}`]
-      );
+      await client.query('INSERT INTO credit_transactions (user_id, job_id, delta, reason) VALUES ($1,$2,$3,$4)', [
+        userId,
+        jobId,
+        -extraCharge,
+        `Render adjustment ${jobId}`
+      ]);
     } else if (refundExcess > 0) {
       const { rows: users } = await client.query<{ credits_balance: number }>(
         'UPDATE users SET credits_balance=credits_balance+$1, updated_at=NOW() WHERE id=$2 RETURNING credits_balance',
         [refundExcess, userId]
       );
       remaining = users[0]?.credits_balance ?? 0;
-      await client.query(
-        'INSERT INTO credit_transactions (user_id, job_id, delta, reason) VALUES ($1,$2,$3,$4)',
-        [userId, jobId, refundExcess, `Render reservation adjustment ${jobId}`]
-      );
+      await client.query('INSERT INTO credit_transactions (user_id, job_id, delta, reason) VALUES ($1,$2,$3,$4)', [
+        userId,
+        jobId,
+        refundExcess,
+        `Render reservation adjustment ${jobId}`
+      ]);
     } else {
       const { rows: users } = await client.query<{ credits_balance: number }>(
-        'SELECT credits_balance FROM users WHERE id=$1 FOR UPDATE', [userId]
+        'SELECT credits_balance FROM users WHERE id=$1 FOR UPDATE',
+        [userId]
       );
       if (!users[0]) {
         await client.query('ROLLBACK');
@@ -474,7 +537,9 @@ export async function claimRenderAndSpend(jobId: string, userId: string, amount:
       [userId, jobId, amount]
     );
     await client.query('COMMIT');
-    console.info(`[credits] render claim job=${jobId} user=${userId} reserved=${alreadyReserved} final=${amount} remaining=${remaining}`);
+    console.info(
+      `[credits] render claim job=${jobId} user=${userId} reserved=${alreadyReserved} final=${amount} remaining=${remaining}`
+    );
     return { ok: true, remaining };
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
@@ -489,14 +554,15 @@ export async function refundCredits(userId: string, amount: number, reason: stri
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    await client.query(
-      'UPDATE users SET credits_balance=credits_balance+$1, updated_at=NOW() WHERE id=$2',
-      [amount, userId]
-    );
-    await client.query(
-      'INSERT INTO credit_transactions (user_id, delta, reason) VALUES ($1,$2,$3)',
-      [userId, amount, reason]
-    );
+    await client.query('UPDATE users SET credits_balance=credits_balance+$1, updated_at=NOW() WHERE id=$2', [
+      amount,
+      userId
+    ]);
+    await client.query('INSERT INTO credit_transactions (user_id, delta, reason) VALUES ($1,$2,$3)', [
+      userId,
+      amount,
+      reason
+    ]);
     await client.query('COMMIT');
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
@@ -511,34 +577,33 @@ export async function refundJobCredits(
   jobId: string,
   userId: string,
   requestedAmount: number,
-  reason: string,
+  reason: string
 ): Promise<number> {
   if (requestedAmount <= 0) return 0;
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const { rows } = await client.query<{ user_id: string | null; credits_spent: number }>(
-      'SELECT user_id, credits_spent FROM jobs WHERE id=$1 FOR UPDATE',
-      [jobId],
-    );
+    const { rows } = await client.query<{
+      user_id: string | null;
+      credits_spent: number;
+    }>('SELECT user_id, credits_spent FROM jobs WHERE id=$1 FOR UPDATE', [jobId]);
     const job = rows[0];
     if (!job || job.user_id !== userId || job.credits_spent <= 0) {
       await client.query('ROLLBACK');
       return 0;
     }
     const amount = Math.min(requestedAmount, job.credits_spent);
-    await client.query(
-      'UPDATE users SET credits_balance=credits_balance+$1, updated_at=NOW() WHERE id=$2',
-      [amount, userId],
-    );
-    await client.query(
-      'INSERT INTO credit_transactions (user_id, job_id, delta, reason) VALUES ($1,$2,$3,$4)',
-      [userId, jobId, amount, reason],
-    );
-    await client.query(
-      'UPDATE jobs SET credits_spent=credits_spent-$1, updated_at=NOW() WHERE id=$2',
-      [amount, jobId],
-    );
+    await client.query('UPDATE users SET credits_balance=credits_balance+$1, updated_at=NOW() WHERE id=$2', [
+      amount,
+      userId
+    ]);
+    await client.query('INSERT INTO credit_transactions (user_id, job_id, delta, reason) VALUES ($1,$2,$3,$4)', [
+      userId,
+      jobId,
+      amount,
+      reason
+    ]);
+    await client.query('UPDATE jobs SET credits_spent=credits_spent-$1, updated_at=NOW() WHERE id=$2', [amount, jobId]);
     await client.query('COMMIT');
     console.info(`[credits] refund job=${jobId} user=${userId} amount=${amount} reason=${reason}`);
     return amount;
@@ -552,11 +617,7 @@ export async function refundJobCredits(
 
 // ---- Jobs ----
 
-export async function createJob(
-  userId: string | null,
-  sourceUrl: string,
-  mode: string = 'video'
-): Promise<JobRow> {
+export async function createJob(userId: string | null, sourceUrl: string, mode: string = 'video'): Promise<JobRow> {
   const { rows } = await query<JobRow>(
     `INSERT INTO jobs (user_id, source_url, status, progress, mode, status_message, eta_seconds)
      VALUES ($1, $2, 'capturing', 5, $3, 'Preparing secure website capture', 240) RETURNING *`,
@@ -567,7 +628,10 @@ export async function createJob(
 
 export async function createJobFromCapture(userId: string, source: JobRow): Promise<JobRow> {
   const metadata = source.capture_metadata
-    ? JSON.parse(JSON.stringify(source.capture_metadata).replaceAll(source.id, '__NEW_JOB_ID__')) as Record<string, unknown>
+    ? (JSON.parse(JSON.stringify(source.capture_metadata).replaceAll(source.id, '__NEW_JOB_ID__')) as Record<
+        string,
+        unknown
+      >)
     : null;
   const { rows } = await query<JobRow>(
     `INSERT INTO jobs
@@ -579,7 +643,10 @@ export async function createJobFromCapture(userId: string, source: JobRow): Prom
   const job = rows[0];
   let result = job;
   if (metadata) {
-    const corrected = JSON.parse(JSON.stringify(metadata).replaceAll('__NEW_JOB_ID__', job.id)) as Record<string, unknown>;
+    const corrected = JSON.parse(JSON.stringify(metadata).replaceAll('__NEW_JOB_ID__', job.id)) as Record<
+      string,
+      unknown
+    >;
     result = (await updateJob(job.id, { capture_metadata: corrected })) ?? job;
   }
   // A reused capture is a new creative conversation/version. Do not clone the
@@ -600,21 +667,51 @@ export async function createJobFromCapture(userId: string, source: JobRow): Prom
 export async function createUploadJob(
   userId: string | null,
   title: string,
-  captureMetadata: Record<string, unknown>,
+  captureMetadata: Record<string, unknown>
 ): Promise<JobRow> {
   const { rows } = await query<JobRow>(
     `INSERT INTO jobs
       (user_id, source_url, status, progress, mode, status_message, eta_seconds, capture_metadata, title)
      VALUES ($1,$2,'captured',40,'video','Your uploaded photos are ready',0,$3,$4)
      RETURNING *`,
-    [userId, `upload://${title.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'photos'}`, captureMetadata, title]
+    [
+      userId,
+      `upload://${
+        title
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/(^-|-$)/g, '') || 'photos'
+      }`,
+      captureMetadata,
+      title
+    ]
   );
   return rows[0];
 }
 
 export async function updateJob(
   id: string,
-  patch: Partial<Pick<JobRow, 'status' | 'progress' | 'mode' | 'vibe_brief' | 'capture_metadata' | 'storyboard' | 'workflow_state' | 'status_message' | 'eta_seconds' | 'credits_spent' | 'error_message' | 'title' | 'pinned' | 'deleted_at' | 'cancel_requested'>>
+  patch: Partial<
+    Pick<
+      JobRow,
+      | 'status'
+      | 'progress'
+      | 'mode'
+      | 'vibe_brief'
+      | 'capture_metadata'
+      | 'storyboard'
+      | 'workflow_state'
+      | 'status_message'
+      | 'eta_seconds'
+      | 'credits_spent'
+      | 'error_message'
+      | 'title'
+      | 'pinned'
+      | 'deleted_at'
+      | 'cancel_requested'
+    >
+  >
 ): Promise<JobRow | null> {
   const sets: string[] = ['updated_at = NOW()'];
   const values: unknown[] = [];
@@ -624,10 +721,7 @@ export async function updateJob(
     values.push(typeof val === 'object' && val !== null ? JSON.stringify(val) : val);
   }
   values.push(id);
-  const { rows } = await query<JobRow>(
-    `UPDATE jobs SET ${sets.join(', ')} WHERE id = $${i} RETURNING *`,
-    values
-  );
+  const { rows } = await query<JobRow>(`UPDATE jobs SET ${sets.join(', ')} WHERE id = $${i} RETURNING *`, values);
   return rows[0] ?? null;
 }
 
@@ -654,12 +748,22 @@ export async function requestJobCancellation(jobId: string, userId: string): Pro
   try {
     await client.query('BEGIN');
     const { rows } = await client.query<Pick<JobRow, 'user_id' | 'status' | 'credits_spent'>>(
-      'SELECT user_id, status, credits_spent FROM jobs WHERE id=$1 FOR UPDATE', [jobId]
+      'SELECT user_id, status, credits_spent FROM jobs WHERE id=$1 FOR UPDATE',
+      [jobId]
     );
     const job = rows[0];
-    if (!job) { await client.query('ROLLBACK'); return { ok: false, reason: 'not_found' }; }
-    if (job.user_id && job.user_id !== userId) { await client.query('ROLLBACK'); return { ok: false, reason: 'not_owner' }; }
-    if (!CANCELLABLE_STATUSES.has(job.status)) { await client.query('ROLLBACK'); return { ok: false, reason: 'not_cancellable' }; }
+    if (!job) {
+      await client.query('ROLLBACK');
+      return { ok: false, reason: 'not_found' };
+    }
+    if (job.user_id && job.user_id !== userId) {
+      await client.query('ROLLBACK');
+      return { ok: false, reason: 'not_owner' };
+    }
+    if (!CANCELLABLE_STATUSES.has(job.status)) {
+      await client.query('ROLLBACK');
+      return { ok: false, reason: 'not_cancellable' };
+    }
 
     if (job.status === 'queued') {
       // Nothing is running and nothing has been charged yet — settle immediately.
@@ -700,14 +804,16 @@ export async function recoverInterruptedJobs(): Promise<number> {
     );
     for (const job of rows) {
       if (job.user_id && job.credits_spent > 0) {
-        await client.query(
-          'UPDATE users SET credits_balance=credits_balance+$1, updated_at=NOW() WHERE id=$2',
-          [job.credits_spent, job.user_id]
-        );
-        await client.query(
-          'INSERT INTO credit_transactions (user_id, job_id, delta, reason) VALUES ($1,$2,$3,$4)',
-          [job.user_id, job.id, job.credits_spent, `Interrupted production refund ${job.id}`]
-        );
+        await client.query('UPDATE users SET credits_balance=credits_balance+$1, updated_at=NOW() WHERE id=$2', [
+          job.credits_spent,
+          job.user_id
+        ]);
+        await client.query('INSERT INTO credit_transactions (user_id, job_id, delta, reason) VALUES ($1,$2,$3,$4)', [
+          job.user_id,
+          job.id,
+          job.credits_spent,
+          `Interrupted production refund ${job.id}`
+        ]);
       }
     }
     if (rows.length) {
@@ -817,7 +923,7 @@ export async function getAssetsByJobs(jobIds: string[]): Promise<AssetRow[]> {
   if (!jobIds.length) return [];
   const { rows } = await query<AssetRow>(
     `SELECT * FROM assets WHERE job_id = ANY($1::uuid[]) ORDER BY created_at ASC, id ASC`,
-    [jobIds],
+    [jobIds]
   );
   return rows;
 }
@@ -827,7 +933,7 @@ export async function addJobMessage(
   role: JobMessageRow['role'],
   content: string,
   kind = 'text',
-  payload?: Record<string, unknown> | null,
+  payload?: Record<string, unknown> | null
 ): Promise<JobMessageRow> {
   const { rows } = await query<JobMessageRow>(
     `INSERT INTO job_messages (job_id, role, kind, content, payload)
@@ -848,7 +954,7 @@ export async function completeJobWithResult(
   jobId: string,
   workflowState: Record<string, unknown>,
   resultMessage: string,
-  errorMessage: string | null,
+  errorMessage: string | null
 ): Promise<void> {
   const client = await pool.connect();
   try {
@@ -856,14 +962,14 @@ export async function completeJobWithResult(
     await client.query(
       `INSERT INTO job_messages (job_id, role, kind, content)
        VALUES ($1,'assistant','result',$2)`,
-      [jobId, resultMessage],
+      [jobId, resultMessage]
     );
     await client.query(
       `UPDATE jobs
        SET status='done',progress=100,status_message='Ready to view',eta_seconds=0,
            workflow_state=$2::jsonb,error_message=$3,updated_at=NOW()
        WHERE id=$1`,
-      [jobId, JSON.stringify(workflowState), errorMessage],
+      [jobId, JSON.stringify(workflowState), errorMessage]
     );
     await client.query('COMMIT');
   } catch (error) {
@@ -875,10 +981,9 @@ export async function completeJobWithResult(
 }
 
 export async function getJobMessages(jobId: string): Promise<JobMessageRow[]> {
-  const { rows } = await query<JobMessageRow>(
-    'SELECT * FROM job_messages WHERE job_id=$1 ORDER BY created_at ASC',
-    [jobId]
-  );
+  const { rows } = await query<JobMessageRow>('SELECT * FROM job_messages WHERE job_id=$1 ORDER BY created_at ASC', [
+    jobId
+  ]);
   return rows;
 }
 
@@ -935,6 +1040,8 @@ export async function getAssetsByJob(jobId: string): Promise<AssetRow[]> {
   // Explicit ordering matters: the UI shows the most recently created video
   // as "the" result, and without ORDER BY, Postgres does not guarantee row
   // order is insertion order.
-  const { rows } = await query<AssetRow>('SELECT * FROM assets WHERE job_id=$1 ORDER BY created_at ASC, id ASC', [jobId]);
+  const { rows } = await query<AssetRow>('SELECT * FROM assets WHERE job_id=$1 ORDER BY created_at ASC, id ASC', [
+    jobId
+  ]);
   return rows;
 }
