@@ -29,7 +29,7 @@ import { AppError, sendError } from "../lib/errors.js";
 import { publicJobErrorMessage, publicJobMessageContent } from "../lib/public-errors.js";
 import { generateStoryboard, remapStoryboardScenesToCaptures, storyboardModelName } from "../lib/gemini.js";
 import { generateMarketingPhoto, generateWebsiteIcon } from "../lib/imagen.js";
-import { continuousOperationCount, generateMarketingVideo, type AudioMode } from "../lib/veo.js";
+import { generateMarketingVideo, premiumSceneOperationCount, type AudioMode } from "../lib/veo.js";
 import { generateVoiceoverScript, synthesizeVoiceover, resolveNarrationLanguage } from "../lib/voiceover.js";
 import {
   videoCreditCost,
@@ -1047,12 +1047,12 @@ router.post("/:id/render", requireAuth, async (req, res) => {
     const renderStartedAt = Date.now();
     const sceneCount = Math.max(1, Math.min(MAX_REFERENCE_CAPTURES, storyboard.scenes?.length ?? 1));
     const finishAllowanceSeconds = storyboard.outputQuality === "4k" ? 90 : 35;
-    const continuousOps = continuousOperationCount(targetDuration);
-    // One provider-generated film is created, then the SAME Veo video is
-    // extended when the requested duration is longer than 8s. Estimate by
-    // provider operations, not by independent scene clips.
+    const premiumSceneOps = premiumSceneOperationCount(targetDuration);
+    // The premium renderer submits one native-resolution Veo operation per
+    // eight-second delivery segment. Estimate from the renderer that actually
+    // runs so custom-duration jobs do not inherit the old extension count.
     const initialVideoEta =
-      initialAiVideoEstimate(continuousOps, finishAllowanceSeconds) + Math.max(0, continuousOps - 1) * 45;
+      initialAiVideoEstimate(premiumSceneOps, finishAllowanceSeconds) + Math.max(0, premiumSceneOps - 1) * 45;
     const initialPhotoEta = job.mode === "photos" || job.mode === "icon" || job.mode === "both" ? 150 : 0;
     const initialEta = Math.max(job.mode === "photos" || job.mode === "icon" ? 0 : initialVideoEta, initialPhotoEta);
     const audioLabel =
