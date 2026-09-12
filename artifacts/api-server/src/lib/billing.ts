@@ -28,10 +28,9 @@ export async function grantCreditsOnce(input: { key: string; userId: string; cre
 
 /**
  * Removes credits after a verified refund/reversal. The caller must own the
- * idempotency transition (PayPal does this by changing a payment from `paid`
- * exactly once). The balance is intentionally allowed to go negative: if a
- * customer already consumed refunded credits, that debt blocks all future
- * paid generation until subsequent purchases cover it.
+ * idempotency transition. The balance is intentionally allowed to go negative:
+ * if a customer already consumed refunded credits, that debt blocks all future
+ * paid generation until later purchases cover it.
  */
 export async function debitCredits(input: { userId: string; credits: number; reason: string }): Promise<number | null> {
   if (!Number.isInteger(input.credits) || input.credits <= 0) return null;
@@ -57,6 +56,67 @@ export async function debitCredits(input: { userId: string; credits: number; rea
   } catch (error) {
     await client.query('ROLLBACK').catch(() => {});
     throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Install a database-level money-protection trigger before the HTTP server
+ * starts. PayPal refund/reversal webhooks already change `payments.status`.
+ * The trigger makes that status transition and its credit clawback one atomic
+ * transaction, so a crash between the two cannot leave refunded credits live.
+ *
+ * It fires only on paid -> refunded/reversed, making duplicate PayPal events
+ * idempotent at the payment row itself. A welcome bonus tied to that payment is
+ * clawed back too; the free 5-credit starter grant remains separate.
+ */
+export async function ensurePaymentClawbackProtection(): Promise<void> {
+  const client = await pool.connect();
+  try {
+    await client.query(`
+      CREATE OR REPLACE FUNCTION aiwebvideo_claw_back_refunded_payment_credits()
+      RETURNS trigger
+      LANGUAGE plpgsql
+      AS $$
+      DECLARE
+        welcome_bonus integer := 0;
+        total_debit integer := 0;
+      BEGIN
+        IF OLD.status = 'paid' AND NEW.status IN ('refunded', 'reversed') THEN
+          SELECT COALESCE(credits, 0)
+            INTO welcome_bonus
+            FROM credit_grants
+           WHERE grant_key = 'growth:welcome20:' || OLD.id::text
+           LIMIT 1;
+
+          total_debit := GREATEST(0, COALESCE(OLD.credits_granted, 0)) + GREATEST(0, COALESCE(welcome_bonus, 0));
+
+          IF total_debit > 0 THEN
+            UPDATE users
+               SET credits_balance = credits_balance - total_debit,
+                   updated_at = NOW()
+             WHERE id = OLD.user_id;
+
+            INSERT INTO credit_transactions(user_id, delta, reason)
+            VALUES (
+              OLD.user_id,
+              -total_debit,
+              'PayPal ' || NEW.status || ' clawback for payment ' || OLD.id::text
+            );
+          END IF;
+        END IF;
+        RETURN NEW;
+      END;
+      $$;
+
+      DROP TRIGGER IF EXISTS aiwebvideo_payment_credit_clawback ON payments;
+      CREATE TRIGGER aiwebvideo_payment_credit_clawback
+      AFTER UPDATE OF status ON payments
+      FOR EACH ROW
+      WHEN (OLD.status IS DISTINCT FROM NEW.status)
+      EXECUTE FUNCTION aiwebvideo_claw_back_refunded_payment_credits();
+    `);
   } finally {
     client.release();
   }
