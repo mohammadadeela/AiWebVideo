@@ -29,19 +29,12 @@ function writeFinishedPanelState(chatId: string | null, collapsed: boolean) {
 }
 
 function findContinueComposer(shell: HTMLElement) {
+  const explicitComposer = shell.querySelector<HTMLElement>(".finished-chat-composer");
+  if (explicitComposer) return explicitComposer;
   const label = Array.from(shell.querySelectorAll("p")).find(
     (node) => node.textContent?.trim() === "Continue in this chat",
   );
   return (label?.parentElement?.parentElement as HTMLElement | null) ?? null;
-}
-
-function clearTrayClasses(tray: HTMLElement | null) {
-  if (!tray) return;
-  tray.classList.remove("finished-action-tray", "has-reuse-details");
-  tray.querySelectorAll(".finished-action-buttons").forEach((node) => node.classList.remove("finished-action-buttons"));
-  tray.querySelectorAll(".finished-reuse-details").forEach((node) => node.classList.remove("finished-reuse-details"));
-  tray.querySelectorAll(".finished-chat-composer").forEach((node) => node.classList.remove("finished-chat-composer"));
-  tray.querySelectorAll(".finished-start-over-original").forEach((node) => node.classList.remove("finished-start-over-original"));
 }
 
 export function ChatWidget({
@@ -71,7 +64,9 @@ export function ChatWidget({
   // Every time an existing chat is opened from history/sidebar, land at the
   // working end of the conversation instead of making the user manually scroll
   // through the full production again. We wait for restoration to reveal the
-  // real composer, then align both the inner chat scrollers and the page itself.
+  // real composer, then move only the actual vertical chat surfaces. Avoiding
+  // scrollIntoView prevents a mobile page jump and lets saved video media load
+  // without waiting for an unrelated first tap.
   useEffect(() => {
     const chatId = resumeJobId ?? initialJobId ?? null;
     const shell = shellRef.current;
@@ -84,21 +79,17 @@ export function ChatWidget({
     let settleTimer = 0;
     let fallbackTimer = 0;
 
-    const alignToTarget = (target: HTMLElement) => {
+    const alignToConversationEnd = () => {
       if (openedChatAutoScrollRef.current === chatId) return;
       openedChatAutoScrollRef.current = chatId;
 
       const align = () => {
-        shell.querySelectorAll<HTMLElement>(".chat-scroll").forEach((scroller) => {
-          if (scroller.scrollHeight > scroller.clientHeight) scroller.scrollTop = scroller.scrollHeight;
-        });
-
         const director = shell.firstElementChild;
-        if (director instanceof HTMLElement && director.scrollHeight > director.clientHeight) {
-          director.scrollTop = director.scrollHeight;
-        }
-
-        target.scrollIntoView({ behavior: "auto", block: "end", inline: "nearest" });
+        const messages = shell.querySelector<HTMLElement>("[data-chat-messages]");
+        const controls = shell.querySelector<HTMLElement>("[data-chat-controls]");
+        [messages, controls, director instanceof HTMLElement ? director : null].forEach((surface) => {
+          if (surface && surface.scrollHeight > surface.clientHeight + 1) surface.scrollTop = surface.scrollHeight;
+        });
       };
 
       firstFrame = window.requestAnimationFrame(() => {
@@ -114,7 +105,7 @@ export function ChatWidget({
 
       const finishedComposer = findContinueComposer(shell);
       if (finishedComposer) {
-        alignToTarget(finishedComposer);
+        alignToConversationEnd();
         return true;
       }
 
@@ -122,7 +113,7 @@ export function ChatWidget({
       const textarea = textareas[textareas.length - 1];
       const form = textarea?.closest("form");
       if (form instanceof HTMLElement) {
-        alignToTarget(form);
+        alignToConversationEnd();
         return true;
       }
 
@@ -139,8 +130,7 @@ export function ChatWidget({
       // that case still open them at the newest/bottom part of the conversation.
       fallbackTimer = window.setTimeout(() => {
         if (openedChatAutoScrollRef.current === chatId) return;
-        const director = shell.firstElementChild;
-        alignToTarget(director instanceof HTMLElement ? director : shell);
+        alignToConversationEnd();
         observer?.disconnect();
       }, 900);
     }
@@ -162,12 +152,9 @@ export function ChatWidget({
     let currentStartOver: HTMLButtonElement | null = null;
 
     const syncActionTray = () => {
-      const details = shell.querySelector<HTMLDetailsElement>(".chat-scroll details.group");
-      const composer = findContinueComposer(shell);
-      const nextTray = details?.parentElement ?? composer?.parentElement ?? null;
+      const nextTray = shell.querySelector<HTMLElement>(".finished-action-tray");
 
       if (nextTray !== currentTray) {
-        clearTrayClasses(currentTray);
         currentTray = nextTray;
         setActionTray(nextTray);
       }
@@ -181,32 +168,18 @@ export function ChatWidget({
         return;
       }
 
-      nextTray.classList.add("finished-action-tray");
-
       const directChildren = Array.from(nextTray.children).filter(
         (node): node is HTMLElement => node instanceof HTMLElement,
       );
-      const actionButtons = directChildren.find(
-        (node) => node.classList.contains("flex") && node.classList.contains("flex-wrap") && node.classList.contains("gap-2"),
-      );
-      actionButtons?.classList.add("finished-action-buttons");
-
       const nextDetails = directChildren.find(
-        (node): node is HTMLDetailsElement => node instanceof HTMLDetailsElement && node.classList.contains("group"),
+        (node): node is HTMLDetailsElement => node instanceof HTMLDetailsElement && node.classList.contains("finished-reuse-details"),
       );
-      nextDetails?.classList.add("finished-reuse-details");
       nextTray.classList.toggle("has-reuse-details", Boolean(nextDetails));
-
-      const nextComposer = composer && composer.parentElement === nextTray ? composer : null;
-      nextComposer?.classList.add("finished-chat-composer");
 
       const nextStartOver = directChildren.find(
         (node): node is HTMLButtonElement =>
-          node instanceof HTMLButtonElement &&
-          !node.classList.contains("finished-chat-collapse-toggle") &&
-          (node.textContent?.trim().startsWith("Start ") ?? false),
+          node instanceof HTMLButtonElement && node.classList.contains("finished-start-over-original"),
       );
-      nextStartOver?.classList.add("finished-start-over-original");
 
       if (nextStartOver !== currentStartOver) {
         currentStartOver = nextStartOver ?? null;
@@ -227,7 +200,6 @@ export function ChatWidget({
 
     return () => {
       observer.disconnect();
-      clearTrayClasses(currentTray);
     };
   }, []);
 
@@ -253,7 +225,6 @@ export function ChatWidget({
           onClick={toggleFinishedPanel}
           aria-label={finishControlsCollapsed ? "Open creation window" : "Close creation window"}
           aria-expanded={!finishControlsCollapsed}
-          title={finishControlsCollapsed ? "Open actions" : "Close actions"}
         >
           {finishControlsCollapsed ? (
             <ChevronUp size={17} strokeWidth={2.4} />

@@ -50,6 +50,7 @@ function cleanAudio(value: string) {
 }
 
 export function GenerationCanvas({
+  jobId = null,
   status,
   progress,
   statusMessage,
@@ -63,6 +64,7 @@ export function GenerationCanvas({
   brandMarkUrl = null,
   brandName = null,
 }: {
+  jobId?: string | null;
   status: JobStatus;
   progress: number;
   statusMessage?: string | null;
@@ -88,7 +90,7 @@ export function GenerationCanvas({
   const visibleReferences = referenceItems.slice(0, 6);
 
   useEffect(() => {
-    const id = getActiveJobId();
+    const id = jobId ?? getActiveJobId();
     if (!id) return;
     let active = true;
     void fetchJob(id)
@@ -117,7 +119,7 @@ export function GenerationCanvas({
     return () => {
       active = false;
     };
-  }, []);
+  }, [jobId]);
 
   // Keep the live production panel softly in view while new chat updates are
   // inserted above it. This mirrors ChatGPT-style streaming: older updates move
@@ -166,6 +168,8 @@ export function GenerationCanvas({
       ref={panelRef}
       className="relative w-full overflow-hidden rounded-[18px] border border-white/[.08] bg-[#0d0a18]/95 shadow-[0_20px_56px_-42px_rgba(139,92,246,.72)]"
       aria-label={`${copy.label} generation progress`}
+      aria-live="polite"
+      aria-atomic="false"
     >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_-10%,rgba(139,92,246,.14),transparent_36%),radial-gradient(circle_at_100%_100%,rgba(52,217,196,.055),transparent_28%)]" />
       <div className="relative p-3.5 sm:p-4">
@@ -190,10 +194,10 @@ export function GenerationCanvas({
                   {settled ? phase(status) : "Generating your result"}
                 </p>
                 {!settled && (
-                  <span
-                    className="h-1.5 w-1.5 animate-pulse rounded-full bg-mint shadow-[0_0_10px_rgba(52,217,196,.65)]"
-                    aria-hidden="true"
-                  />
+                  <span className="inline-flex items-center gap-1 rounded-full border border-mint/15 bg-mint/[.06] px-1.5 py-0.5 font-utility text-[7px] uppercase tracking-[.12em] text-mint">
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-mint shadow-[0_0_10px_rgba(52,217,196,.65)]" aria-hidden="true" />
+                    Live
+                  </span>
                 )}
               </div>
               <p className="mt-0.5 truncate text-[9px] text-text-dim">{statusMessage || phase(status)}</p>

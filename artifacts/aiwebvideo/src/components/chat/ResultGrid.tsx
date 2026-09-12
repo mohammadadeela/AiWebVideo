@@ -6,6 +6,11 @@ import { CheckCircle2, Clapperboard, Download, Images, X } from "lucide-react";
 
 const ASPECT_RATIOS = ["9:16", "1:1", "16:9"] as const;
 
+function videoPreviewUrl(url: string) {
+  // Ask mobile browsers for the first real frame without changing a signed URL request.
+  return `${url.split("#", 1)[0]}#t=0.001`;
+}
+
 export function ResultGrid({ assets, onUnlock, sourceKind = "website" }: { assets: JobAsset[]; onUnlock: () => void; sourceKind?: "website" | "studio" | "upload" }) {
   const videos = assets.filter((asset) => asset.type === "video");
   const photos = assets.filter((asset) => asset.type === "photo");
@@ -14,7 +19,6 @@ export function ResultGrid({ assets, onUnlock, sourceKind = "website" }: { asset
   const anyLocked = assets.some((asset) => !asset.downloadable);
   const [activeRatio, setActiveRatio] = useState<(typeof ASPECT_RATIOS)[number]>("16:9");
   const [activePhoto, setActivePhoto] = useState<JobAsset | null>(null);
-  const [videoReady, setVideoReady] = useState(false);
   const activeVideo = videos.find((video) => video.aspectRatio === activeRatio) ?? videos[videos.length - 1];
 
   useEffect(() => {
@@ -24,8 +28,6 @@ export function ResultGrid({ assets, onUnlock, sourceKind = "website" }: { asset
       image.src = photo.url;
     }
   }, [photos.map((photo) => photo.url).join("|")]);
-
-  useEffect(() => { setVideoReady(false); }, [activeVideo?.id]);
 
   useEffect(() => {
     if (!activePhoto) return;
@@ -68,13 +70,12 @@ export function ResultGrid({ assets, onUnlock, sourceKind = "website" }: { asset
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[.07] px-4 py-3.5">
             <div className="flex items-center gap-2.5">
               <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-mint/10 text-mint"><CheckCircle2 size={16} /></span>
-              <div><p className="text-xs font-semibold text-white">Final master is ready</p><p className="text-[9px] text-text-dim">Loaded with an instant preview placeholder</p></div>
+              <div><p className="text-xs font-semibold text-white">Final master is ready</p><p className="text-[9px] text-text-dim">Ready to preview and download</p></div>
             </div>
             <span className="flex items-center gap-1.5 rounded-full border border-white/[.07] bg-white/[.035] px-2.5 py-1 text-[8px] font-semibold uppercase tracking-wider text-text-muted"><Clapperboard size={10} className="text-violet" /> AiWebVideo</span>
           </div>
           <div className="relative min-h-56 overflow-hidden bg-black">
-            {!videoReady && <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-[radial-gradient(circle_at_45%_35%,rgba(139,92,246,.22),transparent_35%),linear-gradient(145deg,#151022,#08070d)]"><div className="generation-soft-flash absolute inset-0" /><span className="relative rounded-full border border-white/10 bg-black/35 px-3 py-2 text-[10px] text-white/80 backdrop-blur">Preparing video preview…</span></div>}
-            <video key={activeVideo.id} src={activeVideo.url} controls playsInline preload="auto" onLoadedData={() => setVideoReady(true)} onCanPlay={() => setVideoReady(true)} className={`max-h-[62vh] min-h-56 w-full bg-black object-contain transition-opacity duration-300 ${videoReady ? "opacity-100" : "opacity-0"}`} />
+            <video key={activeVideo.id} src={videoPreviewUrl(activeVideo.url)} controls playsInline preload="auto" className="max-h-[62vh] min-h-56 w-full bg-black object-contain" />
             <span className="pointer-events-none absolute bottom-14 right-3 rounded-md bg-black/55 px-2 py-1 text-[9px] font-bold tracking-wide text-white/90 backdrop-blur">AiWebVideo</span>
             {activeVideo.downloadable && <button type="button" onClick={() => downloadFile(activeVideo)} aria-label="Download video" className="absolute right-2.5 top-2.5 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur transition hover:bg-black/75"><Download size={16} /></button>}
           </div>
