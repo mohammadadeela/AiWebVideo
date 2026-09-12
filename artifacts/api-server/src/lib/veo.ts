@@ -4,5 +4,5 @@
 // cancellation and partial-refund protections but never uses the 720p Veo
 // extension chain for paid 1080p/4K customer output.
 export * from './veo-base.js';
-export { generateMarketingVideo } from './veo-premium.js';
-export type { GeneratedVideo } from './veo-premium.js';
+export { buildPremiumScenePlan, generateMarketingVideo, premiumSceneOperationCount } from './veo-premium.js';
+export type { GeneratedVideo, PremiumSegmentScene } from './veo-premium.js';
