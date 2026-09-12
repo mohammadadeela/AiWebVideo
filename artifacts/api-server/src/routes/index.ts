@@ -104,11 +104,16 @@ router.get('/assets/:jobId/:filename', async (req, res) => {
 
 // Every ordinary account refresh settles one-time growth grants first. The
 // grants are idempotent and server-owned, so the browser cannot mint credits.
-// A growth bookkeeping failure must never block account access.
+// Refresh the authenticated request snapshot too, so the very first /user/me
+// after signup already returns the 50 customer-facing Starter Credits.
 router.get('/user/me', requireAuth, async (req, _res, next) => {
-  await settleGrowthCredits(req.user!.id).catch((error) => {
-    console.warn(`[growth] could not settle account ${req.user!.id}: ${(error as Error).message}`);
-  });
+  await settleGrowthCredits(req.user!.id)
+    .then((growth) => {
+      if (growth) req.user!.creditsBalance = growth.balanceInternal;
+    })
+    .catch((error) => {
+      console.warn(`[growth] could not settle account ${req.user!.id}: ${(error as Error).message}`);
+    });
   next();
 });
 
