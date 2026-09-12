@@ -9,7 +9,7 @@ export function formatCredits(value: number | undefined) {
   // Customer API balances are already x5. Preserve the old internal 100k
   // "Unlimited" sentinel by moving the display threshold to 500k.
   if (value >= 500_000) return 'Unlimited';
-  return Math.max(0, Math.round(value)).toLocaleString();
+  return Math.round(value).toLocaleString();
 }
 
 export function UserMenu({ email, plan, creditsBalance, isAdmin = false }: { email: string; plan: string; creditsBalance: number; isAdmin?: boolean }) {
