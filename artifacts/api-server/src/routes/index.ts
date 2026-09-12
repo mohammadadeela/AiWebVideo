@@ -131,10 +131,19 @@ const CUSTOMER_CREDIT_FIELDS = new Set([
   'delta',
 ]);
 
+function customerCreditText(value: string): string {
+  return value.replace(/(\d[\d,]*)\s+credits\b/gi, (match, rawNumber: string) => {
+    const numeric = Number(rawNumber.replace(/,/g, ''));
+    if (!Number.isFinite(numeric)) return match;
+    return `${Math.round(numeric * CREDIT_DISPLAY_MULTIPLIER).toLocaleString('en-US')} credits`;
+  });
+}
+
 function customerCreditPayload(value: unknown, key?: string): unknown {
   if (typeof value === 'number' && key && CUSTOMER_CREDIT_FIELDS.has(key)) {
     return Math.round(value * CREDIT_DISPLAY_MULTIPLIER);
   }
+  if (typeof value === 'string') return customerCreditText(value);
   if (Array.isArray(value)) return value.map((item) => customerCreditPayload(item));
   if (value && typeof value === 'object' && !(value instanceof Date)) {
     return Object.fromEntries(
