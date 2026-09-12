@@ -1,19 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { CircleUserRound } from 'lucide-react';
+import { BadgePercent, CircleUserRound } from 'lucide-react';
 import { signOut } from '@/lib/firebase/client';
-import { CREDIT_DISPLAY_MULTIPLIER } from '@/lib/credits';
+import { fetchWelcomeGrowthOffer, formatWelcomeCountdown, type WelcomeGrowthOffer } from '@/lib/growth';
 
 export function formatCredits(value: number | undefined) {
   if (value === undefined) return '—';
   if (value >= 100_000) return 'Unlimited';
-  return Math.round(value * CREDIT_DISPLAY_MULTIPLIER).toLocaleString();
+  return Math.max(0, Math.round(value)).toLocaleString();
 }
 
 export function UserMenu({ email, plan, creditsBalance, isAdmin = false }: { email: string; plan: string; creditsBalance: number; isAdmin?: boolean }) {
   const [open, setOpen] = useState(false);
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
+  const [offer, setOffer] = useState<WelcomeGrowthOffer | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const ref = useRef<HTMLDivElement>(null);
+  const inWorkspace = location.startsWith('/dashboard');
 
   useEffect(() => {
     const close = (event: MouseEvent) => {
@@ -23,6 +26,28 @@ export function UserMenu({ email, plan, creditsBalance, isAdmin = false }: { ema
     return () => document.removeEventListener('mousedown', close);
   }, []);
 
+  useEffect(() => {
+    if (!inWorkspace) return;
+    let cancelled = false;
+    fetchWelcomeGrowthOffer()
+      .then((value) => { if (!cancelled) setOffer(value); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [inWorkspace]);
+
+  useEffect(() => {
+    if (!offer?.active) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [offer?.active]);
+
+  const offerActive = Boolean(
+    inWorkspace &&
+    offer?.active &&
+    offer.discountPercent > 0 &&
+    new Date(offer.expiresAt).getTime() > now,
+  );
+
   async function handleSignOut() {
     await signOut();
     setOpen(false);
@@ -30,7 +55,24 @@ export function UserMenu({ email, plan, creditsBalance, isAdmin = false }: { ema
   }
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative flex items-center gap-2">
+      {inWorkspace && (
+        <Link
+          href="/pricing#buy-credits"
+          className={`group inline-flex min-h-10 items-center gap-2 rounded-xl border px-2.5 text-[11px] font-semibold transition sm:px-3 ${offerActive ? 'border-mint/35 bg-mint/[.08] text-mint hover:bg-mint/[.14]' : 'border-white/10 bg-white/[.035] text-text-muted hover:border-violet/30 hover:bg-violet/[.08] hover:text-white'}`}
+          aria-label={offerActive ? `${offer.discountPercent}% off credit packs` : 'View pricing'}
+        >
+          <BadgePercent size={15} className={offerActive ? 'text-mint' : 'text-violet'} aria-hidden="true" />
+          <span className="hidden sm:inline">Pricing</span>
+          {offerActive && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-mint/25 bg-mint/10 px-2 py-0.5 text-[9px] font-bold text-mint">
+              {offer.discountPercent}% OFF
+              <span className="hidden lg:inline text-mint/75">· {formatWelcomeCountdown(offer.expiresAt, now)}</span>
+            </span>
+          )}
+        </Link>
+      )}
+
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
@@ -41,7 +83,7 @@ export function UserMenu({ email, plan, creditsBalance, isAdmin = false }: { ema
         <CircleUserRound size={23} strokeWidth={1.8} aria-hidden="true" />
       </button>
       {open && (
-        <div className="absolute right-0 z-50 mt-2 w-64 rounded-2xl border border-border bg-panel p-2 shadow-2xl animate-fade-in">
+        <div className="absolute right-0 top-full z-50 mt-2 w-64 rounded-2xl border border-border bg-panel p-2 shadow-2xl animate-fade-in">
           <div className="border-b border-border px-3 py-3">
             <p className="truncate text-sm font-semibold text-text-primary">{email}</p>
             <p className="mt-1 text-xs capitalize text-text-muted">{plan} plan · {formatCredits(creditsBalance)} credits</p>
