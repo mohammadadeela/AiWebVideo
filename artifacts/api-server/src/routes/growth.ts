@@ -7,9 +7,10 @@ import {
   CREDIT_DISPLAY_MULTIPLIER,
   STARTER_CREDITS_INTERNAL,
   STARTER_CREDITS_DISPLAY,
-  WELCOME_DISCOUNT_PERCENT,
+  WELCOME_BONUS_PERCENT,
   WELCOME_OFFER_MS,
   WELCOME_OFFER_PRODUCTS,
+  marginSafeWelcomeBonusCredits,
 } from '../lib/growth-offers.js';
 
 const router = Router();
@@ -23,6 +24,7 @@ type PaidTopupRow = {
   id: string;
   product_id: string | null;
   credits_granted: number;
+  amount_usd: string | number;
   created_at: Date;
 };
 
@@ -52,7 +54,7 @@ export async function settleGrowthCredits(userId: string) {
 
   const offerExpiresAt = new Date(createdAt.getTime() + WELCOME_OFFER_MS);
   const { rows: paidTopups } = await query<PaidTopupRow>(
-    `SELECT id,product_id,credits_granted,created_at
+    `SELECT id,product_id,credits_granted,amount_usd,created_at
        FROM payments
       WHERE user_id=$1
         AND status='paid'
@@ -68,14 +70,20 @@ export async function settleGrowthCredits(userId: string) {
   );
   let bonusInternal = 0;
   let bonusGranted = false;
-  if (qualifying) {
-    bonusInternal = Math.max(1, Math.floor(Number(qualifying.credits_granted) * (WELCOME_DISCOUNT_PERCENT / 100)));
-    bonusGranted = await grantCreditsOnce({
-      key: `growth:welcome20:${qualifying.id}`,
-      userId,
-      credits: bonusInternal,
-      reason: `20% new-account credit bonus for ${qualifying.product_id ?? 'top-up'}`,
+  if (qualifying?.product_id) {
+    bonusInternal = marginSafeWelcomeBonusCredits({
+      productId: qualifying.product_id,
+      amountUsd: Number(qualifying.amount_usd),
+      purchasedInternalCredits: Number(qualifying.credits_granted),
     });
+    if (bonusInternal > 0) {
+      bonusGranted = await grantCreditsOnce({
+        key: `growth:welcome20:${qualifying.id}`,
+        userId,
+        credits: bonusInternal,
+        reason: `20% new-account credit bonus for ${qualifying.product_id}`,
+      });
+    }
   }
 
   const { rows: balances } = await query<{ credits_balance: number }>(
@@ -87,7 +95,7 @@ export async function settleGrowthCredits(userId: string) {
   return {
     active: now < offerExpiresAt.getTime() && !hasPaidQualifyingTopup,
     expiresAt: offerExpiresAt,
-    bonusPercent: WELCOME_DISCOUNT_PERCENT,
+    bonusPercent: WELCOME_BONUS_PERCENT,
     starterCredits: STARTER_CREDITS_DISPLAY,
     bonusCreditsGranted: bonusGranted ? bonusInternal * CREDIT_DISPLAY_MULTIPLIER : 0,
     balanceInternal,
