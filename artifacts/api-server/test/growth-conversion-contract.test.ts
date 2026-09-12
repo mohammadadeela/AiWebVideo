@@ -62,10 +62,12 @@ test('discount guard refuses unsupported products and unsafe economics', () => {
   );
 });
 
-test('growth settlement is authenticated, server-timed and does not grant welcome bonus credits', async () => {
+test('growth settlement is authenticated, first-sign-in timed and does not grant welcome bonus credits', async () => {
   const text = await source('src/routes/growth.ts');
   assert.match(text, /router\.get\('\/welcome', requireAuth/);
-  assert.match(text, /welcome_offer_started_at=COALESCE\(welcome_offer_started_at,NOW\(\)\)/);
+  assert.match(text, /welcome_offer_started_at=NOW\(\)/);
+  assert.match(text, /welcome_offer_started_at IS NULL/);
+  assert.match(text, /created_at >= NOW\(\) - INTERVAL '24 hours'/);
   assert.match(text, /growth:starter:\$\{userId\}/);
   assert.match(text, /discountPercent: WELCOME_DISCOUNT_PERCENT/);
   assert.match(text, /bonusPercent: 0/);
@@ -88,6 +90,7 @@ test('customer API credit quantities are converted to x5 while server accounting
   assert.match(growth, /CREDIT_DISPLAY_MULTIPLIER = 5/);
   assert.match(routes, /CUSTOMER_CREDIT_FIELDS/);
   assert.match(routes, /value \* CREDIT_DISPLAY_MULTIPLIER/);
+  assert.match(routes, /scaleCreditTextNumber/);
   assert.match(routes, /req\.path\.startsWith\('\/admin'\)/);
   assert.match(routes, /req\.path\.startsWith\('\/growth'\)/);
 });
