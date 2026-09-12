@@ -4,6 +4,7 @@ import uploadsRouter from './uploads.js';
 import jobsRouter from './jobs.js';
 import userRouter from './user.js';
 import paypalRouter from './paypal.js';
+import growthRouter, { settleGrowthCredits } from './growth.js';
 import adminRouter from './admin.js';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -12,6 +13,7 @@ import { ASSETS_DIR } from '../lib/capture.js';
 import { getMarketingSettings } from '../lib/marketing.js';
 import { verifyPrivateAssetSignature } from '../lib/asset-access.js';
 import { getR2Object } from '../lib/r2-storage.js';
+import { requireAuth } from '../lib/auth.js';
 
 const router = Router();
 
@@ -100,6 +102,20 @@ router.get('/assets/:jobId/:filename', async (req, res) => {
   }
 });
 
+// Every ordinary account refresh settles one-time growth grants first. The
+// grants are idempotent and server-owned, so the browser cannot mint credits.
+// Refresh the authenticated request snapshot too, so the very first /user/me
+// after signup already returns the 50 customer-facing Starter Credits.
+router.get('/user/me', requireAuth, async (req, _res, next) => {
+  await settleGrowthCredits(req.user!.id)
+    .then((growth) => {
+      if (growth) req.user!.creditsBalance = growth.balanceInternal;
+    })
+    .catch((error) => {
+      console.warn(`[growth] could not settle account ${req.user!.id}: ${(error as Error).message}`);
+    });
+  next();
+});
 
 router.use('/capture', captureRouter);
 router.use('/uploads', uploadsRouter);
@@ -107,6 +123,7 @@ router.use('/jobs', jobsRouter);
 router.use('/user', userRouter);
 router.use('/auth', userRouter);   // /api/auth/login, /register, /firebase
 router.use('/paypal', paypalRouter);
+router.use('/growth', growthRouter);
 router.use('/admin', adminRouter);
 
 export default router;

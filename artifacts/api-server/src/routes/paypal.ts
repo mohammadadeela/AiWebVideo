@@ -6,6 +6,7 @@ import { query } from '../lib/pool.js';
 import { AppError, sendError } from '../lib/errors.js';
 import { grantCreditsOnce } from '../lib/billing.js';
 import { BILLING_CREDIT_PRODUCTS } from '../lib/billing-products.js';
+import { CREDIT_DISPLAY_MULTIPLIER } from '../lib/growth-offers.js';
 import { logger } from '../lib/logger.js';
 import {
   sendCreditPurchaseEmail,
@@ -18,6 +19,10 @@ import {
 
 const router = Router();
 
+function customerCredits(internalCredits: number) {
+  return Math.max(0, Math.round(Number(internalCredits) || 0)) * CREDIT_DISPLAY_MULTIPLIER;
+}
+
 /** The server owns all prices and grants. The browser submits only a product id. */
 export const PRODUCTS = {
   creator: { ...BILLING_CREDIT_PRODUCTS.creator, mode: 'subscription', amountUsd: 39, name: 'Creator' },
@@ -26,9 +31,9 @@ export const PRODUCTS = {
   single8: { ...BILLING_CREDIT_PRODUCTS.single8, mode: 'payment', amountUsd: 9.99, name: 'Quick Video' },
   single48: { ...BILLING_CREDIT_PRODUCTS.single48, mode: 'payment', amountUsd: 52.99, name: 'Full Marketing Video' },
   single144: { ...BILLING_CREDIT_PRODUCTS.single144, mode: 'payment', amountUsd: 149.99, name: 'Extended Video' },
-  topup50: { ...BILLING_CREDIT_PRODUCTS.topup50, mode: 'payment', amountUsd: 14.99, name: '50 Credits' },
-  topup100: { ...BILLING_CREDIT_PRODUCTS.topup100, mode: 'payment', amountUsd: 28.99, name: '100 Credits' },
-  topup250: { ...BILLING_CREDIT_PRODUCTS.topup250, mode: 'payment', amountUsd: 69.99, name: '250 Credits' },
+  topup50: { ...BILLING_CREDIT_PRODUCTS.topup50, mode: 'payment', amountUsd: 14.99, name: '500 Credits' },
+  topup100: { ...BILLING_CREDIT_PRODUCTS.topup100, mode: 'payment', amountUsd: 28.99, name: '1,000 Credits' },
+  topup250: { ...BILLING_CREDIT_PRODUCTS.topup250, mode: 'payment', amountUsd: 69.99, name: '2,500 Credits' },
 } as const;
 
 export type ProductId = keyof typeof PRODUCTS;
@@ -336,7 +341,7 @@ async function ensurePlanIds(productId: string): Promise<Record<SubscriptionProd
       body: {
         product_id: productId,
         name: planName,
-        description: `${product.credits} AiWebVideo credits each month`,
+        description: `${customerCredits(product.credits).toLocaleString('en-US')} AiWebVideo credits each month`,
         status: 'ACTIVE',
         billing_cycles: [{
           frequency: { interval_unit: 'MONTH', interval_count: 1 },
@@ -631,7 +636,7 @@ async function sendOneTimeReceipt(orderId: string, payment: PendingPayment) {
   await sendBillingOnce(`receipt:order:${orderId}`, payment.user_id, 'credit_purchase', (email) =>
     sendCreditPurchaseEmail({
       to: email,
-      credits: payment.credits_granted,
+      credits: customerCredits(payment.credits_granted),
       amountUsd: Number(payment.amount_usd),
       reference: orderId,
     }),
@@ -751,7 +756,7 @@ router.post('/webhook', async (req, res) => {
             ? sendSubscriptionStartedEmail({
                 to: email,
                 plan: matched.product.name,
-                credits: matched.product.credits,
+                credits: customerCredits(matched.product.credits),
                 amountUsd: matched.product.amountUsd,
                 reference: subscriptionId,
                 nextBillingDate,
@@ -759,7 +764,7 @@ router.post('/webhook', async (req, res) => {
             : sendSubscriptionRenewalEmail({
                 to: email,
                 plan: matched.product.name,
-                credits: matched.product.credits,
+                credits: customerCredits(matched.product.credits),
                 amountUsd: matched.product.amountUsd,
                 reference: saleId,
                 nextBillingDate,
