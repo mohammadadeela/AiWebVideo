@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Check, Clock3, Film, Globe2, Image, LoaderCircle, PackageOpen, ShieldCheck, X } from "lucide-react";
 import { fetchJob, request } from "@/lib/api-client";
 import { getActiveJobId } from "@/lib/guestSession";
+import { displayCredits } from "@/lib/credits";
 import type { JobStatus } from "./types";
 import type { CaptureMediaItem } from "./MediaPlanningPanel";
 import {
@@ -239,6 +240,7 @@ export function GenerationCanvas({
 
   const creditsKnown = stopCreditsAtRisk !== null;
   const creditsAtRisk = stopCreditsAtRisk ?? 0;
+  const displayCreditsAtRisk = displayCredits(creditsAtRisk);
   const hasReservedCredits = creditsKnown && creditsAtRisk > 0;
 
   return (
@@ -423,7 +425,7 @@ export function GenerationCanvas({
                       </span>
                     ) : hasReservedCredits ? (
                       <span className="inline-flex rounded-full border border-pink/20 bg-pink/[.09] px-2.5 py-1 text-[11px] font-semibold text-pink">
-                        {creditsAtRisk} credits
+                        {displayCreditsAtRisk.toLocaleString()} credits
                       </span>
                     ) : creditsKnown ? (
                       <span className="text-[11px] font-semibold text-white/75">0 credits</span>
@@ -438,7 +440,7 @@ export function GenerationCanvas({
                     <p className="text-[11px] leading-5 text-white/45">Checking the live reservation before you decide.</p>
                   ) : hasReservedCredits ? (
                     <p className="text-[11px] leading-5 text-white/65">
-                      If you stop now, all <span className="font-semibold text-white">{creditsAtRisk} reserved credits</span> will be lost and will <span className="font-semibold text-pink">not be refunded</span>.
+                      If you stop now, all <span className="font-semibold text-white">{displayCreditsAtRisk.toLocaleString()} reserved credits</span> will be lost and will <span className="font-semibold text-pink">not be refunded</span>.
                     </p>
                   ) : creditsKnown ? (
                     <p className="text-[11px] leading-5 text-white/58">
@@ -475,7 +477,7 @@ export function GenerationCanvas({
                   {stopSubmitting
                     ? "Stopping…"
                     : hasReservedCredits
-                      ? `Stop and lose ${creditsAtRisk} credits`
+                      ? `Stop and lose ${displayCreditsAtRisk.toLocaleString()} credits`
                       : "Stop production"}
                 </button>
               </div>
