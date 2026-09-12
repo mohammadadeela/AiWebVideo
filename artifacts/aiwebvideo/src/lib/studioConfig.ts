@@ -59,7 +59,7 @@ export const STUDIO_CONFIGS: Record<StudioKind, StudioConfig> = {
       'Warm lifestyle scene, product in use outdoors at golden hour',
       'Bold seasonal campaign with festive props and rich color grading',
     ],
-    startingCreditsNote: 'Photo set from 8 credits \u00b7 video from 32 credits for an 8-second premium clip',
+    startingCreditsNote: 'Photo set from 40 credits \u00b7 video from 160 credits for an 8-second premium clip',
   },
   idea: {
     kind: 'idea',
@@ -91,7 +91,7 @@ export const STUDIO_CONFIGS: Record<StudioKind, StudioConfig> = {
       'A cozy coffee shop morning, steam rising from a cup, soft acoustic mood',
       'A futuristic app dashboard coming to life with glowing data visualizations',
     ],
-    startingCreditsNote: 'From 32 credits for an 8-second premium 1080p clip · AI narration adds 6 credits',
+    startingCreditsNote: 'From 160 credits for an 8-second premium 1080p clip · AI narration adds 30 credits',
   },
   scenario: {
     kind: 'scenario',
@@ -123,7 +123,7 @@ export const STUDIO_CONFIGS: Record<StudioKind, StudioConfig> = {
       'Two coworkers chatting by a window about a new productivity app, friendly and natural',
       'A narrator walking through a product\u2019s three best features directly to camera',
     ],
-    startingCreditsNote: 'From 32 credits for an 8-second premium 1080p scenario · optional AI narration adds 6 credits',
+    startingCreditsNote: 'From 160 credits for an 8-second premium 1080p scenario · optional AI narration adds 30 credits',
   },
 };
 

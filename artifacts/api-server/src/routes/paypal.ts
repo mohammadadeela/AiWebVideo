@@ -6,7 +6,12 @@ import { query } from '../lib/pool.js';
 import { AppError, sendError } from '../lib/errors.js';
 import { grantCreditsOnce } from '../lib/billing.js';
 import { BILLING_CREDIT_PRODUCTS } from '../lib/billing-products.js';
-import { CREDIT_DISPLAY_MULTIPLIER } from '../lib/growth-offers.js';
+import {
+  CREDIT_DISPLAY_MULTIPLIER,
+  WELCOME_OFFER_PRODUCTS,
+  marginSafeWelcomePrice,
+} from '../lib/growth-offers.js';
+import { settleGrowthCredits } from './growth.js';
 import { logger } from '../lib/logger.js';
 import {
   sendCreditPurchaseEmail,
@@ -31,9 +36,9 @@ export const PRODUCTS = {
   single8: { ...BILLING_CREDIT_PRODUCTS.single8, mode: 'payment', amountUsd: 9.99, name: 'Quick Video' },
   single48: { ...BILLING_CREDIT_PRODUCTS.single48, mode: 'payment', amountUsd: 52.99, name: 'Full Marketing Video' },
   single144: { ...BILLING_CREDIT_PRODUCTS.single144, mode: 'payment', amountUsd: 149.99, name: 'Extended Video' },
-  topup50: { ...BILLING_CREDIT_PRODUCTS.topup50, mode: 'payment', amountUsd: 14.99, name: '500 Credits' },
-  topup100: { ...BILLING_CREDIT_PRODUCTS.topup100, mode: 'payment', amountUsd: 28.99, name: '1,000 Credits' },
-  topup250: { ...BILLING_CREDIT_PRODUCTS.topup250, mode: 'payment', amountUsd: 69.99, name: '2,500 Credits' },
+  topup50: { ...BILLING_CREDIT_PRODUCTS.topup50, mode: 'payment', amountUsd: 14.99, name: '250 Credits' },
+  topup100: { ...BILLING_CREDIT_PRODUCTS.topup100, mode: 'payment', amountUsd: 28.99, name: '500 Credits' },
+  topup250: { ...BILLING_CREDIT_PRODUCTS.topup250, mode: 'payment', amountUsd: 69.99, name: '1,250 Credits' },
 } as const;
 
 export type ProductId = keyof typeof PRODUCTS;
@@ -428,12 +433,28 @@ router.post('/checkout', requireAuth, async (req, res) => {
       return;
     }
 
+    const growth = WELCOME_OFFER_PRODUCTS.has(plan)
+      ? await settleGrowthCredits(req.user!.id).catch(() => null)
+      : null;
+    const checkoutAmountUsd = growth?.active
+      ? marginSafeWelcomePrice({
+          productId: plan,
+          amountUsd: product.amountUsd,
+          purchasedInternalCredits: product.credits,
+        })
+      : product.amountUsd;
+    const welcomeDiscountApplied = checkoutAmountUsd < product.amountUsd;
+
     const data = await paypalFetch('/v2/checkout/orders', {
       method: 'POST',
       idempotencyKey: `order-${req.user!.id}-${plan}-${randomUUID()}`,
       body: {
         intent: 'CAPTURE',
-        purchase_units: [{ custom_id: req.user!.id, description: `AiWebVideo ${product.name}`, amount: { currency_code: 'USD', value: product.amountUsd.toFixed(2) } }],
+        purchase_units: [{
+          custom_id: req.user!.id,
+          description: `AiWebVideo ${product.name}${welcomeDiscountApplied ? ' · 20% welcome offer' : ''}`,
+          amount: { currency_code: 'USD', value: checkoutAmountUsd.toFixed(2) },
+        }],
         payment_source: { paypal: { experience_context: {
           brand_name: 'AiWebVideo', user_action: 'PAY_NOW',
           return_url: `${appUrl()}/api/paypal/return${jobId ? `?job=${encodeURIComponent(jobId)}` : ''}`,
@@ -447,7 +468,7 @@ router.post('/checkout', requireAuth, async (req, res) => {
     await query(
       `INSERT INTO payments(user_id,provider,provider_ref,kind,amount_usd,currency,credits_granted,plan,product_id,status)
        VALUES ($1,'paypal',$2,'one_time',$3,'USD',$4,$5,$6,'pending') ON CONFLICT(provider,provider_ref) DO NOTHING`,
-      [req.user!.id, orderId, product.amountUsd, product.credits, product.plan, plan],
+      [req.user!.id, orderId, checkoutAmountUsd, product.credits, product.plan, plan],
     );
     res.json({ checkoutUrl: url });
   } catch (error) { sendError(res, error); }

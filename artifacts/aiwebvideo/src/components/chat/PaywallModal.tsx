@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { startCheckout, type CheckoutId } from '@/lib/api-client';
 import { displayCredits, estimateRenderCredits } from '@/lib/credits';
-import { fetchWelcomeGrowthOffer, formatWelcomeCountdown, type WelcomeGrowthOffer } from '@/lib/growth';
+import { discountedPrice, fetchWelcomeGrowthOffer, formatUsd, formatWelcomeCountdown, type WelcomeGrowthOffer } from '@/lib/growth';
 
 const PAYWALL_PLANS = [
   { id: 'creator' as const, name: 'Creator', price: 39, credits: 150, pitch: 'For regular creators', highlight: false },
@@ -17,9 +17,9 @@ const VIDEO_PACKS = [
 ];
 
 const CREDIT_PACKS = [
-  { id: 'topup50' as const, credits: 50, price: '$14.99', note: 'Quick refill' },
-  { id: 'topup100' as const, credits: 100, price: '$28.99', note: 'Small production balance' },
-  { id: 'topup250' as const, credits: 250, price: '$69.99', note: 'For several productions' },
+  { id: 'topup50' as const, credits: 50, amountUsd: 14.99, note: 'Quick refill' },
+  { id: 'topup100' as const, credits: 100, amountUsd: 28.99, note: 'Small production balance' },
+  { id: 'topup250' as const, credits: 250, amountUsd: 69.99, note: 'For several productions' },
 ];
 
 type Tab = 'plans' | 'credits' | 'video';
@@ -47,17 +47,19 @@ export function PaywallModal({
     return () => window.clearInterval(timer);
   }, [welcomeOffer?.active]);
 
-  const offerActive = Boolean(welcomeOffer?.active && new Date(welcomeOffer.expiresAt).getTime() > now);
-  const bonusPercent = offerActive ? welcomeOffer?.bonusPercent ?? 0 : 0;
-  const packGrant = (credits: number) => credits + Math.floor(credits * bonusPercent / 100);
+  const offerActive = Boolean(
+    welcomeOffer?.active &&
+    welcomeOffer.discountPercent > 0 &&
+    new Date(welcomeOffer.expiresAt).getTime() > now,
+  );
   const requiredCredits = estimateRenderCredits(mode, skipVoiceover, durationSeconds, outputQuality);
   const fundedCredits = currentBalance + reservedCredits;
   const shortfall = Math.max(0, requiredCredits - fundedCredits);
   const eligibleVideoPacks = useMemo(() => mode !== 'photos' && mode !== 'icon' && mode !== 'both' && outputQuality === '1080p'
-    ? VIDEO_PACKS.filter((pack) => fundedCredits + pack.credits >= requiredCredits)
+    ? VIDEO_PACKS.filter((pack) => fundedCredits + displayCredits(pack.credits) >= requiredCredits)
     : [], [fundedCredits, mode, outputQuality, requiredCredits]);
-  const bestCreditPackId = useMemo(() => CREDIT_PACKS.find((pack) => fundedCredits + packGrant(pack.credits) >= requiredCredits)?.id ?? null, [bonusPercent, fundedCredits, requiredCredits]);
-  const eligiblePlans = useMemo(() => PAYWALL_PLANS.filter((plan) => fundedCredits + plan.credits >= requiredCredits), [fundedCredits, requiredCredits]);
+  const bestCreditPackId = useMemo(() => CREDIT_PACKS.find((pack) => fundedCredits + displayCredits(pack.credits) >= requiredCredits)?.id ?? null, [fundedCredits, requiredCredits]);
+  const eligiblePlans = useMemo(() => PAYWALL_PLANS.filter((plan) => fundedCredits + displayCredits(plan.credits) >= requiredCredits), [fundedCredits, requiredCredits]);
 
   async function choose(planId: CheckoutId) {
     setError(null); setLoading(planId);
@@ -75,10 +77,17 @@ export function PaywallModal({
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="font-display text-lg font-bold text-white">{context ?? 'Choose how to continue'}</p>
-            <p className="mt-1 text-xs leading-5 text-text-muted">This production needs {displayCredits(requiredCredits)} credits. Your available balance is {displayCredits(currentBalance)}{reservedCredits ? ` · ${displayCredits(reservedCredits)} already reserved for this production` : ''}{shortfall ? ` · ${displayCredits(shortfall)} more needed` : ''}. Website preview/screenshots stay free; paid AI/provider work starts only after the credit gate passes.</p>
+            <p className="mt-1 text-xs leading-5 text-text-muted">This production needs {requiredCredits.toLocaleString()} credits. Your available balance is {currentBalance.toLocaleString()}{reservedCredits ? ` · ${reservedCredits.toLocaleString()} already reserved for this production` : ''}{shortfall ? ` · ${shortfall.toLocaleString()} more needed` : ''}. Website preview/screenshots stay free; paid AI/provider work starts only after the credit gate passes.</p>
           </div>
           <button type="button" onClick={onClose} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 text-base text-text-muted hover:bg-white/5 hover:text-white" aria-label="Close">×</button>
         </div>
+
+        {offerActive && (
+          <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-mint/25 bg-mint/[.07] px-3 py-2 text-[11px]">
+            <span className="font-semibold text-mint">{welcomeOffer.discountPercent}% off credit packs</span>
+            <span className="font-utility text-mint/80">{formatWelcomeCountdown(welcomeOffer.expiresAt, now)} left</span>
+          </div>
+        )}
 
         <div className="mt-4 grid grid-cols-3 gap-1 rounded-2xl border border-white/10 bg-black/20 p-1">
           {([['plans','Plans'],['credits','Buy credits'],['video','Buy video']] as const).map(([id,label]) => (
@@ -89,21 +98,26 @@ export function PaywallModal({
         {tab === 'credits' && (
           <div className="mt-4 space-y-2.5">
             {CREDIT_PACKS.map((pack) => {
-              const baseDisplay = displayCredits(pack.credits);
-              const grantedInternal = packGrant(pack.credits);
-              const grantedDisplay = displayCredits(grantedInternal);
-              const bonusDisplay = Math.max(0, grantedDisplay - baseDisplay);
+              const packCredits = displayCredits(pack.credits);
+              const discounted = offerActive && welcomeOffer.eligibleProducts.includes(pack.id)
+                ? discountedPrice(pack.amountUsd, welcomeOffer.discountPercent)
+                : pack.amountUsd;
+              const hasDiscount = discounted < pack.amountUsd;
               return (
                 <button key={pack.id} onClick={() => choose(pack.id)} disabled={loading !== null} className={`flex w-full items-center justify-between rounded-2xl border p-4 text-left transition disabled:opacity-50 ${bestCreditPackId === pack.id ? 'border-mint/45 bg-mint/[.07]' : 'border-white/10 bg-white/[.025] hover:border-mint/30'}`}>
                   <div>
-                    <p className="text-sm font-bold text-white">{grantedDisplay.toLocaleString()} credits {bestCreditPackId === pack.id && <span className="ml-2 rounded-full border border-mint/25 bg-mint/10 px-2 py-0.5 text-[9px] font-semibold text-mint">Best fit</span>}</p>
-                    <p className="mt-1 text-xs text-text-muted">{pack.note}{offerActive && bonusDisplay > 0 ? ` · ${baseDisplay.toLocaleString()} + ${bonusDisplay.toLocaleString()} welcome bonus · ${formatWelcomeCountdown(welcomeOffer?.expiresAt, now)} left` : ''} · one-time · no subscription</p>
+                    <p className="text-sm font-bold text-white">{packCredits.toLocaleString()} credits {bestCreditPackId === pack.id && <span className="ml-2 rounded-full border border-mint/25 bg-mint/10 px-2 py-0.5 text-[9px] font-semibold text-mint">Best fit</span>}</p>
+                    <p className="mt-1 text-xs text-text-muted">{pack.note} · one-time · no subscription</p>
                   </div>
-                  <div className="text-right"><p className="font-display text-xl font-bold text-white">{pack.price}</p><p className="text-[10px] font-semibold text-mint">Buy</p></div>
+                  <div className="text-right">
+                    {hasDiscount && <p className="text-[10px] text-text-dim line-through">{formatUsd(pack.amountUsd)}</p>}
+                    <p className="font-display text-xl font-bold text-white">{formatUsd(discounted)}</p>
+                    <p className={`text-[10px] font-semibold ${hasDiscount ? 'text-mint' : 'text-text-dim'}`}>{hasDiscount ? `${welcomeOffer.discountPercent}% OFF` : 'Buy'}</p>
+                  </div>
                 </button>
               );
             })}
-            {shortfall > 250 && <p className="rounded-xl border border-white/10 bg-white/[.03] p-3 text-[11px] leading-5 text-text-muted">This setup needs {displayCredits(shortfall)} additional credits. You can combine top-ups or choose a monthly plan with a larger balance.</p>}
+            {shortfall > displayCredits(250) && <p className="rounded-xl border border-white/10 bg-white/[.03] p-3 text-[11px] leading-5 text-text-muted">This setup needs {shortfall.toLocaleString()} additional credits. You can combine top-ups or choose a monthly plan with a larger balance.</p>}
           </div>
         )}
 
@@ -113,13 +127,13 @@ export function PaywallModal({
               <button key={pack.id} onClick={() => choose(pack.id)} disabled={loading !== null} className={`flex w-full items-center justify-between rounded-2xl border p-4 text-left transition disabled:opacity-50 ${index === 0 ? 'border-violet/45 bg-violet/[.08]' : 'border-white/10 bg-white/[.025] hover:border-violet/30'}`}>
                 <div>
                   <p className="text-sm font-bold text-white">{pack.name} {index === 0 && <span className="ml-2 rounded-full border border-violet/25 bg-violet/10 px-2 py-0.5 text-[9px] font-semibold text-violet">Best fit</span>}</p>
-                  <p className="mt-1 text-xs text-text-muted">{pack.label} · {displayCredits(pack.credits)} credits added · no subscription</p>
+                  <p className="mt-1 text-xs text-text-muted">{pack.label} · {displayCredits(pack.credits).toLocaleString()} credits added · no subscription</p>
                 </div>
                 <div className="text-right"><p className="font-display text-xl font-bold text-white">{pack.price}</p><p className="text-[10px] font-semibold text-mint">Buy</p></div>
               </button>
             )) : (
               <div className="rounded-2xl border border-white/10 bg-white/[.03] p-4 text-sm leading-6 text-text-muted">
-                One-video packs are for supported 1080p setups up to 144 seconds. This setup needs {displayCredits(requiredCredits)} credits, so use <button type="button" onClick={() => setTab('credits')} className="font-semibold text-mint">Buy credits</button> or <button type="button" onClick={() => setTab('plans')} className="font-semibold text-violet">Plans</button> to keep these exact settings.
+                One-video packs are for supported 1080p setups up to 144 seconds. This setup needs {requiredCredits.toLocaleString()} credits, so use <button type="button" onClick={() => setTab('credits')} className="font-semibold text-mint">Buy credits</button> or <button type="button" onClick={() => setTab('plans')} className="font-semibold text-violet">Plans</button> to keep these exact settings.
               </div>
             )}
           </div>

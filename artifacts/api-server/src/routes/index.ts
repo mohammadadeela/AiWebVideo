@@ -14,6 +14,7 @@ import { getMarketingSettings } from '../lib/marketing.js';
 import { verifyPrivateAssetSignature } from '../lib/asset-access.js';
 import { getR2Object } from '../lib/r2-storage.js';
 import { requireAuth } from '../lib/auth.js';
+import { CREDIT_DISPLAY_MULTIPLIER } from '../lib/growth-offers.js';
 
 const router = Router();
 
@@ -102,10 +103,81 @@ router.get('/assets/:jobId/:filename', async (req, res) => {
   }
 });
 
+/**
+ * Customer APIs speak one consistent x5 credit denomination. Internally all
+ * database balances, reservations and provider authorization continue to use
+ * the original smaller unit. Admin and growth endpoints stay raw/explicit.
+ */
+const CUSTOMER_CREDIT_FIELDS = new Set([
+  'creditsBalance',
+  'creditsSpent',
+  'creditsRemaining',
+  'creditsGranted',
+  'totalCredits',
+  'perSecondCredits',
+  'videoCredits',
+  'photoCredits',
+  'narrationCredits',
+  'balance',
+  'reservedCredits',
+  'additionalRequired',
+  'shortfall',
+  'requiredCredits',
+  'refundedCredits',
+  'chargedCredits',
+  'creditsLost',
+  'creditsUsed',
+  'creditsAdded',
+  'delta',
+]);
+
+function scaleCreditTextNumber(rawNumber: string): string {
+  const numeric = Number(rawNumber.replace(/,/g, ''));
+  return Number.isFinite(numeric)
+    ? Math.round(numeric * CREDIT_DISPLAY_MULTIPLIER).toLocaleString('en-US')
+    : rawNumber;
+}
+
+function customerCreditText(value: string): string {
+  if (!/\bcredits?\b/i.test(value)) return value;
+  return value
+    .replace(/(\d[\d,]*)\s+credits\b/gi, (_match, rawNumber: string) => `${scaleCreditTextNumber(rawNumber)} credits`)
+    .replace(/\b(You have)\s+(\d[\d,]*)\b/gi, (_match, prefix: string, rawNumber: string) => `${prefix} ${scaleCreditTextNumber(rawNumber)}`)
+    .replace(/\b(add)\s+(\d[\d,]*)\s+more\b/gi, (_match, prefix: string, rawNumber: string) => `${prefix} ${scaleCreditTextNumber(rawNumber)} more`)
+    .replace(/\b(you need)\s+(\d[\d,]*)\s+more\b/gi, (_match, prefix: string, rawNumber: string) => `${prefix} ${scaleCreditTextNumber(rawNumber)} more`);
+}
+
+function customerCreditPayload(value: unknown, key?: string): unknown {
+  if (typeof value === 'number' && key && CUSTOMER_CREDIT_FIELDS.has(key)) {
+    return Math.round(value * CREDIT_DISPLAY_MULTIPLIER);
+  }
+  if (typeof value === 'string') return customerCreditText(value);
+  if (Array.isArray(value)) return value.map((item) => customerCreditPayload(item));
+  if (value && typeof value === 'object' && !(value instanceof Date)) {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([childKey, childValue]) => [
+        childKey,
+        customerCreditPayload(childValue, childKey),
+      ]),
+    );
+  }
+  return value;
+}
+
+router.use((req, res, next) => {
+  if (req.path.startsWith('/admin') || req.path.startsWith('/growth')) {
+    next();
+    return;
+  }
+  const sendJson = res.json.bind(res);
+  res.json = ((body: unknown) => sendJson(customerCreditPayload(body))) as typeof res.json;
+  next();
+});
+
 // Every ordinary account refresh settles one-time growth grants first. The
 // grants are idempotent and server-owned, so the browser cannot mint credits.
-// Refresh the authenticated request snapshot too, so the very first /user/me
-// after signup already returns the 50 customer-facing Starter Credits.
+// Refresh the authenticated request snapshot too, so the first /user/me after
+// signup already returns the Starter Credits in the customer denomination.
 router.get('/user/me', requireAuth, async (req, _res, next) => {
   await settleGrowthCredits(req.user!.id)
     .then((growth) => {
