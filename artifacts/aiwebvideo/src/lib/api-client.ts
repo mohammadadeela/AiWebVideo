@@ -186,8 +186,36 @@ export function requestRenderQuote(jobId: string, audioMode: AudioMode = 'voice_
   return request<RenderCreditQuote>(`/api/jobs/${jobId}/quote`, { method: 'POST', body: JSON.stringify({ audioMode }) });
 }
 
-export function cancelJob(jobId: string) {
-  return request<{ cancelling: boolean; immediate: boolean }>(`/api/jobs/${jobId}/cancel`, { method: 'POST', body: '{}' });
+/**
+ * Stop is destructive once paid AI production has started. Read the live job
+ * first so the user sees the exact reserved-credit amount before confirming.
+ * The backend remains authoritative; this warning is UX protection, not the
+ * billing enforcement itself.
+ */
+export async function cancelJob(jobId: string) {
+  let creditsAtRisk = 0;
+  try {
+    const current = await fetchJob(jobId);
+    creditsAtRisk = Math.max(0, Math.round(current.creditsSpent ?? 0));
+  } catch {
+    // The cancellation endpoint still performs ownership/status validation.
+    // If the preview read fails, show the conservative warning below.
+  }
+
+  if (typeof window !== 'undefined') {
+    const warning = creditsAtRisk > 0
+      ? `Stop this production?\n\nThis production has already reserved ${creditsAtRisk} credits. If you stop now, all ${creditsAtRisk} credits will be lost and will NOT be refunded.\n\nContinue stopping?`
+      : 'Stop this process?\n\nNo paid generation credits are currently reserved. If paid AI generation starts before the stop is processed, those reserved credits are not refundable.\n\nContinue stopping?';
+    if (!window.confirm(warning)) {
+      throw new ApiError('Cancellation not confirmed. Your production is still running.', 409, 'CANCEL_NOT_CONFIRMED');
+    }
+  }
+
+  const result = await request<{ cancelling: boolean; immediate: boolean }>(`/api/jobs/${jobId}/cancel`, {
+    method: 'POST',
+    body: '{}',
+  });
+  return { ...result, creditsLost: creditsAtRisk };
 }
 
 export function fetchJob(jobId: string) {
