@@ -16,7 +16,7 @@ type QueueItem<T> = {
   jobId: string;
   ownerKey: string;
   enqueuedAt: number;
-  firstEnqueuedAt: number;
+  rateLimitStartedAt: number | null;
   attempt: number;
   task: () => Promise<T>;
   resolve: (value: T) => void;
@@ -286,15 +286,18 @@ async function drain(kind: ProviderQueueKind, model: string) {
           const maxRetries = maxRateLimitRetries(kind);
           if (item.attempt < maxRetries && isRateLimitError(error)) {
             const delayMs = retryAfterMs(error, item.attempt, kind);
-            const totalWaitAfterDelay = Date.now() + delayMs - item.firstEnqueuedAt;
-            if (totalWaitAfterDelay > maxRateLimitWaitMs(kind)) {
+            const now = Date.now();
+            const rateLimitStartedAt = item.rateLimitStartedAt ?? now;
+            item.rateLimitStartedAt = rateLimitStartedAt;
+            const throttledWaitAfterDelay = now + delayMs - rateLimitStartedAt;
+            if (throttledWaitAfterDelay > maxRateLimitWaitMs(kind)) {
               item.reject(new Error(
                 `Provider ${kind} capacity stayed rate-limited beyond the safe queue window. No further generation submission was attempted. ${errorText(error)}`,
               ));
             } else {
               item.attempt += 1;
-              item.enqueuedAt = Date.now();
-              state.blockedUntil = Math.max(state.blockedUntil, Date.now() + delayMs);
+              item.enqueuedAt = now;
+              state.blockedUntil = Math.max(state.blockedUntil, now + delayMs);
               state.waiting.push(item);
               logger.warn({ kind, model, operation: item.operation, jobId: item.jobId, delayMs, attempt: item.attempt, maxRetries }, '[provider-queue] provider rate limited; queued with safe backoff');
               void publishQueueStatus(item, state.waiting.length, delayMs);
@@ -336,7 +339,7 @@ export async function runQueuedProviderCall<T>(input: {
       jobId: input.jobId,
       ownerKey,
       enqueuedAt: now,
-      firstEnqueuedAt: now,
+      rateLimitStartedAt: null,
       attempt: 0,
       task: input.task,
       resolve,
