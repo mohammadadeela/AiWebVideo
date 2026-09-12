@@ -26,7 +26,7 @@ type PaidTopupRow = {
   created_at: Date;
 };
 
-async function settleGrowthCredits(userId: string) {
+export async function settleGrowthCredits(userId: string) {
   const { rows: users } = await query<UserGrowthRow>(
     'SELECT created_at FROM users WHERE id=$1 LIMIT 1',
     [userId],
