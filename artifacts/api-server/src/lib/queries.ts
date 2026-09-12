@@ -22,8 +22,8 @@ const GENERIC_READY_MESSAGE = 'Your production is ready to view and download.';
  * customer cancellation into an operator/provider loss.
  *
  * Genuine provider failures, interrupted-server recovery, partial delivery,
- * missing narration, and every other non-user cancellation keep using the
- * normal refund path unchanged.
+ * missing narration, and every other non-user failure keep using the normal
+ * refund path unchanged.
  */
 function isUserRequestedCancellationRefund(reason: string) {
   return /^Cancelled (?:render refund|before production)\b/i.test(reason.trim());
@@ -51,24 +51,40 @@ export async function refundJobCredits(
 
 /**
  * Existing render/storyboard cancellation paths used to zero credits_spent
- * after refunding. The refund wrapper above deliberately keeps the charge, so
- * also keep the authoritative job spend and replace stale "credits restored"
- * status text with the exact amount that was consumed.
+ * after refunding. Keep the authoritative spend instead. A cancellation can
+ * also race into an older generic `failed` catch after the queue notices
+ * cancel_requested; normalize that settlement back to `cancelled` so the UI
+ * never claims a user-cancelled job failed or had credits restored.
  */
 export async function updateJob(
   id: string,
   patch: Parameters<typeof updateJobBase>[1],
 ): ReturnType<typeof updateJobBase> {
-  if (patch.status === 'cancelled' && patch.credits_spent === 0) {
+  if ((patch.status === 'cancelled' || patch.status === 'failed') && patch.credits_spent === 0) {
     const current = await getJob(id);
-    const chargedCredits = Math.max(0, current?.credits_spent ?? 0);
-    const { credits_spent: _legacyReset, ...rest } = patch;
-    return updateJobBase(id, {
-      ...rest,
-      status_message: chargedCredits > 0
-        ? `Cancelled · ${chargedCredits} credits used · not refundable after Stop`
-        : 'Cancelled',
-    });
+    const isUserCancellation = Boolean(current?.cancel_requested) || patch.status === 'cancelled';
+    if (isUserCancellation) {
+      const chargedCredits = Math.max(0, current?.credits_spent ?? 0);
+      const {
+        credits_spent: _legacyReset,
+        error_message: _legacyRefundError,
+        status: _legacyStatus,
+        progress: _legacyProgress,
+        status_message: _legacyStatusMessage,
+        eta_seconds: _legacyEta,
+        ...rest
+      } = patch;
+      return updateJobBase(id, {
+        ...rest,
+        status: 'cancelled',
+        progress: 0,
+        eta_seconds: 0,
+        error_message: null,
+        status_message: chargedCredits > 0
+          ? `Cancelled · ${chargedCredits} credits used · not refundable after Stop`
+          : 'Cancelled',
+      });
+    }
   }
   return updateJobBase(id, patch);
 }
