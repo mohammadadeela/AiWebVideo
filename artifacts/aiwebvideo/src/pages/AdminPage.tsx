@@ -196,7 +196,7 @@ function UserRow({
 function UserDetailsModal({ details, loading, onClose }: { details: { user: Row; subscriptions: Row[]; payments: Row[]; credits: Row[]; productions: Row[] } | null; loading: boolean; onClose: () => void }) {
   const user = details?.user ?? {};
   return (
-    <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/70 p-3 backdrop-blur-sm sm:p-6" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <div role="dialog" aria-modal="true" aria-label="User details" className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/70 p-3 backdrop-blur-sm sm:p-6" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <div className="my-6 w-full max-w-6xl overflow-hidden rounded-[28px] border border-white/10 bg-[#120d23] shadow-2xl">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-[#120d23]/95 px-5 py-4 backdrop-blur-xl">
           <div><p className="font-utility text-[9px] uppercase tracking-[.16em] text-violet">User management</p><h2 className="mt-1 font-display text-xl font-bold text-text-primary">{loading ? 'Loading account…' : text(user.email)}</h2></div>
