@@ -1,10 +1,12 @@
-// Re-export the established query layer unchanged, with one completion wrapper
-// that turns saved partial-delivery metadata into the final user-facing result.
+// Re-export the established query layer unchanged, with focused wrappers for
+// partial delivery and user-requested cancellation billing.
 export * from './queries-base.js';
 
 import {
   completeJobWithResult as completeJobWithResultBase,
   getJob,
+  refundJobCredits as refundJobCreditsBase,
+  updateJob as updateJobBase,
 } from './queries-base.js';
 import {
   partialDeliveryResultMessage,
@@ -12,6 +14,59 @@ import {
 } from './partial-delivery.js';
 
 const GENERIC_READY_MESSAGE = 'Your production is ready to view and download.';
+
+/**
+ * A user choosing Stop after paid AI production has started does not refund the
+ * production reservation. Provider work may already have started (or may be
+ * impossible to cancel remotely), so keeping the reservation avoids turning a
+ * customer cancellation into an operator/provider loss.
+ *
+ * Genuine provider failures, interrupted-server recovery, partial delivery,
+ * missing narration, and every other non-user cancellation keep using the
+ * normal refund path unchanged.
+ */
+function isUserRequestedCancellationRefund(reason: string) {
+  return /^Cancelled (?:render refund|before production)\b/i.test(reason.trim());
+}
+
+export async function refundJobCredits(
+  jobId: string,
+  userId: string,
+  requestedAmount: number,
+  reason: string,
+): Promise<number> {
+  if (isUserRequestedCancellationRefund(reason)) {
+    console.info(
+      `[credits] cancellation keeps reservation job=${jobId} user=${userId} amount=${Math.max(0, requestedAmount)} reason=${reason}`,
+    );
+    return 0;
+  }
+  return refundJobCreditsBase(jobId, userId, requestedAmount, reason);
+}
+
+/**
+ * Existing render/storyboard cancellation paths used to zero credits_spent
+ * after refunding. The refund wrapper above deliberately keeps the charge, so
+ * also keep the authoritative job spend and replace stale "credits restored"
+ * status text with the exact amount that was consumed.
+ */
+export async function updateJob(
+  id: string,
+  patch: Parameters<typeof updateJobBase>[1],
+): ReturnType<typeof updateJobBase> {
+  if (patch.status === 'cancelled' && patch.credits_spent === 0) {
+    const current = await getJob(id);
+    const chargedCredits = Math.max(0, current?.credits_spent ?? 0);
+    const { credits_spent: _legacyReset, ...rest } = patch;
+    return updateJobBase(id, {
+      ...rest,
+      status_message: chargedCredits > 0
+        ? `Cancelled · ${chargedCredits} credits used · not refundable after Stop`
+        : 'Cancelled',
+    });
+  }
+  return updateJobBase(id, patch);
+}
 
 export async function completeJobWithResult(
   jobId: string,
