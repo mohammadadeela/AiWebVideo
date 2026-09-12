@@ -13,7 +13,7 @@ import {
 } from '../lib/growth-offers.js';
 
 const router = Router();
-const STARTER_ELIGIBILITY_MS = 24 * 60 * 60 * 1000;
+const NEW_ACCOUNT_ELIGIBILITY_MS = 24 * 60 * 60 * 1000;
 let growthSchemaReady: Promise<void> | null = null;
 
 type UserGrowthRow = {
@@ -33,17 +33,22 @@ export function ensureGrowthOfferSchema(): Promise<void> {
 
 /**
  * Starts the five-minute offer exactly once on the first authenticated account
- * refresh after sign-in. The timestamp is server-owned and can never be reset
- * by refreshing, changing tabs, clearing browser storage, or editing the UI.
+ * refresh for a newly-created account. Existing/old accounts do not suddenly
+ * receive a welcome offer after a deploy. The timestamp is server-owned and
+ * cannot be reset by refreshing, changing tabs or clearing browser storage.
  */
 async function getOrStartWelcomeWindow(userId: string): Promise<UserGrowthRow | null> {
   await ensureGrowthOfferSchema();
-  const { rows } = await query<UserGrowthRow>(
+  await query(
     `UPDATE users
-        SET welcome_offer_started_at=COALESCE(welcome_offer_started_at,NOW()),
-            updated_at=NOW()
+        SET welcome_offer_started_at=NOW(),updated_at=NOW()
       WHERE id=$1
-      RETURNING created_at,welcome_offer_started_at`,
+        AND welcome_offer_started_at IS NULL
+        AND created_at >= NOW() - INTERVAL '24 hours'`,
+    [userId],
+  );
+  const { rows } = await query<UserGrowthRow>(
+    'SELECT created_at,welcome_offer_started_at FROM users WHERE id=$1 LIMIT 1',
     [userId],
   );
   return rows[0] ?? null;
@@ -51,16 +56,16 @@ async function getOrStartWelcomeWindow(userId: string): Promise<UserGrowthRow | 
 
 export async function settleGrowthCredits(userId: string) {
   const user = await getOrStartWelcomeWindow(userId);
-  if (!user?.welcome_offer_started_at) return null;
+  if (!user) return null;
 
   const createdAt = new Date(user.created_at);
-  const offerStartedAt = new Date(user.welcome_offer_started_at);
   const now = Date.now();
   const accountAgeMs = Math.max(0, now - createdAt.getTime());
+  const newAccount = accountAgeMs <= NEW_ACCOUNT_ELIGIBILITY_MS;
 
   // Starter Credits are real account credits, but deliberately remain below
   // the cheapest paid generation so they cannot trigger a provider call alone.
-  if (accountAgeMs <= STARTER_ELIGIBILITY_MS) {
+  if (newAccount) {
     await grantCreditsOnce({
       key: `growth:starter:${userId}`,
       userId,
@@ -69,7 +74,10 @@ export async function settleGrowthCredits(userId: string) {
     });
   }
 
-  const offerExpiresAt = new Date(offerStartedAt.getTime() + WELCOME_OFFER_MS);
+  const offerStartedAt = user.welcome_offer_started_at ? new Date(user.welcome_offer_started_at) : null;
+  const offerExpiresAt = offerStartedAt
+    ? new Date(offerStartedAt.getTime() + WELCOME_OFFER_MS)
+    : createdAt;
   const { rows: balances } = await query<{ credits_balance: number }>(
     'SELECT credits_balance FROM users WHERE id=$1 LIMIT 1',
     [userId],
@@ -77,7 +85,7 @@ export async function settleGrowthCredits(userId: string) {
   const balanceInternal = Math.max(0, Number(balances[0]?.credits_balance ?? 0));
 
   return {
-    active: now < offerExpiresAt.getTime(),
+    active: Boolean(newAccount && offerStartedAt && now < offerExpiresAt.getTime()),
     startedAt: offerStartedAt,
     expiresAt: offerExpiresAt,
     discountPercent: WELCOME_DISCOUNT_PERCENT,
