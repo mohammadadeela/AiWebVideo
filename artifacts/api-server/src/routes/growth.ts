@@ -78,6 +78,11 @@ async function settleGrowthCredits(userId: string) {
     });
   }
 
+  const { rows: balances } = await query<{ credits_balance: number }>(
+    'SELECT credits_balance FROM users WHERE id=$1 LIMIT 1',
+    [userId],
+  );
+  const balanceInternal = Math.max(0, Number(balances[0]?.credits_balance ?? 0));
   const hasPaidQualifyingTopup = Boolean(qualifying);
   return {
     active: now < offerExpiresAt.getTime() && !hasPaidQualifyingTopup,
@@ -85,6 +90,8 @@ async function settleGrowthCredits(userId: string) {
     bonusPercent: WELCOME_DISCOUNT_PERCENT,
     starterCredits: STARTER_CREDITS_DISPLAY,
     bonusCreditsGranted: bonusGranted ? bonusInternal * CREDIT_DISPLAY_MULTIPLIER : 0,
+    balanceInternal,
+    balanceDisplay: balanceInternal * CREDIT_DISPLAY_MULTIPLIER,
     eligibleProducts: Array.from(WELCOME_OFFER_PRODUCTS),
   };
 }
