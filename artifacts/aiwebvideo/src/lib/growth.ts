@@ -1,10 +1,11 @@
 import { request } from './api-client';
-import { displayCredits } from './credits';
 
 export interface WelcomeGrowthOffer {
   active: boolean;
+  startedAt?: string;
   expiresAt: string;
-  bonusPercent: number;
+  discountPercent: number;
+  bonusPercent?: number;
   starterCredits: number;
   bonusCreditsGranted: number;
   balanceInternal: number;
@@ -16,9 +17,14 @@ export async function fetchWelcomeGrowthOffer(): Promise<WelcomeGrowthOffer> {
   return request<WelcomeGrowthOffer>('/api/growth/welcome', { method: 'GET' });
 }
 
-export function welcomeBonusDisplayCredits(internalCredits: number, percent: number): number {
-  const bonusInternal = Math.max(0, Math.floor(internalCredits * (Math.max(0, percent) / 100)));
-  return displayCredits(bonusInternal);
+export function discountedPrice(amountUsd: number, percent: number): number {
+  const safeAmount = Math.max(0, Number(amountUsd) || 0);
+  const safePercent = Math.max(0, Math.min(100, Number(percent) || 0));
+  return Math.round((safeAmount * (1 - safePercent / 100) + Number.EPSILON) * 100) / 100;
+}
+
+export function formatUsd(amountUsd: number): string {
+  return `$${Math.max(0, Number(amountUsd) || 0).toFixed(2)}`;
 }
 
 export function formatWelcomeCountdown(expiresAt: string | null | undefined, now = Date.now()): string {
