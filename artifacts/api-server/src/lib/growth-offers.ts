@@ -1,3 +1,6 @@
+import { GEMINI_COST_CATALOG } from './costs.js';
+import { CREDIT_COSTS } from './credits.js';
+
 /** Internal credits remain the accounting/security unit. UI displays x10. */
 export const CREDIT_DISPLAY_MULTIPLIER = 10;
 /** New users receive 5 internal credits = 50 customer-facing credits. */
@@ -10,13 +13,18 @@ export const WELCOME_BONUS_PERCENT = 20;
 
 /**
  * Conservative economics guard.
- * Premium 1080p/4K currently tops out around $0.10 provider cost per internal
- * credit. Before issuing promotional credits we reserve 10% of checkout
- * revenue for payment/refund overhead, then require the remaining revenue to
- * cover at least 2x the worst-case provider cost of every spendable credit,
+ * Derive the most expensive premium-video provider cost per internal credit
+ * from the same cost catalog and credit schedule used by production, then add
+ * 3% for small planning/TTS/provider overhead. Before promotional credits are
+ * issued we also reserve 10% of checkout revenue for payment/refund overhead.
+ * The remaining revenue must still cover at least 2x this all-in API estimate,
  * including the 5-credit starter balance.
  */
-export const MAX_PROVIDER_COST_PER_INTERNAL_CREDIT_USD = 0.10;
+const BASE_PROVIDER_COST_PER_INTERNAL_CREDIT_USD = Math.max(
+  GEMINI_COST_CATALOG.video.standard1080 / CREDIT_COSTS.VIDEO_PER_SECOND_STANDARD_1080P,
+  GEMINI_COST_CATALOG.video.standard4k / CREDIT_COSTS.VIDEO_PER_SECOND_STANDARD_4K,
+);
+export const MAX_PROVIDER_COST_PER_INTERNAL_CREDIT_USD = BASE_PROVIDER_COST_PER_INTERNAL_CREDIT_USD * 1.03;
 export const MIN_PROVIDER_MULTIPLE = 2;
 export const PAYMENT_REVENUE_AFTER_RESERVE_FACTOR = 0.90;
 
