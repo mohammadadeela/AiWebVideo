@@ -7,8 +7,9 @@ import {
   CREDIT_DISPLAY_MULTIPLIER,
   STARTER_CREDITS_INTERNAL,
   STARTER_CREDITS_DISPLAY,
-  WELCOME_BONUS_PERCENT,
-  marginSafeWelcomeBonusCredits,
+  WELCOME_DISCOUNT_PERCENT,
+  marginSafeWelcomePrice,
+  proposedWelcomeDiscountAmount,
   providerCoverageMultiple,
 } from '../src/lib/growth-offers.js';
 
@@ -16,73 +17,87 @@ async function source(relativePath: string) {
   return readFile(path.resolve(process.cwd(), relativePath), 'utf8');
 }
 
-test('starter credits are real but cannot authorize the cheapest paid generation', () => {
-  assert.equal(CREDIT_DISPLAY_MULTIPLIER, 10);
+test('starter credits use x5 display units and cannot authorize the cheapest paid generation alone', () => {
+  assert.equal(CREDIT_DISPLAY_MULTIPLIER, 5);
   assert.equal(STARTER_CREDITS_INTERNAL, 5);
-  assert.equal(STARTER_CREDITS_DISPLAY, 50);
+  assert.equal(STARTER_CREDITS_DISPLAY, 25);
   assert.ok(STARTER_CREDITS_INTERNAL < CREDIT_COSTS.PHOTO_SET_4);
 });
 
-test('20 percent top-up bonus keeps at least 2x worst-case provider-cost coverage after reserve', () => {
+test('20 percent welcome offer lowers price, never credits, and keeps at least 2x modeled provider coverage', () => {
   const packs = [
     { id: 'topup50', amountUsd: 14.99, credits: 50 },
     { id: 'topup100', amountUsd: 28.99, credits: 100 },
     { id: 'topup250', amountUsd: 69.99, credits: 250 },
   ];
 
-  assert.equal(WELCOME_BONUS_PERCENT, 20);
+  assert.equal(WELCOME_DISCOUNT_PERCENT, 20);
   for (const pack of packs) {
-    const bonus = marginSafeWelcomeBonusCredits({
+    const expectedDiscounted = proposedWelcomeDiscountAmount(pack.amountUsd);
+    const charged = marginSafeWelcomePrice({
       productId: pack.id,
       amountUsd: pack.amountUsd,
       purchasedInternalCredits: pack.credits,
     });
-    assert.equal(bonus, Math.floor(pack.credits * 0.2));
+    assert.equal(charged, expectedDiscounted);
+    assert.ok(charged < pack.amountUsd, `${pack.id} must receive a real lower checkout price`);
     assert.ok(
       providerCoverageMultiple({
-        amountUsd: pack.amountUsd,
+        amountUsd: charged,
         purchasedInternalCredits: pack.credits,
-        bonusInternalCredits: bonus,
       }) >= 2,
-      `${pack.id} must remain at or above the 2x provider-cost floor`,
+      `${pack.id} must remain at or above the 2x modeled provider-cost floor`,
     );
   }
 });
 
-test('bonus guard refuses unsupported products and unsafe economics', () => {
+test('discount guard refuses unsupported products and unsafe economics', () => {
   assert.equal(
-    marginSafeWelcomeBonusCredits({ productId: 'agency', amountUsd: 249, purchasedInternalCredits: 1000 }),
-    0,
+    marginSafeWelcomePrice({ productId: 'agency', amountUsd: 249, purchasedInternalCredits: 1000 }),
+    249,
   );
   assert.equal(
-    marginSafeWelcomeBonusCredits({ productId: 'topup250', amountUsd: 1, purchasedInternalCredits: 250 }),
-    0,
+    marginSafeWelcomePrice({ productId: 'topup250', amountUsd: 1, purchasedInternalCredits: 250 }),
+    1,
   );
 });
 
-test('growth settlement is authenticated, idempotent and based on verified paid rows', async () => {
+test('growth settlement is authenticated, server-timed and does not grant welcome bonus credits', async () => {
   const text = await source('src/routes/growth.ts');
   assert.match(text, /router\.get\('\/welcome', requireAuth/);
-  assert.match(text, /grantCreditsOnce/);
+  assert.match(text, /welcome_offer_started_at=COALESCE\(welcome_offer_started_at,NOW\(\)\)/);
   assert.match(text, /growth:starter:\$\{userId\}/);
-  assert.match(text, /status='paid'/);
-  assert.match(text, /kind='one_time'/);
-  assert.match(text, /product_id = ANY/);
-  assert.match(text, /marginSafeWelcomeBonusCredits/);
+  assert.match(text, /discountPercent: WELCOME_DISCOUNT_PERCENT/);
+  assert.match(text, /bonusPercent: 0/);
+  assert.match(text, /bonusCreditsGranted: 0/);
+  assert.doesNotMatch(text, /growth:welcome20/);
 });
 
-test('ordinary account refresh settles growth grants and returns the fresh balance immediately', async () => {
+test('ordinary account refresh starts the welcome window and returns the fresh starter balance', async () => {
   const text = await source('src/routes/index.ts');
   assert.match(text, /router\.get\('\/user\/me', requireAuth/);
   assert.match(text, /settleGrowthCredits\(req\.user!\.id\)/);
   assert.match(text, /req\.user!\.creditsBalance = growth\.balanceInternal/);
 });
 
-test('customer-facing denomination does not alter server generation accounting', async () => {
+test('customer API credit quantities are converted to x5 while server accounting stays internal', async () => {
   const serverCredits = await source('src/lib/credits.ts');
   const growth = await source('src/lib/growth-offers.ts');
+  const routes = await source('src/routes/index.ts');
   assert.doesNotMatch(serverCredits, /CREDIT_DISPLAY_MULTIPLIER/);
-  assert.match(growth, /CREDIT_DISPLAY_MULTIPLIER = 10/);
+  assert.match(growth, /CREDIT_DISPLAY_MULTIPLIER = 5/);
+  assert.match(routes, /CUSTOMER_CREDIT_FIELDS/);
+  assert.match(routes, /value \* CREDIT_DISPLAY_MULTIPLIER/);
+  assert.match(routes, /req\.path\.startsWith\('\/admin'\)/);
+  assert.match(routes, /req\.path\.startsWith\('\/growth'\)/);
+});
+
+test('PayPal charges the discounted amount but grants the original purchased credits', async () => {
+  const paypal = await source('src/routes/paypal.ts');
+  assert.match(paypal, /marginSafeWelcomePrice/);
+  assert.match(paypal, /checkoutAmountUsd\.toFixed\(2\)/);
+  assert.match(paypal, /orderId, checkoutAmountUsd, product\.credits/);
+  assert.doesNotMatch(paypal, /bonusInternal/);
 });
 
 test('refund credit clawback is installed before the HTTP server starts', async () => {
