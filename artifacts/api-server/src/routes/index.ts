@@ -4,7 +4,7 @@ import uploadsRouter from './uploads.js';
 import jobsRouter from './jobs.js';
 import userRouter from './user.js';
 import paypalRouter from './paypal.js';
-import growthRouter from './growth.js';
+import growthRouter, { settleGrowthCredits } from './growth.js';
 import adminRouter from './admin.js';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -13,6 +13,7 @@ import { ASSETS_DIR } from '../lib/capture.js';
 import { getMarketingSettings } from '../lib/marketing.js';
 import { verifyPrivateAssetSignature } from '../lib/asset-access.js';
 import { getR2Object } from '../lib/r2-storage.js';
+import { requireAuth } from '../lib/auth.js';
 
 const router = Router();
 
@@ -101,6 +102,15 @@ router.get('/assets/:jobId/:filename', async (req, res) => {
   }
 });
 
+// Every ordinary account refresh settles one-time growth grants first. The
+// grants are idempotent and server-owned, so the browser cannot mint credits.
+// A growth bookkeeping failure must never block account access.
+router.get('/user/me', requireAuth, async (req, _res, next) => {
+  await settleGrowthCredits(req.user!.id).catch((error) => {
+    console.warn(`[growth] could not settle account ${req.user!.id}: ${(error as Error).message}`);
+  });
+  next();
+});
 
 router.use('/capture', captureRouter);
 router.use('/uploads', uploadsRouter);
