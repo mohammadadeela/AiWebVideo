@@ -47,7 +47,7 @@ router.get('/overview', async (req, res) => {
         (SELECT COALESCE(SUM(generation_cost_usd),0)::float FROM jobs WHERE created_at >= date_trunc('month', NOW())) AS cost
        FROM credit_transactions ct WHERE ct.created_at >= date_trunc('month', NOW())`),
       getOperationsSettings(),
-      query(`SELECT j.id,j.title,j.source_url,j.status,j.progress,j.mode,j.generation_provider,j.generation_cost_usd,j.created_at,u.email FROM jobs j LEFT JOIN users u ON u.id=j.user_id WHERE j.deleted_at IS NULL ORDER BY j.created_at DESC LIMIT 8`),
+      query(`SELECT j.id,j.user_id,j.title,j.source_url,j.status,j.progress,j.mode,j.generation_provider,j.generation_cost_usd,j.created_at,u.email FROM jobs j LEFT JOIN users u ON u.id=j.user_id WHERE j.deleted_at IS NULL ORDER BY j.created_at DESC LIMIT 8`),
       getMarketingSettings(),
       query(`SELECT provider,model,operation,unit,COALESCE(SUM(quantity),0)::float quantity,COALESCE(SUM(total_cost_usd),0)::float cost,COUNT(*)::int events FROM generation_cost_events WHERE created_at >= date_trunc('month',NOW()) GROUP BY provider,model,operation,unit ORDER BY cost DESC`),
       query(`SELECT c.id,c.job_id,c.provider,c.model,c.operation,c.quantity,c.unit,c.unit_cost_usd,c.total_cost_usd,c.created_at,j.title FROM generation_cost_events c LEFT JOIN jobs j ON j.id=c.job_id ORDER BY c.created_at DESC LIMIT 30`),
@@ -240,7 +240,7 @@ router.get('/reports', async (req, res) => {
       query<Record<string, unknown>>(`WITH classified AS (
           SELECT p.*,${inferredProductSql} AS product_key FROM payments p ${paymentAliasWhere}
         )
-        SELECT p.id,p.provider,p.provider_ref,p.provider_capture_ref,p.kind,p.amount_usd,p.currency,
+        SELECT p.id,p.user_id,p.provider,p.provider_ref,p.provider_capture_ref,p.kind,p.amount_usd,p.currency,
         p.credits_granted,p.plan,p.product_key AS product_id,p.status,p.invoice_emailed_at,p.created_at,u.email
         FROM classified p LEFT JOIN users u ON u.id=p.user_id
         ORDER BY p.created_at DESC LIMIT 100`, values),
@@ -645,7 +645,7 @@ router.get('/jobs', async (req, res) => {
     };
     values.push(100);
     const rows = await query<Record<string, unknown>>(
-      `SELECT j.id,j.title,j.source_url,j.status,j.progress,j.mode,j.status_message,j.error_message,j.generation_provider,j.generation_cost_usd,j.credits_spent,j.capture_metadata,j.storyboard,j.workflow_state,j.created_at,j.updated_at,u.email,
+      `SELECT j.id,j.user_id,j.title,j.source_url,j.status,j.progress,j.mode,j.status_message,j.error_message,j.generation_provider,j.generation_cost_usd,j.credits_spent,j.capture_metadata,j.storyboard,j.workflow_state,j.created_at,j.updated_at,u.email,
         GREATEST(j.credits_spent, GREATEST(0, -COALESCE((SELECT SUM(ct.delta) FROM credit_transactions ct WHERE ct.user_id=j.user_id AND (ct.job_id=j.id OR (ct.job_id IS NULL AND ct.reason ILIKE '%' || j.id::text || '%'))),0)))::int AS credits_charged
        FROM jobs j LEFT JOIN users u ON u.id=j.user_id WHERE ${clauses.join(' AND ')} ORDER BY ${jobOrderBy[sort] ?? jobOrderBy.newest} LIMIT $${values.length}`,
       values,
@@ -748,7 +748,7 @@ router.get('/audit', async (req, res) => {
     else if (createdIntervals[created]) clauses.push(`a.created_at >= NOW() - INTERVAL '${createdIntervals[created]}'`);
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
     const order = sort === 'oldest' ? 'ASC' : 'DESC';
-    const rows = await query(`SELECT a.id,a.action,a.target_type,a.target_id,a.details,a.created_at,u.email admin_email FROM admin_audit_log a LEFT JOIN users u ON u.id=a.admin_id ${where} ORDER BY a.created_at ${order} LIMIT 250`, values);
+    const rows = await query(`SELECT a.id,a.admin_id AS admin_user_id,a.action,a.target_type,a.target_id,a.details,a.created_at,u.email admin_email FROM admin_audit_log a LEFT JOIN users u ON u.id=a.admin_id ${where} ORDER BY a.created_at ${order} LIMIT 250`, values);
     res.json({ events: rows.rows });
   } catch (error) { sendError(res, error); }
 });
