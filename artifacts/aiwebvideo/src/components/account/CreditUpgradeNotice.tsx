@@ -1,18 +1,11 @@
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/app-button';
 import { Coins, CircleDollarSign } from 'lucide-react';
-import { displayCredits } from '@/lib/credits';
-
-const MIN_PAID_GENERATION_CREDITS = 8;
 
 export function CreditUpgradeNotice({ plan, creditsBalance }: { plan: string; creditsBalance: number }) {
-  if (creditsBalance >= MIN_PAID_GENERATION_CREDITS) return null;
+  if (creditsBalance > 0) return null;
 
   const firstPurchase = plan === 'free';
-  const displayBalance = displayCredits(creditsBalance);
-  const displayMinimum = displayCredits(MIN_PAID_GENERATION_CREDITS);
-  const displayShortfall = Math.max(0, displayMinimum - displayBalance);
-
   return (
     <section className="rounded-2xl border border-violet/35 bg-signature-soft px-3 py-3 sm:px-4 sm:py-3.5 shadow-[0_18px_50px_-35px_rgba(139,92,246,.9)] sm:flex sm:items-center sm:justify-between sm:gap-4">
       <div className="flex min-w-0 items-start gap-3">
@@ -21,16 +14,12 @@ export function CreditUpgradeNotice({ plan, creditsBalance }: { plan: string; cr
         </span>
         <div>
           <p className="text-sm font-semibold text-text-primary">
-            {firstPurchase && displayBalance > 0
-              ? `You have ${displayBalance.toLocaleString()} Starter Credits`
-              : firstPurchase
-                ? 'Add credits to generate your first production'
-                : 'Your production balance is below the generation minimum'}
+            {firstPurchase ? 'Add credits to generate your first production' : 'Your production credits have run out'}
           </p>
           <p className="mt-1 text-xs leading-relaxed text-text-muted">
             {firstPurchase
-              ? `Website preview and screenshots stay free. Paid AI generation starts at ${displayMinimum.toLocaleString()} credits, so add ${displayShortfall.toLocaleString()} or more when you are ready to create.`
-              : `Your projects are saved. Add at least ${displayShortfall.toLocaleString()} more credits or switch plans to continue generating.`}
+              ? 'Website preview and screenshots stay free. Add credits only when you are ready to start paid AI planning and generation.'
+              : 'Your projects are saved. Recharge your balance or switch plans to continue generating.'}
           </p>
         </div>
       </div>

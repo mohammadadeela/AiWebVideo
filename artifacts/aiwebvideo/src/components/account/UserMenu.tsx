@@ -2,12 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { CircleUserRound } from 'lucide-react';
 import { signOut } from '@/lib/firebase/client';
-import { formatDisplayCredits } from '@/lib/credits';
 
 export function formatCredits(value: number | undefined) {
   if (value === undefined) return '—';
   if (value >= 100_000) return 'Unlimited';
-  return formatDisplayCredits(value);
+  return value.toLocaleString();
 }
 
 export function UserMenu({ email, plan, creditsBalance, isAdmin = false }: { email: string; plan: string; creditsBalance: number; isAdmin?: boolean }) {

@@ -5,23 +5,6 @@ export const CREDIT_COSTS = {
   NARRATION: 6,
 } as const;
 
-/**
- * Customer-facing denomination only. Billing, reservations and provider gates
- * continue to use the smaller internal credit unit, so changing the displayed
- * denomination never changes economics or authorization.
- */
-export const CREDIT_DISPLAY_MULTIPLIER = 10;
-
-export function displayCredits(value: number | null | undefined): number {
-  const numeric = Number(value ?? 0);
-  if (!Number.isFinite(numeric)) return 0;
-  return Math.max(0, Math.round(numeric * CREDIT_DISPLAY_MULTIPLIER));
-}
-
-export function formatDisplayCredits(value: number | null | undefined): string {
-  return displayCredits(value).toLocaleString();
-}
-
 export const MIN_VIDEO_SECONDS = 8;
 export const MAX_VIDEO_SECONDS = 144;
 export const VIDEO_SCENE_SECONDS = 8;
