@@ -29,20 +29,29 @@
   overflow: visible !important;
 }
 
-/* The completed controls are normal document flow, never an overlay/fixed dock. */
+/* Keep the complete finished-chat window with the user while the conversation
+   scrolls. Sticky (rather than fixed) keeps it inside the chat boundary, while
+   the height cap lets short phone screens scroll the open window naturally. */
 .chat-widget-shell > div > .chat-scroll:has(.finished-action-tray) {
-  position: relative !important;
-  inset: auto !important;
-  z-index: auto !important;
+  position: sticky !important;
+  inset: auto 0 0 !important;
+  z-index: 24 !important;
   flex: 0 0 auto !important;
-  max-height: none !important;
-  overflow: visible !important;
+  max-height: min(72dvh, 560px) !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
   border-top: 0 !important;
-  background: transparent !important;
+  background: linear-gradient(180deg, rgba(14, 11, 25, 0), rgba(14, 11, 25, .96) 16%, rgba(14, 11, 25, .995)) !important;
   box-shadow: none !important;
-  backdrop-filter: none !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
   padding-top: 7px !important;
   padding-bottom: 18px !important;
+  scroll-behavior: smooth;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 }
 
 .finished-action-tray {
@@ -416,13 +425,9 @@
 /* Closing leaves no empty panel behind. The handle becomes the composer's
    connected top tab, and the compact composer follows the chat while it scrolls. */
 .chat-widget-shell.chat-finish-collapsed > div > .chat-scroll:has(.finished-action-tray) {
-  position: sticky !important;
-  inset: auto 0 0 !important;
-  z-index: 24 !important;
+  max-height: min(34dvh, 160px) !important;
   padding-top: 8px !important;
   background: linear-gradient(180deg, rgba(14, 11, 25, 0), rgba(14, 11, 25, .96) 24%, rgba(14, 11, 25, .995)) !important;
-  backdrop-filter: blur(14px) !important;
-  -webkit-backdrop-filter: blur(14px) !important;
 }
 
 .chat-widget-shell.chat-finish-collapsed .finished-action-tray > .finished-chat-collapse-toggle {
@@ -495,8 +500,13 @@
 
 @media (max-width: 640px) {
   .chat-widget-shell > div > .chat-scroll:has(.finished-action-tray) {
+    max-height: min(76dvh, 520px) !important;
     padding-top: 6px !important;
     padding-bottom: 14px !important;
+  }
+
+  .chat-widget-shell.chat-finish-collapsed > div > .chat-scroll:has(.finished-action-tray) {
+    max-height: min(32dvh, 150px) !important;
   }
 
   .finished-action-tray > .finished-chat-collapse-toggle {

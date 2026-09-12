@@ -225,7 +225,7 @@ export function VideoShowcase() {
                   <p className="mt-1 text-sm font-semibold leading-5 text-white">{featured.caption || featured.overlayText || "AI-directed campaign film"}</p>
                 </div>
               )}
-              <div ref={sliderRef} onScroll={syncActiveSlide} role="region" aria-roledescription="carousel" aria-label="Portrait campaign video slider" className="landing-video-slider chat-scroll -mx-4 mt-4 flex max-w-[calc(100%+2rem)] snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 scroll-smooth overscroll-x-contain touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-1 sm:max-w-full sm:snap-none sm:px-1">
+              <div ref={sliderRef} onScroll={syncActiveSlide} role="region" aria-roledescription="carousel" aria-label="Portrait campaign video slider" className="landing-video-slider chat-scroll mt-4 flex w-full max-w-full snap-x snap-mandatory gap-3 overflow-x-auto pb-2 scroll-smooth overscroll-x-contain touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-1 sm:w-auto sm:snap-none sm:px-1">
                 {supporting.length ? (
                   supporting.map((video, index) => (
                     <div
@@ -233,7 +233,7 @@ export function VideoShowcase() {
                       data-video-slide="true"
                       role="group"
                       aria-label={`Campaign video ${index + 1} of ${supporting.length}`}
-                      className="min-w-[78%] basis-[78%] shrink-0 snap-center sm:min-w-[145px] sm:basis-[calc((100%_-_0.75rem)/2)] lg:min-w-0 lg:basis-[calc((100%_-_2.25rem)/4)]"
+                      className="min-w-[calc((100%_-_0.75rem)/2)] basis-[calc((100%_-_0.75rem)/2)] shrink-0 snap-start sm:min-w-[145px] sm:basis-[calc((100%_-_0.75rem)/2)] lg:min-w-0 lg:basis-[calc((100%_-_2.25rem)/4)]"
                     >
                       <SupportingFilm video={video} index={index + 1} />
                     </div>
