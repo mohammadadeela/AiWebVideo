@@ -13,7 +13,8 @@ test('production Stop uses the branded in-app warning instead of a browser dialo
   assert.match(canvas, /AlertDialog/);
   assert.match(canvas, /Stop production\?/);
   assert.match(canvas, /Credits at risk/);
-  assert.match(canvas, /Stop and lose \$\{creditsAtRisk\} credits/);
+  assert.match(canvas, /displayCreditsAtRisk/);
+  assert.match(canvas, /Stop and lose \$\{displayCreditsAtRisk\.toLocaleString\(\)\} credits/);
   assert.match(canvas, /Keep generating/);
   assert.doesNotMatch(canvas, /window\.confirm/);
   assert.doesNotMatch(canvas, /onClick=\{onCancel\}/);
