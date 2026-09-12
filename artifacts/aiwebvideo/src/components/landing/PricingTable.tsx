@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/app-button";
 import {
   ApiError,
   startCheckout,
   type CheckoutId,
 } from "@/lib/api-client";
-import { estimateRenderCredits } from "@/lib/credits";
+import { displayCredits, estimateRenderCredits } from "@/lib/credits";
+import { fetchWelcomeGrowthOffer, formatWelcomeCountdown, type WelcomeGrowthOffer } from "@/lib/growth";
 
 function PurchaseButton({
   primary,
@@ -38,13 +39,13 @@ const PLANS = [
     price: "$0",
     period: "",
     sub: "forever",
-    credits: "No generation credits",
+    credits: "50 Starter Credits",
     tagline: "Preview your real website source.",
     notes: [
       "Website screenshots and source preview",
       "Real favicon and useful public pages",
       "Credits checked before paid AI planning",
-      "No paid generation API starts without credits",
+      "No paid generation API starts without enough credits",
     ],
     cta: "Preview Website",
     highlight: false,
@@ -55,7 +56,7 @@ const PLANS = [
     price: "$39",
     period: "/mo",
     sub: "",
-    credits: "150 credits / mo",
+    credits: "1,500 credits / mo",
     tagline: "For founders and growing shops.",
     notes: [
       "3 narrated quick clips or 1 standard campaign",
@@ -72,7 +73,7 @@ const PLANS = [
     price: "$99",
     period: "/mo",
     sub: "",
-    credits: "400 credits / mo",
+    credits: "4,000 credits / mo",
     tagline: "For marketers shipping weekly.",
     notes: [
       "10 narrated quick clips or 2 standard campaigns",
@@ -89,7 +90,7 @@ const PLANS = [
     price: "$249",
     period: "/mo",
     sub: "",
-    credits: "1,000 credits / mo",
+    credits: "10,000 credits / mo",
     tagline: "Client work, at scale.",
     notes: [
       "26 narrated quick clips or 7 standard campaigns",
@@ -139,62 +140,62 @@ const CREDIT_PACKS = [
 const CREDIT_COSTS = [
   {
     item: "Quick video · 8s · 1080p",
-    credits: "32 silent · 38 with narration",
+    credits: "320 silent · 380 with narration",
   },
   {
     item: "Social video · 16s · 1080p",
-    credits: "64 silent · 70 with narration",
+    credits: "640 silent · 700 with narration",
   },
   {
     item: "Standard video · 32s · 1080p",
-    credits: "128 silent · 134 with narration",
+    credits: "1,280 silent · 1,340 with narration",
   },
   {
     item: "Full video · 64s · 1080p",
-    credits: "256 silent · 262 with narration",
+    credits: "2,560 silent · 2,620 with narration",
   },
   {
     item: "Extended video · 144s · 1080p",
-    credits: "576 silent · 582 with narration",
+    credits: "5,760 silent · 5,820 with narration",
   },
   {
     item: "Custom continuous video · 8s to 2m 24s",
     credits: "Exact whole-second duration · quote before generation",
   },
-  { item: "4K AI video", credits: "6 per generated second · narration +6" },
-  { item: "Set of 4 marketing photos · up to 4K", credits: 8 },
+  { item: "4K AI video", credits: "60 per generated second · narration +60" },
+  { item: "Set of 4 marketing photos · up to 4K", credits: 80 },
 ];
 
-// Computed from the same shared credit formula the server enforces, so these
-// numbers can never drift out of sync with what generation actually costs.
+// Computed from the same shared credit formula the server enforces, while the
+// customer sees the x10 marketing denomination.
 const STUDIO_PRICES = [
   {
     item: "Product photo set (4 images)",
-    credits: `${estimateRenderCredits("photos", true)} credits`,
+    credits: `${displayCredits(estimateRenderCredits("photos", true))} credits`,
   },
   {
     item: "Product video · 8s · 1080p",
-    credits: `${estimateRenderCredits("video", true, 8)} credits`,
+    credits: `${displayCredits(estimateRenderCredits("video", true, 8))} credits`,
   },
   {
     item: "Product photos + video · 8s",
-    credits: `${estimateRenderCredits("both", true, 8)} credits`,
+    credits: `${displayCredits(estimateRenderCredits("both", true, 8))} credits`,
   },
   {
     item: "Custom idea video · 8s with cinematic scene audio",
-    credits: `${estimateRenderCredits("custom", true, 8)} credits`,
+    credits: `${displayCredits(estimateRenderCredits("custom", true, 8))} credits`,
   },
   {
     item: "Custom idea video · 8s, narrated",
-    credits: `${estimateRenderCredits("custom", false, 8)} credits`,
+    credits: `${displayCredits(estimateRenderCredits("custom", false, 8))} credits`,
   },
   {
     item: "Scenario video · 8s with native dialogue / scene audio",
-    credits: `${estimateRenderCredits("custom", true, 8)} credits`,
+    credits: `${displayCredits(estimateRenderCredits("custom", true, 8))} credits`,
   },
   {
     item: "Scenario video · 32s with native dialogue / scene audio",
-    credits: `${estimateRenderCredits("custom", true, 32)} credits`,
+    credits: `${displayCredits(estimateRenderCredits("custom", true, 32))} credits`,
   },
 ];
 
@@ -218,6 +219,23 @@ export function checkoutErrorMessage(error: unknown): string {
 export function PricingTable() {
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [welcomeOffer, setWelcomeOffer] = useState<WelcomeGrowthOffer | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchWelcomeGrowthOffer().then((offer) => { if (!cancelled) setWelcomeOffer(offer); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!welcomeOffer?.active) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [welcomeOffer?.active]);
+
+  const offerActive = Boolean(welcomeOffer?.active && new Date(welcomeOffer.expiresAt).getTime() > now);
+  const bonusPercent = offerActive ? welcomeOffer?.bonusPercent ?? 0 : 0;
 
   async function handleChoose(planId: string) {
     if (planId === "free") {
@@ -361,7 +379,7 @@ export function PricingTable() {
                 </span>
               </div>
               <p className="font-utility mt-1 text-[10px] sm:text-xs text-mint">
-                {pack.credits} credits · {pack.length} · 1080p · sound +
+                {displayCredits(pack.credits).toLocaleString()} credits · {pack.length} · 1080p · sound +
                 narration
               </p>
               <PurchaseButton
@@ -381,14 +399,20 @@ export function PricingTable() {
           <p className="mt-2 max-w-2xl text-sm text-text-muted">Pay once, keep the credits until you use them, and choose only the balance you need. Top-ups never change your subscription plan.</p>
         </div>
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {CREDIT_PACKS.map((pack) => (
-            <div key={pack.id} className="rounded-2xl border border-white/10 bg-bg/35 p-4">
-              <p className="font-display text-lg font-bold text-text-primary">{pack.credits} credits</p>
-              <p className="mt-1 text-xs text-text-muted">{pack.note}</p>
-              <p className="mt-3 font-display text-2xl font-bold text-text-primary">{pack.price}</p>
-              <PurchaseButton primary={pack.id === "topup250"} loading={loadingPlan === pack.id} onBuy={() => handleChoose(pack.id)} />
-            </div>
-          ))}
+          {CREDIT_PACKS.map((pack) => {
+            const bonusInternal = bonusPercent ? Math.floor(pack.credits * bonusPercent / 100) : 0;
+            const totalDisplay = displayCredits(pack.credits + bonusInternal);
+            const baseDisplay = displayCredits(pack.credits);
+            const bonusDisplay = displayCredits(bonusInternal);
+            return (
+              <div key={pack.id} className="rounded-2xl border border-white/10 bg-bg/35 p-4">
+                <p className="font-display text-lg font-bold text-text-primary">{totalDisplay.toLocaleString()} credits</p>
+                <p className="mt-1 text-xs text-text-muted">{pack.note}{offerActive && bonusDisplay > 0 ? ` · ${baseDisplay.toLocaleString()} + ${bonusDisplay.toLocaleString()} welcome bonus · ${formatWelcomeCountdown(welcomeOffer?.expiresAt, now)} left` : ''}</p>
+                <p className="mt-3 font-display text-2xl font-bold text-text-primary">{pack.price}</p>
+                <PurchaseButton primary={pack.id === "topup250"} loading={loadingPlan === pack.id} onBuy={() => handleChoose(pack.id)} />
+              </div>
+            );
+          })}
         </div>
       </section>
 
@@ -417,9 +441,9 @@ export function PricingTable() {
         </table>
       </div>
       <p className="mt-3 text-xs text-text-dim">
-        Premium video uses 4 credits per requested second for a 1080p master and 6
+        Premium video uses 40 credits per requested second for a 1080p master and 60
         credits per requested second for a 4K master, and optional AI narration
-        adds 6 credits per video. Choose any whole-second continuous length from 8 seconds to 2 minutes 24 seconds;
+        adds 60 credits per video. Choose any whole-second continuous length from 8 seconds to 2 minutes 24 seconds;
         the exact total and any credit shortfall appear before generation. For videos longer than 8 seconds,
         Veo continuity extensions use a 720p provider source and AiWebVideo masters that continuous source to the selected delivery size. Failed generations are automatically refunded.
       </p>
