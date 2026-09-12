@@ -61,7 +61,11 @@ export function queueSettings(kind: ProviderQueueKind) {
     case 'storyboard':
       return {
         rpm: envNumber('GEMINI_STORYBOARD_RPM', genericRpm, 1, 10_000),
-        concurrency: envNumber('GEMINI_STORYBOARD_CONCURRENCY', genericConcurrency, 1, 100),
+        // Storyboard calls can contain several screenshots and therefore be
+        // TPM-heavy even when there is only one website user. Default to one
+        // in-flight planner request; operators can raise this after checking
+        // the project's live Gemini limits in AI Studio.
+        concurrency: envNumber('GEMINI_STORYBOARD_CONCURRENCY', 1, 1, 100),
       };
     case 'image':
       return {
@@ -105,6 +109,12 @@ function errorText(error: unknown) {
   try { return JSON.stringify(error); } catch { return String(error); }
 }
 
+function safeProviderErrorText(error: unknown) {
+  // Gemini quota messages contain the useful metric/limit/retry information.
+  // Keep enough for PM2 diagnostics while preventing pathological log spam.
+  return errorText(error).replace(/\s+/g, ' ').trim().slice(0, 1_600);
+}
+
 /**
  * Only explicit throttling/quota responses are safe to automatically submit
  * again. A 503/UNAVAILABLE around an expensive generation start is ambiguous:
@@ -115,6 +125,16 @@ function isRateLimitError(error: unknown) {
   const value = errorText(error);
   const status = Number((error as { status?: unknown; code?: unknown } | null)?.status ?? (error as { code?: unknown } | null)?.code);
   return status === 429 || /\b429\b|RESOURCE_EXHAUSTED|rate.?limit|quota|too many requests/i.test(value);
+}
+
+/**
+ * Quotas that cannot recover within a short retry window should not keep a
+ * customer parked in an in-memory queue. The storyboard layer already has a
+ * deterministic backup plan, so rejecting promptly lets production continue.
+ */
+function isClearlyLongLivedQuota(error: unknown) {
+  const value = errorText(error);
+  return /requests?_per_day|requests per day|daily quota|per[- ]day quota|quota[^\n]{0,100}limit:\s*0\b|limit:\s*0\b|billing[^\n]{0,80}(?:not enabled|required)|paid tier[^\n]{0,80}required/i.test(value);
 }
 
 function retryAfterFromProvider(error: unknown) {
@@ -132,7 +152,9 @@ function retryAfterFromProvider(error: unknown) {
     }
   }
   const text = errorText(error);
-  const match = text.match(/retry(?:\s+after|Delay)?[^0-9]{0,12}(\d+(?:\.\d+)?)\s*s/i);
+  // Handles Google's common "Please retry in 35.602918266s" as well as
+  // "retry after 30s"/"retryDelay 30s" variants.
+  const match = text.match(/retry(?:\s+after|\s+in|Delay)?[^0-9]{0,12}(\d+(?:\.\d+)?)\s*s/i);
   if (match) return Math.min(5 * 60_000, Math.max(1_000, Math.round(Number(match[1]) * 1000)));
   return null;
 }
@@ -142,8 +164,7 @@ function retryAfterMs(error: unknown, attempt: number, kind: ProviderQueueKind) 
   if (providerDelay != null) return providerDelay;
 
   // Video requests are both much more expensive and much more capacity-bound
-  // than text/image calls. Back off substantially rather than hammering Veo at
-  // 5s/12s/25s/45s as the old queue did.
+  // than text/image calls. Back off substantially rather than hammering Veo.
   const backoff = kind === 'video'
     ? [20_000, 45_000, 90_000, 120_000, 180_000]
     : [5_000, 12_000, 25_000, 45_000, 75_000];
@@ -161,9 +182,23 @@ function maxRateLimitWaitMs(kind: ProviderQueueKind) {
 
 function maxRateLimitRetries(kind: ProviderQueueKind) {
   const generic = envNumber('GEMINI_QUEUE_RATE_LIMIT_RETRIES', 5, 0, 10);
+  if (kind === 'storyboard') {
+    // Repeating the same multimodal storyboard request five times does not fix
+    // TPM/RPD/spend quota and only makes a single user wait. One short retry is
+    // enough for a transient RPM race; then generateStoryboard falls back to
+    // its built-in plan and the production keeps moving.
+    return envNumber('GEMINI_STORYBOARD_QUEUE_RATE_LIMIT_RETRIES', 1, 0, 3);
+  }
   return kind === 'video'
     ? envNumber('GEMINI_VIDEO_QUEUE_RATE_LIMIT_RETRIES', 4, 0, 10)
     : generic;
+}
+
+function maxStoryboardRetryDelayMs() {
+  // If Google explicitly asks the planner to wait tens of seconds/minutes,
+  // prefer the immediate built-in storyboard fallback rather than parking an
+  // 8-second customer production before video generation has even started.
+  return envNumber('GEMINI_STORYBOARD_MAX_RETRY_DELAY_MS', 8_000, 0, 60_000);
 }
 
 async function ownerForJob(jobId?: string) {
@@ -217,6 +252,32 @@ async function publishQueueStatus(item: QueueItem<unknown>, position: number, wa
      SET status_message=$2, eta_seconds=GREATEST(COALESCE(eta_seconds,0),$3), updated_at=NOW()
      WHERE id=$1 AND status NOT IN ('done','failed','cancelled')`,
     [item.jobId, `Queued for ${label} · position ${position}`, seconds],
+  ).catch(() => {});
+}
+
+async function publishProviderThrottleStatus(item: QueueItem<unknown>, waitMs: number) {
+  if (!item.jobId) return;
+  const seconds = Math.max(1, Math.ceil(waitMs / 1000));
+  const message = item.kind === 'storyboard'
+    ? `Gemini temporarily limited AI planning · retrying in ${seconds}s`
+    : `Provider temporarily limited ${item.kind} capacity · retrying in ${seconds}s`;
+  await query(
+    `UPDATE jobs
+     SET status_message=$2, eta_seconds=GREATEST(COALESCE(eta_seconds,0),$3), updated_at=NOW()
+     WHERE id=$1 AND status NOT IN ('done','failed','cancelled')`,
+    [item.jobId, message, seconds],
+  ).catch(() => {});
+}
+
+async function publishStoryboardFallbackStatus(item: QueueItem<unknown>) {
+  if (!item.jobId || item.kind !== 'storyboard') return;
+  await query(
+    `UPDATE jobs
+     SET status_message='Gemini planning capacity is limited · continuing with the backup plan',
+         eta_seconds=LEAST(GREATEST(COALESCE(eta_seconds,0),5),15),
+         updated_at=NOW()
+     WHERE id=$1 AND status NOT IN ('done','failed','cancelled')`,
+    [item.jobId],
   ).catch(() => {});
 }
 
@@ -283,24 +344,55 @@ async function drain(kind: ProviderQueueKind, model: string) {
       .then(
         (value) => item.resolve(value),
         (error) => {
+          const rateLimited = isRateLimitError(error);
           const maxRetries = maxRateLimitRetries(kind);
-          if (item.attempt < maxRetries && isRateLimitError(error)) {
+          if (rateLimited) {
+            const providerDelayMs = retryAfterFromProvider(error);
             const delayMs = retryAfterMs(error, item.attempt, kind);
-            const now = Date.now();
-            const rateLimitStartedAt = item.rateLimitStartedAt ?? now;
-            item.rateLimitStartedAt = rateLimitStartedAt;
-            const throttledWaitAfterDelay = now + delayMs - rateLimitStartedAt;
-            if (throttledWaitAfterDelay > maxRateLimitWaitMs(kind)) {
-              item.reject(new Error(
-                `Provider ${kind} capacity stayed rate-limited beyond the safe queue window. No further generation submission was attempted. ${errorText(error)}`,
-              ));
+            const clearlyLongLived = isClearlyLongLivedQuota(error);
+            const storyboardDelayTooLong =
+              kind === 'storyboard' && providerDelayMs != null && providerDelayMs > maxStoryboardRetryDelayMs();
+            const canRetry = item.attempt < maxRetries && !clearlyLongLived && !storyboardDelayTooLong;
+
+            logger.warn(
+              {
+                kind,
+                model,
+                operation: item.operation,
+                jobId: item.jobId,
+                providerError: safeProviderErrorText(error),
+                providerRetryAfterMs: providerDelayMs,
+                delayMs: canRetry ? delayMs : 0,
+                attempt: item.attempt + 1,
+                maxRetries,
+                clearlyLongLived,
+                storyboardDelayTooLong,
+              },
+              canRetry
+                ? '[provider-queue] provider throttled request; retrying with safe backoff'
+                : '[provider-queue] provider quota unavailable; not parking job in retry queue',
+            );
+
+            if (canRetry) {
+              const now = Date.now();
+              const rateLimitStartedAt = item.rateLimitStartedAt ?? now;
+              item.rateLimitStartedAt = rateLimitStartedAt;
+              const throttledWaitAfterDelay = now + delayMs - rateLimitStartedAt;
+              if (throttledWaitAfterDelay > maxRateLimitWaitMs(kind)) {
+                void publishStoryboardFallbackStatus(item);
+                item.reject(new Error(
+                  `Provider ${kind} capacity stayed rate-limited beyond the safe retry window. ${safeProviderErrorText(error)}`,
+                ));
+              } else {
+                item.attempt += 1;
+                item.enqueuedAt = now;
+                state.blockedUntil = Math.max(state.blockedUntil, now + delayMs);
+                state.waiting.push(item);
+                void publishProviderThrottleStatus(item, delayMs);
+              }
             } else {
-              item.attempt += 1;
-              item.enqueuedAt = now;
-              state.blockedUntil = Math.max(state.blockedUntil, now + delayMs);
-              state.waiting.push(item);
-              logger.warn({ kind, model, operation: item.operation, jobId: item.jobId, delayMs, attempt: item.attempt, maxRetries }, '[provider-queue] provider rate limited; queued with safe backoff');
-              void publishQueueStatus(item, state.waiting.length, delayMs);
+              void publishStoryboardFallbackStatus(item);
+              item.reject(error);
             }
           } else {
             item.reject(error);
