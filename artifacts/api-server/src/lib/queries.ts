@@ -35,7 +35,12 @@ export async function refundJobCredits(
   requestedAmount: number,
   reason: string,
 ): Promise<number> {
-  if (isUserRequestedCancellationRefund(reason)) {
+  const current = await getJob(jobId).catch(() => null);
+  // cancel_requested is the authoritative signal that the customer explicitly
+  // chose Stop. Suppress every later refund from that in-flight production,
+  // including a planning/render catch that races with cancellation and would
+  // otherwise be labeled as a generic failure refund.
+  if (current?.cancel_requested || isUserRequestedCancellationRefund(reason)) {
     console.info(
       `[credits] cancellation keeps reservation job=${jobId} user=${userId} amount=${Math.max(0, requestedAmount)} reason=${reason}`,
     );
