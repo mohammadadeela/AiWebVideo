@@ -45,10 +45,20 @@ export function PaywallModal({
   const liveBalance = Math.max(currentBalance, welcomeOffer?.balanceInternal ?? 0);
   const fundedCredits = liveBalance + reservedCredits;
   const shortfall = Math.max(0, requiredCredits - fundedCredits);
+  const offerActive = Boolean(
+    welcomeOffer?.active && new Date(welcomeOffer.expiresAt).getTime() > clock,
+  );
+  const countdown = offerActive ? formatWelcomeCountdown(welcomeOffer?.expiresAt, clock) : null;
+  const heading = context && !/\bcredits?\b/i.test(context) ? context : 'Choose how to continue';
+  const internalTopupBonus = (credits: number) =>
+    offerActive && welcomeOffer ? Math.max(0, Math.floor(credits * (welcomeOffer.bonusPercent / 100))) : 0;
   const eligibleVideoPacks = useMemo(() => mode !== 'photos' && mode !== 'icon' && mode !== 'both' && outputQuality === '1080p'
     ? VIDEO_PACKS.filter((pack) => fundedCredits + pack.credits >= requiredCredits)
     : [], [fundedCredits, mode, outputQuality, requiredCredits]);
-  const bestCreditPackId = useMemo(() => CREDIT_PACKS.find((pack) => fundedCredits + pack.credits >= requiredCredits)?.id ?? null, [fundedCredits, requiredCredits]);
+  const bestCreditPackId = useMemo(
+    () => CREDIT_PACKS.find((pack) => fundedCredits + pack.credits + internalTopupBonus(pack.credits) >= requiredCredits)?.id ?? null,
+    [fundedCredits, offerActive, requiredCredits, welcomeOffer?.bonusPercent],
+  );
   const eligiblePlans = useMemo(() => PAYWALL_PLANS.filter((plan) => fundedCredits + plan.credits >= requiredCredits), [fundedCredits, requiredCredits]);
 
   useEffect(() => {
@@ -67,11 +77,6 @@ export function PaywallModal({
     return () => window.clearInterval(timer);
   }, [welcomeOffer?.active]);
 
-  const offerActive = Boolean(
-    welcomeOffer?.active && new Date(welcomeOffer.expiresAt).getTime() > clock,
-  );
-  const countdown = offerActive ? formatWelcomeCountdown(welcomeOffer?.expiresAt, clock) : null;
-
   async function choose(planId: CheckoutId) {
     setError(null); setLoading(planId);
     try {
@@ -87,7 +92,7 @@ export function PaywallModal({
       <div className="w-full max-w-lg max-h-[92dvh] overflow-y-auto overscroll-contain rounded-t-[24px] border border-white/10 bg-[#120e22] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl animate-fade-in-up sm:max-h-[90vh] sm:rounded-3xl sm:p-5" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="font-display text-lg font-bold text-white">{context ?? 'Choose how to continue'}</p>
+            <p className="font-display text-lg font-bold text-white">{heading}</p>
             <p className="mt-1 text-xs leading-5 text-text-muted">This production needs {displayCredits(requiredCredits).toLocaleString()} credits. Your available balance is {displayCredits(liveBalance).toLocaleString()}{reservedCredits ? ` · ${displayCredits(reservedCredits).toLocaleString()} already reserved for this production` : ''}{shortfall ? ` · ${displayCredits(shortfall).toLocaleString()} more needed` : ''}. Website preview/screenshots stay free; paid AI/provider work starts only after the full credit gate passes.</p>
           </div>
           <button type="button" onClick={onClose} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 text-base text-text-muted hover:bg-white/5 hover:text-white" aria-label="Close">×</button>
