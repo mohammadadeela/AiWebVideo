@@ -6,7 +6,9 @@ import { fetchWelcomeGrowthOffer, formatWelcomeCountdown, type WelcomeGrowthOffe
 
 export function formatCredits(value: number | undefined) {
   if (value === undefined) return '—';
-  if (value >= 100_000) return 'Unlimited';
+  // Customer API balances are already x5. Preserve the old internal 100k
+  // "Unlimited" sentinel by moving the display threshold to 500k.
+  if (value >= 500_000) return 'Unlimited';
   return Math.max(0, Math.round(value)).toLocaleString();
 }
 
