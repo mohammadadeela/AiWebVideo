@@ -2,7 +2,7 @@ import { request } from './api-client';
 
 export interface WelcomeGrowthOffer {
   active: boolean;
-  startedAt?: string;
+  startedAt: string | null;
   expiresAt: string;
   discountPercent: number;
   bonusPercent?: number;
