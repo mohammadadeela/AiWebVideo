@@ -1,6 +1,17 @@
 import { clsx } from "clsx";
 import type { ReactNode } from "react";
 
+function normalizeCancellationCopy(children: ReactNode, isBot: boolean): ReactNode {
+  if (!isBot || typeof children !== "string") return children;
+  const text = children.trim();
+  const legacyRefundMessage =
+    /^Stopped — (?:all reserved credits for this render were restored|reserved production credits were restored|no credits were spent on planning)\.?$/i;
+  if (legacyRefundMessage.test(text)) {
+    return "Stopped. Credits already reserved for paid AI production are not refunded after you choose Stop.";
+  }
+  return children;
+}
+
 export function ChatBubble({
   role,
   children,
@@ -11,6 +22,7 @@ export function ChatBubble({
   immersive?: boolean;
 }) {
   const isBot = role === "bot";
+  const renderedChildren = normalizeCancellationCopy(children, isBot);
   return (
     <div
       className={clsx(
@@ -44,7 +56,7 @@ export function ChatBubble({
                 ),
         )}
       >
-        {children}
+        {renderedChildren}
       </div>
     </div>
   );
