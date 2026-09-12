@@ -28,6 +28,7 @@ test('provider queue retries explicit 429 throttling but not ambiguous 503 submi
   assert.match(classifier, /status === 429/);
   assert.doesNotMatch(classifier, /status === 503|UNAVAILABLE/);
   assert.match(text, /20_000, 45_000, 90_000, 120_000, 180_000/);
+  assert.match(text, /rateLimitStartedAt/);
   assert.match(text, /cancel_requested/);
 });
 
@@ -35,6 +36,8 @@ test('user Stop keeps the production reservation while ordinary failures can sti
   const text = await source('src/lib/queries.ts');
   assert.match(text, /current\?\.cancel_requested \|\| isUserRequestedCancellationRefund\(reason\)/);
   assert.match(text, /return refundJobCreditsBase\(jobId, userId, requestedAmount, reason\)/);
+  assert.match(text, /patch\.status === 'cancelled' \|\| patch\.status === 'failed'/);
+  assert.match(text, /status: 'cancelled'/);
   assert.match(text, /not refundable after Stop/);
 });
 
