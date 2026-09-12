@@ -2358,6 +2358,7 @@ export function ChatWidget({
       {(stage !== "awaiting_url" || restoring) && (
         <div
           ref={scrollRef}
+          data-chat-messages
           className={`chat-scroll relative min-h-0 flex-1 overflow-y-auto ${immersive ? "bg-bg px-3 py-5 sm:px-8 sm:py-8" : "bg-[linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,0))] px-4 py-5 sm:px-5"}`}
         >
           <div className={`${immersive ? "mx-auto w-full max-w-5xl space-y-6" : "w-full space-y-3"}`}>
@@ -2388,6 +2389,7 @@ export function ChatWidget({
             {!restoring && pollingActive && (
               <div ref={generationProcessRef} className="scroll-mt-24">
                 <GenerationCanvas
+                  jobId={jobId}
                   status={
                     job?.status ??
                     (stage === "capturing" ? "capturing" : stage === "storyboarding" ? "storyboarding" : "rendering")
@@ -2413,6 +2415,7 @@ export function ChatWidget({
       {/* Input area */}
       {!restoring && (
         <div
+          data-chat-controls
           className={`chat-scroll ${stage === "awaiting_url" ? "min-h-0 overflow-y-auto bg-transparent p-0" : immersive ? (stage === "done" ? "shrink-0 bg-[linear-gradient(180deg,rgba(14,11,25,0),rgba(14,11,25,.98)_22%)] px-3 pb-4 pt-5 sm:px-8 sm:pb-6" : "shrink-0 max-h-[70dvh] overflow-y-auto bg-[linear-gradient(180deg,rgba(14,11,25,0),rgba(14,11,25,.98)_18%)] px-3 pb-4 pt-5 sm:px-8 sm:pb-6") : stage === "done" ? "shrink-0 max-h-[42dvh] space-y-2.5 overflow-y-auto border-t border-white/[.07] bg-[linear-gradient(180deg,rgba(9,8,18,.72),rgba(19,15,32,.95))] p-3 sm:max-h-[36vh] sm:p-4" : "shrink-0 max-h-[68dvh] space-y-2.5 overflow-y-auto border-t border-white/[.07] bg-[linear-gradient(180deg,rgba(9,8,18,.72),rgba(19,15,32,.95))] p-3 sm:max-h-[72vh] sm:p-4"}`}
         >
           <div className={`${immersive ? "mx-auto w-full max-w-5xl space-y-2.5" : "space-y-2.5"}`}>
@@ -2647,8 +2650,8 @@ export function ChatWidget({
               </div>
             )}
             {stage === "done" && (
-              <div className="space-y-2.5">
-                <div className="flex flex-wrap gap-2">
+              <div className="finished-action-tray space-y-2.5">
+                <div className="finished-action-buttons flex flex-wrap gap-2">
                   <Button
                     variant="primary"
                     size="md"
@@ -2706,7 +2709,7 @@ export function ChatWidget({
 
                 {liveReferenceItems.length > 0 && (
                   <details
-                    className={`group rounded-2xl ${immersive ? "bg-white/[.03] px-3 py-2" : "border border-white/[.08] bg-white/[.025] p-3"}`}
+                    className={`finished-reuse-details group rounded-2xl ${immersive ? "bg-white/[.03] px-3 py-2" : "border border-white/[.08] bg-white/[.025] p-3"}`}
                   >
                     <summary className="flex min-h-10 list-none items-center justify-between gap-3 cursor-pointer">
                       <div>
@@ -2802,7 +2805,7 @@ export function ChatWidget({
                   </details>
                 )}
 
-                <div className={immersive ? "pt-1" : "rounded-2xl border border-white/[.08] bg-white/[.025] p-3"}>
+                <div className={`finished-chat-composer ${immersive ? "pt-1" : "rounded-2xl border border-white/[.08] bg-white/[.025] p-3"}`}>
                   <div className="mb-2 px-1">
                     <p className="text-[11px] font-semibold text-text-primary">Continue in this chat</p>
                     <p className="mt-0.5 text-[10px] text-text-dim">
@@ -2832,7 +2835,7 @@ export function ChatWidget({
                   type="button"
                   onClick={handleStartOver}
                   disabled={busy}
-                  className="mx-auto flex min-h-9 items-center justify-center rounded-full px-4 text-[10px] font-semibold text-text-dim transition hover:bg-white/[.035] hover:text-text-primary disabled:opacity-50"
+                  className="finished-start-over-original mx-auto flex min-h-9 items-center justify-center rounded-full px-4 text-[10px] font-semibold text-text-dim transition hover:bg-white/[.035] hover:text-text-primary disabled:opacity-50"
                 >
                   {isStudioProject ? "Start a separate creation" : "Start with another website"}
                 </button>

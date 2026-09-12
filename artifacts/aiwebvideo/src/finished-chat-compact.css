@@ -3,9 +3,9 @@
    A completed production must read like one continuous conversation:
    result -> next actions -> composer. Nothing floats on top of the result.
 
-   The small center handle behaves like a window pull-tab. While open it sits
-   above the action sheet. When closed, the sheet retracts toward the composer
-   and the same handle lands directly above the chat box.
+   The small center handle belongs to the window: while open it sits inside the
+   action sheet, and while closed it becomes the attached top tab of the chat
+   composer.
 */
 
 /* In the finished state, make the WHOLE chat the scroll surface instead of
@@ -17,6 +17,10 @@
   overflow-y: auto !important;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
+  scroll-behavior: smooth;
+  scroll-padding-bottom: 112px;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 }
 
 .chat-widget-shell > div:has(.finished-action-tray) > .chat-scroll:not(:has(.finished-action-tray)) {
@@ -74,20 +78,20 @@
   align-self: center;
   align-items: center;
   justify-content: center;
-  width: 42px !important;
-  height: 28px !important;
-  min-width: 42px !important;
-  min-height: 28px !important;
-  margin: 0 auto -7px !important;
+  width: 46px !important;
+  height: 30px !important;
+  min-width: 46px !important;
+  min-height: 30px !important;
+  /* Pull the action surface behind the control so the handle is inside it. */
+  margin: 9px auto -39px !important;
   padding: 0 !important;
   border: 1px solid rgba(176, 143, 255, .38) !important;
   border-radius: 999px !important;
   background: linear-gradient(180deg, rgba(52, 39, 84, .98), rgba(30, 23, 50, .98)) !important;
   color: rgba(250, 248, 255, .98) !important;
   box-shadow:
-    0 10px 28px -18px rgba(124, 58, 237, .95),
-    inset 0 1px 0 rgba(255, 255, 255, .09),
-    0 0 0 4px rgba(124, 58, 237, .035);
+    0 9px 24px -17px rgba(124, 58, 237, .9),
+    inset 0 1px 0 rgba(255, 255, 255, .09);
   backdrop-filter: blur(14px);
   transform: translateY(0);
   transform-origin: center;
@@ -100,27 +104,13 @@
     box-shadow 160ms ease;
 }
 
-.finished-action-tray > .finished-chat-collapse-toggle::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  bottom: -4px;
-  width: 14px;
-  height: 2px;
-  border-radius: 999px;
-  background: rgba(185, 157, 255, .2);
-  transform: translateX(-50%);
-  pointer-events: none;
-}
-
 .finished-action-tray > .finished-chat-collapse-toggle:hover {
   transform: translateY(-1px);
   border-color: rgba(193, 166, 255, .58) !important;
   background: linear-gradient(180deg, rgba(61, 45, 98, .99), rgba(35, 26, 59, .99)) !important;
   box-shadow:
-    0 13px 31px -18px rgba(124, 58, 237, 1),
-    inset 0 1px 0 rgba(255, 255, 255, .11),
-    0 0 0 5px rgba(124, 58, 237, .045);
+    0 12px 28px -18px rgba(124, 58, 237, 1),
+    inset 0 1px 0 rgba(255, 255, 255, .11);
 }
 
 .finished-action-tray > .finished-chat-collapse-toggle:active {
@@ -146,7 +136,7 @@
   width: 100%;
   max-height: 280px;
   margin: 0 !important;
-  padding: 14px 10px 10px !important;
+  padding: 47px 10px 10px !important;
   border: 1px solid rgba(255, 255, 255, .075);
   border-bottom-color: rgba(255, 255, 255, .045);
   border-radius: 20px 20px 12px 12px;
@@ -423,19 +413,53 @@
 /* Closed window                                                              */
 /* -------------------------------------------------------------------------- */
 
-/* Closing is a real retracting window: the action sheet travels toward the
-   composer and leaves ZERO spacer/background behind. The handle itself remains
-   directly above the chat box. */
+/* Closing leaves no empty panel behind. The handle becomes the composer's
+   connected top tab, and the compact composer follows the chat while it scrolls. */
+.chat-widget-shell.chat-finish-collapsed > div > .chat-scroll:has(.finished-action-tray) {
+  position: sticky !important;
+  inset: auto 0 0 !important;
+  z-index: 24 !important;
+  padding-top: 8px !important;
+  background: linear-gradient(180deg, rgba(14, 11, 25, 0), rgba(14, 11, 25, .96) 24%, rgba(14, 11, 25, .995)) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+}
+
 .chat-widget-shell.chat-finish-collapsed .finished-action-tray > .finished-chat-collapse-toggle {
-  margin-bottom: 5px !important;
+  order: 3 !important;
+  width: 52px !important;
+  min-width: 52px !important;
+  height: 27px !important;
+  min-height: 27px !important;
+  margin: 0 auto -1px !important;
+  border-bottom-color: transparent !important;
+  border-radius: 15px 15px 0 0 !important;
+  background: rgba(29, 24, 49, .98) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08) !important;
+}
+
+.chat-widget-shell.chat-finish-collapsed .finished-action-tray > .finished-chat-composer {
+  order: 4 !important;
+}
+
+.chat-widget-shell.chat-finish-collapsed .finished-chat-composer > .mb-2.px-1 {
+  display: none !important;
+}
+
+.chat-widget-shell.chat-finish-collapsed .finished-chat-composer form {
+  border-color: rgba(176, 143, 255, .18) !important;
+  background: rgba(29, 24, 49, .98) !important;
+  box-shadow:
+    0 22px 54px -35px rgba(0, 0, 0, .98),
+    inset 0 1px 0 rgba(255, 255, 255, .035) !important;
 }
 
 .chat-widget-shell.chat-finish-collapsed .finished-action-tray > .finished-action-buttons {
   max-height: 0 !important;
+  gap: 0 !important;
   padding-top: 0 !important;
   padding-bottom: 0 !important;
-  border-top-color: transparent !important;
-  border-bottom-color: transparent !important;
+  border-width: 0 !important;
   opacity: 0 !important;
   pointer-events: none !important;
   transform: translateY(14px) scale(.985);
@@ -446,14 +470,14 @@
   margin: 0 !important;
   padding-top: 0 !important;
   padding-bottom: 0 !important;
-  border-top-color: transparent !important;
-  border-bottom-color: transparent !important;
+  border-width: 0 !important;
   opacity: 0 !important;
   pointer-events: none !important;
   transform: translateY(10px) scale(.99);
 }
 
 .chat-widget-shell.chat-finish-collapsed .finished-action-tray > .finished-start-over-dock {
+  order: 5 !important;
   max-height: 0 !important;
   min-height: 0 !important;
   margin-top: 0 !important;
@@ -476,16 +500,17 @@
   }
 
   .finished-action-tray > .finished-chat-collapse-toggle {
-    width: 40px !important;
-    height: 27px !important;
-    min-width: 40px !important;
-    min-height: 27px !important;
+    width: 44px !important;
+    height: 29px !important;
+    min-width: 44px !important;
+    min-height: 29px !important;
+    margin-bottom: -38px !important;
   }
 
   .finished-action-tray > .finished-action-buttons {
     grid-template-columns: 1fr;
     gap: 7px !important;
-    padding: 13px 8px 8px !important;
+    padding: 45px 8px 8px !important;
     border-radius: 18px 18px 11px 11px;
   }
 
@@ -520,6 +545,14 @@
   .finished-chat-composer form textarea {
     min-height: 40px !important;
     font-size: 16px !important;
+  }
+
+  .chat-widget-shell.chat-finish-collapsed .finished-action-tray > .finished-chat-collapse-toggle {
+    width: 50px !important;
+    min-width: 50px !important;
+    height: 27px !important;
+    min-height: 27px !important;
+    margin: 0 auto -1px !important;
   }
 }
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Play } from "lucide-react";
+import { ChevronLeft, ChevronRight, Play } from "lucide-react";
 import { fetchMarketingSettings, type MarketingVideo } from "@/lib/api-client";
 import { resolveVideoEmbed } from "@/lib/videoEmbed";
 
@@ -133,6 +133,9 @@ function SupportingFilm({ video, index }: { video: MarketingVideo; index: number
 
 export function VideoShowcase() {
   const [settings, setSettings] = useState<Awaited<ReturnType<typeof fetchMarketingSettings>> | null>(null);
+  const [activeSlide, setActiveSlide] = useState(0);
+  const sliderRef = useRef<HTMLDivElement>(null);
+  const scrollFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -149,6 +152,48 @@ export function VideoShowcase() {
   const videos = settings?.videos.showcase.filter((video) => video.url) ?? [];
   const featured = videos[0];
   const supporting = videos.slice(1);
+
+  useEffect(() => {
+    setActiveSlide((current) => Math.min(current, Math.max(0, supporting.length - 1)));
+  }, [supporting.length]);
+
+  useEffect(() => () => {
+    if (scrollFrameRef.current !== null) window.cancelAnimationFrame(scrollFrameRef.current);
+  }, []);
+
+  function supportingSlides() {
+    return Array.from(sliderRef.current?.children ?? []).filter(
+      (child): child is HTMLElement => child instanceof HTMLElement && child.dataset.videoSlide === "true",
+    );
+  }
+
+  function syncActiveSlide() {
+    if (scrollFrameRef.current !== null) window.cancelAnimationFrame(scrollFrameRef.current);
+    scrollFrameRef.current = window.requestAnimationFrame(() => {
+      scrollFrameRef.current = null;
+      const slider = sliderRef.current;
+      const slides = supportingSlides();
+      if (!slider || !slides.length) return;
+      const viewportCenter = slider.scrollLeft + slider.clientWidth / 2;
+      let closestIndex = 0;
+      slides.forEach((slide, index) => {
+        const currentDistance = Math.abs(slides[closestIndex].offsetLeft + slides[closestIndex].offsetWidth / 2 - viewportCenter);
+        const nextDistance = Math.abs(slide.offsetLeft + slide.offsetWidth / 2 - viewportCenter);
+        if (nextDistance < currentDistance) closestIndex = index;
+      });
+      setActiveSlide(closestIndex);
+    });
+  }
+
+  function scrollToSlide(index: number) {
+    const slider = sliderRef.current;
+    if (!slider || !supporting.length) return;
+    const nextIndex = Math.max(0, Math.min(supporting.length - 1, index));
+    const slide = supportingSlides()[nextIndex];
+    if (!slide) return;
+    slider.scrollTo({ left: Math.max(0, slide.offsetLeft - (slider.clientWidth - slide.offsetWidth) / 2), behavior: "smooth" });
+    setActiveSlide(nextIndex);
+  }
 
   return (
     <section id="campaign-films" className="relative overflow-hidden border-b border-white/[.06]">
@@ -180,12 +225,15 @@ export function VideoShowcase() {
                   <p className="mt-1 text-sm font-semibold leading-5 text-white">{featured.caption || featured.overlayText || "AI-directed campaign film"}</p>
                 </div>
               )}
-              <div className="chat-scroll -mx-1 mt-4 flex max-w-full gap-3 overflow-x-auto px-1 pb-2 overscroll-x-contain">
+              <div ref={sliderRef} onScroll={syncActiveSlide} role="region" aria-roledescription="carousel" aria-label="Portrait campaign video slider" className="landing-video-slider chat-scroll -mx-4 mt-4 flex max-w-[calc(100%+2rem)] snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 scroll-smooth overscroll-x-contain touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-1 sm:max-w-full sm:snap-none sm:px-1">
                 {supporting.length ? (
                   supporting.map((video, index) => (
                     <div
                       key={video.id}
-                      className="min-w-[145px] basis-[44%] shrink-0 sm:basis-[calc((100%_-_0.75rem)/2)] lg:min-w-0 lg:basis-[calc((100%_-_2.25rem)/4)]"
+                      data-video-slide="true"
+                      role="group"
+                      aria-label={`Campaign video ${index + 1} of ${supporting.length}`}
+                      className="min-w-[78%] basis-[78%] shrink-0 snap-center sm:min-w-[145px] sm:basis-[calc((100%_-_0.75rem)/2)] lg:min-w-0 lg:basis-[calc((100%_-_2.25rem)/4)]"
                     >
                       <SupportingFilm video={video} index={index + 1} />
                     </div>
@@ -197,6 +245,23 @@ export function VideoShowcase() {
                   </div>
                 )}
               </div>
+              {supporting.length > 1 && (
+                <div className="mt-2 flex items-center justify-between gap-3 px-1 sm:hidden">
+                  <button type="button" onClick={() => scrollToSlide(activeSlide - 1)} disabled={activeSlide === 0} aria-label="Previous campaign video" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[.045] text-white transition active:scale-95 disabled:opacity-30">
+                    <ChevronLeft size={17} />
+                  </button>
+                  <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5" aria-label={`Video ${activeSlide + 1} of ${supporting.length}`}>
+                    {supporting.map((video, index) => (
+                      <button key={video.id} type="button" onClick={() => scrollToSlide(index)} aria-label={`Show campaign video ${index + 1}`} aria-current={activeSlide === index ? "true" : undefined} className="flex h-8 min-w-6 items-center justify-center">
+                        <span className={`block h-1.5 rounded-full transition-all ${activeSlide === index ? "w-6 bg-mint" : "w-1.5 bg-white/20"}`} />
+                      </button>
+                    ))}
+                  </div>
+                  <button type="button" onClick={() => scrollToSlide(activeSlide + 1)} disabled={activeSlide === supporting.length - 1} aria-label="Next campaign video" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[.045] text-white transition active:scale-95 disabled:opacity-30">
+                    <ChevronRight size={17} />
+                  </button>
+                </div>
+              )}
             </div>
             <p className="relative mt-2.5 text-right font-utility text-[8px] uppercase tracking-[.14em] text-text-dim">
               AI-directed production
