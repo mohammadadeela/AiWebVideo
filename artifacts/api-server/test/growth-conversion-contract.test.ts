@@ -71,10 +71,11 @@ test('growth settlement is authenticated, idempotent and based on verified paid 
   assert.match(text, /marginSafeWelcomeBonusCredits/);
 });
 
-test('ordinary account refresh settles growth grants before exposing the balance', async () => {
+test('ordinary account refresh settles growth grants and returns the fresh balance immediately', async () => {
   const text = await source('src/routes/index.ts');
   assert.match(text, /router\.get\('\/user\/me', requireAuth/);
   assert.match(text, /settleGrowthCredits\(req\.user!\.id\)/);
+  assert.match(text, /req\.user!\.creditsBalance = growth\.balanceInternal/);
 });
 
 test('customer-facing denomination does not alter server generation accounting', async () => {
@@ -82,4 +83,14 @@ test('customer-facing denomination does not alter server generation accounting',
   const growth = await source('src/lib/growth-offers.ts');
   assert.doesNotMatch(serverCredits, /CREDIT_DISPLAY_MULTIPLIER/);
   assert.match(growth, /CREDIT_DISPLAY_MULTIPLIER = 10/);
+});
+
+test('refund credit clawback is installed before the HTTP server starts', async () => {
+  const billing = await source('src/lib/billing.ts');
+  const entry = await source('src/index.ts');
+  assert.match(billing, /aiwebvideo_payment_credit_clawback/);
+  assert.match(billing, /OLD\.status = 'paid'/);
+  assert.match(billing, /NEW\.status IN \('refunded', 'reversed'\)/);
+  assert.match(entry, /await ensurePaymentClawbackProtection\(\)/);
+  assert.ok(entry.indexOf('await ensurePaymentClawbackProtection()') < entry.indexOf('app.listen'));
 });
