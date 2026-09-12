@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { startCheckout, type CheckoutId } from '@/lib/api-client';
-import { estimateRenderCredits } from '@/lib/credits';
+import { displayCredits, estimateRenderCredits } from '@/lib/credits';
+import { fetchWelcomeGrowthOffer, formatWelcomeCountdown, type WelcomeGrowthOffer } from '@/lib/growth';
 
 const PAYWALL_PLANS = [
   { id: 'creator' as const, name: 'Creator', price: 39, credits: 150, pitch: 'For regular creators', highlight: false },
@@ -31,13 +32,31 @@ export function PaywallModal({
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('credits');
+  const [welcomeOffer, setWelcomeOffer] = useState<WelcomeGrowthOffer | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchWelcomeGrowthOffer().then((offer) => { if (!cancelled) setWelcomeOffer(offer); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!welcomeOffer?.active) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [welcomeOffer?.active]);
+
+  const offerActive = Boolean(welcomeOffer?.active && new Date(welcomeOffer.expiresAt).getTime() > now);
+  const bonusPercent = offerActive ? welcomeOffer?.bonusPercent ?? 0 : 0;
+  const packGrant = (credits: number) => credits + Math.floor(credits * bonusPercent / 100);
   const requiredCredits = estimateRenderCredits(mode, skipVoiceover, durationSeconds, outputQuality);
   const fundedCredits = currentBalance + reservedCredits;
   const shortfall = Math.max(0, requiredCredits - fundedCredits);
   const eligibleVideoPacks = useMemo(() => mode !== 'photos' && mode !== 'icon' && mode !== 'both' && outputQuality === '1080p'
     ? VIDEO_PACKS.filter((pack) => fundedCredits + pack.credits >= requiredCredits)
     : [], [fundedCredits, mode, outputQuality, requiredCredits]);
-  const bestCreditPackId = useMemo(() => CREDIT_PACKS.find((pack) => fundedCredits + pack.credits >= requiredCredits)?.id ?? null, [fundedCredits, requiredCredits]);
+  const bestCreditPackId = useMemo(() => CREDIT_PACKS.find((pack) => fundedCredits + packGrant(pack.credits) >= requiredCredits)?.id ?? null, [bonusPercent, fundedCredits, requiredCredits]);
   const eligiblePlans = useMemo(() => PAYWALL_PLANS.filter((plan) => fundedCredits + plan.credits >= requiredCredits), [fundedCredits, requiredCredits]);
 
   async function choose(planId: CheckoutId) {
@@ -56,7 +75,7 @@ export function PaywallModal({
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="font-display text-lg font-bold text-white">{context ?? 'Choose how to continue'}</p>
-            <p className="mt-1 text-xs leading-5 text-text-muted">This production needs {requiredCredits} credits. Your available balance is {currentBalance}{reservedCredits ? ` · ${reservedCredits} already reserved for this production` : ''}{shortfall ? ` · ${shortfall} more needed` : ''}. Website preview/screenshots stay free; paid AI/provider work starts only after the credit gate passes.</p>
+            <p className="mt-1 text-xs leading-5 text-text-muted">This production needs {displayCredits(requiredCredits)} credits. Your available balance is {displayCredits(currentBalance)}{reservedCredits ? ` · ${displayCredits(reservedCredits)} already reserved for this production` : ''}{shortfall ? ` · ${displayCredits(shortfall)} more needed` : ''}. Website preview/screenshots stay free; paid AI/provider work starts only after the credit gate passes.</p>
           </div>
           <button type="button" onClick={onClose} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 text-base text-text-muted hover:bg-white/5 hover:text-white" aria-label="Close">×</button>
         </div>
@@ -69,16 +88,22 @@ export function PaywallModal({
 
         {tab === 'credits' && (
           <div className="mt-4 space-y-2.5">
-            {CREDIT_PACKS.map((pack) => (
-              <button key={pack.id} onClick={() => choose(pack.id)} disabled={loading !== null} className={`flex w-full items-center justify-between rounded-2xl border p-4 text-left transition disabled:opacity-50 ${bestCreditPackId === pack.id ? 'border-mint/45 bg-mint/[.07]' : 'border-white/10 bg-white/[.025] hover:border-mint/30'}`}>
-                <div>
-                  <p className="text-sm font-bold text-white">{pack.credits} credits {bestCreditPackId === pack.id && <span className="ml-2 rounded-full border border-mint/25 bg-mint/10 px-2 py-0.5 text-[9px] font-semibold text-mint">Best fit</span>}</p>
-                  <p className="mt-1 text-xs text-text-muted">{pack.note} · one-time · no subscription</p>
-                </div>
-                <div className="text-right"><p className="font-display text-xl font-bold text-white">{pack.price}</p><p className="text-[10px] font-semibold text-mint">Buy</p></div>
-              </button>
-            ))}
-            {shortfall > 250 && <p className="rounded-xl border border-white/10 bg-white/[.03] p-3 text-[11px] leading-5 text-text-muted">This setup needs {shortfall} additional credits. You can combine top-ups or choose a monthly plan with a larger balance.</p>}
+            {CREDIT_PACKS.map((pack) => {
+              const baseDisplay = displayCredits(pack.credits);
+              const grantedInternal = packGrant(pack.credits);
+              const grantedDisplay = displayCredits(grantedInternal);
+              const bonusDisplay = Math.max(0, grantedDisplay - baseDisplay);
+              return (
+                <button key={pack.id} onClick={() => choose(pack.id)} disabled={loading !== null} className={`flex w-full items-center justify-between rounded-2xl border p-4 text-left transition disabled:opacity-50 ${bestCreditPackId === pack.id ? 'border-mint/45 bg-mint/[.07]' : 'border-white/10 bg-white/[.025] hover:border-mint/30'}`}>
+                  <div>
+                    <p className="text-sm font-bold text-white">{grantedDisplay.toLocaleString()} credits {bestCreditPackId === pack.id && <span className="ml-2 rounded-full border border-mint/25 bg-mint/10 px-2 py-0.5 text-[9px] font-semibold text-mint">Best fit</span>}</p>
+                    <p className="mt-1 text-xs text-text-muted">{pack.note}{offerActive && bonusDisplay > 0 ? ` · ${baseDisplay.toLocaleString()} + ${bonusDisplay.toLocaleString()} welcome bonus · ${formatWelcomeCountdown(welcomeOffer?.expiresAt, now)} left` : ''} · one-time · no subscription</p>
+                  </div>
+                  <div className="text-right"><p className="font-display text-xl font-bold text-white">{pack.price}</p><p className="text-[10px] font-semibold text-mint">Buy</p></div>
+                </button>
+              );
+            })}
+            {shortfall > 250 && <p className="rounded-xl border border-white/10 bg-white/[.03] p-3 text-[11px] leading-5 text-text-muted">This setup needs {displayCredits(shortfall)} additional credits. You can combine top-ups or choose a monthly plan with a larger balance.</p>}
           </div>
         )}
 
@@ -88,13 +113,13 @@ export function PaywallModal({
               <button key={pack.id} onClick={() => choose(pack.id)} disabled={loading !== null} className={`flex w-full items-center justify-between rounded-2xl border p-4 text-left transition disabled:opacity-50 ${index === 0 ? 'border-violet/45 bg-violet/[.08]' : 'border-white/10 bg-white/[.025] hover:border-violet/30'}`}>
                 <div>
                   <p className="text-sm font-bold text-white">{pack.name} {index === 0 && <span className="ml-2 rounded-full border border-violet/25 bg-violet/10 px-2 py-0.5 text-[9px] font-semibold text-violet">Best fit</span>}</p>
-                  <p className="mt-1 text-xs text-text-muted">{pack.label} · {pack.credits} credits added · no subscription</p>
+                  <p className="mt-1 text-xs text-text-muted">{pack.label} · {displayCredits(pack.credits)} credits added · no subscription</p>
                 </div>
                 <div className="text-right"><p className="font-display text-xl font-bold text-white">{pack.price}</p><p className="text-[10px] font-semibold text-mint">Buy</p></div>
               </button>
             )) : (
               <div className="rounded-2xl border border-white/10 bg-white/[.03] p-4 text-sm leading-6 text-text-muted">
-                One-video packs are for supported 1080p setups up to 144 seconds. This setup needs {requiredCredits} credits, so use <button type="button" onClick={() => setTab('credits')} className="font-semibold text-mint">Buy credits</button> or <button type="button" onClick={() => setTab('plans')} className="font-semibold text-violet">Plans</button> to keep these exact settings.
+                One-video packs are for supported 1080p setups up to 144 seconds. This setup needs {displayCredits(requiredCredits)} credits, so use <button type="button" onClick={() => setTab('credits')} className="font-semibold text-mint">Buy credits</button> or <button type="button" onClick={() => setTab('plans')} className="font-semibold text-violet">Plans</button> to keep these exact settings.
               </div>
             )}
           </div>
@@ -104,7 +129,7 @@ export function PaywallModal({
           <div className="mt-4 space-y-2.5">
             {(eligiblePlans.length ? eligiblePlans : PAYWALL_PLANS).map((p) => (
               <button key={p.id} onClick={() => choose(p.id)} disabled={loading !== null} className={`flex w-full items-center justify-between rounded-2xl border p-4 text-left transition disabled:opacity-50 ${p.highlight ? 'border-violet/55 bg-signature-soft' : 'border-white/10 bg-white/[.025] hover:border-violet/30'}`}>
-                <div><p className="text-sm font-bold text-white">{p.name}{p.highlight && <span className="ml-2 rounded-full bg-signature px-2 py-0.5 text-[9px]">Popular</span>}</p><p className="mt-1 text-xs text-text-muted">{p.credits} credits · {p.pitch}</p></div>
+                <div><p className="text-sm font-bold text-white">{p.name}{p.highlight && <span className="ml-2 rounded-full bg-signature px-2 py-0.5 text-[9px]">Popular</span>}</p><p className="mt-1 text-xs text-text-muted">{displayCredits(p.credits).toLocaleString()} credits · {p.pitch}</p></div>
                 <div className="text-right"><p className="font-display text-xl font-bold text-white">${p.price}<span className="text-[10px] font-normal text-text-dim">/month</span></p><p className="text-[10px] font-semibold text-mint">Buy</p></div>
               </button>
             ))}
