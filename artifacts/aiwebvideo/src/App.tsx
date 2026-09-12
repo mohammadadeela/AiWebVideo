@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { Route, Switch, Router as WouterRouter } from 'wouter';
 import { AppErrorBoundary } from '@/components/system/AppErrorBoundary';
+import { useReturnToOpener } from '@/hooks/use-return-to-opener';
 
 const HomePage = lazy(() => import('@/pages/HomePage').then((module) => ({ default: module.HomePage })));
 const DashboardPage = lazy(() => import('@/pages/DashboardPage').then((module) => ({ default: module.DashboardPage })));
@@ -77,6 +78,8 @@ function Router() {
 }
 
 function App() {
+  useReturnToOpener();
+
   return (
     <AppErrorBoundary>
       <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
