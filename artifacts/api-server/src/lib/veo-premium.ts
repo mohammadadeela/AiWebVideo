@@ -55,7 +55,7 @@ export interface GeneratedVideo {
 
 type GeminiProviderVideo = Record<string, unknown>;
 
-type SegmentScene = StoryboardScene & {
+export type PremiumSegmentScene = StoryboardScene & {
   deliverySeconds: number;
 };
 
@@ -143,13 +143,18 @@ function sceneReferenceIndices(scene: StoryboardScene, sceneIndex: number, count
   return [sceneIndex % count];
 }
 
-function buildSegmentScenes(
+export function premiumSceneOperationCount(targetDurationSeconds: number) {
+  const target = Math.max(PROVIDER_SCENE_SECONDS, Math.round(targetDurationSeconds));
+  return Math.ceil(target / PROVIDER_SCENE_SECONDS);
+}
+
+export function buildPremiumScenePlan(
   scenes: StoryboardScene[],
   targetDurationSeconds: number,
   referenceCount: number,
   mode: string,
-): SegmentScene[] {
-  const segmentCount = Math.max(1, Math.ceil(targetDurationSeconds / PROVIDER_SCENE_SECONDS));
+): PremiumSegmentScene[] {
+  const segmentCount = premiumSceneOperationCount(targetDurationSeconds);
   const source = scenes.length ? scenes : [{
     sceneNumber: 1,
     durationSeconds: PROVIDER_SCENE_SECONDS,
@@ -663,7 +668,7 @@ export async function generateMarketingVideo(
           ?? sourceScenes.reduce((sum, scene) => sum + Math.max(1, Number(scene.durationSeconds || 8)), 0),
       ),
     );
-    const segments = buildSegmentScenes(sourceScenes, targetDurationSeconds, referenceImages.length, mode);
+    const segments = buildPremiumScenePlan(sourceScenes, targetDurationSeconds, referenceImages.length, mode);
     if (segments.length > 18) throw new Error(`Premium scene renderer supports up to 144 seconds. Requested ${targetDurationSeconds}s.`);
 
     const model = geminiModelChain()[0];
