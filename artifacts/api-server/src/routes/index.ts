@@ -131,12 +131,20 @@ const CUSTOMER_CREDIT_FIELDS = new Set([
   'delta',
 ]);
 
+function scaleCreditTextNumber(rawNumber: string): string {
+  const numeric = Number(rawNumber.replace(/,/g, ''));
+  return Number.isFinite(numeric)
+    ? Math.round(numeric * CREDIT_DISPLAY_MULTIPLIER).toLocaleString('en-US')
+    : rawNumber;
+}
+
 function customerCreditText(value: string): string {
-  return value.replace(/(\d[\d,]*)\s+credits\b/gi, (match, rawNumber: string) => {
-    const numeric = Number(rawNumber.replace(/,/g, ''));
-    if (!Number.isFinite(numeric)) return match;
-    return `${Math.round(numeric * CREDIT_DISPLAY_MULTIPLIER).toLocaleString('en-US')} credits`;
-  });
+  if (!/\bcredits?\b/i.test(value)) return value;
+  return value
+    .replace(/(\d[\d,]*)\s+credits\b/gi, (_match, rawNumber: string) => `${scaleCreditTextNumber(rawNumber)} credits`)
+    .replace(/\b(You have)\s+(\d[\d,]*)\b/gi, (_match, prefix: string, rawNumber: string) => `${prefix} ${scaleCreditTextNumber(rawNumber)}`)
+    .replace(/\b(add)\s+(\d[\d,]*)\s+more\b/gi, (_match, prefix: string, rawNumber: string) => `${prefix} ${scaleCreditTextNumber(rawNumber)} more`)
+    .replace(/\b(you need)\s+(\d[\d,]*)\s+more\b/gi, (_match, prefix: string, rawNumber: string) => `${prefix} ${scaleCreditTextNumber(rawNumber)} more`);
 }
 
 function customerCreditPayload(value: unknown, key?: string): unknown {
