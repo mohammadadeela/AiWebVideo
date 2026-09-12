@@ -16,6 +16,7 @@ type QueueItem<T> = {
   jobId: string;
   ownerKey: string;
   enqueuedAt: number;
+  firstEnqueuedAt: number;
   attempt: number;
   task: () => Promise<T>;
   resolve: (value: T) => void;
@@ -69,8 +70,13 @@ export function queueSettings(kind: ProviderQueueKind) {
       };
     case 'video':
       return {
+        // Veo preview capacity is expensive and project/tier dependent. Keep
+        // the existing 4 RPM pacing, but default to one submitted generation
+        // at a time so multiple users cannot burst two paid Veo starts at once.
+        // Operators can raise either value after checking the project's live
+        // AI Studio limits.
         rpm: envNumber('GEMINI_VIDEO_RPM', 4, 1, 10_000),
-        concurrency: envNumber('GEMINI_VIDEO_CONCURRENCY', 2, 1, 100),
+        concurrency: envNumber('GEMINI_VIDEO_CONCURRENCY', 1, 1, 100),
       };
     case 'tts':
       return {
@@ -99,23 +105,65 @@ function errorText(error: unknown) {
   try { return JSON.stringify(error); } catch { return String(error); }
 }
 
+/**
+ * Only explicit throttling/quota responses are safe to automatically submit
+ * again. A 503/UNAVAILABLE around an expensive generation start is ambiguous:
+ * the provider may have accepted the operation before the connection failed,
+ * so blindly re-submitting can create a duplicate paid video.
+ */
 function isRateLimitError(error: unknown) {
   const value = errorText(error);
   const status = Number((error as { status?: unknown; code?: unknown } | null)?.status ?? (error as { code?: unknown } | null)?.code);
-  return status === 429 || status === 503 || /429|RESOURCE_EXHAUSTED|rate.?limit|quota|too many requests|UNAVAILABLE|temporar(?:y|ily) unavailable/i.test(value);
+  return status === 429 || /\b429\b|RESOURCE_EXHAUSTED|rate.?limit|quota|too many requests/i.test(value);
 }
 
-function retryAfterMs(error: unknown, attempt: number) {
+function retryAfterFromProvider(error: unknown) {
   const record = error && typeof error === 'object' ? error as Record<string, unknown> : {};
   const headers = record.headers && typeof record.headers === 'object' ? record.headers as Record<string, unknown> : {};
   const retryAfter = headers['retry-after'] ?? headers['Retry-After'] ?? record.retryAfter ?? record.retry_after;
   const seconds = Number(retryAfter);
-  if (Number.isFinite(seconds) && seconds > 0) return Math.min(120_000, Math.max(1_000, Math.round(seconds * 1000)));
+  if (Number.isFinite(seconds) && seconds > 0) {
+    return Math.min(5 * 60_000, Math.max(1_000, Math.round(seconds * 1000)));
+  }
+  if (typeof retryAfter === 'string') {
+    const at = Date.parse(retryAfter);
+    if (Number.isFinite(at) && at > Date.now()) {
+      return Math.min(5 * 60_000, Math.max(1_000, at - Date.now()));
+    }
+  }
   const text = errorText(error);
   const match = text.match(/retry(?:\s+after|Delay)?[^0-9]{0,12}(\d+(?:\.\d+)?)\s*s/i);
-  if (match) return Math.min(120_000, Math.max(1_000, Math.round(Number(match[1]) * 1000)));
-  const backoff = [5_000, 12_000, 25_000, 45_000, 75_000];
-  return backoff[Math.min(attempt, backoff.length - 1)];
+  if (match) return Math.min(5 * 60_000, Math.max(1_000, Math.round(Number(match[1]) * 1000)));
+  return null;
+}
+
+function retryAfterMs(error: unknown, attempt: number, kind: ProviderQueueKind) {
+  const providerDelay = retryAfterFromProvider(error);
+  if (providerDelay != null) return providerDelay;
+
+  // Video requests are both much more expensive and much more capacity-bound
+  // than text/image calls. Back off substantially rather than hammering Veo at
+  // 5s/12s/25s/45s as the old queue did.
+  const backoff = kind === 'video'
+    ? [20_000, 45_000, 90_000, 120_000, 180_000]
+    : [5_000, 12_000, 25_000, 45_000, 75_000];
+  const base = backoff[Math.min(attempt, backoff.length - 1)];
+  // Small positive jitter prevents several queued users from waking and
+  // re-hitting the project quota on the same millisecond.
+  return Math.round(base * (1 + Math.random() * 0.15));
+}
+
+function maxRateLimitWaitMs(kind: ProviderQueueKind) {
+  return kind === 'video'
+    ? envNumber('GEMINI_VIDEO_QUEUE_MAX_WAIT_MS', 8 * 60_000, 30_000, 30 * 60_000)
+    : envNumber('GEMINI_QUEUE_MAX_WAIT_MS', 5 * 60_000, 10_000, 30 * 60_000);
+}
+
+function maxRateLimitRetries(kind: ProviderQueueKind) {
+  const generic = envNumber('GEMINI_QUEUE_RATE_LIMIT_RETRIES', 5, 0, 10);
+  return kind === 'video'
+    ? envNumber('GEMINI_VIDEO_QUEUE_RATE_LIMIT_RETRIES', 4, 0, 10)
+    : generic;
 }
 
 async function ownerForJob(jobId?: string) {
@@ -140,16 +188,20 @@ function providerStage(kind: ProviderQueueKind): PaidGenerationStage {
   return kind === 'storyboard' ? 'storyboarding' : 'rendering';
 }
 
-/** Re-check funding after any queue wait and again before every retry. */
+/** Re-check funding/cancellation after any queue wait and before every retry. */
 async function assertQueuedProviderAuthorization(item: QueueItem<unknown>) {
-  const { rows } = await query<PaidGenerationSnapshot>(
-    `SELECT user_id, status, credits_spent
+  const { rows } = await query<PaidGenerationSnapshot & { cancel_requested: boolean }>(
+    `SELECT user_id, status, credits_spent, cancel_requested
        FROM jobs
       WHERE id=$1 AND deleted_at IS NULL`,
     [item.jobId]
   );
+  const snapshot = rows[0];
   const expectedStage = providerStage(item.kind);
-  if (!isPaidProviderReservationActive(rows[0], expectedStage)) {
+  if (snapshot?.cancel_requested) {
+    throw new Error(`Paid provider call cancelled before start for job ${item.jobId}.`);
+  }
+  if (!isPaidProviderReservationActive(snapshot, expectedStage)) {
     throw new Error(
       `Paid provider call blocked: job ${item.jobId} no longer has an active ${expectedStage} credit reservation.`
     );
@@ -231,15 +283,22 @@ async function drain(kind: ProviderQueueKind, model: string) {
       .then(
         (value) => item.resolve(value),
         (error) => {
-          const maxRetries = envNumber('GEMINI_QUEUE_RATE_LIMIT_RETRIES', 5, 0, 10);
+          const maxRetries = maxRateLimitRetries(kind);
           if (item.attempt < maxRetries && isRateLimitError(error)) {
-            const delayMs = retryAfterMs(error, item.attempt);
-            item.attempt += 1;
-            item.enqueuedAt = Date.now();
-            state.blockedUntil = Math.max(state.blockedUntil, Date.now() + delayMs);
-            state.waiting.push(item);
-            logger.warn({ kind, model, operation: item.operation, jobId: item.jobId, delayMs, attempt: item.attempt }, '[provider-queue] provider rate limited; queued for retry');
-            void publishQueueStatus(item, state.waiting.length, delayMs);
+            const delayMs = retryAfterMs(error, item.attempt, kind);
+            const totalWaitAfterDelay = Date.now() + delayMs - item.firstEnqueuedAt;
+            if (totalWaitAfterDelay > maxRateLimitWaitMs(kind)) {
+              item.reject(new Error(
+                `Provider ${kind} capacity stayed rate-limited beyond the safe queue window. No further generation submission was attempted. ${errorText(error)}`,
+              ));
+            } else {
+              item.attempt += 1;
+              item.enqueuedAt = Date.now();
+              state.blockedUntil = Math.max(state.blockedUntil, Date.now() + delayMs);
+              state.waiting.push(item);
+              logger.warn({ kind, model, operation: item.operation, jobId: item.jobId, delayMs, attempt: item.attempt, maxRetries }, '[provider-queue] provider rate limited; queued with safe backoff');
+              void publishQueueStatus(item, state.waiting.length, delayMs);
+            }
           } else {
             item.reject(error);
           }
@@ -268,6 +327,7 @@ export async function runQueuedProviderCall<T>(input: {
   const ownerKey = await ownerForJob(input.jobId);
   const state = stateFor(input.kind, input.model);
   return new Promise<T>((resolve, reject) => {
+    const now = Date.now();
     const item: QueueItem<T> = {
       id: ++sequence,
       kind: input.kind,
@@ -275,7 +335,8 @@ export async function runQueuedProviderCall<T>(input: {
       operation: input.operation,
       jobId: input.jobId,
       ownerKey,
-      enqueuedAt: Date.now(),
+      enqueuedAt: now,
+      firstEnqueuedAt: now,
       attempt: 0,
       task: input.task,
       resolve,
