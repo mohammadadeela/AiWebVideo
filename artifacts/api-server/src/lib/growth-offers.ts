@@ -1,24 +1,22 @@
 import { GEMINI_COST_CATALOG } from './costs.js';
 import { CREDIT_COSTS } from './credits.js';
 
-/** Internal credits remain the accounting/security unit. UI displays x10. */
-export const CREDIT_DISPLAY_MULTIPLIER = 10;
-/** New users receive 5 internal credits = 50 customer-facing credits. */
+/** Internal credits remain the accounting/security unit. Customer UI displays x5. */
+export const CREDIT_DISPLAY_MULTIPLIER = 5;
+/** New users receive 5 internal credits = 25 customer-facing Starter Credits. */
 export const STARTER_CREDITS_INTERNAL = 5;
 export const STARTER_CREDITS_DISPLAY = STARTER_CREDITS_INTERNAL * CREDIT_DISPLAY_MULTIPLIER;
 
-/** A real, server-timed new-account offer. It never resets in the browser. */
+/** A real, server-timed first-sign-in offer. It never resets in the browser. */
 export const WELCOME_OFFER_MS = 5 * 60 * 1000;
-export const WELCOME_BONUS_PERCENT = 20;
+export const WELCOME_DISCOUNT_PERCENT = 20;
 
 /**
- * Conservative economics guard.
- * Derive the most expensive premium-video provider cost per internal credit
- * from the same cost catalog and credit schedule used by production, then add
- * 3% for small planning/TTS/provider overhead. Before promotional credits are
- * issued we also reserve 10% of checkout revenue for payment/refund overhead.
- * The remaining revenue must still cover at least 2x this all-in API estimate,
- * including the 5-credit starter balance.
+ * Conservative API-cost model used to protect promotional pricing.
+ * The discount is allowed only when the actual checkout amount still covers
+ * at least 2x the modeled provider/API cost of all spendable credits, including
+ * the Starter Credits. Payment processor fees can reduce the final net multiple,
+ * but the transaction still retains a large positive provider-cost margin.
  */
 const BASE_PROVIDER_COST_PER_INTERNAL_CREDIT_USD = Math.max(
   GEMINI_COST_CATALOG.video.standard1080 / CREDIT_COSTS.VIDEO_PER_SECOND_STANDARD_1080P,
@@ -26,39 +24,48 @@ const BASE_PROVIDER_COST_PER_INTERNAL_CREDIT_USD = Math.max(
 );
 export const MAX_PROVIDER_COST_PER_INTERNAL_CREDIT_USD = BASE_PROVIDER_COST_PER_INTERNAL_CREDIT_USD * 1.03;
 export const MIN_PROVIDER_MULTIPLE = 2;
-export const PAYMENT_REVENUE_AFTER_RESERVE_FACTOR = 0.90;
 
+/** The welcome price discount is intentionally limited to one-time credit packs. */
 export const WELCOME_OFFER_PRODUCTS = new Set(['topup50', 'topup100', 'topup250']);
 
-export function marginSafeWelcomeBonusCredits(input: {
-  productId: string;
-  amountUsd: number;
-  purchasedInternalCredits: number;
-}): number {
-  if (!WELCOME_OFFER_PRODUCTS.has(input.productId)) return 0;
-  const amountUsd = Math.max(0, Number(input.amountUsd) || 0);
-  const purchasedCredits = Math.max(0, Math.floor(Number(input.purchasedInternalCredits) || 0));
-  if (!amountUsd || !purchasedCredits) return 0;
+function money(value: number): number {
+  return Math.round((Math.max(0, Number(value) || 0) + Number.EPSILON) * 100) / 100;
+}
 
-  const proposedBonus = Math.max(1, Math.floor(purchasedCredits * (WELCOME_BONUS_PERCENT / 100)));
-  const totalSpendable = purchasedCredits + proposedBonus + STARTER_CREDITS_INTERNAL;
-  const revenueAfterReserve = amountUsd * PAYMENT_REVENUE_AFTER_RESERVE_FACTOR;
-  const minimumRevenue = totalSpendable * MAX_PROVIDER_COST_PER_INTERNAL_CREDIT_USD * MIN_PROVIDER_MULTIPLE;
-
-  return revenueAfterReserve + 1e-9 >= minimumRevenue ? proposedBonus : 0;
+export function proposedWelcomeDiscountAmount(amountUsd: number): number {
+  return money(amountUsd * (1 - WELCOME_DISCOUNT_PERCENT / 100));
 }
 
 export function providerCoverageMultiple(input: {
   amountUsd: number;
   purchasedInternalCredits: number;
-  bonusInternalCredits?: number;
+  includeStarterCredits?: boolean;
 }): number {
   const totalSpendable = Math.max(
     1,
     Number(input.purchasedInternalCredits || 0) +
-      Number(input.bonusInternalCredits || 0) +
-      STARTER_CREDITS_INTERNAL,
+      (input.includeStarterCredits === false ? 0 : STARTER_CREDITS_INTERNAL),
   );
   const worstCaseProviderCost = totalSpendable * MAX_PROVIDER_COST_PER_INTERNAL_CREDIT_USD;
-  return (Math.max(0, Number(input.amountUsd) || 0) * PAYMENT_REVENUE_AFTER_RESERVE_FACTOR) / worstCaseProviderCost;
+  return Math.max(0, Number(input.amountUsd) || 0) / worstCaseProviderCost;
+}
+
+/**
+ * Returns the real amount PayPal may charge during the welcome window.
+ * If the 20% price would ever violate the 2x modeled API-cost floor, the
+ * server silently keeps the normal price instead of creating an unsafe sale.
+ */
+export function marginSafeWelcomePrice(input: {
+  productId: string;
+  amountUsd: number;
+  purchasedInternalCredits: number;
+}): number {
+  const normalAmount = money(input.amountUsd);
+  if (!WELCOME_OFFER_PRODUCTS.has(input.productId)) return normalAmount;
+  const discountedAmount = proposedWelcomeDiscountAmount(normalAmount);
+  const multiple = providerCoverageMultiple({
+    amountUsd: discountedAmount,
+    purchasedInternalCredits: input.purchasedInternalCredits,
+  });
+  return multiple + 1e-9 >= MIN_PROVIDER_MULTIPLE ? discountedAmount : normalAmount;
 }

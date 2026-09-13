@@ -228,9 +228,6 @@ export function WebsiteBriefForm({
         return { ...current, aspectRatio: "1:1", audioMode: "silent" };
       }
 
-      // Photo creation intentionally forces square + silent output. Only undo
-      // those defaults when the user is actually leaving Product Photos; a
-      // deliberate square/silent choice made in a video mode should survive.
       const leavingPhotoDefaults =
         previousIntent === "photo" &&
         current.aspectRatio === "1:1" &&
@@ -280,10 +277,6 @@ export function WebsiteBriefForm({
     return () => window.cancelAnimationFrame(frame);
   }, [settingsOpen, activeMode]);
 
-  // Browsers do not guarantee a final dragleave when a file leaves the
-  // window (or when the pointer crosses children inside the composer). Reset
-  // the counter from window-level terminal events so the visual drop target
-  // can never remain over the form and make the inputs appear frozen.
   useEffect(() => {
     const resetDragState = () => {
       dragDepthRef.current = 0;
@@ -370,9 +363,6 @@ export function WebsiteBriefForm({
     setSettingsOpen(false);
 
     const returnToCreatorTop = () => {
-      // On the landing page return to the top of the creator so the user
-      // sees the URL, prompt and primary action together again. In Workspace,
-      // return to the primary fields inside its own fixed-height scroller.
       const isWorkspace = window.location.pathname === "/dashboard";
       const target = isWorkspace
         ? (primaryFieldsRef.current ?? composerRootRef.current ?? generateButtonRef.current)
@@ -382,9 +372,6 @@ export function WebsiteBriefForm({
       const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
       const behavior: ScrollBehavior = reducedMotion ? "auto" : "smooth";
 
-      // 1) Reset the creator's own vertical scroller first. This is essential
-      // on the public landing page, where the tall Smart Settings panel lives
-      // inside a nested overflow container.
       let parent = target.parentElement;
       let innerScroller: HTMLElement | null = null;
       while (parent) {
@@ -410,10 +397,6 @@ export function WebsiteBriefForm({
         innerScroller.scrollTo({ top: targetInsideScroller, behavior });
       }
 
-      // 2) Landing/studio pages also have the document itself as a scroller.
-      // Put the Website URL / prompt block directly below the sticky navbar.
-      // On Workspace, the page is fixed-height and only the internal creator
-      // should move, so deliberately leave window.scrollY untouched there.
       if (!isWorkspace) {
         window.setTimeout(() => {
           const liveTarget = composerRootRef.current ?? primaryFieldsRef.current ?? generateButtonRef.current;
@@ -427,13 +410,9 @@ export function WebsiteBriefForm({
         }, 35);
       }
 
-      // Focus is useful for keyboard users, but prevent it from undoing the
-      // exact scroll position we just calculated.
       generateButtonRef.current?.focus({ preventScroll: true });
     };
 
-    // Wait until React has removed the expanded settings panel, then correct
-    // the position twice. The second pass handles mobile/Safari layout settling.
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
         returnToCreatorTop();
@@ -654,7 +633,6 @@ export function WebsiteBriefForm({
                       : "Describe who is speaking and what should happen."}
             </p>
           </div>
-
         </div>}
 
         {compactLayout && activeMode === "website" && (
@@ -861,7 +839,6 @@ export function WebsiteBriefForm({
             <div>
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <p className="text-[10px] font-semibold uppercase tracking-[.12em] text-text-dim">Style · optional</p>
-
               </div>
               <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-6" role="group" aria-label="Optional creative recipe">
                 {WEBSITE_RECIPES.map((recipe) => {
@@ -1269,7 +1246,7 @@ export function WebsiteBriefForm({
                     </button>
                   ))}
                 </div>
-                {isVideoMode && <p className="mt-2 text-[9px] text-text-dim">{showCreditPricing ? <>At {durationLabel(estimateSeconds)}, {settings.outputQuality === "4k" ? `${estimateSeconds * 5} base video credits` : `${estimateSeconds * 4} base video credits`} before narration. </> : null}{estimateSeconds > 8 ? "Long films use a continuous provider source, then the final film is mastered to your selected delivery size." : "The 8-second provider generation can be native at the selected size."}</p>}
+                {isVideoMode && <p className="mt-2 text-[9px] text-text-dim">{showCreditPricing ? <>At {durationLabel(estimateSeconds)}, {settings.outputQuality === "4k" ? `${estimateRenderCredits("video", true, estimateSeconds, "4k")} base video credits` : `${estimateRenderCredits("video", true, estimateSeconds, "1080p")} base video credits`} before narration. </> : null}{estimateSeconds > 8 ? "Long films use a continuous provider source, then the final film is mastered to your selected delivery size." : "The 8-second provider generation can be native at the selected size."}</p>}
               </div>
 
               {isVideoMode && (
@@ -1305,7 +1282,7 @@ export function WebsiteBriefForm({
                       Silent
                     </button>
                   </div>
-                  <p className="mt-2 text-[9px] text-text-dim">{showCreditPricing ? "Narration adds 6 credits. Scene audio, music only, and silent keep the base video price." : "Choose narration, scene audio, music only, or silent delivery."}</p>
+                  <p className="mt-2 text-[9px] text-text-dim">{showCreditPricing ? `Narration adds ${estimateRenderCredits("video", false, 8, "1080p") - estimateRenderCredits("video", true, 8, "1080p")} credits. Scene audio, music only, and silent keep the base video price.` : "Choose narration, scene audio, music only, or silent delivery."}</p>
                   {settings.audioMode === "voice_music" && (
                     <label className="mt-2 block">
                       <span className="mb-1.5 block text-[10px] font-semibold text-text-muted">Narration language</span>

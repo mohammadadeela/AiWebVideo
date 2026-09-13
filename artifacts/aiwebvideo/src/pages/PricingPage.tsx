@@ -1,16 +1,41 @@
-import { CircleDollarSign, RefreshCcw, WalletCards } from "lucide-react";
+import { useEffect, useState } from "react";
+import { BadgePercent, CircleDollarSign, RefreshCcw, WalletCards } from "lucide-react";
 import { Nav } from "@/components/landing/Nav";
 import { Footer } from "@/components/landing/Footer";
 import { PricingTable } from "@/components/landing/PricingTable";
+import { fetchWelcomeGrowthOffer, formatWelcomeCountdown, type WelcomeGrowthOffer } from "@/lib/growth";
 import { useSeo } from "@/lib/useSeo";
 
 export function PricingPage() {
+  const [welcomeOffer, setWelcomeOffer] = useState<WelcomeGrowthOffer | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
   useSeo({
     title: "AI Website Video Generator Pricing",
     description:
       "Credit-based pricing for AI website-to-video production, with one-time credit top-ups, monthly plans, automatic refunds, and clear 1080p and 4K usage.",
     path: "/pricing",
   });
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchWelcomeGrowthOffer()
+      .then((offer) => { if (!cancelled) setWelcomeOffer(offer); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!welcomeOffer?.active) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [welcomeOffer?.active]);
+
+  const offerActive = Boolean(
+    welcomeOffer?.active &&
+    welcomeOffer.discountPercent > 0 &&
+    new Date(welcomeOffer.expiresAt).getTime() > now,
+  );
 
   return (
     <>
@@ -26,15 +51,35 @@ export function PricingPage() {
               Know the production cost before you generate.
             </h1>
 
+            {offerActive && welcomeOffer && (
+              <a
+                href="#buy-credits"
+                className="mx-auto mt-6 flex max-w-xl items-center justify-between gap-3 rounded-2xl border border-mint/30 bg-mint/[.08] px-4 py-3 text-left shadow-[0_18px_50px_-35px_rgba(52,211,153,.75)] transition hover:bg-mint/[.12]"
+              >
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-mint/15 text-mint">
+                    <BadgePercent size={18} aria-hidden="true" />
+                  </span>
+                  <span>
+                    <span className="block text-sm font-bold text-white">{welcomeOffer.discountPercent}% off credit packs</span>
+                    <span className="mt-0.5 block text-[11px] text-text-muted">Same credits, lower checkout price. No bonus-credit trick.</span>
+                  </span>
+                </span>
+                <span className="shrink-0 rounded-full border border-mint/25 bg-mint/10 px-2.5 py-1 font-utility text-[10px] font-bold text-mint">
+                  {formatWelcomeCountdown(welcomeOffer.expiresAt, now)}
+                </span>
+              </a>
+            )}
+
             <div className="mt-10 text-left sm:mt-12">
               <PricingTable />
             </div>
 
             <div className="mt-14 border-t border-white/[.08] pt-12 sm:mt-16 sm:pt-14">
               <p className="mx-auto max-w-2xl text-sm leading-7 text-text-muted">
-                The production system uses credits for generated media. Current
-                1080p video pricing is four credits per generated second, native
-                4K is six, and the exact quote is shown before generation.
+                The production system uses credits for generated media. Customer-facing
+                1080p video pricing is 20 credits per generated second, 4K is 30,
+                and the exact quote is shown before generation.
               </p>
               <div className="mx-auto mt-8 grid max-w-3xl gap-px overflow-hidden rounded-2xl border border-border bg-border text-left sm:grid-cols-3">
                 {[

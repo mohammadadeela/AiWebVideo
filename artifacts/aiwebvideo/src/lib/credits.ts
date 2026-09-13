@@ -10,7 +10,7 @@ export const CREDIT_COSTS = {
  * continue to use the smaller internal credit unit, so this never changes
  * what a generation costs us or whether a provider call is authorized.
  */
-export const CREDIT_DISPLAY_MULTIPLIER = 10;
+export const CREDIT_DISPLAY_MULTIPLIER = 5;
 
 export function displayCredits(value: number | null | undefined): number {
   const numeric = Number(value ?? 0);
@@ -31,8 +31,8 @@ export function normalizedGeneratedSeconds(durationSeconds = MIN_VIDEO_SECONDS) 
   return Math.max(MIN_VIDEO_SECONDS, Math.min(MAX_VIDEO_SECONDS, wholeSeconds));
 }
 
-/** Mirrors the server quote for the premium Veo 3.1 default configuration. */
-export function estimateRenderCredits(
+/** Mirrors the server's internal quote before the customer-facing x5 denomination. */
+export function estimateInternalRenderCredits(
   mode: string,
   skipVoiceover: boolean,
   durationSeconds = 8,
@@ -43,4 +43,18 @@ export function estimateRenderCredits(
   const video = generatedSeconds * (outputQuality === '4k' ? CREDIT_COSTS.VIDEO_PER_SECOND_4K : CREDIT_COSTS.VIDEO_PER_SECOND_1080P);
   const narration = skipVoiceover ? 0 : CREDIT_COSTS.NARRATION;
   return video + (mode === 'both' ? CREDIT_COSTS.PHOTO_SET_4 : 0) + narration;
+}
+
+/**
+ * Customer-facing quote used everywhere in the web app. API responses expose
+ * credit quantities in the same x5 denomination, while the server keeps all
+ * authorization and accounting in internal units.
+ */
+export function estimateRenderCredits(
+  mode: string,
+  skipVoiceover: boolean,
+  durationSeconds = 8,
+  outputQuality: '1080p' | '4k' = '1080p',
+) {
+  return displayCredits(estimateInternalRenderCredits(mode, skipVoiceover, durationSeconds, outputQuality));
 }

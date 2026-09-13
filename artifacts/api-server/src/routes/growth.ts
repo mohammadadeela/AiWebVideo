@@ -7,43 +7,65 @@ import {
   CREDIT_DISPLAY_MULTIPLIER,
   STARTER_CREDITS_INTERNAL,
   STARTER_CREDITS_DISPLAY,
-  WELCOME_BONUS_PERCENT,
+  WELCOME_DISCOUNT_PERCENT,
   WELCOME_OFFER_MS,
   WELCOME_OFFER_PRODUCTS,
-  marginSafeWelcomeBonusCredits,
 } from '../lib/growth-offers.js';
 
 const router = Router();
-const STARTER_ELIGIBILITY_MS = 24 * 60 * 60 * 1000;
+const NEW_ACCOUNT_ELIGIBILITY_MS = 24 * 60 * 60 * 1000;
+let growthSchemaReady: Promise<void> | null = null;
 
 type UserGrowthRow = {
   created_at: Date;
+  welcome_offer_started_at: Date | null;
 };
 
-type PaidTopupRow = {
-  id: string;
-  product_id: string | null;
-  credits_granted: number;
-  amount_usd: string | number;
-  created_at: Date;
-};
+export function ensureGrowthOfferSchema(): Promise<void> {
+  growthSchemaReady ??= query(
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS welcome_offer_started_at TIMESTAMPTZ',
+  ).then(() => undefined).catch((error) => {
+    growthSchemaReady = null;
+    throw error;
+  });
+  return growthSchemaReady;
+}
 
-export async function settleGrowthCredits(userId: string) {
-  const { rows: users } = await query<UserGrowthRow>(
-    'SELECT created_at FROM users WHERE id=$1 LIMIT 1',
+/**
+ * Starts the five-minute offer exactly once on the first authenticated account
+ * refresh for a newly-created account. Existing/old accounts do not suddenly
+ * receive a welcome offer after a deploy. The timestamp is server-owned and
+ * cannot be reset by refreshing, changing tabs or clearing browser storage.
+ */
+async function getOrStartWelcomeWindow(userId: string): Promise<UserGrowthRow | null> {
+  await ensureGrowthOfferSchema();
+  await query(
+    `UPDATE users
+        SET welcome_offer_started_at=NOW(),updated_at=NOW()
+      WHERE id=$1
+        AND welcome_offer_started_at IS NULL
+        AND created_at >= NOW() - INTERVAL '24 hours'`,
     [userId],
   );
-  const user = users[0];
+  const { rows } = await query<UserGrowthRow>(
+    'SELECT created_at,welcome_offer_started_at FROM users WHERE id=$1 LIMIT 1',
+    [userId],
+  );
+  return rows[0] ?? null;
+}
+
+export async function settleGrowthCredits(userId: string) {
+  const user = await getOrStartWelcomeWindow(userId);
   if (!user) return null;
 
   const createdAt = new Date(user.created_at);
   const now = Date.now();
   const accountAgeMs = Math.max(0, now - createdAt.getTime());
+  const newAccount = accountAgeMs <= NEW_ACCOUNT_ELIGIBILITY_MS;
 
-  // 5 internal credits = 50 customer-facing credits. This is deliberately
-  // below the cheapest paid generation (8 internal credits), so a new account
-  // can see a real starter balance without ever reaching a paid provider for free.
-  if (accountAgeMs <= STARTER_ELIGIBILITY_MS) {
+  // Starter Credits are real account credits, but deliberately remain below
+  // the cheapest paid generation so they cannot trigger a provider call alone.
+  if (newAccount) {
     await grantCreditsOnce({
       key: `growth:starter:${userId}`,
       userId,
@@ -52,52 +74,26 @@ export async function settleGrowthCredits(userId: string) {
     });
   }
 
-  const offerExpiresAt = new Date(createdAt.getTime() + WELCOME_OFFER_MS);
-  const { rows: paidTopups } = await query<PaidTopupRow>(
-    `SELECT id,product_id,credits_granted,amount_usd,created_at
-       FROM payments
-      WHERE user_id=$1
-        AND status='paid'
-        AND kind='one_time'
-        AND product_id = ANY($2::text[])
-      ORDER BY created_at ASC
-      LIMIT 1`,
-    [userId, Array.from(WELCOME_OFFER_PRODUCTS)],
-  );
-
-  const qualifying = paidTopups.find((payment) =>
-    new Date(payment.created_at).getTime() <= offerExpiresAt.getTime()
-  );
-  let bonusInternal = 0;
-  let bonusGranted = false;
-  if (qualifying?.product_id) {
-    bonusInternal = marginSafeWelcomeBonusCredits({
-      productId: qualifying.product_id,
-      amountUsd: Number(qualifying.amount_usd),
-      purchasedInternalCredits: Number(qualifying.credits_granted),
-    });
-    if (bonusInternal > 0) {
-      bonusGranted = await grantCreditsOnce({
-        key: `growth:welcome20:${qualifying.id}`,
-        userId,
-        credits: bonusInternal,
-        reason: `20% new-account credit bonus for ${qualifying.product_id}`,
-      });
-    }
-  }
-
+  const offerStartedAt = user.welcome_offer_started_at ? new Date(user.welcome_offer_started_at) : null;
+  const offerExpiresAt = offerStartedAt
+    ? new Date(offerStartedAt.getTime() + WELCOME_OFFER_MS)
+    : createdAt;
   const { rows: balances } = await query<{ credits_balance: number }>(
     'SELECT credits_balance FROM users WHERE id=$1 LIMIT 1',
     [userId],
   );
   const balanceInternal = Math.max(0, Number(balances[0]?.credits_balance ?? 0));
-  const hasPaidQualifyingTopup = Boolean(qualifying);
+
   return {
-    active: now < offerExpiresAt.getTime() && !hasPaidQualifyingTopup,
+    active: Boolean(newAccount && offerStartedAt && now < offerExpiresAt.getTime()),
+    startedAt: offerStartedAt,
     expiresAt: offerExpiresAt,
-    bonusPercent: WELCOME_BONUS_PERCENT,
+    discountPercent: WELCOME_DISCOUNT_PERCENT,
+    // Kept at zero for one deploy cycle so an older cached frontend cannot
+    // accidentally render the former bonus-credit mechanic.
+    bonusPercent: 0,
     starterCredits: STARTER_CREDITS_DISPLAY,
-    bonusCreditsGranted: bonusGranted ? bonusInternal * CREDIT_DISPLAY_MULTIPLIER : 0,
+    bonusCreditsGranted: 0,
     balanceInternal,
     balanceDisplay: balanceInternal * CREDIT_DISPLAY_MULTIPLIER,
     eligibleProducts: Array.from(WELCOME_OFFER_PRODUCTS),
@@ -105,9 +101,9 @@ export async function settleGrowthCredits(userId: string) {
 }
 
 // GET /api/growth/welcome
-// This endpoint is intentionally authenticated. It may settle one-time starter
-// or bonus credits, but every grant is idempotent and based only on verified
-// account/payment rows. The browser cannot choose the amount or extend expiry.
+// Authenticated only: offer timing, eligibility and Starter Credits are owned
+// by the server. The browser cannot extend the five-minute window or choose a
+// discount amount.
 router.get('/welcome', requireAuth, async (req, res) => {
   try {
     const result = await settleGrowthCredits(req.user!.id);
