@@ -26,7 +26,8 @@ test('managed recurring billing is authenticated, idempotent and database locked
   const routes = await source('src/routes/index.ts');
   assert.match(server, /requireAuth/);
   assert.match(server, /subscription-return\/:sessionId/);
-  assert.match(server, /FOR UPDATE SKIP LOCKED/);
+  assert.match(server, /pg_try_advisory_lock/);
+  assert.match(server, /pg_advisory_lock/);
   assert.match(server, /paypal_managed_subscription_renewals/);
   assert.match(server, /paypal:managed-renewal:/);
   assert.match(server, /billing_source='paypal_card'/);
@@ -59,6 +60,17 @@ test('paid managed subscriptions are reconciled if the process dies before grant
   assert.match(repair, /grantCreditsOnce/);
   assert.match(repair, /5 \* 60_000/);
   assert.match(index, /startManagedSubscriptionReconciliation\(\)/);
+});
+
+test('generic capture webhook cannot double-grant managed renewal credits', async () => {
+  const guard = await source('src/lib/subscription-billing-guards.ts');
+  const index = await source('src/index.ts');
+  assert.match(guard, /aiwebvideo_guard_managed_renewal_credit/);
+  assert.match(guard, /NEW\.grant_key LIKE 'paypal:order:%'/);
+  assert.match(guard, /p\.kind='subscription_renewal'/);
+  assert.match(guard, /RETURN NULL/);
+  assert.match(guard, /BEFORE INSERT ON credit_grants/);
+  assert.match(index, /ensureSubscriptionReceiptGuard\(\)/);
 });
 
 test('temporary Quick Video payment test price is one dollar on server and both purchase UIs', async () => {
