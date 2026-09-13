@@ -114,7 +114,7 @@ test('subscription checkout keeps AiWebVideo open and verifies activation throug
   assert.match(subscription, /startCheckout\(plan, jobId\)/);
   assert.match(subscription, /fetchSubscriptions\(\)/);
   assert.match(subscription, /popup\.location\.replace\(checkoutUrl\)/);
-  assert.match(subscription, /Buy \$\{money\(amountUsd\)\}\/mo/);
+  assert.match(subscription, /Buy \{money\(amountUsd\)\}\/mo/);
 });
 
 test('PayPal remains a fallback while raw card data stays outside AiWebVideo storage', async () => {

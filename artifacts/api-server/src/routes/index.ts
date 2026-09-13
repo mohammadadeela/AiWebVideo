@@ -4,6 +4,7 @@ import uploadsRouter from './uploads.js';
 import jobsRouter from './jobs.js';
 import userRouter from './user.js';
 import paypalRouter from './paypal.js';
+import paypalCardSettlementRouter from './paypal-card-settlement.js';
 import paypalCardRouter from './paypal-card.js';
 import growthRouter, { settleGrowthCredits } from './growth.js';
 import adminRouter from './admin.js';
@@ -196,6 +197,10 @@ router.use('/jobs', jobsRouter);
 router.use('/user', userRouter);
 router.use('/auth', userRouter);   // /api/auth/login, /register, /firebase
 router.use('/paypal', paypalRouter);
+// Settlement routes run first so completed Card Fields orders can be verified
+// against the authenticated local order even when PayPal omits custom_id from
+// purchase_units and returns it only on the completed capture.
+router.use('/paypal-card', paypalCardSettlementRouter);
 router.use('/paypal-card', paypalCardRouter);
 router.use('/growth', growthRouter);
 router.use('/admin', adminRouter);
