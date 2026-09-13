@@ -13,7 +13,7 @@ test('one-time checkout uses a wide responsive big-checkout layout with explicit
   assert.match(source, /PaymentState = 'idle' \| 'processing' \| 'success' \| 'error'/);
   assert.match(source, /bg-emerald-500/);
   assert.match(source, /bg-rose-500/);
-  assert.match(source, /Paid \{money\(amountUsd\)\}/);
+  assert.match(source, /Paid \$\{money\(amountUsd\)\}/);
   assert.match(source, /Try again · Buy/);
   assert.match(source, /Order summary/);
   assert.match(source, /Security code/);
