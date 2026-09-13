@@ -4,7 +4,6 @@ import { recoverInterruptedJobs } from './lib/queries.js';
 import { verifyEmailConnection } from './lib/mailer.js';
 import { ensurePaymentClawbackProtection } from './lib/billing.js';
 import { ensureSubscriptionReceiptGuard } from './lib/subscription-billing-guards.js';
-import { applyTemporaryPaymentTestPricing } from './lib/payment-test-pricing.js';
 import { startManagedSubscriptionReconciliation } from './lib/managed-subscription-reconciliation.js';
 import { startManagedSubscriptionRenewals } from './routes/paypal-card-subscriptions.js';
 
@@ -23,10 +22,6 @@ if (Number.isNaN(port) || port <= 0) {
 }
 
 async function start() {
-  // TEMPORARY owner-requested live payment test: keep every server checkout
-  // path on the same $1 Quick Video price until the test is explicitly ended.
-  applyTemporaryPaymentTestPricing();
-
   // Money-protection must be installed before the server can accept checkout
   // webhooks. A refunded/reversed payment then claws back its purchased credits
   // (and tied welcome bonus) atomically at the database layer.
