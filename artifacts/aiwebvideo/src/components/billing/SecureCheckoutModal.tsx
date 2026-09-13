@@ -50,6 +50,7 @@ interface CaptureResult {
   amountUsd: number;
   creditsGranted: number;
   savedPaymentMethodId?: string | null;
+  subscriptionId?: string | null;
 }
 
 interface HostedField {
@@ -94,6 +95,7 @@ interface GooglePaymentsClient {
     allowedPaymentMethods?: unknown[];
     buttonType?: string;
     buttonColor?: string;
+    buttonSizeMode?: string;
   }): HTMLElement;
   loadPaymentData(input: Record<string, unknown>): Promise<unknown>;
 }
@@ -123,21 +125,26 @@ const CARD_FIELD_SELECTORS = [
 
 const CARD_FIELD_STYLE = {
   input: {
-    color: '#f8f7ff',
+    color: '#f9f8ff',
     'background-color': '#151020',
-    'font-size': '16px',
+    'font-size': '18px',
+    'line-height': '24px',
     'font-family': 'Inter, ui-sans-serif, system-ui, sans-serif',
     'font-weight': '600',
     'caret-color': '#ffffff',
-    padding: '14px 14px',
+    padding: '16px 16px',
   },
-  'input::placeholder': { color: '#767087' },
-  ':focus': { color: '#ffffff', 'background-color': '#171124' },
+  'input::placeholder': { color: '#777184', 'font-weight': '500' },
+  ':focus': { color: '#ffffff', 'background-color': '#181226' },
   '.invalid': { color: '#fb7185' },
-  '.valid': { color: '#d8fff1' },
+  '.valid': { color: '#e9fff8' },
 };
 
 type PaymentState = 'idle' | 'processing' | 'success' | 'error';
+type BillingMode = 'one_time' | 'subscription';
+
+let configCache: { value: CheckoutConfig; expiresAt: number } | null = null;
+let configPromise: Promise<CheckoutConfig> | null = null;
 
 function money(value: number) {
   return `$${Math.max(0, Number(value) || 0).toFixed(2)}`;
@@ -145,10 +152,12 @@ function money(value: number) {
 
 function errorMessage(error: unknown) {
   if (error instanceof ApiError) {
-    if (error.code === 'PRICE_CHANGED') return 'The offer expired. Close checkout and review the current price.';
+    if (error.code === 'PRICE_CHANGED') return 'The price changed. Close checkout, review it, and try again.';
+    if (error.code === 'PAYPAL_RECURRING_CARDS_NOT_ENABLED') return 'Monthly card billing is not enabled for this payment account yet. You can use PayPal instead.';
     if (error.code === 'PAYPAL_ADVANCED_CARDS_NOT_ENABLED') return 'Card checkout is unavailable. Try PayPal instead.';
-    if (error.code === 'CARD_PAYMENT_FAILED') return 'The card was not approved. Check the details or try another method.';
+    if (error.code === 'CARD_PAYMENT_FAILED') return 'The card was not approved. Check the details or try another payment method.';
     if (error.code === 'PAYMENT_NOT_COMPLETED') return 'Your bank has not completed the payment yet. Try again in a moment.';
+    if (error.code === 'SUBSCRIPTION_VAULT_PENDING') return error.message;
     if (error.code?.startsWith('PAYMENT_')) {
       return 'We could not finish verifying this payment. If your bank shows a charge, do not pay again—refresh your balance or contact support.';
     }
@@ -158,9 +167,9 @@ function errorMessage(error: unknown) {
     }
     return error.message;
   }
-  return error instanceof Error && error.message
-    ? error.message
-    : 'Payment could not be completed. Please try again.';
+  const raw = error instanceof Error ? error.message : '';
+  if (/payment request ui|user closed/i.test(raw)) return 'Google Pay was closed. Nothing was charged.';
+  return raw || 'Payment could not be completed. Please try again.';
 }
 
 function scriptPromise(id: string, src: string, attributes?: Record<string, string>) {
@@ -188,6 +197,19 @@ function scriptPromise(id: string, src: string, attributes?: Record<string, stri
   });
 }
 
+async function getCheckoutConfig() {
+  if (configCache && configCache.expiresAt > Date.now()) return configCache.value;
+  if (!configPromise) {
+    configPromise = request<CheckoutConfig>('/api/paypal-card/config')
+      .then((value) => {
+        configCache = { value, expiresAt: Date.now() + 2 * 60_000 };
+        return value;
+      })
+      .finally(() => { configPromise = null; });
+  }
+  return configPromise;
+}
+
 async function loadPayPalSdk(config: CheckoutConfig) {
   if (!config.clientId) throw new Error('Card checkout is not configured.');
   const components = config.googlePayEnabled ? 'card-fields,googlepay' : 'card-fields';
@@ -212,8 +234,27 @@ async function loadGooglePaySdk() {
   await scriptPromise('aiwebvideo-google-pay-sdk', 'https://pay.google.com/gp/p/js/pay.js');
 }
 
+export async function prewarmSecureCheckout() {
+  try {
+    const config = await getCheckoutConfig();
+    if (!config.configured || !config.advancedCardsEnabled) return;
+    await Promise.all([
+      loadPayPalSdk(config),
+      config.googlePayEnabled ? loadGooglePaySdk().catch(() => undefined) : Promise.resolve(),
+    ]);
+  } catch {
+    // Prewarming is best-effort. The visible checkout retries normally.
+  }
+}
+
+if (typeof window !== 'undefined') {
+  const idle = window as Window & { requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number };
+  if (idle.requestIdleCallback) idle.requestIdleCallback(() => { void prewarmSecureCheckout(); }, { timeout: 1500 });
+  else window.setTimeout(() => { void prewarmSecureCheckout(); }, 350);
+}
+
 async function waitForCardFieldContainers() {
-  for (let attempt = 0; attempt < 40; attempt += 1) {
+  for (let attempt = 0; attempt < 60; attempt += 1) {
     if (CARD_FIELD_SELECTORS.every((selector) => document.querySelector(selector))) return;
     await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
   }
@@ -223,11 +264,13 @@ async function waitForCardFieldContainers() {
 function FieldShell({ label, id }: { label: string; id: string }) {
   return (
     <label className="block min-w-0">
-      <span className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[.12em] text-text-dim">{label}</span>
-      <div
-        id={id}
-        className="h-[54px] overflow-hidden rounded-xl border border-white/10 bg-[#151020] shadow-[inset_0_1px_0_rgba(255,255,255,.025)] transition focus-within:border-violet/60 focus-within:ring-2 focus-within:ring-violet/10"
-      />
+      <span className="mb-2 block text-[12px] font-bold tracking-[.025em] text-[#c8c2d8]">{label}</span>
+      <div className="rounded-2xl bg-gradient-to-r from-violet/25 via-white/[.08] to-pink/20 p-px shadow-[0_12px_30px_-22px_rgba(139,92,246,.9)]">
+        <div
+          id={id}
+          className="h-[60px] overflow-hidden rounded-[15px] bg-[#151020] shadow-[inset_0_1px_0_rgba(255,255,255,.035)] transition focus-within:bg-[#181226] focus-within:ring-2 focus-within:ring-violet/30"
+        />
+      </div>
     </label>
   );
 }
@@ -239,6 +282,7 @@ export function SecureCheckoutModal({
   originalAmountUsd,
   credits,
   jobId,
+  billingMode = 'one_time',
   onClose,
 }: {
   plan: CheckoutId;
@@ -247,12 +291,14 @@ export function SecureCheckoutModal({
   originalAmountUsd?: number | null;
   credits: number;
   jobId?: string | null;
+  billingMode?: BillingMode;
   onClose: () => void;
 }) {
-  const [config, setConfig] = useState<CheckoutConfig | null>(null);
+  const recurring = billingMode === 'subscription';
+  const [config, setConfig] = useState<CheckoutConfig | null>(configCache?.value ?? null);
   const [savedMethods, setSavedMethods] = useState<SavedMethod[]>([]);
-  const [loading, setLoading] = useState(true);
   const [cardEligible, setCardEligible] = useState(false);
+  const [fieldsReady, setFieldsReady] = useState(false);
   const [googlePayEligible, setGooglePayEligible] = useState(false);
   const [saveCard, setSaveCard] = useState(false);
   const [removingMethod, setRemovingMethod] = useState<string | null>(null);
@@ -267,6 +313,7 @@ export function SecureCheckoutModal({
 
   const submitting = paymentState === 'processing';
   const hasDiscount = Boolean(originalAmountUsd && originalAmountUsd > amountUsd + 0.005);
+  const canShowCardForm = !config || (config.configured && config.advancedCardsEnabled && (!recurring || config.vaultEnabled));
 
   useEffect(() => { saveCardRef.current = saveCard; }, [saveCard]);
   useEffect(() => { amountRef.current = amountUsd; }, [amountUsd]);
@@ -277,12 +324,13 @@ export function SecureCheckoutModal({
   }
 
   async function createOrder(source: 'card' | 'saved_card' | 'google_pay', paymentMethodId?: string) {
-    return request<CardOrder>('/api/paypal-card/orders', {
+    const endpoint = recurring ? '/api/paypal-card/subscription-orders' : '/api/paypal-card/orders';
+    return request<CardOrder>(endpoint, {
       method: 'POST',
       body: JSON.stringify({
         plan,
         source,
-        saveCard: source === 'card' ? saveCardRef.current : false,
+        saveCard: recurring || (source === 'card' ? saveCardRef.current : false),
         expectedAmountUsd: amountRef.current,
         ...(paymentMethodId ? { paymentMethodId } : {}),
         ...(jobId ? { jobId } : {}),
@@ -291,10 +339,10 @@ export function SecureCheckoutModal({
   }
 
   async function capture(orderId: string) {
-    return request<CaptureResult>(`/api/paypal-card/orders/${encodeURIComponent(orderId)}/capture`, {
-      method: 'POST',
-      body: '{}',
-    });
+    const endpoint = recurring
+      ? `/api/paypal-card/subscription-orders/${encodeURIComponent(orderId)}/capture`
+      : `/api/paypal-card/orders/${encodeURIComponent(orderId)}/capture`;
+    return request<CaptureResult>(endpoint, { method: 'POST', body: '{}' });
   }
 
   function finishPayment(result: CaptureResult) {
@@ -310,7 +358,7 @@ export function SecureCheckoutModal({
       if (closingRef.current) return;
       const suffix = jobId ? `&job=${encodeURIComponent(jobId)}` : '';
       window.location.href = `/dashboard?checkout=success${suffix}`;
-    }, 1150);
+    }, 1250);
   }
 
   useEffect(() => {
@@ -318,8 +366,8 @@ export function SecureCheckoutModal({
     let cancelled = false;
 
     async function bootstrap() {
-      setLoading(true);
       setCardEligible(false);
+      setFieldsReady(false);
       setGooglePayEligible(false);
       cardFieldsRef.current = null;
       setError(null);
@@ -327,27 +375,24 @@ export function SecureCheckoutModal({
 
       try {
         const [nextConfig, methodsResponse] = await Promise.all([
-          request<CheckoutConfig>('/api/paypal-card/config'),
+          getCheckoutConfig(),
           request<{ methods: SavedMethod[] }>('/api/paypal-card/methods').catch(() => ({ methods: [] })),
         ]);
         if (cancelled) return;
-
         setConfig(nextConfig);
+
         let methods = methodsResponse.methods;
         try {
           const preferred = localStorage.getItem(PREFERRED_METHOD_KEY);
           if (preferred) methods = [...methods].sort((a, b) => Number(b.id === preferred) - Number(a.id === preferred));
-        } catch {
-          // Optional preference only.
-        }
+        } catch { /* optional preference */ }
         setSavedMethods(methods);
 
-        if (!nextConfig.configured || !nextConfig.advancedCardsEnabled) {
-          setLoading(false);
-          return;
-        }
-
-        await loadPayPalSdk(nextConfig);
+        if (!nextConfig.configured || !nextConfig.advancedCardsEnabled || (recurring && !nextConfig.vaultEnabled)) return;
+        await Promise.all([
+          loadPayPalSdk(nextConfig),
+          !recurring && nextConfig.googlePayEnabled ? loadGooglePaySdk().catch(() => undefined) : Promise.resolve(),
+        ]);
         if (cancelled || !window.paypal) return;
 
         const cardFields = window.paypal.CardFields({
@@ -375,20 +420,19 @@ export function SecureCheckoutModal({
         if (cardFields.isEligible()) {
           cardFieldsRef.current = cardFields;
           setCardEligible(true);
-          setLoading(false);
           await waitForCardFieldContainers();
           if (cancelled) return;
           await Promise.all([
             Promise.resolve(cardFields.NameField({ placeholder: 'Name on card', style: CARD_FIELD_STYLE }).render('#aiwebvideo-card-name')),
-            Promise.resolve(cardFields.NumberField({ placeholder: 'Card number', style: CARD_FIELD_STYLE }).render('#aiwebvideo-card-number')),
+            Promise.resolve(cardFields.NumberField({ placeholder: '1234 5678 9012 3456', style: CARD_FIELD_STYLE }).render('#aiwebvideo-card-number')),
             Promise.resolve(cardFields.ExpiryField({ placeholder: 'MM / YY', style: CARD_FIELD_STYLE }).render('#aiwebvideo-card-expiry')),
             Promise.resolve(cardFields.CVVField({ placeholder: 'CVV', style: CARD_FIELD_STYLE }).render('#aiwebvideo-card-cvv')),
           ]);
+          if (!cancelled) setFieldsReady(true);
         }
 
-        if (nextConfig.googlePayEnabled && window.paypal.Googlepay) {
+        if (!recurring && nextConfig.googlePayEnabled && window.paypal.Googlepay) {
           try {
-            await loadGooglePaySdk();
             const GoogleClient = window.google?.payments?.api?.PaymentsClient;
             if (!GoogleClient || !window.paypal.Googlepay) throw new Error('Google Pay unavailable');
             const paypalGoogle = window.paypal.Googlepay();
@@ -401,9 +445,7 @@ export function SecureCheckoutModal({
                     setPaymentState('processing');
                     setError(null);
                     const order = await createOrder('google_pay');
-                    if (Math.abs(order.amountUsd - amountRef.current) > 0.005) {
-                      throw new Error(`Price changed to ${money(order.amountUsd)}. Close checkout and review it.`);
-                    }
+                    if (Math.abs(order.amountUsd - amountRef.current) > 0.005) throw new Error(`Price changed to ${money(order.amountUsd)}.`);
                     const paymentMethodData = (paymentData as { paymentMethodData?: unknown })?.paymentMethodData;
                     const confirmed = await paypalGoogle.confirmOrder({ orderId: order.orderId, paymentMethodData });
                     if (confirmed.status === 'PAYER_ACTION_REQUIRED') {
@@ -430,11 +472,12 @@ export function SecureCheckoutModal({
               googleButtonRef.current.replaceChildren();
               const button = paymentClient.createButton({
                 buttonType: 'pay',
-                buttonColor: 'black',
+                buttonColor: 'white',
+                buttonSizeMode: 'fill',
                 allowedPaymentMethods: googleConfig.allowedPaymentMethods,
                 onClick: () => {
                   setError(null);
-                  setPaymentState('processing');
+                  setPaymentState('idle');
                   void paymentClient.loadPaymentData({
                     apiVersion: googleConfig.apiVersion ?? 2,
                     apiVersionMinor: googleConfig.apiVersionMinor ?? 0,
@@ -449,25 +492,21 @@ export function SecureCheckoutModal({
                   }).catch((googleError) => markError(googleError));
                 },
               });
+              button.style.width = '100%';
+              button.style.height = '52px';
               googleButtonRef.current.appendChild(button);
               setGooglePayEligible(true);
             }
           } catch {
-            // Optional. Hide Google Pay when the merchant, device or browser is not eligible.
+            // Google Pay stays hidden when the buyer, device, or merchant is not eligible.
           }
         }
       } catch (bootstrapError) {
         if (!cancelled) {
           cardFieldsRef.current = null;
           setCardEligible(false);
-          markError(
-            bootstrapError instanceof Error && bootstrapError.message.includes('could not be loaded')
-              ? bootstrapError
-              : new Error('Card fields could not load. Try PayPal instead.'),
-          );
+          markError(new Error('Card checkout could not load. You can try PayPal instead.'));
         }
-      } finally {
-        if (!cancelled) setLoading(false);
       }
     }
 
@@ -476,10 +515,10 @@ export function SecureCheckoutModal({
       cancelled = true;
       cardFieldsRef.current = null;
     };
-  }, [plan, jobId]);
+  }, [plan, jobId, recurring]);
 
   async function payWithNewCard() {
-    if (!cardFieldsRef.current || submitting) return;
+    if (!cardFieldsRef.current || !fieldsReady || submitting) return;
     setPaymentState('processing');
     setError(null);
     try {
@@ -495,17 +534,13 @@ export function SecureCheckoutModal({
     setError(null);
     try {
       const order = await createOrder('saved_card', method.id);
-      if (Math.abs(order.amountUsd - amountRef.current) > 0.005) {
-        throw new Error(`Price changed to ${money(order.amountUsd)}. Close checkout and review it.`);
-      }
+      if (Math.abs(order.amountUsd - amountRef.current) > 0.005) throw new Error(`Price changed to ${money(order.amountUsd)}.`);
       try { localStorage.setItem(PREFERRED_METHOD_KEY, method.id); } catch { /* optional */ }
-
       if (order.payerActionRequired) {
         if (!order.payerActionUrl) throw new Error('Your bank requires verification. Try the card again.');
         window.location.href = order.payerActionUrl;
         return;
       }
-
       const result = await capture(order.orderId);
       finishPayment(result);
     } catch (paymentError) {
@@ -549,18 +584,18 @@ export function SecureCheckoutModal({
   }
 
   const buyButtonClass = paymentState === 'success'
-    ? 'border-emerald-300/30 bg-emerald-500 text-white shadow-[0_12px_30px_-12px_rgba(16,185,129,.75)]'
+    ? 'border-emerald-300/30 bg-emerald-500 text-white shadow-[0_14px_36px_-14px_rgba(16,185,129,.78)]'
     : paymentState === 'error'
-      ? 'border-rose-300/20 bg-rose-500 text-white shadow-[0_12px_30px_-12px_rgba(244,63,94,.65)]'
+      ? 'border-rose-300/20 bg-rose-500 text-white shadow-[0_14px_36px_-14px_rgba(244,63,94,.7)]'
       : 'border-white/10 bg-signature text-white shadow-violet hover:brightness-110';
 
   const buyButtonContent = paymentState === 'success'
-    ? <><Check size={17} strokeWidth={2.6} /> Paid {money(amountUsd)}</>
+    ? <><Check size={18} strokeWidth={2.7} /> {recurring ? 'Subscription active' : `Paid ${money(amountUsd)}`}</>
     : paymentState === 'processing'
-      ? <><LoaderCircle size={17} className="animate-spin" /> Processing…</>
+      ? <><LoaderCircle size={18} className="animate-spin" /> Processing…</>
       : paymentState === 'error'
-        ? <><AlertCircle size={17} /> Try again · Buy {money(amountUsd)}</>
-        : <><LockKeyhole size={16} /> Buy {money(amountUsd)}</>;
+        ? <><AlertCircle size={18} /> Try again · Buy {money(amountUsd)}{recurring ? '/mo' : ''}</>
+        : <><LockKeyhole size={17} /> Buy {money(amountUsd)}{recurring ? '/mo' : ''}</>;
 
   return createPortal(
     <div
@@ -570,198 +605,126 @@ export function SecureCheckoutModal({
       className="fixed inset-0 z-[90] flex items-end justify-center bg-black/80 p-0 backdrop-blur-md sm:items-center sm:p-5"
       onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}
     >
-      <div className="relative max-h-[94dvh] w-full overflow-y-auto rounded-t-[30px] border border-white/10 bg-[#0d0918] shadow-[0_38px_120px_-28px_rgba(0,0,0,.96)] sm:max-w-[820px] sm:rounded-[30px]">
+      <div className="relative max-h-[94dvh] w-full overflow-y-auto rounded-t-[30px] border border-white/10 bg-[#0d0918] shadow-[0_38px_120px_-28px_rgba(0,0,0,.96)] sm:max-w-[860px] sm:rounded-[30px]">
         <div className="pointer-events-none absolute -left-20 -top-28 h-64 w-64 rounded-full bg-violet/15 blur-3xl" />
         <div className="pointer-events-none absolute -right-20 top-20 h-52 w-52 rounded-full bg-pink/10 blur-3xl" />
 
         <header className="sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-white/[.07] bg-[#0d0918]/95 px-5 py-4 backdrop-blur-xl sm:px-7">
           <div className="min-w-0">
-            <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.15em] text-mint">
-              <ShieldCheck size={13} /> Checkout
-            </div>
+            <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.15em] text-mint"><ShieldCheck size={13} /> Checkout</div>
             <h2 className="mt-1 truncate font-display text-lg font-bold text-white sm:text-xl">{productName}</h2>
           </div>
           <div className="flex items-center gap-3">
             <div className="hidden text-right sm:block">
-              <p className="text-[10px] uppercase tracking-[.13em] text-text-dim">Total</p>
-              <p className="font-display text-xl font-black text-white">{money(amountUsd)}</p>
+              <p className="text-[10px] uppercase tracking-[.13em] text-text-dim">{recurring ? 'Today' : 'Total'}</p>
+              <p className="font-display text-xl font-black text-white">{money(amountUsd)}{recurring ? '/mo' : ''}</p>
             </div>
-            <button
-              type="button"
-              onClick={close}
-              disabled={submitting || Boolean(success)}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[.025] text-text-muted transition hover:bg-white/[.06] hover:text-white disabled:opacity-40"
-              aria-label="Close checkout"
-            >
-              <X size={16} />
-            </button>
+            <button type="button" onClick={close} disabled={submitting || Boolean(success)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[.025] text-text-muted transition hover:bg-white/[.06] hover:text-white disabled:opacity-40" aria-label="Close checkout"><X size={16} /></button>
           </div>
         </header>
 
         {success ? (
           <div className="relative px-5 py-12 sm:px-8 sm:py-16">
             <div className="mx-auto max-w-md rounded-[28px] border border-emerald-300/25 bg-emerald-400/[.08] p-7 text-center shadow-[0_24px_70px_-36px_rgba(16,185,129,.9)]">
-              <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-400/15 text-emerald-300">
-                <BadgeCheck size={30} />
-              </span>
-              <h3 className="mt-4 font-display text-xl font-black text-white">Payment complete</h3>
-              <p className="mt-2 text-sm text-text-muted">{success.creditsGranted.toLocaleString()} credits added</p>
-              <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1.5 text-xs font-bold text-emerald-200">
-                <Check size={14} /> {money(success.amountUsd)} paid
-              </div>
+              <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-400/15 text-emerald-300"><BadgeCheck size={30} /></span>
+              <h3 className="mt-4 font-display text-xl font-black text-white">{recurring ? 'Subscription active' : 'Payment complete'}</h3>
+              <p className="mt-2 text-sm text-text-muted">{success.creditsGranted.toLocaleString()} credits added{recurring ? ' · renews monthly' : ''}</p>
+              <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1.5 text-xs font-bold text-emerald-200"><Check size={14} /> {money(success.amountUsd)} paid</div>
             </div>
           </div>
         ) : (
-          <div className="relative grid gap-0 md:grid-cols-[280px_minmax(0,1fr)]">
+          <div className="relative grid gap-0 md:grid-cols-[290px_minmax(0,1fr)]">
             <aside className="border-b border-white/[.07] bg-white/[.018] p-5 md:border-b-0 md:border-r md:p-6">
               <p className="text-[10px] font-bold uppercase tracking-[.15em] text-text-dim">Order summary</p>
               <div className="mt-4 rounded-2xl border border-white/[.08] bg-black/15 p-4">
                 <p className="text-sm font-semibold text-white">{productName}</p>
-                <div className="mt-3 flex items-center justify-between gap-3 text-xs">
-                  <span className="text-text-dim">Credits</span>
-                  <span className="font-utility font-bold text-white">{credits.toLocaleString()}</span>
-                </div>
-                <div className="mt-2 flex items-center justify-between gap-3 text-xs">
-                  <span className="text-text-dim">Payment</span>
-                  <span className="font-semibold text-text-muted">One-time</span>
-                </div>
+                <div className="mt-3 flex items-center justify-between gap-3 text-xs"><span className="text-text-dim">Credits</span><span className="font-utility font-bold text-white">{credits.toLocaleString()}</span></div>
+                <div className="mt-2 flex items-center justify-between gap-3 text-xs"><span className="text-text-dim">Payment</span><span className="font-semibold text-text-muted">{recurring ? 'Monthly' : 'One-time'}</span></div>
               </div>
 
               <div className="mt-4 rounded-2xl border border-white/[.08] bg-white/[.025] p-4">
                 {hasDiscount && (
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <span className="rounded-full bg-mint px-2 py-0.5 text-[9px] font-black text-[#08211b]">20% OFF</span>
-                    <span className="text-xs text-text-dim line-through">{money(originalAmountUsd ?? amountUsd)}</span>
-                  </div>
+                  <div className="mb-2 flex items-center justify-between gap-3"><span className="rounded-full bg-mint px-2 py-0.5 text-[9px] font-black text-[#08211b]">20% OFF</span><span className="text-xs text-text-dim line-through">{money(originalAmountUsd ?? amountUsd)}</span></div>
                 )}
-                <div className="flex items-end justify-between gap-3">
-                  <span className="text-xs font-semibold text-text-muted">Total</span>
-                  <span className="font-display text-3xl font-black tracking-[-.04em] text-white">{money(amountUsd)}</span>
-                </div>
+                <div className="flex items-end justify-between gap-3"><span className="text-xs font-semibold text-text-muted">{recurring ? 'Due today' : 'Total'}</span><span className="font-display text-3xl font-black tracking-[-.04em] text-white">{money(amountUsd)}</span></div>
+                {recurring && <p className="mt-2 text-[10px] leading-4 text-text-dim">Renews monthly at {money(amountUsd)} until cancelled.</p>}
               </div>
 
-              <div className="mt-5 flex items-start gap-2.5 rounded-xl border border-white/[.06] bg-black/10 p-3 text-[10px] leading-4 text-text-dim">
-                <ShieldCheck size={14} className="mt-0.5 shrink-0 text-mint" />
-                Card data is entered in PayPal-hosted fields and is not stored by AiWebVideo.
+              <div className="mt-5 flex items-start gap-2.5 rounded-xl border border-mint/10 bg-mint/[.035] p-3 text-[11px] leading-5 text-[#bbb5ca]">
+                <ShieldCheck size={15} className="mt-0.5 shrink-0 text-mint" />
+                Your payment details are encrypted in transit and securely processed.
               </div>
             </aside>
 
             <main className="min-w-0 p-5 sm:p-6 md:p-7">
               {savedMethods.length > 0 && (
                 <section>
-                  <div className="mb-2.5 flex items-center justify-between gap-3">
-                    <p className="text-xs font-bold text-white">Saved cards</p>
-                    <span className="text-[9px] uppercase tracking-[.12em] text-text-dim">One click</span>
-                  </div>
+                  <div className="mb-3 flex items-center justify-between gap-3"><p className="text-sm font-bold text-white">Saved cards</p><span className="text-[10px] font-semibold text-text-dim">Fast checkout</span></div>
                   <div className="grid gap-2 sm:grid-cols-2">
                     {savedMethods.slice(0, 4).map((method) => (
-                      <div key={method.id} className="group flex items-center gap-2 rounded-xl border border-white/10 bg-white/[.025] p-2">
-                        <button
-                          type="button"
-                          disabled={submitting || removingMethod === method.id}
-                          onClick={() => void payWithSavedCard(method)}
-                          className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2 text-left transition hover:bg-white/[.04] disabled:opacity-50"
-                        >
-                          <CreditCard size={16} className="shrink-0 text-violet" />
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-[11px] font-bold text-white">{method.brand} •••• {method.lastDigits}</span>
-                            <span className="mt-0.5 block text-[9px] text-text-dim">{method.expiry ? `Exp ${method.expiry}` : 'Saved card'}</span>
-                          </span>
-                          <span className="text-[10px] font-black text-mint">Buy</span>
+                      <div key={method.id} className="group flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[.025] p-2.5 transition hover:border-violet/25 hover:bg-white/[.04]">
+                        <button type="button" disabled={submitting || removingMethod === method.id} onClick={() => void payWithSavedCard(method)} className="flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-xl px-2 text-left disabled:opacity-50">
+                          <span className="flex h-9 w-11 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-black/15"><CreditCard size={17} className="text-violet" /></span>
+                          <span className="min-w-0 flex-1"><span className="block truncate text-xs font-bold text-white">{method.brand} •••• {method.lastDigits}</span><span className="mt-0.5 block text-[10px] text-text-dim">{method.expiry ? `Expires ${method.expiry}` : 'Saved card'}</span></span>
+                          <span className="text-[11px] font-black text-mint">Buy</span>
                         </button>
-                        <button
-                          type="button"
-                          disabled={submitting || removingMethod === method.id}
-                          onClick={() => void removeSavedCard(method)}
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-text-dim transition hover:bg-rose-500/10 hover:text-rose-300 disabled:opacity-40"
-                          aria-label={`Remove ${method.brand} ending in ${method.lastDigits}`}
-                        >
-                          <Trash2 size={13} />
-                        </button>
+                        <button type="button" disabled={submitting || removingMethod === method.id} onClick={() => void removeSavedCard(method)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-text-dim transition hover:bg-rose-500/10 hover:text-rose-300 disabled:opacity-40" aria-label={`Remove ${method.brand} ending in ${method.lastDigits}`}><Trash2 size={13} /></button>
                       </div>
                     ))}
                   </div>
                 </section>
               )}
 
-              <div ref={googleButtonRef} className={`${googlePayEligible ? 'mt-4 min-h-[48px] overflow-hidden rounded-xl' : 'hidden'}`} />
-
-              {googlePayEligible && cardEligible && (
-                <div className="my-4 flex items-center gap-3">
-                  <span className="h-px flex-1 bg-white/[.08]" />
-                  <span className="text-[9px] font-bold uppercase tracking-[.13em] text-text-dim">or card</span>
-                  <span className="h-px flex-1 bg-white/[.08]" />
-                </div>
-              )}
-
-              {loading && (
-                <div className="grid gap-3">
-                  <div className="h-[72px] animate-pulse rounded-xl border border-white/10 bg-white/[.025]" />
-                  <div className="h-[72px] animate-pulse rounded-xl border border-white/10 bg-white/[.025]" />
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="h-[72px] animate-pulse rounded-xl border border-white/10 bg-white/[.025]" />
-                    <div className="h-[72px] animate-pulse rounded-xl border border-white/10 bg-white/[.025]" />
+              {!recurring && (
+                <div className={`transition-all duration-300 ${googlePayEligible ? 'mt-4 opacity-100' : 'pointer-events-none h-0 overflow-hidden opacity-0'}`}>
+                  <div className="rounded-2xl bg-gradient-to-r from-[#5f8cff]/55 via-white/20 to-[#7c5cff]/55 p-px shadow-[0_16px_40px_-24px_rgba(66,133,244,.95)]">
+                    <div className="rounded-[15px] bg-white p-1.5"><div ref={googleButtonRef} className="min-h-[52px] w-full overflow-hidden rounded-xl" /></div>
                   </div>
                 </div>
               )}
 
-              {!loading && cardEligible && (
-                <section>
-                  {!googlePayEligible && <p className="mb-3 text-xs font-bold text-white">Card details</p>}
-                  <div className="grid gap-3">
+              {!recurring && googlePayEligible && (
+                <div className="my-5 flex items-center gap-3"><span className="h-px flex-1 bg-white/[.08]" /><span className="text-[10px] font-bold uppercase tracking-[.16em] text-text-dim">or pay by card</span><span className="h-px flex-1 bg-white/[.08]" /></div>
+              )}
+
+              {canShowCardForm && (
+                <section className={savedMethods.length || googlePayEligible ? 'mt-4' : ''}>
+                  {!googlePayEligible && <p className="mb-4 text-sm font-bold text-white">Card details</p>}
+                  <div className="grid gap-4">
                     <FieldShell label="Name on card" id="aiwebvideo-card-name" />
                     <FieldShell label="Card number" id="aiwebvideo-card-number" />
-                    <div className="grid grid-cols-2 gap-3">
-                      <FieldShell label="Expiry" id="aiwebvideo-card-expiry" />
-                      <FieldShell label="Security code" id="aiwebvideo-card-cvv" />
-                    </div>
+                    <div className="grid grid-cols-2 gap-4"><FieldShell label="Expiry" id="aiwebvideo-card-expiry" /><FieldShell label="Security code (CVV)" id="aiwebvideo-card-cvv" /></div>
                   </div>
 
-                  {config?.vaultEnabled && (
-                    <label className="mt-3 flex cursor-pointer items-center gap-2.5 rounded-xl border border-white/[.06] bg-white/[.02] px-3 py-2.5 text-[11px] text-text-muted transition hover:bg-white/[.035]">
-                      <input
-                        type="checkbox"
-                        checked={saveCard}
-                        onChange={(event) => setSaveCard(event.target.checked)}
-                        className="h-4 w-4 rounded border-white/20 bg-black/30 accent-[#8b5cf6]"
-                      />
-                      <span className="font-semibold text-white">Save this card</span>
-                      <span className="ml-auto text-[9px] text-text-dim">for faster checkout</span>
+                  {recurring ? (
+                    <div className="mt-4 flex items-center gap-3 rounded-xl border border-violet/15 bg-violet/[.055] px-3.5 py-3 text-[11px] leading-5 text-text-muted">
+                      <ShieldCheck size={15} className="shrink-0 text-violet" />
+                      This card will be securely saved for your monthly renewal. Cancel anytime from your account.
+                    </div>
+                  ) : config?.vaultEnabled ? (
+                    <label className="mt-4 flex cursor-pointer items-center gap-2.5 rounded-xl border border-white/[.06] bg-white/[.02] px-3.5 py-3 text-[11px] text-text-muted transition hover:bg-white/[.035]">
+                      <input type="checkbox" checked={saveCard} onChange={(event) => setSaveCard(event.target.checked)} className="h-4 w-4 rounded border-white/20 bg-black/30 accent-[#8b5cf6]" />
+                      <span className="font-semibold text-white">Save this card</span><span className="ml-auto text-[10px] text-text-dim">for next time</span>
                     </label>
-                  )}
+                  ) : null}
 
-                  <button
-                    type="button"
-                    onClick={() => void payWithNewCard()}
-                    disabled={submitting}
-                    className={`mt-4 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl border px-4 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-70 ${buyButtonClass}`}
-                  >
+                  <button type="button" onClick={() => void payWithNewCard()} disabled={submitting || !cardEligible || !fieldsReady} className={`mt-4 flex min-h-[54px] w-full items-center justify-center gap-2 rounded-xl border px-4 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-55 ${buyButtonClass}`}>
                     {buyButtonContent}
                   </button>
                 </section>
               )}
 
-              {!loading && !cardEligible && (
-                <div className="rounded-xl border border-amber-300/15 bg-amber-300/[.05] px-3 py-2.5 text-[11px] text-amber-100">
-                  Card payment is unavailable on this browser. Use PayPal below.
+              {config && (!config.advancedCardsEnabled || (recurring && !config.vaultEnabled)) && (
+                <div className="rounded-xl border border-amber-300/15 bg-amber-300/[.05] px-3 py-2.5 text-[11px] leading-5 text-amber-100">
+                  {recurring ? 'Card subscriptions need saved-card billing enabled. You can still buy this plan with PayPal.' : 'Card payment is unavailable on this browser. Use PayPal below.'}
                 </div>
               )}
 
               {error && (
-                <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-rose-400/20 bg-rose-500/[.07] p-3 text-[11px] leading-5 text-rose-200" role="alert" aria-live="polite">
-                  <AlertCircle size={15} className="mt-0.5 shrink-0" />
-                  <span>{error}</span>
-                </div>
+                <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-rose-400/20 bg-rose-500/[.07] p-3 text-[11px] leading-5 text-rose-200" role="alert" aria-live="polite"><AlertCircle size={15} className="mt-0.5 shrink-0" /><span>{error}</span></div>
               )}
 
-              <button
-                type="button"
-                onClick={() => void continueWithPayPal()}
-                disabled={submitting}
-                className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[.03] px-4 text-xs font-bold text-text-muted transition hover:border-violet/25 hover:bg-white/[.055] hover:text-white disabled:opacity-50"
-              >
-                <WalletCards size={15} /> Buy with PayPal
-              </button>
+              <button type="button" onClick={() => void continueWithPayPal()} disabled={submitting} className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[.03] px-4 text-xs font-bold text-text-muted transition hover:border-violet/25 hover:bg-white/[.055] hover:text-white disabled:opacity-50"><WalletCards size={15} /> Buy with PayPal</button>
             </main>
           </div>
         )}
