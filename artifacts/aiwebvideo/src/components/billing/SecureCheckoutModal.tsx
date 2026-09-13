@@ -28,6 +28,9 @@ interface CardOrder {
   discountApplied: boolean;
   creditsGranted: number;
   source: 'card' | 'saved_card' | 'google_pay';
+  providerStatus?: string | null;
+  payerActionRequired?: boolean;
+  payerActionUrl?: string | null;
 }
 
 interface CaptureResult {
@@ -59,6 +62,7 @@ interface PayPalGooglePayClient {
     apiVersionMinor?: number;
   }>;
   confirmOrder(input: { orderId: string; paymentMethodData: unknown }): Promise<{ status?: string }>;
+  initiatePayerAction(input: { orderId: string }): Promise<unknown>;
 }
 
 interface PayPalSdk {
@@ -93,6 +97,8 @@ declare global {
   }
 }
 
+// This is only a local preference for our own opaque UUID alias. It is never
+// a card number, CVV, expiry date, PayPal vault token or other payment secret.
 const PREFERRED_METHOD_KEY = 'aiwebvideo:preferred-payment-method';
 
 function money(value: number) {
@@ -104,6 +110,7 @@ function errorMessage(error: unknown) {
     if (error.code === 'PRICE_CHANGED') return 'The limited-time price expired before payment. Close checkout and review the current price.';
     if (error.code === 'PAYPAL_ADVANCED_CARDS_NOT_ENABLED') return 'Direct card checkout is not enabled for this merchant account yet. You can still continue with PayPal.';
     if (error.code === 'CARD_PAYMENT_FAILED') return 'The card was not approved. Check the details, try another card, or use PayPal.';
+    if (error.code === 'RATE_LIMITED') return error.message;
     return error.message;
   }
   return error instanceof Error ? error.message : 'Payment could not be completed. Please try again.';
@@ -321,7 +328,9 @@ export function SecureCheckoutModal({
                 const paymentMethodData = (paymentData as { paymentMethodData?: unknown })?.paymentMethodData;
                 const confirmed = await paypalGoogle.confirmOrder({ orderId: order.orderId, paymentMethodData });
                 if (confirmed.status === 'PAYER_ACTION_REQUIRED') {
-                  throw new Error('Google Pay requires an additional verification step that could not be completed.');
+                  await paypalGoogle.initiatePayerAction({ orderId: order.orderId });
+                } else if (confirmed.status && confirmed.status !== 'APPROVED' && confirmed.status !== 'COMPLETED') {
+                  throw new Error('Google Pay could not authorize this payment method.');
                 }
                 const result = await capture(order.orderId);
                 finishPayment(result);
@@ -409,8 +418,18 @@ export function SecureCheckoutModal({
       if (Math.abs(order.amountUsd - amountRef.current) > 0.005) {
         throw new Error(`Price changed to ${money(order.amountUsd)}. Please review before paying.`);
       }
-      const result = await capture(order.orderId);
       try { localStorage.setItem(PREFERRED_METHOD_KEY, method.id); } catch { /* optional */ }
+
+      if (order.payerActionRequired) {
+        if (!order.payerActionUrl) throw new Error('Your bank requires verification, but the secure verification link was unavailable. Try the card again.');
+        // This is only a bank/cardholder 3-D Secure challenge when required;
+        // it is not a PayPal-account login. The server return endpoint captures
+        // the verified order and sends the buyer straight back to Workspace.
+        window.location.href = order.payerActionUrl;
+        return;
+      }
+
+      const result = await capture(order.orderId);
       finishPayment(result);
     } catch (paymentError) {
       setSubmitting(false);
@@ -500,7 +519,7 @@ export function SecureCheckoutModal({
               <section className="relative mt-4">
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <p className="text-xs font-semibold text-white">Saved cards</p>
-                  <span className="text-[9px] text-text-dim">PayPal Vault · tokenized</span>
+                  <span className="text-[9px] text-text-dim">Tokenized · card details stay with processor</span>
                 </div>
                 <div className="space-y-2">
                   {savedMethods.map((method) => (
@@ -550,7 +569,7 @@ export function SecureCheckoutModal({
                     <input type="checkbox" checked={saveCard} onChange={(event) => setSaveCard(event.target.checked)} className="mt-0.5 h-4 w-4 rounded border-white/20 bg-black/30 accent-[#8b5cf6]" />
                     <span>
                       <span className="block text-xs font-semibold text-white">Save this card for faster checkout</span>
-                      <span className="mt-0.5 block text-[10px] leading-4 text-text-dim">PayPal securely vaults the card. AiWebVideo stores only a token and the masked card details.</span>
+                      <span className="mt-0.5 block text-[10px] leading-4 text-text-dim">The payment processor securely vaults the card. AiWebVideo stores only an opaque token alias and masked brand/last digits.</span>
                     </span>
                   </label>
                 )}
@@ -558,7 +577,7 @@ export function SecureCheckoutModal({
                 <button type="button" onClick={() => void payWithNewCard()} disabled={submitting} className="premium-button mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-signature px-4 text-sm font-bold text-white shadow-violet transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50">
                   <LockKeyhole size={15} /> {submitting ? 'Processing securely…' : `Pay ${money(amountUsd)}`}
                 </button>
-                <p className="mt-2 text-center text-[9px] leading-4 text-text-dim">Secure hosted card fields support browser/card-manager autofill when your browser offers it. 3-D Secure runs automatically when required.</p>
+                <p className="mt-2 text-center text-[9px] leading-4 text-text-dim">Secure hosted card fields can use your browser/card manager autofill when available. Required bank verification (3-D Secure) opens automatically.</p>
               </section>
             )}
 
