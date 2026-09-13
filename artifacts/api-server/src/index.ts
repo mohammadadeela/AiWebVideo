@@ -3,6 +3,7 @@ import { logger } from "./lib/logger";
 import { recoverInterruptedJobs } from './lib/queries.js';
 import { verifyEmailConnection } from './lib/mailer.js';
 import { ensurePaymentClawbackProtection } from './lib/billing.js';
+import { ensureSubscriptionReceiptGuard } from './lib/subscription-billing-guards.js';
 import { startManagedSubscriptionRenewals } from './routes/paypal-card-subscriptions.js';
 
 const rawPort = process.env["PORT"];
@@ -24,6 +25,7 @@ async function start() {
   // webhooks. A refunded/reversed payment then claws back its purchased credits
   // (and tied welcome bonus) atomically at the database layer.
   await ensurePaymentClawbackProtection();
+  await ensureSubscriptionReceiptGuard();
 
   // Embedded card subscriptions use PayPal-vaulted tokens only. The renewal
   // worker is idempotent, database-locked and starts only after its additive
