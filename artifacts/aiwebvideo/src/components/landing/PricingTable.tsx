@@ -111,9 +111,8 @@ const ONE_TIME_PACKS = [
     id: "single8" as const,
     name: "Quick Video",
     length: "8 seconds",
-    // TEMPORARY LIVE PAYMENT TEST PRICE — restore to $9.99 after testing.
-    price: "$1.00",
-    amountUsd: 1,
+    price: "$9.99",
+    amountUsd: 9.99,
     credits: 38,
     note: "One punchy promo, ready in minutes",
   },
