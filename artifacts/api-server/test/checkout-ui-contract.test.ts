@@ -9,11 +9,11 @@ async function frontend(relativePath: string) {
 
 test('one-time checkout uses a wide responsive big-checkout layout with explicit success and error states', async () => {
   const source = await frontend('src/components/billing/SecureCheckoutModal.tsx');
-  assert.match(source, /sm:max-w-\[820px\]/);
+  assert.match(source, /sm:max-w-\[860px\]/);
   assert.match(source, /PaymentState = 'idle' \| 'processing' \| 'success' \| 'error'/);
   assert.match(source, /bg-emerald-500/);
   assert.match(source, /bg-rose-500/);
-  assert.match(source, /Paid \{money\(amountUsd\)\}/);
+  assert.match(source, /Paid \$\{money\(amountUsd\)\}/);
   assert.match(source, /Try again · Buy/);
   assert.match(source, /Order summary/);
   assert.match(source, /Security code/);
@@ -38,13 +38,15 @@ test('profile renders a dedicated saved-card manager without exposing provider t
   assert.doesNotMatch(panel, /provider_token_ref|vault_id|cardNumber|cvv/i);
 });
 
-test('subscription checkout uses a styled provider handoff and visual activation states', async () => {
-  const source = await frontend('src/components/billing/SubscriptionCheckoutModal.tsx');
-  assert.match(source, /writeCheckoutPlaceholder/);
-  assert.match(source, /Opening secure checkout/);
-  assert.match(source, /sm:max-w-\[600px\]/);
-  assert.match(source, /bg-emerald-500/);
-  assert.match(source, /bg-rose-500/);
-  assert.match(source, /Waiting for approval/);
-  assert.match(source, /popup\.location\.replace\(checkoutUrl\)/);
+test('subscription checkout reuses the embedded checkout UI and visual states', async () => {
+  const subscription = await frontend('src/components/billing/SubscriptionCheckoutModal.tsx');
+  const checkout = await frontend('src/components/billing/SecureCheckoutModal.tsx');
+  assert.match(subscription, /SecureCheckoutModal/);
+  assert.match(subscription, /billingMode="subscription"/);
+  assert.match(checkout, /sm:max-w-\[860px\]/);
+  assert.match(checkout, /Subscription active/);
+  assert.match(checkout, /bg-emerald-500/);
+  assert.match(checkout, /bg-rose-500/);
+  assert.match(checkout, /Your payment details are encrypted in transit and securely processed/);
+  assert.doesNotMatch(subscription, /writeCheckoutPlaceholder|window\.open/);
 });

@@ -13,7 +13,8 @@ const PAYWALL_PLANS = [
 ];
 
 const VIDEO_PACKS = [
-  { id: 'single8' as const, name: 'Quick Video', label: '8s video pack', amountUsd: 9.99, credits: 38 },
+  // TEMPORARY LIVE PAYMENT TEST PRICE — restore to $9.99 when the owner confirms testing is finished.
+  { id: 'single8' as const, name: 'Quick Video', label: '8s video pack', amountUsd: 1, credits: 38 },
   { id: 'single48' as const, name: 'Full Marketing Video', label: '48s video pack', amountUsd: 52.99, credits: 198 },
   { id: 'single144' as const, name: 'Extended Video', label: '144s video pack', amountUsd: 149.99, credits: 582 },
 ];
