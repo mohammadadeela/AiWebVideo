@@ -78,6 +78,24 @@ function googlePayEnabled() {
 let accessTokenCache: { value: string; expiresAt: number } | null = null;
 let schemaReady: Promise<void> | null = null;
 
+type Attempt = { count: number; resetAt: number };
+const checkoutAttempts = new Map<string, Attempt>();
+
+function allowCheckout(key: string) {
+  const now = Date.now();
+  const current = checkoutAttempts.get(key);
+  if (!current || current.resetAt <= now) {
+    checkoutAttempts.set(key, { count: 1, resetAt: now + 10 * 60_000 });
+    return true;
+  }
+  if (current.count >= 12) return false;
+  current.count += 1;
+  if (checkoutAttempts.size > 5_000) {
+    for (const [entry, value] of checkoutAttempts) if (value.resetAt <= now) checkoutAttempts.delete(entry);
+  }
+  return true;
+}
+
 async function ensureCardCheckoutSchema() {
   schemaReady ??= (async () => {
     await query('ALTER TABLE users ADD COLUMN IF NOT EXISTS paypal_customer_id TEXT');
@@ -96,6 +114,17 @@ async function ensureCardCheckoutSchema() {
       )
     `);
     await query('CREATE INDEX IF NOT EXISTS paypal_saved_payment_methods_user_idx ON paypal_saved_payment_methods(user_id, created_at DESC)');
+    await query(`
+      CREATE TABLE IF NOT EXISTS paypal_card_checkout_sessions (
+        id UUID PRIMARY KEY,
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        order_id TEXT UNIQUE,
+        job_id UUID,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '30 minutes')
+      )
+    `);
+    await query('CREATE INDEX IF NOT EXISTS paypal_card_checkout_sessions_user_idx ON paypal_card_checkout_sessions(user_id, created_at DESC)');
   })().catch((error) => {
     schemaReady = null;
     throw error;
@@ -279,6 +308,31 @@ async function sendReceiptOnce(orderId: string, userId: string, credits: number,
   }
 }
 
+async function upsertSavedMethod(input: {
+  userId: string;
+  providerTokenRef: string;
+  brand: string | null;
+  lastDigits: string | null;
+  expiry: string | null;
+}) {
+  const aliasId = randomUUID();
+  const { rows } = await query<{ id: string }>(
+    `INSERT INTO paypal_saved_payment_methods(id,user_id,provider,provider_token_ref,brand,last_digits,expiry)
+     VALUES ($1,$2,'paypal',$3,$4,$5,$6)
+     ON CONFLICT(provider,provider_token_ref) DO UPDATE SET
+       brand=EXCLUDED.brand,last_digits=EXCLUDED.last_digits,
+       expiry=EXCLUDED.expiry,updated_at=NOW()
+     WHERE paypal_saved_payment_methods.user_id=EXCLUDED.user_id
+     RETURNING id`,
+    [aliasId, input.userId, input.providerTokenRef, input.brand, input.lastDigits, input.expiry],
+  );
+  if (!rows[0]?.id) {
+    logger.error({ userId: input.userId }, '[paypal-card] vault token ownership mismatch blocked');
+    throw new AppError('Saved payment method ownership could not be verified.', 409, 'PAYMENT_METHOD_OWNERSHIP_MISMATCH');
+  }
+  return rows[0].id;
+}
+
 async function saveVaultMetadata(userId: string, captured: Record<string, unknown>) {
   if (!vaultEnabled()) return null;
   const paymentSource = captured.payment_source as { card?: Record<string, unknown> } | undefined;
@@ -286,14 +340,17 @@ async function saveVaultMetadata(userId: string, captured: Record<string, unknow
   if (!card) return null;
   const attributes = card.attributes as { vault?: Record<string, unknown> } | undefined;
   const vault = attributes?.vault;
-  const vaultId = typeof vault?.id === 'string' ? vault.id : '';
-  const vaultStatus = String(vault?.status ?? '').toUpperCase();
   const customer = vault?.customer as { id?: unknown } | undefined;
   const customerId = typeof customer?.id === 'string' ? customer.id : '';
-  if (!vaultId || vaultStatus !== 'VAULTED' || !customerId) return null;
+  if (customerId) {
+    await ensureCardCheckoutSchema();
+    await query('UPDATE users SET paypal_customer_id=$1,updated_at=NOW() WHERE id=$2', [customerId, userId]);
+  }
 
-  await ensureCardCheckoutSchema();
-  await query('UPDATE users SET paypal_customer_id=$1,updated_at=NOW() WHERE id=$2', [customerId, userId]);
+  const vaultId = typeof vault?.id === 'string' ? vault.id : '';
+  const vaultStatus = String(vault?.status ?? '').toUpperCase();
+  if (!vaultId || vaultStatus !== 'VAULTED') return null;
+
   const brand = typeof card.brand === 'string' ? card.brand : null;
   const lastDigits = typeof card.last_digits === 'string'
     ? card.last_digits
@@ -301,17 +358,7 @@ async function saveVaultMetadata(userId: string, captured: Record<string, unknow
       ? String(card['last-digits'])
       : null;
   const expiry = typeof card.expiry === 'string' ? card.expiry : null;
-  const aliasId = randomUUID();
-  const { rows } = await query<{ id: string }>(
-    `INSERT INTO paypal_saved_payment_methods(id,user_id,provider,provider_token_ref,brand,last_digits,expiry)
-     VALUES ($1,$2,'paypal',$3,$4,$5,$6)
-     ON CONFLICT(provider,provider_token_ref) DO UPDATE SET
-       user_id=EXCLUDED.user_id,brand=EXCLUDED.brand,last_digits=EXCLUDED.last_digits,
-       expiry=EXCLUDED.expiry,updated_at=NOW()
-     RETURNING id`,
-    [aliasId, userId, vaultId, brand, lastDigits, expiry],
-  );
-  return rows[0]?.id ?? aliasId;
+  return upsertSavedMethod({ userId, providerTokenRef: vaultId, brand, lastDigits, expiry });
 }
 
 async function refreshSavedMethods(userId: string) {
@@ -331,32 +378,92 @@ async function refreshSavedMethods(userId: string) {
       const card = source?.card;
       if (!card) continue;
       activeRefs.push(token.id);
-      await query(
-        `INSERT INTO paypal_saved_payment_methods(id,user_id,provider,provider_token_ref,brand,last_digits,expiry)
-         VALUES ($1,$2,'paypal',$3,$4,$5,$6)
-         ON CONFLICT(provider,provider_token_ref) DO UPDATE SET
-           user_id=EXCLUDED.user_id,brand=EXCLUDED.brand,last_digits=EXCLUDED.last_digits,
-           expiry=EXCLUDED.expiry,updated_at=NOW()`,
-        [
-          randomUUID(),
-          userId,
-          token.id,
-          typeof card.brand === 'string' ? card.brand : null,
-          typeof card.last_digits === 'string' ? card.last_digits : null,
-          typeof card.expiry === 'string' ? card.expiry : null,
-        ],
-      );
+      await upsertSavedMethod({
+        userId,
+        providerTokenRef: token.id,
+        brand: typeof card.brand === 'string' ? card.brand : null,
+        lastDigits: typeof card.last_digits === 'string' ? card.last_digits : null,
+        expiry: typeof card.expiry === 'string' ? card.expiry : null,
+      });
     }
-    if (activeRefs.length) {
-      await query(
-        `DELETE FROM paypal_saved_payment_methods
-          WHERE user_id=$1 AND provider='paypal' AND NOT (provider_token_ref = ANY($2::text[]))`,
-        [userId, activeRefs],
-      );
-    }
+    await query(
+      `DELETE FROM paypal_saved_payment_methods
+        WHERE user_id=$1 AND provider='paypal' AND NOT (provider_token_ref = ANY($2::text[]))`,
+      [userId, activeRefs],
+    );
   } catch (error) {
     logger.info({ err: error, userId }, '[paypal-card] saved-method refresh unavailable; using local masked metadata');
   }
+}
+
+function payerActionLink(links: unknown) {
+  if (!Array.isArray(links)) return null;
+  const found = links.find((item) => item && typeof item === 'object' && (item as { rel?: unknown }).rel === 'payer-action');
+  const href = (found as { href?: unknown } | undefined)?.href;
+  if (typeof href !== 'string') return null;
+  try {
+    const url = new URL(href);
+    return url.protocol === 'https:' && /(^|\.)paypal\.com$/i.test(url.hostname) ? href : null;
+  } catch { return null; }
+}
+
+async function finalizeOrder(userId: string, orderId: string) {
+  const payment = await pendingPayment(orderId, userId);
+  if (!payment) throw new AppError('Payment order not found.', 404, 'NOT_FOUND');
+  if (payment.status === 'paid') {
+    return {
+      ok: true,
+      orderId,
+      creditsGranted: payment.credits_granted,
+      amountUsd: Number(payment.amount_usd),
+      savedPaymentMethodId: null as string | null,
+    };
+  }
+
+  let captured: Record<string, unknown>;
+  try {
+    captured = (await paypalRequest(`/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`, {
+      method: 'POST',
+      idempotencyKey: `capture-${orderId}`,
+    })) ?? {};
+  } catch (captureError) {
+    const current = await paypalRequest(`/v2/checkout/orders/${encodeURIComponent(orderId)}`, { method: 'GET' }).catch(() => null);
+    if (!current || current.status !== 'COMPLETED') throw captureError;
+    captured = current;
+  }
+
+  const verified = validateCompletedOrder(captured, {
+    orderId,
+    userId,
+    amountUsd: Number(payment.amount_usd),
+    currency: payment.currency,
+  });
+
+  await grantCreditsOnce({
+    key: `paypal:order:${orderId}`,
+    userId,
+    credits: payment.credits_granted,
+    plan: payment.plan,
+    reason: `Completed card purchase ${orderId}`,
+  });
+  await query(
+    "UPDATE payments SET status='paid',provider_capture_ref=$2 WHERE provider='paypal' AND provider_ref=$1 AND user_id=$3",
+    [orderId, verified.captureId, userId],
+  );
+
+  const savedPaymentMethodId = await saveVaultMetadata(userId, captured).catch((error) => {
+    logger.info({ err: error, orderId }, '[paypal-card] payment succeeded but card vault metadata was not persisted');
+    return null;
+  });
+  await sendReceiptOnce(orderId, userId, payment.credits_granted, Number(payment.amount_usd));
+
+  return {
+    ok: true,
+    orderId,
+    amountUsd: Number(payment.amount_usd),
+    creditsGranted: payment.credits_granted,
+    savedPaymentMethodId,
+  };
 }
 
 router.get('/config', requireAuth, async (req, res) => {
@@ -439,6 +546,9 @@ router.delete('/methods/:id', requireAuth, async (req, res) => {
 
 router.post('/orders', requireAuth, async (req, res) => {
   try {
+    if (!allowCheckout(`user:${req.user!.id}`) || !allowCheckout(`ip:${req.ip ?? 'unknown'}`)) {
+      throw new AppError('Too many payment attempts. Please wait a few minutes.', 429, 'RATE_LIMITED');
+    }
     if (!advancedCardsEnabled()) {
       throw new AppError('Direct card checkout is disabled. Use PayPal checkout.', 503, 'PAYPAL_ADVANCED_CARDS_DISABLED');
     }
@@ -452,6 +562,8 @@ router.post('/orders', requireAuth, async (req, res) => {
       throw new AppError('The limited-time price changed before payment. Review the current price and try again.', 409, 'PRICE_CHANGED');
     }
 
+    const checkoutSessionId = randomUUID();
+    const returnUrl = `${appUrl()}/api/paypal-card/return/${checkoutSessionId}`;
     let paymentSource: Record<string, unknown> | undefined;
     if (input.source === 'saved_card') {
       if (!input.paymentMethodId) throw new AppError('Choose a saved card.', 400, 'PAYMENT_METHOD_REQUIRED');
@@ -462,7 +574,17 @@ router.post('/orders', requireAuth, async (req, res) => {
       );
       const tokenRef = rows[0]?.provider_token_ref;
       if (!tokenRef) throw new AppError('That saved card is no longer available.', 404, 'PAYMENT_METHOD_NOT_FOUND');
-      paymentSource = { card: { vault_id: tokenRef } };
+      paymentSource = {
+        card: {
+          vault_id: tokenRef,
+          attributes: { verification: { method: 'SCA_WHEN_REQUIRED' } },
+          experience_context: {
+            shipping_preference: 'NO_SHIPPING',
+            return_url: returnUrl,
+            cancel_url: `${appUrl()}/dashboard?checkout=cancelled${input.jobId ? `&job=${encodeURIComponent(input.jobId)}` : ''}`,
+          },
+        },
+      };
     } else if (input.source === 'card') {
       const attributes: Record<string, unknown> = {
         verification: { method: 'SCA_WHEN_REQUIRED' },
@@ -477,9 +599,15 @@ router.post('/orders', requireAuth, async (req, res) => {
           attributes,
           experience_context: {
             shipping_preference: 'NO_SHIPPING',
-            return_url: `${appUrl()}/dashboard?checkout=success${input.jobId ? `&job=${encodeURIComponent(input.jobId)}` : ''}`,
-            cancel_url: `${appUrl()}/pricing?checkout=cancelled`,
+            return_url: returnUrl,
+            cancel_url: `${appUrl()}/dashboard?checkout=cancelled${input.jobId ? `&job=${encodeURIComponent(input.jobId)}` : ''}`,
           },
+        },
+      };
+    } else if (input.source === 'google_pay') {
+      paymentSource = {
+        google_pay: {
+          attributes: { verification: { method: 'SCA_WHEN_REQUIRED' } },
         },
       };
     }
@@ -508,7 +636,14 @@ router.post('/orders', requireAuth, async (req, res) => {
        ON CONFLICT(provider,provider_ref) DO NOTHING`,
       [req.user!.id, orderId, pricing.amountUsd, product.credits, product.plan, input.plan],
     );
+    await query(
+      `INSERT INTO paypal_card_checkout_sessions(id,user_id,order_id,job_id)
+       VALUES ($1,$2,$3,$4) ON CONFLICT(order_id) DO NOTHING`,
+      [checkoutSessionId, req.user!.id, orderId, input.jobId ?? null],
+    );
 
+    const providerStatus = typeof data?.status === 'string' ? data.status : null;
+    const actionUrl = payerActionLink(data?.links);
     res.setHeader('Cache-Control', 'private, no-store');
     res.json({
       orderId,
@@ -517,6 +652,9 @@ router.post('/orders', requireAuth, async (req, res) => {
       discountApplied: pricing.discountApplied,
       creditsGranted: product.credits,
       source: input.source,
+      providerStatus,
+      payerActionRequired: providerStatus === 'PAYER_ACTION_REQUIRED',
+      payerActionUrl: actionUrl,
     });
   } catch (error) { sendError(res, error); }
 });
@@ -525,59 +663,35 @@ router.post('/orders/:orderId/capture', requireAuth, async (req, res) => {
   const orderId = String(req.params.orderId ?? '');
   try {
     if (!/^[A-Z0-9-]{8,40}$/i.test(orderId)) throw new AppError('Invalid payment order.', 400, 'INVALID_ORDER');
-    const payment = await pendingPayment(orderId, req.user!.id);
-    if (!payment) throw new AppError('Payment order not found.', 404, 'NOT_FOUND');
-    if (payment.status === 'paid') {
-      res.json({ ok: true, orderId, creditsGranted: payment.credits_granted, amountUsd: Number(payment.amount_usd) });
+    const result = await finalizeOrder(req.user!.id, orderId);
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.json(result);
+  } catch (error) { sendError(res, error); }
+});
+
+router.get('/return/:sessionId', requireAuth, async (req, res) => {
+  const fail = `${appUrl()}/dashboard?checkout=failed`;
+  try {
+    await ensureCardCheckoutSchema();
+    const sessionId = z.string().uuid().parse(req.params.sessionId);
+    const { rows } = await query<{ order_id: string | null; job_id: string | null; expires_at: Date }>(
+      `SELECT order_id,job_id,expires_at
+         FROM paypal_card_checkout_sessions
+        WHERE id=$1 AND user_id=$2 LIMIT 1`,
+      [sessionId, req.user!.id],
+    );
+    const session = rows[0];
+    if (!session?.order_id || new Date(session.expires_at).getTime() < Date.now()) {
+      res.redirect(fail);
       return;
     }
-
-    let captured: Record<string, unknown>;
-    try {
-      captured = (await paypalRequest(`/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`, {
-        method: 'POST',
-        idempotencyKey: `capture-${orderId}`,
-      })) ?? {};
-    } catch (captureError) {
-      const current = await paypalRequest(`/v2/checkout/orders/${encodeURIComponent(orderId)}`, { method: 'GET' }).catch(() => null);
-      if (!current || current.status !== 'COMPLETED') throw captureError;
-      captured = current;
-    }
-
-    const verified = validateCompletedOrder(captured, {
-      orderId,
-      userId: req.user!.id,
-      amountUsd: Number(payment.amount_usd),
-      currency: payment.currency,
-    });
-
-    await grantCreditsOnce({
-      key: `paypal:order:${orderId}`,
-      userId: req.user!.id,
-      credits: payment.credits_granted,
-      plan: payment.plan,
-      reason: `Completed card purchase ${orderId}`,
-    });
-    await query(
-      "UPDATE payments SET status='paid',provider_capture_ref=$2 WHERE provider='paypal' AND provider_ref=$1 AND user_id=$3",
-      [orderId, verified.captureId, req.user!.id],
-    );
-
-    const savedMethodId = await saveVaultMetadata(req.user!.id, captured).catch((error) => {
-      logger.info({ err: error, orderId }, '[paypal-card] payment succeeded but card vault metadata was not persisted');
-      return null;
-    });
-    await sendReceiptOnce(orderId, req.user!.id, payment.credits_granted, Number(payment.amount_usd));
-
-    res.setHeader('Cache-Control', 'private, no-store');
-    res.json({
-      ok: true,
-      orderId,
-      amountUsd: Number(payment.amount_usd),
-      creditsGranted: payment.credits_granted,
-      savedPaymentMethodId: savedMethodId,
-    });
-  } catch (error) { sendError(res, error); }
+    await finalizeOrder(req.user!.id, session.order_id);
+    await query('DELETE FROM paypal_card_checkout_sessions WHERE id=$1 AND user_id=$2', [sessionId, req.user!.id]).catch(() => {});
+    res.redirect(`${appUrl()}/dashboard?checkout=success${session.job_id ? `&job=${encodeURIComponent(session.job_id)}` : ''}`);
+  } catch (error) {
+    logger.warn({ err: error, userId: req.user?.id }, '[paypal-card] payer-action return failed');
+    res.redirect(fail);
+  }
 });
 
 export default router;
