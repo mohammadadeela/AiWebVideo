@@ -91,20 +91,36 @@ test('only a non-sensitive preferred alias may be remembered locally', async () 
   }
 });
 
-test('one-time pricing and generation paywall use the in-app secure checkout modal', async () => {
+test('one-time pricing and generation paywall use the in-app checkout modal and Buy labels', async () => {
   const pricing = await source('../aiwebvideo/src/components/landing/PricingTable.tsx');
   const paywall = await source('../aiwebvideo/src/components/chat/PaywallModal.tsx');
   assert.match(pricing, /SecureCheckoutModal/);
   assert.match(pricing, /setDirectCheckout/);
   assert.match(paywall, /SecureCheckoutModal/);
   assert.match(paywall, /setDirectCheckout/);
-  assert.match(paywall, /chooseSubscription/);
+  assert.doesNotMatch(pricing, /Pay securely/);
+  assert.doesNotMatch(paywall, /Pay securely/);
+  assert.match(pricing, /label = "Buy"/);
+  assert.match(paywall, />Buy</);
 });
 
-test('PayPal remains an explicit fallback while card details stay off AiWebVideo storage', async () => {
+test('subscription checkout keeps AiWebVideo open and verifies activation through the authenticated API', async () => {
+  const pricing = await source('../aiwebvideo/src/components/landing/PricingTable.tsx');
+  const paywall = await source('../aiwebvideo/src/components/chat/PaywallModal.tsx');
+  const subscription = await source('../aiwebvideo/src/components/billing/SubscriptionCheckoutModal.tsx');
+  assert.match(pricing, /SubscriptionCheckoutModal/);
+  assert.match(paywall, /SubscriptionCheckoutModal/);
+  assert.match(subscription, /window\.open\('about:blank', 'aiwebvideo-subscription'/);
+  assert.match(subscription, /startCheckout\(plan, jobId\)/);
+  assert.match(subscription, /fetchSubscriptions\(\)/);
+  assert.match(subscription, /popup\.location\.replace\(checkoutUrl\)/);
+  assert.match(subscription, /Buy \$\{money\(amountUsd\)\}\/mo/);
+});
+
+test('PayPal remains a fallback while raw card data stays outside AiWebVideo storage', async () => {
   const client = await source('../aiwebvideo/src/components/billing/SecureCheckoutModal.tsx');
-  assert.match(client, /Continue with PayPal instead/);
+  assert.match(client, /Buy with PayPal/);
   assert.match(client, /startCheckout\(plan, jobId\)/);
-  assert.match(client, /No card details stored by AiWebVideo/);
-  assert.match(client, /Card number and CVV never touch AiWebVideo servers/);
+  assert.match(client, /paypal\.CardFields/);
+  assert.doesNotMatch(client, /Card number and CVV never touch AiWebVideo servers/);
 });

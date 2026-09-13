@@ -1,22 +1,17 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/app-button";
 import { SecureCheckoutModal } from "@/components/billing/SecureCheckoutModal";
-import {
-  ApiError,
-  startCheckout,
-  type CheckoutId,
-} from "@/lib/api-client";
+import { SubscriptionCheckoutModal } from "@/components/billing/SubscriptionCheckoutModal";
+import type { CheckoutId } from "@/lib/api-client";
 import { displayCredits, estimateRenderCredits } from "@/lib/credits";
 import { discountedPrice, fetchWelcomeGrowthOffer, formatUsd, formatWelcomeCountdown, type WelcomeGrowthOffer } from "@/lib/growth";
 
 function PurchaseButton({
   primary,
-  loading,
   onBuy,
   label = "Buy",
 }: {
   primary?: boolean;
-  loading: boolean;
   onBuy: () => void;
   label?: string;
 }) {
@@ -27,9 +22,8 @@ function PurchaseButton({
         size="md"
         className="w-full !text-xs sm:!text-sm"
         onClick={onBuy}
-        disabled={loading}
       >
-        {loading ? "Loading…" : label}
+        {label}
       </Button>
     </div>
   );
@@ -57,9 +51,11 @@ const PLANS = [
     id: "creator" as const,
     name: "Creator",
     price: "$39",
+    amountUsd: 39,
     period: "/mo",
     sub: "",
     credits: "750 credits / mo",
+    internalCredits: 150,
     tagline: "For founders and growing shops.",
     notes: [
       "3 narrated quick clips or 1 standard campaign",
@@ -67,16 +63,18 @@ const PLANS = [
       "1080p and 4K mastered delivery",
       "Unused credits roll over",
     ],
-    cta: "Get Creator",
+    cta: "Buy",
     highlight: false,
   },
   {
     id: "pro" as const,
     name: "Pro",
     price: "$99",
+    amountUsd: 99,
     period: "/mo",
     sub: "",
     credits: "2,000 credits / mo",
+    internalCredits: 400,
     tagline: "For marketers shipping weekly.",
     notes: [
       "10 narrated quick clips or 2 standard campaigns",
@@ -84,16 +82,18 @@ const PLANS = [
       "Native 4K mastered exports",
       "AI-generated motion and cinematic sound",
     ],
-    cta: "Get Pro",
+    cta: "Buy",
     highlight: true,
   },
   {
     id: "agency" as const,
     name: "Agency",
     price: "$249",
+    amountUsd: 249,
     period: "/mo",
     sub: "",
     credits: "5,000 credits / mo",
+    internalCredits: 1000,
     tagline: "Client work, at scale.",
     notes: [
       "26 narrated quick clips or 7 standard campaigns",
@@ -101,7 +101,7 @@ const PLANS = [
       "Priority generation concurrency",
       "Flexible one-time top-ups from $14.99",
     ],
-    cta: "Get Agency",
+    cta: "Buy",
     highlight: false,
   },
 ];
@@ -172,8 +172,6 @@ const CREDIT_COSTS = [
   { item: "Set of 4 marketing photos · up to 4K", credits: 40 },
 ];
 
-// Computed from the same shared credit formula the server enforces and already
-// returned in the customer-facing x5 denomination.
 const STUDIO_PRICES = [
   {
     item: "Product photo set (4 images)",
@@ -205,36 +203,26 @@ const STUDIO_PRICES = [
   },
 ];
 
-export function checkoutErrorMessage(error: unknown): string {
-  if (!(error instanceof ApiError)) {
-    return "Checkout could not be started. Please try again shortly.";
-  }
-  if (error.status === 401 || error.code === "UNAUTHORIZED") {
-    return "Sign in first, then select Buy again.";
-  }
-  if (error.code === "PAYPAL_AUTH_FAILED" || error.code === "BILLING_NOT_CONFIGURED") {
-    return "Checkout configuration needs attention. The site owner must verify the payment Client ID, Secret, and live/sandbox mode.";
-  }
-  if (error.code === "INVALID_ORIGIN") {
-    return "Checkout was blocked because this site address does not match the configured application URL.";
-  }
-  if (error.code === "RATE_LIMITED") return error.message;
-  return error.message || "Checkout could not be started. Please try again shortly.";
-}
-
 type DirectCheckout = {
   plan: CheckoutId;
   productName: string;
+  amountUsd: number;
+  originalAmountUsd?: number;
+  credits: number;
+};
+
+type SubscriptionCheckout = {
+  plan: "creator" | "pro" | "agency";
+  planName: string;
   amountUsd: number;
   credits: number;
 };
 
 export function PricingTable() {
-  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [welcomeOffer, setWelcomeOffer] = useState<WelcomeGrowthOffer | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [directCheckout, setDirectCheckout] = useState<DirectCheckout | null>(null);
+  const [subscriptionCheckout, setSubscriptionCheckout] = useState<SubscriptionCheckout | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -252,26 +240,23 @@ export function PricingTable() {
     ? welcomeOffer
     : null;
 
-  async function handleChoose(planId: string) {
+  function handleChoose(planId: string) {
     if (planId === "free") {
       window.location.href = "/#generate";
       return;
     }
-    setError(null);
-    setLoadingPlan(planId);
-    try {
-      const { checkoutUrl } = await startCheckout(planId as CheckoutId);
-      window.location.href = checkoutUrl;
-    } catch (error) {
-      setError(checkoutErrorMessage(error));
-    } finally {
-      setLoadingPlan(null);
-    }
+    const plan = PLANS.find((item) => item.id === planId);
+    if (!plan || plan.id === "free" || !("amountUsd" in plan) || !("internalCredits" in plan)) return;
+    setSubscriptionCheckout({
+      plan: plan.id,
+      planName: plan.name,
+      amountUsd: plan.amountUsd,
+      credits: displayCredits(plan.internalCredits),
+    });
   }
 
   return (
     <div>
-      {error && <p className="mb-4 text-sm text-pink">{error}</p>}
       <div
         id="plans"
         className="scroll-mt-24 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4"
@@ -319,7 +304,7 @@ export function PricingTable() {
             </p>
             {plan.id !== "free" && (
               <p className="mt-1.5 text-[10px] leading-4 text-text-dim">
-                Renews monthly automatically · cancel anytime · recurring payment handled securely by PayPal
+                Renews monthly · cancel anytime
               </p>
             )}
             <ul className="mt-2 sm:mt-4 flex-1 space-y-1 sm:space-y-2">
@@ -339,14 +324,12 @@ export function PricingTable() {
                 size="md"
                 className="mt-3 sm:mt-5 w-full !text-xs sm:!text-sm"
                 onClick={() => handleChoose(plan.id)}
-                disabled={loadingPlan === plan.id}
               >
-                {loadingPlan === plan.id ? "Loading…" : plan.cta}
+                {plan.cta}
               </Button>
             ) : (
               <PurchaseButton
                 primary={plan.highlight}
-                loading={loadingPlan === plan.id}
                 onBuy={() => handleChoose(plan.id)}
               />
             )}
@@ -354,7 +337,6 @@ export function PricingTable() {
         ))}
       </div>
 
-      {/* One-time packs — no subscription */}
       <div className="mt-8 sm:mt-12">
         <h3 className="font-display text-lg sm:text-xl font-bold text-text-primary">
           Just need one video?
@@ -398,14 +380,13 @@ export function PricingTable() {
               </p>
               <PurchaseButton
                 primary={pack.popular}
-                loading={false}
                 onBuy={() => setDirectCheckout({
                   plan: pack.id,
                   productName: pack.name,
                   amountUsd: pack.amountUsd,
+                  originalAmountUsd: pack.amountUsd,
                   credits: displayCredits(pack.credits),
                 })}
-                label="Pay securely"
               />
             </div>
           ))}
@@ -447,17 +428,16 @@ export function PricingTable() {
                   <p className="font-display text-2xl font-bold text-text-primary">{formatUsd(discounted)}</p>
                   {hasDiscount && <p className="pb-0.5 text-xs text-text-dim line-through">{formatUsd(pack.amountUsd)}</p>}
                 </div>
-                {hasDiscount && activeOffer && <p className="mt-1 text-[10px] font-semibold text-mint">Same credits · lower price · offer ends in {formatWelcomeCountdown(activeOffer.expiresAt, now)}</p>}
+                {hasDiscount && activeOffer && <p className="mt-1 text-[10px] font-semibold text-mint">Offer ends in {formatWelcomeCountdown(activeOffer.expiresAt, now)}</p>}
                 <PurchaseButton
                   primary={pack.id === "topup250" || hasDiscount}
-                  loading={false}
                   onBuy={() => setDirectCheckout({
                     plan: pack.id,
                     productName: `${packCredits.toLocaleString()} production credits`,
                     amountUsd: discounted,
+                    originalAmountUsd: pack.amountUsd,
                     credits: packCredits,
                   })}
-                  label={hasDiscount ? `Pay ${formatUsd(discounted)}` : "Pay securely"}
                 />
               </div>
             );
@@ -465,7 +445,6 @@ export function PricingTable() {
         </div>
       </section>
 
-      {/* Credit cost table */}
       <div className="mt-10 overflow-x-auto rounded-xl border border-border">
         <table className="w-full text-left text-sm">
           <thead>
@@ -497,7 +476,6 @@ export function PricingTable() {
         Veo continuity extensions use a 720p provider source and AiWebVideo masters that continuous source to the selected delivery size. Failed generations are automatically refunded.
       </p>
 
-      {/* Studio add-on pricing */}
       <div className="mt-10">
         <h3 className="font-display text-lg font-bold text-text-primary">
           Studio generators
@@ -536,8 +514,19 @@ export function PricingTable() {
           plan={directCheckout.plan}
           productName={directCheckout.productName}
           amountUsd={directCheckout.amountUsd}
+          originalAmountUsd={directCheckout.originalAmountUsd}
           credits={directCheckout.credits}
           onClose={() => setDirectCheckout(null)}
+        />
+      )}
+
+      {subscriptionCheckout && (
+        <SubscriptionCheckoutModal
+          plan={subscriptionCheckout.plan}
+          planName={subscriptionCheckout.planName}
+          amountUsd={subscriptionCheckout.amountUsd}
+          credits={subscriptionCheckout.credits}
+          onClose={() => setSubscriptionCheckout(null)}
         />
       )}
     </div>
