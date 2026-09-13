@@ -100,6 +100,12 @@ declare global {
 // This is only a local preference for our own opaque UUID alias. It is never
 // a card number, CVV, expiry date, PayPal vault token or other payment secret.
 const PREFERRED_METHOD_KEY = 'aiwebvideo:preferred-payment-method';
+const CARD_FIELD_SELECTORS = [
+  '#aiwebvideo-card-name',
+  '#aiwebvideo-card-number',
+  '#aiwebvideo-card-expiry',
+  '#aiwebvideo-card-cvv',
+] as const;
 
 function money(value: number) {
   return `$${Math.max(0, Number(value) || 0).toFixed(2)}`;
@@ -163,6 +169,14 @@ async function loadPayPalSdk(config: CheckoutConfig) {
 
 async function loadGooglePaySdk() {
   await scriptPromise('aiwebvideo-google-pay-sdk', 'https://pay.google.com/gp/p/js/pay.js');
+}
+
+async function waitForCardFieldContainers() {
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    if (CARD_FIELD_SELECTORS.every((selector) => document.querySelector(selector))) return;
+    await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+  }
+  throw new Error('Secure card fields could not be mounted. Please close checkout and try again.');
 }
 
 export function SecureCheckoutModal({
@@ -241,6 +255,9 @@ export function SecureCheckoutModal({
     let cancelled = false;
     async function bootstrap() {
       setLoading(true);
+      setCardEligible(false);
+      setGooglePayEligible(false);
+      cardFieldsRef.current = null;
       setError(null);
       try {
         const [nextConfig, methodsResponse] = await Promise.all([
@@ -302,6 +319,13 @@ export function SecureCheckoutModal({
         if (cardFields.isEligible()) {
           cardFieldsRef.current = cardFields;
           setCardEligible(true);
+          // The hosted fields are conditionally mounted by React. Give React a
+          // frame to commit those containers before asking the PayPal SDK to
+          // render iframes into them. Rendering immediately after setState can
+          // otherwise race the DOM and produce "element ... does not exist".
+          setLoading(false);
+          await waitForCardFieldContainers();
+          if (cancelled) return;
           await Promise.all([
             Promise.resolve(cardFields.NameField({ placeholder: 'Name on card' }).render('#aiwebvideo-card-name')),
             Promise.resolve(cardFields.NumberField({ placeholder: 'Card number' }).render('#aiwebvideo-card-number')),
@@ -385,7 +409,15 @@ export function SecureCheckoutModal({
           }
         }
       } catch (bootstrapError) {
-        if (!cancelled) setError(errorMessage(bootstrapError));
+        if (!cancelled) {
+          cardFieldsRef.current = null;
+          setCardEligible(false);
+          setError(
+            bootstrapError instanceof Error && bootstrapError.message.includes('could not be mounted')
+              ? bootstrapError.message
+              : 'Secure card fields could not load. Please try again or continue with PayPal.',
+          );
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
