@@ -14,6 +14,10 @@ const sql = await readFile(
   fileURLToPath(new URL('./schema.sql', import.meta.url)),
   'utf8',
 );
+const managedSubscriptionsSql = await readFile(
+  fileURLToPath(new URL('./managed-subscriptions.sql', import.meta.url)),
+  'utf8',
+);
 
 const client = new pg.Client({
   connectionString: process.env.DATABASE_URL,
@@ -39,6 +43,7 @@ try {
   console.log(`Database safety check passed: ${databaseName}`);
 
   await client.query(sql);
+  await client.query(managedSubscriptionsSql);
 
   // Fail deployment before restarting the application if a legacy database
   // still cannot satisfy the exact columns used by account/billing queries.
@@ -48,7 +53,11 @@ try {
     s.created_at,
     s.updated_at,
     s.auto_renew,
-    s.paypal_subscription_id
+    s.paypal_subscription_id,
+    s.billing_source,
+    s.payment_method_id,
+    s.renewal_amount_usd,
+    s.last_provider_order_id
     FROM subscriptions s LIMIT 0`);
 
   await client.query(`SELECT
@@ -64,6 +73,14 @@ try {
     p.status,
     p.created_at
     FROM payments p LIMIT 0`);
+
+  await client.query(`SELECT
+    r.subscription_id,
+    r.period_start,
+    r.provider_order_id,
+    r.provider_capture_id,
+    r.status
+    FROM paypal_managed_subscription_renewals r LIMIT 0`);
 
   console.log('Database schema is up to date.');
 } finally {
