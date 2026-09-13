@@ -42,7 +42,7 @@ test('local authenticated order ownership is authoritative when PayPal omits dup
   assert.deepEqual(validateEmbeddedCompletedOrder(order, expected), { captureId: 'CAPTURE-123', payerId: null });
 });
 
-test('a present remote account mismatch is always blocked', () => {
+test('every present remote account id must match the authenticated local order owner', () => {
   assert.throws(() => validateEmbeddedCompletedOrder(
     completedOrder({ unitCustomId: null, captureCustomId: 'other-user' }),
     expected,
@@ -51,18 +51,22 @@ test('a present remote account mismatch is always blocked', () => {
     completedOrder({ unitCustomId: 'other-user', captureCustomId: 'user-123' }),
     expected,
   ));
+  assert.throws(() => validateEmbeddedCompletedOrder(
+    completedOrder({ unitCustomId: 'user-123', captureCustomId: 'other-user' }),
+    expected,
+  ));
 });
 
 test('embedded settlement still enforces exact amount and currency', () => {
   const wrongAmount = completedOrder();
   const units = wrongAmount.purchase_units as Array<Record<string, unknown>>;
-  const captures = ((units[0].payments as { captures: Array<Record<string, unknown>> }).captures);
+  const captures = (units[0].payments as { captures: Array<Record<string, unknown>> }).captures;
   captures[0].amount = { currency_code: 'USD', value: '0.01' };
   assert.throws(() => validateEmbeddedCompletedOrder(wrongAmount, expected));
 
   const wrongCurrency = completedOrder();
   const currencyUnits = wrongCurrency.purchase_units as Array<Record<string, unknown>>;
-  const currencyCaptures = ((currencyUnits[0].payments as { captures: Array<Record<string, unknown>> }).captures);
+  const currencyCaptures = (currencyUnits[0].payments as { captures: Array<Record<string, unknown>> }).captures;
   currencyCaptures[0].amount = { currency_code: 'EUR', value: '52.99' };
   assert.throws(() => validateEmbeddedCompletedOrder(wrongCurrency, expected));
 });
