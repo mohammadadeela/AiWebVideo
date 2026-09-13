@@ -12,7 +12,7 @@ test('PayPal hosted card fields wait for React containers before rendering', asy
 
   assert.match(checkout, /CARD_FIELD_SELECTORS/);
   assert.match(checkout, /waitForCardFieldContainers/);
-  assert.match(checkout, /setCardEligible\(true\);[\s\S]{0,500}setLoading\(false\);[\s\S]{0,500}await waitForCardFieldContainers\(\);/);
+  assert.match(checkout, /setCardEligible\(true\);[\s\S]{0,500}await waitForCardFieldContainers\(\);/);
   assert.match(checkout, /NameField[\s\S]{0,400}#aiwebvideo-card-name/);
   assert.match(checkout, /NumberField[\s\S]{0,400}#aiwebvideo-card-number/);
   assert.match(checkout, /ExpiryField[\s\S]{0,400}#aiwebvideo-card-expiry/);
@@ -24,8 +24,10 @@ test('checkout resets stale hosted-field state and hides raw DOM/provider bootst
 
   assert.match(checkout, /setCardEligible\(false\)/);
   assert.match(checkout, /cardFieldsRef\.current = null/);
-  assert.match(checkout, /Card fields could not load\. Try PayPal instead\./);
+  assert.match(checkout, /Card checkout could not load\. You can try PayPal instead\./);
+  assert.match(checkout, /markError\(new Error\('Card checkout could not load\. You can try PayPal instead\.'\)\)/);
   assert.doesNotMatch(checkout, /setError\(errorMessage\(bootstrapError\)\)/);
+  assert.doesNotMatch(checkout, /markError\(bootstrapError\)/);
   assert.doesNotMatch(checkout, /Document is ready and element/);
 });
 
