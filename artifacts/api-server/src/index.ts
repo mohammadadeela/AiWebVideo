@@ -5,6 +5,7 @@ import { verifyEmailConnection } from './lib/mailer.js';
 import { ensurePaymentClawbackProtection } from './lib/billing.js';
 import { ensureSubscriptionReceiptGuard } from './lib/subscription-billing-guards.js';
 import { applyTemporaryPaymentTestPricing } from './lib/payment-test-pricing.js';
+import { startManagedSubscriptionReconciliation } from './lib/managed-subscription-reconciliation.js';
 import { startManagedSubscriptionRenewals } from './routes/paypal-card-subscriptions.js';
 
 const rawPort = process.env["PORT"];
@@ -37,6 +38,11 @@ async function start() {
   // schema upgrades are ready, so a deploy cannot accept a subscription that
   // the server is unable to renew safely.
   await startManagedSubscriptionRenewals();
+
+  // Repair the tiny crash window between a completed provider payment and the
+  // idempotent local credit grant. The reconciler never charges a customer; it
+  // only restores an entitlement for an already-paid managed subscription.
+  startManagedSubscriptionReconciliation();
 
   try {
     const recovered = await recoverInterruptedJobs();
