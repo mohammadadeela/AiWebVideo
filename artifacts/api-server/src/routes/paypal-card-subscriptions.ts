@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
 import { z } from 'zod';
 import { requireAuth } from '../lib/auth.js';
-import { query } from '../lib/pool.js';
+import { pool, query } from '../lib/pool.js';
 import { AppError, sendError } from '../lib/errors.js';
 import { grantCreditsOnce } from '../lib/billing.js';
 import { logger } from '../lib/logger.js';
@@ -127,6 +127,7 @@ async function ensureManagedSubscriptionSchema() {
     await query("ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS billing_source TEXT NOT NULL DEFAULT 'paypal_subscription'");
     await query('ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS payment_method_id UUID');
     await query('ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS renewal_amount_usd NUMERIC(10,2)');
+    await query('ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS last_provider_order_id TEXT');
     await query(`CREATE TABLE IF NOT EXISTS paypal_managed_subscription_intents (
       order_id TEXT PRIMARY KEY,
       user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -136,6 +137,13 @@ async function ensureManagedSubscriptionSchema() {
       credits INTEGER NOT NULL,
       job_id UUID,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '2 hours')
+    )`);
+    await query(`CREATE TABLE IF NOT EXISTS paypal_managed_subscription_returns (
+      id UUID PRIMARY KEY,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      order_id TEXT UNIQUE NOT NULL,
+      job_id UUID,
       expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '2 hours')
     )`);
     await query(`CREATE TABLE IF NOT EXISTS paypal_managed_subscription_renewals (
@@ -151,6 +159,7 @@ async function ensureManagedSubscriptionSchema() {
       UNIQUE(subscription_id, period_start)
     )`);
     await query('CREATE INDEX IF NOT EXISTS managed_subscription_due_idx ON subscriptions(billing_source,auto_renew,current_period_end)');
+    await query('CREATE UNIQUE INDEX IF NOT EXISTS managed_subscription_order_idx ON subscriptions(last_provider_order_id) WHERE last_provider_order_id IS NOT NULL');
   })().catch((error) => {
     schemaReady = null;
     throw error;
@@ -163,6 +172,7 @@ async function accessToken() {
   const clientId = process.env.PAYPAL_CLIENT_ID?.trim();
   const secret = process.env.PAYPAL_CLIENT_SECRET?.trim();
   if (!clientId || !secret) throw new AppError('Checkout is not configured yet.', 503, 'BILLING_NOT_CONFIGURED');
+
   let response: globalThis.Response;
   try {
     response = await fetch(`${paypalBase()}/v1/oauth2/token`, {
@@ -178,6 +188,7 @@ async function accessToken() {
     logger.error({ err: error }, '[paypal-managed-subscription] OAuth network failure');
     throw new AppError('The payment service is temporarily unavailable.', 502, 'PAYMENT_PROVIDER_UNAVAILABLE');
   }
+
   const raw = await response.text();
   let data: { access_token?: string; expires_in?: number } = {};
   try { data = JSON.parse(raw) as typeof data; } catch { data = {}; }
@@ -214,6 +225,7 @@ async function paypalRequest(
     logger.error({ err: error, pathname }, '[paypal-managed-subscription] provider network failure');
     throw new AppError('The payment service is temporarily unavailable.', 502, 'PAYMENT_PROVIDER_UNAVAILABLE');
   }
+
   const raw = await response.text();
   let data: Record<string, unknown> = {};
   try { if (raw) data = JSON.parse(raw) as Record<string, unknown>; } catch { data = {}; }
@@ -243,10 +255,13 @@ function addOneMonth(date: Date) {
   const year = source.getUTCFullYear();
   const month = source.getUTCMonth();
   const day = source.getUTCDate();
-  const lastDay = new Date(Date.UTC(year, month + 2, 0)).getUTCDate();
+  const nextMonth = month + 1;
+  const nextYear = year + Math.floor(nextMonth / 12);
+  const normalizedMonth = nextMonth % 12;
+  const lastDay = new Date(Date.UTC(nextYear, normalizedMonth + 1, 0)).getUTCDate();
   return new Date(Date.UTC(
-    year + Math.floor((month + 1) / 12),
-    (month + 1) % 12,
+    nextYear,
+    normalizedMonth,
     Math.min(day, lastDay),
     source.getUTCHours(),
     source.getUTCMinutes(),
@@ -292,13 +307,16 @@ async function saveVaultCard(userId: string, order: Record<string, unknown>) {
   const attributes = card?.attributes as { vault?: Record<string, unknown> } | undefined;
   const vault = attributes?.vault;
   if (!card || !vault) return null;
+
   const tokenRef = typeof vault.id === 'string' ? vault.id : '';
   const status = String(vault.status ?? '').toUpperCase();
   if (!tokenRef || !['VAULTED', 'APPROVED'].includes(status)) return null;
+
   const customer = vault.customer as { id?: unknown } | undefined;
   if (typeof customer?.id === 'string' && customer.id) {
     await query('UPDATE users SET paypal_customer_id=$1,updated_at=NOW() WHERE id=$2', [customer.id, userId]);
   }
+
   const aliasId = randomUUID();
   const brand = typeof card.brand === 'string' ? card.brand : null;
   const lastDigits = typeof card.last_digits === 'string'
@@ -318,11 +336,11 @@ async function saveVaultCard(userId: string, order: Record<string, unknown>) {
   return rows[0].id;
 }
 
-async function captureOrRead(orderId: string) {
+async function captureOrRead(orderId: string, keyPrefix: string) {
   try {
     return await paypalRequest(`/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`, {
       method: 'POST',
-      idempotencyKey: `managed-sub-capture-${orderId}`,
+      idempotencyKey: `${keyPrefix}-${orderId}`,
     });
   } catch (captureError) {
     const current = await paypalRequest(`/v2/checkout/orders/${encodeURIComponent(orderId)}`, { method: 'GET' }).catch(() => null);
@@ -333,91 +351,97 @@ async function captureOrRead(orderId: string) {
 
 async function finalizeInitialSubscription(userId: string, orderId: string) {
   await ensureManagedSubscriptionSchema();
-  const { rows } = await query<IntentRow>(
-    `SELECT order_id,user_id,plan,payment_method_id,amount_usd,credits,job_id,expires_at
-     FROM paypal_managed_subscription_intents WHERE order_id=$1 AND user_id=$2 LIMIT 1`,
-    [orderId, userId],
-  );
-  const intent = rows[0];
-  if (!intent) throw new AppError('Subscription checkout was not found.', 404, 'PAYMENT_NOT_FOUND');
-  if (new Date(intent.expires_at).getTime() < Date.now()) throw new AppError('This checkout expired. Start again.', 409, 'PAYMENT_EXPIRED');
+  const lockClient = await pool.connect();
+  const lockKey = `managed-subscription-order:${orderId}`;
+  try {
+    await lockClient.query('SELECT pg_advisory_lock(hashtext($1))', [lockKey]);
 
-  const existing = await query<{ status: string; id: string }>(
-    "SELECT status,id FROM payments WHERE provider='paypal' AND provider_ref=$1 AND user_id=$2 LIMIT 1",
-    [orderId, userId],
-  );
-  if (existing.rows[0]?.status === 'paid') {
-    const subscription = await query<{ id: string }>(
+    const { rows } = await lockClient.query<IntentRow>(
+      `SELECT order_id,user_id,plan,payment_method_id,amount_usd,credits,job_id,expires_at
+       FROM paypal_managed_subscription_intents WHERE order_id=$1 AND user_id=$2 LIMIT 1`,
+      [orderId, userId],
+    );
+    const intent = rows[0];
+    if (!intent) throw new AppError('Subscription checkout was not found.', 404, 'PAYMENT_NOT_FOUND');
+    if (new Date(intent.expires_at).getTime() < Date.now()) throw new AppError('This checkout expired. Start again.', 409, 'PAYMENT_EXPIRED');
+
+    const already = await lockClient.query<{ id: string }>(
       `SELECT id FROM subscriptions WHERE user_id=$1 AND billing_source='paypal_card' AND last_provider_order_id=$2 LIMIT 1`,
       [userId, orderId],
     );
-    return { ok: true, orderId, amountUsd: Number(intent.amount_usd), creditsGranted: intent.credits, subscriptionId: subscription.rows[0]?.id ?? null };
-  }
+    if (already.rows[0]) {
+      return { ok: true, orderId, amountUsd: Number(intent.amount_usd), creditsGranted: intent.credits, subscriptionId: already.rows[0].id };
+    }
 
-  const completed = await captureOrRead(orderId);
-  const verified = validateEmbeddedCompletedOrder(completed, {
-    orderId,
-    userId,
-    amountUsd: Number(intent.amount_usd),
-    currency: 'USD',
-  });
-
-  const paymentMethodId = intent.payment_method_id ?? await saveVaultCard(userId, completed);
-  if (!paymentMethodId) {
-    throw new AppError(
-      'The first payment completed, but the card could not be saved for monthly renewal. Contact support before trying again.',
-      409,
-      'SUBSCRIPTION_VAULT_PENDING',
-    );
-  }
-  const method = await savedMethod(userId, paymentMethodId);
-  if (!method) throw new AppError('The saved card could not be verified.', 409, 'PAYMENT_METHOD_NOT_FOUND');
-
-  const product = PRODUCTS[intent.plan] as SubscriptionProduct;
-  const periodStart = new Date();
-  const periodEnd = addOneMonth(periodStart);
-
-  await query('BEGIN');
-  try {
-    await query(
-      `INSERT INTO payments(user_id,provider,provider_ref,provider_capture_ref,kind,amount_usd,currency,credits_granted,plan,product_id,status)
-       VALUES ($1,'paypal',$2,$3,'subscription_initial',$4,'USD',$5,$6,$7,'paid')
-       ON CONFLICT(provider,provider_ref) DO UPDATE SET status='paid',provider_capture_ref=EXCLUDED.provider_capture_ref`,
-      [userId, orderId, verified.captureId, Number(intent.amount_usd), intent.credits, product.plan, intent.plan],
-    );
-    await query(
-      `INSERT INTO subscriptions(
-        user_id,paypal_subscription_id,plan,status,auto_renew,current_period_start,current_period_end,
-        provider_status,billing_source,payment_method_id,renewal_amount_usd,last_provider_order_id,updated_at
-      ) VALUES ($1,NULL,$2,'active',true,$3,$4,'ACTIVE','paypal_card',$5,$6,$7,NOW())`,
-      [userId, product.plan, periodStart, periodEnd, paymentMethodId, Number(intent.amount_usd), orderId],
-    );
-    await query('COMMIT');
-  } catch (error) {
-    await query('ROLLBACK').catch(() => {});
-    throw error;
-  }
-
-  await grantCreditsOnce({
-    key: `paypal:order:${orderId}`,
-    userId,
-    credits: intent.credits,
-    plan: product.plan,
-    reason: `Started ${product.name} card subscription ${orderId}`,
-  });
-  await billingNotification(`receipt:managed-sub:${orderId}`, userId, 'subscription_initial', (email) =>
-    sendSubscriptionStartedEmail({
-      to: email,
-      plan: product.name,
-      credits: intent.credits * CREDIT_DISPLAY_MULTIPLIER,
+    const completed = await captureOrRead(orderId, 'managed-sub-capture');
+    const verified = validateEmbeddedCompletedOrder(completed, {
+      orderId,
+      userId,
       amountUsd: Number(intent.amount_usd),
-      reference: orderId,
-      nextBillingDate: periodEnd.toISOString().slice(0, 10),
-    }),
-  );
-  await query('DELETE FROM paypal_managed_subscription_intents WHERE order_id=$1', [orderId]).catch(() => {});
+      currency: 'USD',
+    });
 
-  return { ok: true, orderId, amountUsd: Number(intent.amount_usd), creditsGranted: intent.credits, savedPaymentMethodId: paymentMethodId };
+    const paymentMethodId = intent.payment_method_id ?? await saveVaultCard(userId, completed);
+    if (!paymentMethodId) {
+      throw new AppError(
+        'The payment completed, but the card token is still being secured for renewal. Contact support before trying again.',
+        409,
+        'SUBSCRIPTION_VAULT_PENDING',
+      );
+    }
+    if (!(await savedMethod(userId, paymentMethodId))) throw new AppError('The saved card could not be verified.', 409, 'PAYMENT_METHOD_NOT_FOUND');
+
+    const product = PRODUCTS[intent.plan] as SubscriptionProduct;
+    const periodStart = new Date();
+    const periodEnd = addOneMonth(periodStart);
+
+    await lockClient.query('BEGIN');
+    try {
+      await lockClient.query(
+        `INSERT INTO payments(user_id,provider,provider_ref,provider_capture_ref,kind,amount_usd,currency,credits_granted,plan,product_id,status)
+         VALUES ($1,'paypal',$2,$3,'subscription_initial',$4,'USD',$5,$6,$7,'paid')
+         ON CONFLICT(provider,provider_ref) DO UPDATE SET status='paid',provider_capture_ref=EXCLUDED.provider_capture_ref`,
+        [userId, orderId, verified.captureId, Number(intent.amount_usd), intent.credits, product.plan, intent.plan],
+      );
+      await lockClient.query(
+        `INSERT INTO subscriptions(
+          user_id,paypal_subscription_id,plan,status,auto_renew,current_period_start,current_period_end,
+          provider_status,billing_source,payment_method_id,renewal_amount_usd,last_provider_order_id,updated_at
+        ) VALUES ($1,NULL,$2,'active',true,$3,$4,'ACTIVE','paypal_card',$5,$6,$7,NOW())
+        ON CONFLICT (last_provider_order_id) WHERE last_provider_order_id IS NOT NULL
+        DO UPDATE SET status='active',auto_renew=true,provider_status='ACTIVE',payment_method_id=EXCLUDED.payment_method_id,updated_at=NOW()`,
+        [userId, product.plan, periodStart, periodEnd, paymentMethodId, Number(intent.amount_usd), orderId],
+      );
+      await lockClient.query('COMMIT');
+    } catch (error) {
+      await lockClient.query('ROLLBACK');
+      throw error;
+    }
+
+    await grantCreditsOnce({
+      key: `paypal:order:${orderId}`,
+      userId,
+      credits: intent.credits,
+      plan: product.plan,
+      reason: `Started ${product.name} card subscription ${orderId}`,
+    });
+    await billingNotification(`receipt:managed-sub:${orderId}`, userId, 'subscription_initial', (email) =>
+      sendSubscriptionStartedEmail({
+        to: email,
+        plan: product.name,
+        credits: intent.credits * CREDIT_DISPLAY_MULTIPLIER,
+        amountUsd: Number(intent.amount_usd),
+        reference: orderId,
+        nextBillingDate: periodEnd.toISOString().slice(0, 10),
+      }),
+    );
+    await query('DELETE FROM paypal_managed_subscription_intents WHERE order_id=$1', [orderId]).catch(() => {});
+
+    return { ok: true, orderId, amountUsd: Number(intent.amount_usd), creditsGranted: intent.credits, savedPaymentMethodId: paymentMethodId };
+  } finally {
+    await lockClient.query('SELECT pg_advisory_unlock(hashtext($1))', [lockKey]).catch(() => {});
+    lockClient.release();
+  }
 }
 
 paypalCardSubscriptionRouter.post('/subscription-orders', requireAuth, async (req, res) => {
@@ -490,13 +514,6 @@ paypalCardSubscriptionRouter.post('/subscription-orders', requireAuth, async (re
        ON CONFLICT(provider,provider_ref) DO NOTHING`,
       [req.user!.id, orderId, product.amountUsd, product.credits, product.plan, input.plan],
     );
-    await query(`CREATE TABLE IF NOT EXISTS paypal_managed_subscription_returns (
-      id UUID PRIMARY KEY,
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      order_id TEXT UNIQUE NOT NULL,
-      job_id UUID,
-      expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '2 hours')
-    )`);
     await query(
       `INSERT INTO paypal_managed_subscription_returns(id,user_id,order_id,job_id)
        VALUES ($1,$2,$3,$4) ON CONFLICT(order_id) DO NOTHING`,
@@ -579,11 +596,13 @@ paypalManagedSubscriptionRouter.post('/subscriptions/:id/cancel', requireAuth, a
 });
 
 async function renewOne(subscription: ManagedSubscriptionRow) {
+  const lockClient = await pool.connect();
   const lockKey = `aiwebvideo-managed-subscription:${subscription.id}`;
-  const locked = await query<{ locked: boolean }>('SELECT pg_try_advisory_lock(hashtext($1)) locked', [lockKey]);
-  if (!locked.rows[0]?.locked) return;
   try {
-    const current = await query<ManagedSubscriptionRow>(
+    const acquired = await lockClient.query<{ locked: boolean }>('SELECT pg_try_advisory_lock(hashtext($1)) locked', [lockKey]);
+    if (!acquired.rows[0]?.locked) return;
+
+    const current = await lockClient.query<ManagedSubscriptionRow>(
       `SELECT id,user_id,plan,payment_method_id,current_period_end,last_payment_failed_at
        FROM subscriptions
        WHERE id=$1 AND billing_source='paypal_card' AND auto_renew=true
@@ -594,6 +613,7 @@ async function renewOne(subscription: ManagedSubscriptionRow) {
     const row = current.rows[0];
     if (!row) return;
     if (row.last_payment_failed_at && Date.now() - new Date(row.last_payment_failed_at).getTime() < 6 * 60 * 60_000) return;
+
     const method = await savedMethod(row.user_id, row.payment_method_id);
     if (!method) throw new Error('Saved card is no longer available.');
     const product = PRODUCTS[row.plan] as SubscriptionProduct;
@@ -601,7 +621,7 @@ async function renewOne(subscription: ManagedSubscriptionRow) {
     const periodEnd = addOneMonth(periodStart);
     const renewalKey = `${row.id}:${periodStart.toISOString()}`;
 
-    const renewal = await query<{ id: string; provider_order_id: string | null; status: string }>(
+    const renewal = await lockClient.query<{ id: string; provider_order_id: string | null; status: string }>(
       `INSERT INTO paypal_managed_subscription_renewals(id,subscription_id,period_start,status)
        VALUES ($1,$2,$3,'pending')
        ON CONFLICT(subscription_id,period_start) DO UPDATE SET updated_at=NOW()
@@ -635,20 +655,43 @@ async function renewOne(subscription: ManagedSubscriptionRow) {
       });
       const createdOrderId = typeof order.id === 'string' ? order.id : '';
       if (!createdOrderId) throw new Error('Renewal order was not created.');
-      await query(
+      await lockClient.query(
         'UPDATE paypal_managed_subscription_renewals SET provider_order_id=$2,updated_at=NOW() WHERE id=$1',
         [renewal.rows[0]!.id, createdOrderId],
       );
     }
 
     const orderId = typeof order.id === 'string' ? order.id : existingOrderId ?? '';
-    const completed = order.status === 'COMPLETED' ? order : await captureOrRead(orderId);
+    const completed = order.status === 'COMPLETED' ? order : await captureOrRead(orderId, 'managed-renewal-capture');
     const verified = validateEmbeddedCompletedOrder(completed, {
       orderId,
       userId: row.user_id,
       amountUsd: product.amountUsd,
       currency: 'USD',
     });
+
+    await lockClient.query('BEGIN');
+    try {
+      await lockClient.query(
+        `INSERT INTO payments(user_id,provider,provider_ref,provider_capture_ref,kind,amount_usd,currency,credits_granted,plan,product_id,status)
+         VALUES ($1,'paypal',$2,$3,'subscription_renewal',$4,'USD',$5,$6,$7,'paid')
+         ON CONFLICT(provider,provider_ref) DO UPDATE SET status='paid',provider_capture_ref=EXCLUDED.provider_capture_ref`,
+        [row.user_id, orderId, verified.captureId, product.amountUsd, product.credits, product.plan, row.plan],
+      );
+      await lockClient.query(
+        `UPDATE subscriptions SET status='active',provider_status='ACTIVE',current_period_start=$2,current_period_end=$3,
+         last_payment_failed_at=NULL,last_provider_order_id=$4,renewal_amount_usd=$5,updated_at=NOW() WHERE id=$1`,
+        [row.id, periodStart, periodEnd, orderId, product.amountUsd],
+      );
+      await lockClient.query(
+        `UPDATE paypal_managed_subscription_renewals SET status='paid',provider_capture_id=$2,last_error=NULL,updated_at=NOW() WHERE id=$1`,
+        [renewal.rows[0]!.id, verified.captureId],
+      );
+      await lockClient.query('COMMIT');
+    } catch (error) {
+      await lockClient.query('ROLLBACK');
+      throw error;
+    }
 
     await grantCreditsOnce({
       key: `paypal:managed-renewal:${renewalKey}`,
@@ -657,21 +700,6 @@ async function renewOne(subscription: ManagedSubscriptionRow) {
       plan: product.plan,
       reason: `Managed subscription renewal ${orderId}`,
     });
-    await query(
-      `INSERT INTO payments(user_id,provider,provider_ref,provider_capture_ref,kind,amount_usd,currency,credits_granted,plan,product_id,status)
-       VALUES ($1,'paypal',$2,$3,'subscription_renewal',$4,'USD',$5,$6,$7,'paid')
-       ON CONFLICT(provider,provider_ref) DO UPDATE SET status='paid',provider_capture_ref=EXCLUDED.provider_capture_ref`,
-      [row.user_id, orderId, verified.captureId, product.amountUsd, product.credits, product.plan, row.plan],
-    );
-    await query(
-      `UPDATE subscriptions SET status='active',provider_status='ACTIVE',current_period_start=$2,current_period_end=$3,
-       last_payment_failed_at=NULL,last_provider_order_id=$4,renewal_amount_usd=$5,updated_at=NOW() WHERE id=$1`,
-      [row.id, periodStart, periodEnd, orderId, product.amountUsd],
-    );
-    await query(
-      `UPDATE paypal_managed_subscription_renewals SET status='paid',provider_capture_id=$2,last_error=NULL,updated_at=NOW() WHERE id=$1`,
-      [renewal.rows[0]!.id, verified.captureId],
-    );
     await billingNotification(`receipt:managed-renewal:${orderId}`, row.user_id, 'subscription_renewal', (email) =>
       sendSubscriptionRenewalEmail({
         to: email,
@@ -701,7 +729,8 @@ async function renewOne(subscription: ManagedSubscriptionRow) {
       (email) => sendSubscriptionPaymentFailedEmail({ to: email, plan: product.name, reference: subscription.id }),
     ).catch(() => {});
   } finally {
-    await query('SELECT pg_advisory_unlock(hashtext($1))', [lockKey]).catch(() => {});
+    await lockClient.query('SELECT pg_advisory_unlock(hashtext($1))', [lockKey]).catch(() => {});
+    lockClient.release();
   }
 }
 
