@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/app-button";
+import { SecureCheckoutModal } from "@/components/billing/SecureCheckoutModal";
 import {
   ApiError,
   startCheckout,
@@ -111,6 +112,7 @@ const ONE_TIME_PACKS = [
     name: "Quick Video",
     length: "8 seconds",
     price: "$9.99",
+    amountUsd: 9.99,
     credits: 38,
     note: "One punchy promo, ready in minutes",
   },
@@ -119,6 +121,7 @@ const ONE_TIME_PACKS = [
     name: "Full Marketing Video",
     length: "48 seconds",
     price: "$52.99",
+    amountUsd: 52.99,
     credits: 198,
     note: "A complete marketing video with room for a full story",
     popular: true,
@@ -128,6 +131,7 @@ const ONE_TIME_PACKS = [
     name: "Extended Video",
     length: "144 seconds",
     price: "$149.99",
+    amountUsd: 149.99,
     credits: 582,
     note: "A longer presentation, tutorial, or detailed brand story",
   },
@@ -218,11 +222,19 @@ export function checkoutErrorMessage(error: unknown): string {
   return error.message || "Checkout could not be started. Please try again shortly.";
 }
 
+type DirectCheckout = {
+  plan: CheckoutId;
+  productName: string;
+  amountUsd: number;
+  credits: number;
+};
+
 export function PricingTable() {
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [welcomeOffer, setWelcomeOffer] = useState<WelcomeGrowthOffer | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [directCheckout, setDirectCheckout] = useState<DirectCheckout | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -384,13 +396,18 @@ export function PricingTable() {
                 </span>
               </div>
               <p className="font-utility mt-1 text-[10px] sm:text-xs text-mint">
-                {displayCredits(pack.credits).toLocaleString()} credits · {pack.length} · 1080p · sound +
-                narration
+                {displayCredits(pack.credits).toLocaleString()} credits · {pack.length} · 1080p · sound + narration
               </p>
               <PurchaseButton
                 primary={pack.popular}
-                loading={loadingPlan === pack.id}
-                onBuy={() => handleChoose(pack.id)}
+                loading={false}
+                onBuy={() => setDirectCheckout({
+                  plan: pack.id,
+                  productName: pack.name,
+                  amountUsd: pack.amountUsd,
+                  credits: displayCredits(pack.credits),
+                })}
+                label="Pay securely"
               />
             </div>
           ))}
@@ -435,9 +452,14 @@ export function PricingTable() {
                 {hasDiscount && <p className="mt-1 text-[10px] font-semibold text-mint">Same credits · lower price · offer ends in {formatWelcomeCountdown(welcomeOffer.expiresAt, now)}</p>}
                 <PurchaseButton
                   primary={pack.id === "topup250" || hasDiscount}
-                  loading={loadingPlan === pack.id}
-                  onBuy={() => handleChoose(pack.id)}
-                  label={hasDiscount ? `Get ${welcomeOffer.discountPercent}% off` : "Buy"}
+                  loading={false}
+                  onBuy={() => setDirectCheckout({
+                    plan: pack.id,
+                    productName: `${packCredits.toLocaleString()} production credits`,
+                    amountUsd: discounted,
+                    credits: packCredits,
+                  })}
+                  label={hasDiscount ? `Pay ${formatUsd(discounted)}` : "Pay securely"}
                 />
               </div>
             );
@@ -510,6 +532,16 @@ export function PricingTable() {
           </table>
         </div>
       </div>
+
+      {directCheckout && (
+        <SecureCheckoutModal
+          plan={directCheckout.plan}
+          productName={directCheckout.productName}
+          amountUsd={directCheckout.amountUsd}
+          credits={directCheckout.credits}
+          onClose={() => setDirectCheckout(null)}
+        />
+      )}
     </div>
   );
 }
