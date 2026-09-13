@@ -43,12 +43,9 @@ export function UserMenu({ email, plan, creditsBalance, isAdmin = false }: { ema
     return () => window.clearInterval(timer);
   }, [offer?.active]);
 
-  const offerActive = Boolean(
-    inWorkspace &&
-    offer?.active &&
-    offer.discountPercent > 0 &&
-    new Date(offer.expiresAt).getTime() > now,
-  );
+  const activeOffer = inWorkspace && offer?.active && offer.discountPercent > 0 && new Date(offer.expiresAt).getTime() > now
+    ? offer
+    : null;
 
   async function handleSignOut() {
     await signOut();
@@ -61,15 +58,15 @@ export function UserMenu({ email, plan, creditsBalance, isAdmin = false }: { ema
       {inWorkspace && (
         <Link
           href="/pricing#buy-credits"
-          className={`group inline-flex min-h-10 items-center gap-2 rounded-xl border px-2.5 text-[11px] font-semibold transition sm:px-3 ${offerActive ? 'border-mint/35 bg-mint/[.08] text-mint hover:bg-mint/[.14]' : 'border-white/10 bg-white/[.035] text-text-muted hover:border-violet/30 hover:bg-violet/[.08] hover:text-white'}`}
-          aria-label={offerActive ? `${offer.discountPercent}% off credit packs` : 'View pricing'}
+          className={`group inline-flex min-h-10 items-center gap-2 rounded-xl border px-2.5 text-[11px] font-semibold transition sm:px-3 ${activeOffer ? 'border-mint/35 bg-mint/[.08] text-mint hover:bg-mint/[.14]' : 'border-white/10 bg-white/[.035] text-text-muted hover:border-violet/30 hover:bg-violet/[.08] hover:text-white'}`}
+          aria-label={activeOffer ? `${activeOffer.discountPercent}% off credit packs` : 'View pricing'}
         >
-          <BadgePercent size={15} className={offerActive ? 'text-mint' : 'text-violet'} aria-hidden="true" />
+          <BadgePercent size={15} className={activeOffer ? 'text-mint' : 'text-violet'} aria-hidden="true" />
           <span className="hidden sm:inline">Pricing</span>
-          {offerActive && (
+          {activeOffer && (
             <span className="inline-flex items-center gap-1 rounded-full border border-mint/25 bg-mint/10 px-2 py-0.5 text-[9px] font-bold text-mint">
-              {offer.discountPercent}% OFF
-              <span className="hidden lg:inline text-mint/75">· {formatWelcomeCountdown(offer.expiresAt, now)}</span>
+              {activeOffer.discountPercent}% OFF
+              <span className="hidden lg:inline text-mint/75">· {formatWelcomeCountdown(activeOffer.expiresAt, now)}</span>
             </span>
           )}
         </Link>
