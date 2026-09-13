@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { BadgeCheck, CreditCard, LockKeyhole, ShieldCheck, Trash2, WalletCards, X } from 'lucide-react';
+import { BadgeCheck, CreditCard, LockKeyhole, Trash2, WalletCards, X } from 'lucide-react';
 import { ApiError, request, startCheckout, type CheckoutId } from '@/lib/api-client';
+import { displayCredits } from '@/lib/credits';
 
 interface CheckoutConfig {
   configured: boolean;
@@ -78,7 +79,12 @@ interface PayPalSdk {
 
 interface GooglePaymentsClient {
   isReadyToPay(input: Record<string, unknown>): Promise<{ result: boolean }>;
-  createButton(input: { onClick: () => void; allowedPaymentMethods?: unknown[]; buttonType?: string; buttonColor?: string }): HTMLElement;
+  createButton(input: {
+    onClick: () => void;
+    allowedPaymentMethods?: unknown[];
+    buttonType?: string;
+    buttonColor?: string;
+  }): HTMLElement;
   loadPaymentData(input: Record<string, unknown>): Promise<unknown>;
 }
 
@@ -97,8 +103,6 @@ declare global {
   }
 }
 
-// This is only a local preference for our own opaque UUID alias. It is never
-// a card number, CVV, expiry date, PayPal vault token or other payment secret.
 const PREFERRED_METHOD_KEY = 'aiwebvideo:preferred-payment-method';
 const CARD_FIELD_SELECTORS = [
   '#aiwebvideo-card-name',
@@ -113,9 +117,9 @@ function money(value: number) {
 
 function errorMessage(error: unknown) {
   if (error instanceof ApiError) {
-    if (error.code === 'PRICE_CHANGED') return 'The limited-time price expired before payment. Close checkout and review the current price.';
-    if (error.code === 'PAYPAL_ADVANCED_CARDS_NOT_ENABLED') return 'Direct card checkout is not enabled for this merchant account yet. You can still continue with PayPal.';
-    if (error.code === 'CARD_PAYMENT_FAILED') return 'The card was not approved. Check the details, try another card, or use PayPal.';
+    if (error.code === 'PRICE_CHANGED') return 'The offer expired. Close checkout and review the current price.';
+    if (error.code === 'PAYPAL_ADVANCED_CARDS_NOT_ENABLED') return 'Card checkout is unavailable for this merchant account. Try PayPal.';
+    if (error.code === 'CARD_PAYMENT_FAILED') return 'The card was not approved. Check the details or try another method.';
     if (error.code === 'RATE_LIMITED') return error.message;
     return error.message;
   }
@@ -164,7 +168,7 @@ async function loadPayPalSdk(config: CheckoutConfig) {
   });
   const loaded = document.getElementById('aiwebvideo-paypal-sdk') as HTMLScriptElement | null;
   if (loaded) loaded.dataset.checkoutKey = key;
-  if (!window.paypal) throw new Error('Secure card fields are not available in this browser.');
+  if (!window.paypal) throw new Error('Card checkout is unavailable in this browser.');
 }
 
 async function loadGooglePaySdk() {
@@ -176,13 +180,14 @@ async function waitForCardFieldContainers() {
     if (CARD_FIELD_SELECTORS.every((selector) => document.querySelector(selector))) return;
     await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
   }
-  throw new Error('Secure card fields could not be mounted. Please close checkout and try again.');
+  throw new Error('Card fields could not be loaded. Close checkout and try again.');
 }
 
 export function SecureCheckoutModal({
   plan,
   productName,
   amountUsd,
+  originalAmountUsd,
   credits,
   jobId,
   onClose,
@@ -190,6 +195,7 @@ export function SecureCheckoutModal({
   plan: CheckoutId;
   productName: string;
   amountUsd: number;
+  originalAmountUsd?: number | null;
   credits: number;
   jobId?: string | null;
   onClose: () => void;
@@ -240,31 +246,33 @@ export function SecureCheckoutModal({
     try {
       if (result.savedPaymentMethodId) localStorage.setItem(PREFERRED_METHOD_KEY, result.savedPaymentMethodId);
     } catch {
-      // Remembering a non-sensitive local alias is optional; private browsing
-      // or blocked storage never affects payment success.
+      // The optional local preference stores only our opaque payment-method alias.
     }
     window.setTimeout(() => {
       if (closingRef.current) return;
       const suffix = jobId ? `&job=${encodeURIComponent(jobId)}` : '';
       window.location.href = `/dashboard?checkout=success${suffix}`;
-    }, 850);
+    }, 700);
   }
 
   useEffect(() => {
     closingRef.current = false;
     let cancelled = false;
+
     async function bootstrap() {
       setLoading(true);
       setCardEligible(false);
       setGooglePayEligible(false);
       cardFieldsRef.current = null;
       setError(null);
+
       try {
         const [nextConfig, methodsResponse] = await Promise.all([
           request<CheckoutConfig>('/api/paypal-card/config'),
           request<{ methods: SavedMethod[] }>('/api/paypal-card/methods').catch(() => ({ methods: [] })),
         ]);
         if (cancelled) return;
+
         setConfig(nextConfig);
         let methods = methodsResponse.methods;
         try {
@@ -298,7 +306,7 @@ export function SecureCheckoutModal({
           createOrder: async () => {
             const order = await createOrder('card');
             if (Math.abs(order.amountUsd - amountRef.current) > 0.005) {
-              throw new Error(`Price changed to ${money(order.amountUsd)}. Please review before paying.`);
+              throw new Error(`Price changed to ${money(order.amountUsd)}. Close checkout and review it.`);
             }
             return order.orderId;
           },
@@ -308,7 +316,7 @@ export function SecureCheckoutModal({
           },
           onCancel: () => {
             setSubmitting(false);
-            setError('Card verification was cancelled. Nothing was charged.');
+            setError('Verification was cancelled. Nothing was charged.');
           },
           onError: (providerError) => {
             setSubmitting(false);
@@ -319,10 +327,6 @@ export function SecureCheckoutModal({
         if (cardFields.isEligible()) {
           cardFieldsRef.current = cardFields;
           setCardEligible(true);
-          // The hosted fields are conditionally mounted by React. Give React a
-          // frame to commit those containers before asking the PayPal SDK to
-          // render iframes into them. Rendering immediately after setState can
-          // otherwise race the DOM and produce "element ... does not exist".
           setLoading(false);
           await waitForCardFieldContainers();
           if (cancelled) return;
@@ -338,36 +342,36 @@ export function SecureCheckoutModal({
           try {
             await loadGooglePaySdk();
             const GoogleClient = window.google?.payments?.api?.PaymentsClient;
-            if (!GoogleClient || !window.paypal.Googlepay) throw new Error('Google Pay is unavailable.');
+            if (!GoogleClient || !window.paypal.Googlepay) throw new Error('Google Pay unavailable');
             const paypalGoogle = window.paypal.Googlepay();
             const googleConfig = await paypalGoogle.config();
-            let paymentClient: GooglePaymentsClient;
-            const onPaymentAuthorized = async (paymentData: unknown) => {
-              try {
-                setSubmitting(true);
-                const order = await createOrder('google_pay');
-                if (Math.abs(order.amountUsd - amountRef.current) > 0.005) {
-                  throw new Error(`Price changed to ${money(order.amountUsd)}. Please review before paying.`);
-                }
-                const paymentMethodData = (paymentData as { paymentMethodData?: unknown })?.paymentMethodData;
-                const confirmed = await paypalGoogle.confirmOrder({ orderId: order.orderId, paymentMethodData });
-                if (confirmed.status === 'PAYER_ACTION_REQUIRED') {
-                  await paypalGoogle.initiatePayerAction({ orderId: order.orderId });
-                } else if (confirmed.status && confirmed.status !== 'APPROVED' && confirmed.status !== 'COMPLETED') {
-                  throw new Error('Google Pay could not authorize this payment method.');
-                }
-                const result = await capture(order.orderId);
-                finishPayment(result);
-                return { transactionState: 'SUCCESS' };
-              } catch (paymentError) {
-                setSubmitting(false);
-                setError(errorMessage(paymentError));
-                return { transactionState: 'ERROR', error: { message: errorMessage(paymentError) } };
-              }
-            };
-            paymentClient = new GoogleClient({
+            const paymentClient = new GoogleClient({
               environment: nextConfig.environment === 'live' ? 'PRODUCTION' : 'TEST',
-              paymentDataCallbacks: { onPaymentAuthorized },
+              paymentDataCallbacks: {
+                onPaymentAuthorized: async (paymentData: unknown) => {
+                  try {
+                    setSubmitting(true);
+                    const order = await createOrder('google_pay');
+                    if (Math.abs(order.amountUsd - amountRef.current) > 0.005) {
+                      throw new Error(`Price changed to ${money(order.amountUsd)}. Close checkout and review it.`);
+                    }
+                    const paymentMethodData = (paymentData as { paymentMethodData?: unknown })?.paymentMethodData;
+                    const confirmed = await paypalGoogle.confirmOrder({ orderId: order.orderId, paymentMethodData });
+                    if (confirmed.status === 'PAYER_ACTION_REQUIRED') {
+                      await paypalGoogle.initiatePayerAction({ orderId: order.orderId });
+                    } else if (confirmed.status && confirmed.status !== 'APPROVED' && confirmed.status !== 'COMPLETED') {
+                      throw new Error('Google Pay could not authorize this payment.');
+                    }
+                    const result = await capture(order.orderId);
+                    finishPayment(result);
+                    return { transactionState: 'SUCCESS' };
+                  } catch (paymentError) {
+                    setSubmitting(false);
+                    setError(errorMessage(paymentError));
+                    return { transactionState: 'ERROR', error: { message: errorMessage(paymentError) } };
+                  }
+                },
+              },
             });
             const ready = await paymentClient.isReadyToPay({
               apiVersion: googleConfig.apiVersion ?? 2,
@@ -382,7 +386,7 @@ export function SecureCheckoutModal({
                 allowedPaymentMethods: googleConfig.allowedPaymentMethods,
                 onClick: () => {
                   setError(null);
-                  const requestData: Record<string, unknown> = {
+                  void paymentClient.loadPaymentData({
                     apiVersion: googleConfig.apiVersion ?? 2,
                     apiVersionMinor: googleConfig.apiVersionMinor ?? 0,
                     allowedPaymentMethods: googleConfig.allowedPaymentMethods,
@@ -393,8 +397,7 @@ export function SecureCheckoutModal({
                       totalPrice: amountRef.current.toFixed(2),
                     },
                     callbackIntents: ['PAYMENT_AUTHORIZATION'],
-                  };
-                  void paymentClient.loadPaymentData(requestData).catch((googleError) => {
+                  }).catch((googleError) => {
                     setSubmitting(false);
                     setError(errorMessage(googleError));
                   });
@@ -404,8 +407,7 @@ export function SecureCheckoutModal({
               setGooglePayEligible(true);
             }
           } catch {
-            // Google Pay is optional and eligibility varies by merchant,
-            // country, browser and device. The card form remains available.
+            // Google Pay is optional and is hidden when the buyer is not eligible.
           }
         }
       } catch (bootstrapError) {
@@ -413,15 +415,16 @@ export function SecureCheckoutModal({
           cardFieldsRef.current = null;
           setCardEligible(false);
           setError(
-            bootstrapError instanceof Error && bootstrapError.message.includes('could not be mounted')
+            bootstrapError instanceof Error && bootstrapError.message.includes('could not be loaded')
               ? bootstrapError.message
-              : 'Secure card fields could not load. Please try again or continue with PayPal.',
+              : 'Card fields could not load. Try again or use PayPal.',
           );
         }
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
+
     void bootstrap();
     return () => {
       cancelled = true;
@@ -448,15 +451,12 @@ export function SecureCheckoutModal({
     try {
       const order = await createOrder('saved_card', method.id);
       if (Math.abs(order.amountUsd - amountRef.current) > 0.005) {
-        throw new Error(`Price changed to ${money(order.amountUsd)}. Please review before paying.`);
+        throw new Error(`Price changed to ${money(order.amountUsd)}. Close checkout and review it.`);
       }
       try { localStorage.setItem(PREFERRED_METHOD_KEY, method.id); } catch { /* optional */ }
 
       if (order.payerActionRequired) {
-        if (!order.payerActionUrl) throw new Error('Your bank requires verification, but the secure verification link was unavailable. Try the card again.');
-        // This is only a bank/cardholder 3-D Secure challenge when required;
-        // it is not a PayPal-account login. The server return endpoint captures
-        // the verified order and sends the buyer straight back to Workspace.
+        if (!order.payerActionUrl) throw new Error('Your bank requires verification. Try the card again.');
         window.location.href = order.payerActionUrl;
         return;
       }
@@ -505,6 +505,8 @@ export function SecureCheckoutModal({
     onClose();
   }
 
+  const hasDiscount = Boolean(originalAmountUsd && originalAmountUsd > amountUsd + 0.005);
+
   return createPortal(
     <div
       role="dialog"
@@ -513,29 +515,36 @@ export function SecureCheckoutModal({
       className="fixed inset-0 z-[90] flex items-end justify-center bg-black/75 p-0 backdrop-blur-md sm:items-center sm:p-4"
       onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}
     >
-      <div className="relative max-h-[94dvh] w-full overflow-y-auto rounded-t-[28px] border border-white/10 bg-[#100c1d] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_34px_110px_-30px_rgba(0,0,0,.95)] sm:max-w-[520px] sm:rounded-[28px] sm:p-6">
+      <div className="relative max-h-[94dvh] w-full overflow-y-auto rounded-t-[28px] border border-white/10 bg-[#100c1d] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_34px_110px_-30px_rgba(0,0,0,.95)] sm:max-w-[500px] sm:rounded-[28px] sm:p-6">
         <div className="pointer-events-none absolute inset-x-20 -top-20 h-40 rounded-full bg-violet/20 blur-3xl" />
+
         <div className="relative flex items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[.16em] text-mint">
-              <LockKeyhole size={13} /> Secure checkout
-            </div>
-            <h2 className="mt-2 font-display text-xl font-bold text-white">Pay without leaving AiWebVideo</h2>
-            <p className="mt-1 text-xs leading-5 text-text-muted">{productName} · {credits.toLocaleString()} credits</p>
+          <div className="min-w-0">
+            <h2 className="font-display text-xl font-bold text-white">Checkout</h2>
+            <p className="mt-1 truncate text-xs text-text-muted">{productName}</p>
           </div>
           <button type="button" onClick={close} disabled={submitting || Boolean(success)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 text-text-muted transition hover:bg-white/5 hover:text-white disabled:opacity-40" aria-label="Close checkout">
             <X size={16} />
           </button>
         </div>
 
-        <div className="relative mt-4 flex items-end justify-between rounded-2xl border border-white/10 bg-white/[.035] p-4">
-          <div>
-            <p className="text-[10px] uppercase tracking-[.14em] text-text-dim">Total today</p>
-            <p className="mt-1 font-display text-3xl font-black text-white">{money(amountUsd)}</p>
+        <div className="relative mt-4 overflow-hidden rounded-2xl border border-white/10 bg-white/[.035]">
+          <div className="flex items-center justify-between gap-4 border-b border-white/[.07] px-4 py-3">
+            <div>
+              <p className="text-[10px] uppercase tracking-[.13em] text-text-dim">Order</p>
+              <p className="mt-1 text-sm font-semibold text-white">{credits.toLocaleString()} credits</p>
+            </div>
+            <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[10px] font-semibold text-text-muted">One-time</span>
           </div>
-          <div className="text-right text-[10px] leading-5 text-text-dim">
-            <p>USD · one-time payment</p>
-            <p>No card details stored by AiWebVideo</p>
+          <div className="flex items-end justify-between gap-4 px-4 py-3.5">
+            <p className="text-xs font-semibold text-text-muted">Total</p>
+            <div className="text-right">
+              {hasDiscount && <p className="text-[11px] text-text-dim line-through">{money(originalAmountUsd ?? amountUsd)}</p>}
+              <div className="flex items-center justify-end gap-2">
+                {hasDiscount && <span className="rounded-full bg-mint px-2 py-0.5 text-[9px] font-black text-[#08211b]">20% OFF</span>}
+                <p className="font-display text-2xl font-black text-white">{money(amountUsd)}</p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -543,16 +552,13 @@ export function SecureCheckoutModal({
           <div className="relative mt-4 rounded-2xl border border-mint/30 bg-mint/[.08] p-5 text-center">
             <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-mint/15 text-mint"><BadgeCheck size={22} /></span>
             <p className="mt-3 text-sm font-bold text-white">Payment complete</p>
-            <p className="mt-1 text-xs text-text-muted">{success.creditsGranted.toLocaleString()} credits were added. Returning to your workspace…</p>
+            <p className="mt-1 text-xs text-text-muted">{displayCredits(success.creditsGranted).toLocaleString()} credits added</p>
           </div>
         ) : (
           <>
             {savedMethods.length > 0 && (
               <section className="relative mt-4">
-                <div className="mb-2 flex items-center justify-between gap-3">
-                  <p className="text-xs font-semibold text-white">Saved cards</p>
-                  <span className="text-[9px] text-text-dim">Tokenized · card details stay with processor</span>
-                </div>
+                <p className="mb-2 text-xs font-semibold text-white">Saved cards</p>
                 <div className="space-y-2">
                   {savedMethods.map((method) => (
                     <div key={method.id} className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[.025] p-2.5">
@@ -560,9 +566,9 @@ export function SecureCheckoutModal({
                         <span className="flex h-9 w-11 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-black/20 text-violet"><CreditCard size={18} /></span>
                         <span className="min-w-0 flex-1">
                           <span className="block text-xs font-semibold text-white">{method.brand} •••• {method.lastDigits}</span>
-                          <span className="mt-0.5 block text-[10px] text-text-dim">{method.expiry ? `Expires ${method.expiry}` : 'Saved securely'} · pay in one click</span>
+                          <span className="mt-0.5 block text-[10px] text-text-dim">{method.expiry ? `Expires ${method.expiry}` : 'Saved card'}</span>
                         </span>
-                        <span className="text-[10px] font-bold text-mint">Pay</span>
+                        <span className="text-[10px] font-bold text-mint">Buy</span>
                       </button>
                       <button type="button" disabled={submitting || removingMethod === method.id} onClick={() => void removeSavedCard(method)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-text-dim transition hover:bg-pink/10 hover:text-pink disabled:opacity-40" aria-label={`Remove ${method.brand} ending in ${method.lastDigits}`}>
                         <Trash2 size={14} />
@@ -575,18 +581,20 @@ export function SecureCheckoutModal({
 
             <div ref={googleButtonRef} className={`${googlePayEligible ? 'relative mt-4 min-h-11 overflow-hidden rounded-xl' : 'hidden'}`} />
 
-            {(savedMethods.length > 0 || googlePayEligible) && cardEligible && (
-              <div className="relative my-4 flex items-center gap-3 text-[9px] uppercase tracking-[.14em] text-text-dim">
-                <span className="h-px flex-1 bg-white/10" /> or pay with a new card <span className="h-px flex-1 bg-white/10" />
-              </div>
-            )}
-
             {loading && (
-              <div className="relative mt-4 rounded-2xl border border-white/10 bg-white/[.025] p-5 text-center text-xs text-text-muted">Preparing secure payment fields…</div>
+              <div className="relative mt-4 grid gap-2.5">
+                <div className="h-12 animate-pulse rounded-xl border border-white/10 bg-white/[.025]" />
+                <div className="h-12 animate-pulse rounded-xl border border-white/10 bg-white/[.025]" />
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div className="h-12 animate-pulse rounded-xl border border-white/10 bg-white/[.025]" />
+                  <div className="h-12 animate-pulse rounded-xl border border-white/10 bg-white/[.025]" />
+                </div>
+              </div>
             )}
 
             {!loading && cardEligible && (
               <section className="relative mt-4">
+                <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-white"><CreditCard size={14} className="text-violet" /> Card</div>
                 <div className="grid gap-2.5">
                   <div id="aiwebvideo-card-name" className="min-h-12 rounded-xl border border-white/10 bg-black/20 px-3 py-2 focus-within:border-violet/50" />
                   <div id="aiwebvideo-card-number" className="min-h-12 rounded-xl border border-white/10 bg-black/20 px-3 py-2 focus-within:border-violet/50" />
@@ -597,38 +605,29 @@ export function SecureCheckoutModal({
                 </div>
 
                 {config?.vaultEnabled && (
-                  <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-xl border border-white/[.08] bg-white/[.025] p-3">
-                    <input type="checkbox" checked={saveCard} onChange={(event) => setSaveCard(event.target.checked)} className="mt-0.5 h-4 w-4 rounded border-white/20 bg-black/30 accent-[#8b5cf6]" />
-                    <span>
-                      <span className="block text-xs font-semibold text-white">Save this card for faster checkout</span>
-                      <span className="mt-0.5 block text-[10px] leading-4 text-text-dim">The payment processor securely vaults the card. AiWebVideo stores only an opaque token alias and masked brand/last digits.</span>
-                    </span>
+                  <label className="mt-3 flex cursor-pointer items-center gap-2.5 text-[11px] text-text-muted">
+                    <input type="checkbox" checked={saveCard} onChange={(event) => setSaveCard(event.target.checked)} className="h-4 w-4 rounded border-white/20 bg-black/30 accent-[#8b5cf6]" />
+                    Save card for next time
                   </label>
                 )}
 
                 <button type="button" onClick={() => void payWithNewCard()} disabled={submitting} className="premium-button mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-signature px-4 text-sm font-bold text-white shadow-violet transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50">
-                  <LockKeyhole size={15} /> {submitting ? 'Processing securely…' : `Pay ${money(amountUsd)}`}
+                  <LockKeyhole size={15} /> {submitting ? 'Processing…' : `Buy ${money(amountUsd)}`}
                 </button>
-                <p className="mt-2 text-center text-[9px] leading-4 text-text-dim">Secure hosted card fields can use your browser/card manager autofill when available. Required bank verification (3-D Secure) opens automatically.</p>
               </section>
             )}
 
             {!loading && !cardEligible && (
-              <div className="relative mt-4 rounded-2xl border border-amber-300/20 bg-amber-300/[.06] p-3 text-[11px] leading-5 text-amber-100">Direct card checkout is not available for this merchant/browser right now. Your purchase is still safe — use the PayPal option below.</div>
+              <p className="relative mt-4 rounded-xl border border-amber-300/20 bg-amber-300/[.06] px-3 py-2.5 text-[11px] text-amber-100">Card checkout is unavailable here. Try PayPal.</p>
             )}
 
             {error && <p className="relative mt-3 rounded-xl border border-pink/20 bg-pink/[.06] p-3 text-xs leading-5 text-pink">{error}</p>}
 
             <button type="button" onClick={() => void continueWithPayPal()} disabled={submitting} className="relative mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[.035] px-4 text-xs font-semibold text-text-muted transition hover:border-violet/25 hover:bg-white/[.06] hover:text-white disabled:opacity-50">
-              <WalletCards size={15} /> Continue with PayPal instead
+              <WalletCards size={15} /> Buy with PayPal
             </button>
           </>
         )}
-
-        <div className="relative mt-4 grid grid-cols-2 gap-2 border-t border-white/[.07] pt-4 text-[9px] leading-4 text-text-dim">
-          <div className="flex gap-2"><ShieldCheck size={13} className="mt-0.5 shrink-0 text-mint" /><span>Card number and CVV never touch AiWebVideo servers, logs, cookies, localStorage, or the database.</span></div>
-          <div className="flex gap-2"><LockKeyhole size={13} className="mt-0.5 shrink-0 text-violet" /><span>PayPal handles encryption, tokenization, fraud checks and required card authentication.</span></div>
-        </div>
       </div>
     </div>,
     document.body,
