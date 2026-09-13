@@ -9,7 +9,7 @@ async function frontend(relativePath: string) {
 
 test('one-time checkout uses a wide responsive big-checkout layout with explicit success and error states', async () => {
   const source = await frontend('src/components/billing/SecureCheckoutModal.tsx');
-  assert.match(source, /sm:max-w-\[820px\]/);
+  assert.match(source, /sm:max-w-\[860px\]/);
   assert.match(source, /PaymentState = 'idle' \| 'processing' \| 'success' \| 'error'/);
   assert.match(source, /bg-emerald-500/);
   assert.match(source, /bg-rose-500/);
@@ -43,7 +43,7 @@ test('subscription checkout reuses the embedded checkout UI and visual states', 
   const checkout = await frontend('src/components/billing/SecureCheckoutModal.tsx');
   assert.match(subscription, /SecureCheckoutModal/);
   assert.match(subscription, /billingMode="subscription"/);
-  assert.match(checkout, /sm:max-w-\[820px\]/);
+  assert.match(checkout, /sm:max-w-\[860px\]/);
   assert.match(checkout, /Subscription active/);
   assert.match(checkout, /bg-emerald-500/);
   assert.match(checkout, /bg-rose-500/);
