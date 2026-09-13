@@ -1,8 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { BadgeCheck, CreditCard, LockKeyhole, Trash2, WalletCards, X } from 'lucide-react';
+import {
+  AlertCircle,
+  BadgeCheck,
+  Check,
+  CreditCard,
+  LoaderCircle,
+  LockKeyhole,
+  ShieldCheck,
+  Trash2,
+  WalletCards,
+  X,
+} from 'lucide-react';
 import { ApiError, request, startCheckout, type CheckoutId } from '@/lib/api-client';
-import { displayCredits } from '@/lib/credits';
 
 interface CheckoutConfig {
   configured: boolean;
@@ -111,6 +121,24 @@ const CARD_FIELD_SELECTORS = [
   '#aiwebvideo-card-cvv',
 ] as const;
 
+const CARD_FIELD_STYLE = {
+  input: {
+    color: '#f8f7ff',
+    'background-color': '#151020',
+    'font-size': '16px',
+    'font-family': 'Inter, ui-sans-serif, system-ui, sans-serif',
+    'font-weight': '600',
+    'caret-color': '#ffffff',
+    padding: '14px 14px',
+  },
+  'input::placeholder': { color: '#767087' },
+  ':focus': { color: '#ffffff', 'background-color': '#171124' },
+  '.invalid': { color: '#fb7185' },
+  '.valid': { color: '#d8fff1' },
+};
+
+type PaymentState = 'idle' | 'processing' | 'success' | 'error';
+
 function money(value: number) {
   return `$${Math.max(0, Number(value) || 0).toFixed(2)}`;
 }
@@ -118,12 +146,21 @@ function money(value: number) {
 function errorMessage(error: unknown) {
   if (error instanceof ApiError) {
     if (error.code === 'PRICE_CHANGED') return 'The offer expired. Close checkout and review the current price.';
-    if (error.code === 'PAYPAL_ADVANCED_CARDS_NOT_ENABLED') return 'Card checkout is unavailable for this merchant account. Try PayPal.';
+    if (error.code === 'PAYPAL_ADVANCED_CARDS_NOT_ENABLED') return 'Card checkout is unavailable. Try PayPal instead.';
     if (error.code === 'CARD_PAYMENT_FAILED') return 'The card was not approved. Check the details or try another method.';
+    if (error.code === 'PAYMENT_NOT_COMPLETED') return 'Your bank has not completed the payment yet. Try again in a moment.';
+    if (error.code?.startsWith('PAYMENT_')) {
+      return 'We could not finish verifying this payment. If your bank shows a charge, do not pay again—refresh your balance or contact support.';
+    }
     if (error.code === 'RATE_LIMITED') return error.message;
+    if (/internal server error/i.test(error.message)) {
+      return 'We could not finish this payment. If your bank shows a charge, do not pay again—refresh your balance or contact support.';
+    }
     return error.message;
   }
-  return error instanceof Error ? error.message : 'Payment could not be completed. Please try again.';
+  return error instanceof Error && error.message
+    ? error.message
+    : 'Payment could not be completed. Please try again.';
 }
 
 function scriptPromise(id: string, src: string, attributes?: Record<string, string>) {
@@ -176,11 +213,23 @@ async function loadGooglePaySdk() {
 }
 
 async function waitForCardFieldContainers() {
-  for (let attempt = 0; attempt < 30; attempt += 1) {
+  for (let attempt = 0; attempt < 40; attempt += 1) {
     if (CARD_FIELD_SELECTORS.every((selector) => document.querySelector(selector))) return;
     await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
   }
   throw new Error('Card fields could not be loaded. Close checkout and try again.');
+}
+
+function FieldShell({ label, id }: { label: string; id: string }) {
+  return (
+    <label className="block min-w-0">
+      <span className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[.12em] text-text-dim">{label}</span>
+      <div
+        id={id}
+        className="h-[54px] overflow-hidden rounded-xl border border-white/10 bg-[#151020] shadow-[inset_0_1px_0_rgba(255,255,255,.025)] transition focus-within:border-violet/60 focus-within:ring-2 focus-within:ring-violet/10"
+      />
+    </label>
+  );
 }
 
 export function SecureCheckoutModal({
@@ -206,18 +255,26 @@ export function SecureCheckoutModal({
   const [cardEligible, setCardEligible] = useState(false);
   const [googlePayEligible, setGooglePayEligible] = useState(false);
   const [saveCard, setSaveCard] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const [removingMethod, setRemovingMethod] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<CaptureResult | null>(null);
+  const [paymentState, setPaymentState] = useState<PaymentState>('idle');
   const cardFieldsRef = useRef<CardFieldsInstance | null>(null);
   const googleButtonRef = useRef<HTMLDivElement>(null);
   const saveCardRef = useRef(false);
   const amountRef = useRef(amountUsd);
   const closingRef = useRef(false);
 
+  const submitting = paymentState === 'processing';
+  const hasDiscount = Boolean(originalAmountUsd && originalAmountUsd > amountUsd + 0.005);
+
   useEffect(() => { saveCardRef.current = saveCard; }, [saveCard]);
   useEffect(() => { amountRef.current = amountUsd; }, [amountUsd]);
+
+  function markError(value: unknown) {
+    setPaymentState('error');
+    setError(errorMessage(value));
+  }
 
   async function createOrder(source: 'card' | 'saved_card' | 'google_pay', paymentMethodId?: string) {
     return request<CardOrder>('/api/paypal-card/orders', {
@@ -243,16 +300,17 @@ export function SecureCheckoutModal({
   function finishPayment(result: CaptureResult) {
     setSuccess(result);
     setError(null);
+    setPaymentState('success');
     try {
       if (result.savedPaymentMethodId) localStorage.setItem(PREFERRED_METHOD_KEY, result.savedPaymentMethodId);
     } catch {
-      // The optional local preference stores only our opaque payment-method alias.
+      // Only our opaque saved-method alias is remembered locally.
     }
     window.setTimeout(() => {
       if (closingRef.current) return;
       const suffix = jobId ? `&job=${encodeURIComponent(jobId)}` : '';
       window.location.href = `/dashboard?checkout=success${suffix}`;
-    }, 700);
+    }, 1150);
   }
 
   useEffect(() => {
@@ -265,6 +323,7 @@ export function SecureCheckoutModal({
       setGooglePayEligible(false);
       cardFieldsRef.current = null;
       setError(null);
+      setPaymentState('idle');
 
       try {
         const [nextConfig, methodsResponse] = await Promise.all([
@@ -279,7 +338,7 @@ export function SecureCheckoutModal({
           const preferred = localStorage.getItem(PREFERRED_METHOD_KEY);
           if (preferred) methods = [...methods].sort((a, b) => Number(b.id === preferred) - Number(a.id === preferred));
         } catch {
-          // Local preference is optional.
+          // Optional preference only.
         }
         setSavedMethods(methods);
 
@@ -292,17 +351,7 @@ export function SecureCheckoutModal({
         if (cancelled || !window.paypal) return;
 
         const cardFields = window.paypal.CardFields({
-          style: {
-            input: {
-              color: '#f8f7ff',
-              'font-size': '16px',
-              'font-family': 'Inter, ui-sans-serif, system-ui, sans-serif',
-              'font-weight': '500',
-            },
-            ':focus': { color: '#ffffff' },
-            '.invalid': { color: '#fb7185' },
-            '.valid': { color: '#d8fff1' },
-          },
+          style: CARD_FIELD_STYLE,
           createOrder: async () => {
             const order = await createOrder('card');
             if (Math.abs(order.amountUsd - amountRef.current) > 0.005) {
@@ -311,17 +360,16 @@ export function SecureCheckoutModal({
             return order.orderId;
           },
           onApprove: async ({ orderID }) => {
-            const result = await capture(orderID);
-            finishPayment(result);
+            try {
+              setPaymentState('processing');
+              const result = await capture(orderID);
+              finishPayment(result);
+            } catch (captureError) {
+              markError(captureError);
+            }
           },
-          onCancel: () => {
-            setSubmitting(false);
-            setError('Verification was cancelled. Nothing was charged.');
-          },
-          onError: (providerError) => {
-            setSubmitting(false);
-            setError(errorMessage(providerError));
-          },
+          onCancel: () => markError(new Error('Verification was cancelled. Nothing was charged.')),
+          onError: (providerError) => markError(providerError),
         });
 
         if (cardFields.isEligible()) {
@@ -331,10 +379,10 @@ export function SecureCheckoutModal({
           await waitForCardFieldContainers();
           if (cancelled) return;
           await Promise.all([
-            Promise.resolve(cardFields.NameField({ placeholder: 'Name on card' }).render('#aiwebvideo-card-name')),
-            Promise.resolve(cardFields.NumberField({ placeholder: 'Card number' }).render('#aiwebvideo-card-number')),
-            Promise.resolve(cardFields.ExpiryField({ placeholder: 'MM/YY' }).render('#aiwebvideo-card-expiry')),
-            Promise.resolve(cardFields.CVVField({ placeholder: 'CVV' }).render('#aiwebvideo-card-cvv')),
+            Promise.resolve(cardFields.NameField({ placeholder: 'Name on card', style: CARD_FIELD_STYLE }).render('#aiwebvideo-card-name')),
+            Promise.resolve(cardFields.NumberField({ placeholder: 'Card number', style: CARD_FIELD_STYLE }).render('#aiwebvideo-card-number')),
+            Promise.resolve(cardFields.ExpiryField({ placeholder: 'MM / YY', style: CARD_FIELD_STYLE }).render('#aiwebvideo-card-expiry')),
+            Promise.resolve(cardFields.CVVField({ placeholder: 'CVV', style: CARD_FIELD_STYLE }).render('#aiwebvideo-card-cvv')),
           ]);
         }
 
@@ -350,7 +398,8 @@ export function SecureCheckoutModal({
               paymentDataCallbacks: {
                 onPaymentAuthorized: async (paymentData: unknown) => {
                   try {
-                    setSubmitting(true);
+                    setPaymentState('processing');
+                    setError(null);
                     const order = await createOrder('google_pay');
                     if (Math.abs(order.amountUsd - amountRef.current) > 0.005) {
                       throw new Error(`Price changed to ${money(order.amountUsd)}. Close checkout and review it.`);
@@ -366,8 +415,7 @@ export function SecureCheckoutModal({
                     finishPayment(result);
                     return { transactionState: 'SUCCESS' };
                   } catch (paymentError) {
-                    setSubmitting(false);
-                    setError(errorMessage(paymentError));
+                    markError(paymentError);
                     return { transactionState: 'ERROR', error: { message: errorMessage(paymentError) } };
                   }
                 },
@@ -386,6 +434,7 @@ export function SecureCheckoutModal({
                 allowedPaymentMethods: googleConfig.allowedPaymentMethods,
                 onClick: () => {
                   setError(null);
+                  setPaymentState('processing');
                   void paymentClient.loadPaymentData({
                     apiVersion: googleConfig.apiVersion ?? 2,
                     apiVersionMinor: googleConfig.apiVersionMinor ?? 0,
@@ -397,27 +446,24 @@ export function SecureCheckoutModal({
                       totalPrice: amountRef.current.toFixed(2),
                     },
                     callbackIntents: ['PAYMENT_AUTHORIZATION'],
-                  }).catch((googleError) => {
-                    setSubmitting(false);
-                    setError(errorMessage(googleError));
-                  });
+                  }).catch((googleError) => markError(googleError));
                 },
               });
               googleButtonRef.current.appendChild(button);
               setGooglePayEligible(true);
             }
           } catch {
-            // Google Pay is optional and is hidden when the buyer is not eligible.
+            // Optional. Hide Google Pay when the merchant, device or browser is not eligible.
           }
         }
       } catch (bootstrapError) {
         if (!cancelled) {
           cardFieldsRef.current = null;
           setCardEligible(false);
-          setError(
+          markError(
             bootstrapError instanceof Error && bootstrapError.message.includes('could not be loaded')
-              ? bootstrapError.message
-              : 'Card fields could not load. Try again or use PayPal.',
+              ? bootstrapError
+              : new Error('Card fields could not load. Try PayPal instead.'),
           );
         }
       } finally {
@@ -434,19 +480,18 @@ export function SecureCheckoutModal({
 
   async function payWithNewCard() {
     if (!cardFieldsRef.current || submitting) return;
-    setSubmitting(true);
+    setPaymentState('processing');
     setError(null);
     try {
       await cardFieldsRef.current.submit();
     } catch (submitError) {
-      setSubmitting(false);
-      setError(errorMessage(submitError));
+      markError(submitError);
     }
   }
 
   async function payWithSavedCard(method: SavedMethod) {
     if (submitting) return;
-    setSubmitting(true);
+    setPaymentState('processing');
     setError(null);
     try {
       const order = await createOrder('saved_card', method.id);
@@ -464,8 +509,7 @@ export function SecureCheckoutModal({
       const result = await capture(order.orderId);
       finishPayment(result);
     } catch (paymentError) {
-      setSubmitting(false);
-      setError(errorMessage(paymentError));
+      markError(paymentError);
     }
   }
 
@@ -480,7 +524,7 @@ export function SecureCheckoutModal({
         if (localStorage.getItem(PREFERRED_METHOD_KEY) === method.id) localStorage.removeItem(PREFERRED_METHOD_KEY);
       } catch { /* optional */ }
     } catch (removeError) {
-      setError(errorMessage(removeError));
+      markError(removeError);
     } finally {
       setRemovingMethod(null);
     }
@@ -488,14 +532,13 @@ export function SecureCheckoutModal({
 
   async function continueWithPayPal() {
     if (submitting) return;
-    setSubmitting(true);
+    setPaymentState('processing');
     setError(null);
     try {
       const { checkoutUrl } = await startCheckout(plan, jobId);
       window.location.href = checkoutUrl;
     } catch (paypalError) {
-      setSubmitting(false);
-      setError(errorMessage(paypalError));
+      markError(paypalError);
     }
   }
 
@@ -505,128 +548,222 @@ export function SecureCheckoutModal({
     onClose();
   }
 
-  const hasDiscount = Boolean(originalAmountUsd && originalAmountUsd > amountUsd + 0.005);
+  const buyButtonClass = paymentState === 'success'
+    ? 'border-emerald-300/30 bg-emerald-500 text-white shadow-[0_12px_30px_-12px_rgba(16,185,129,.75)]'
+    : paymentState === 'error'
+      ? 'border-rose-300/20 bg-rose-500 text-white shadow-[0_12px_30px_-12px_rgba(244,63,94,.65)]'
+      : 'border-white/10 bg-signature text-white shadow-violet hover:brightness-110';
+
+  const buyButtonContent = paymentState === 'success'
+    ? <><Check size={17} strokeWidth={2.6} /> Paid {money(amountUsd)}</>
+    : paymentState === 'processing'
+      ? <><LoaderCircle size={17} className="animate-spin" /> Processing…</>
+      : paymentState === 'error'
+        ? <><AlertCircle size={17} /> Try again · Buy {money(amountUsd)}</>
+        : <><LockKeyhole size={16} /> Buy {money(amountUsd)}</>;
 
   return createPortal(
     <div
       role="dialog"
       aria-modal="true"
       aria-label={`Checkout for ${productName}`}
-      className="fixed inset-0 z-[90] flex items-end justify-center bg-black/75 p-0 backdrop-blur-md sm:items-center sm:p-4"
+      className="fixed inset-0 z-[90] flex items-end justify-center bg-black/80 p-0 backdrop-blur-md sm:items-center sm:p-5"
       onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}
     >
-      <div className="relative max-h-[94dvh] w-full overflow-y-auto rounded-t-[28px] border border-white/10 bg-[#100c1d] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_34px_110px_-30px_rgba(0,0,0,.95)] sm:max-w-[500px] sm:rounded-[28px] sm:p-6">
-        <div className="pointer-events-none absolute inset-x-20 -top-20 h-40 rounded-full bg-violet/20 blur-3xl" />
+      <div className="relative max-h-[94dvh] w-full overflow-y-auto rounded-t-[30px] border border-white/10 bg-[#0d0918] shadow-[0_38px_120px_-28px_rgba(0,0,0,.96)] sm:max-w-[820px] sm:rounded-[30px]">
+        <div className="pointer-events-none absolute -left-20 -top-28 h-64 w-64 rounded-full bg-violet/15 blur-3xl" />
+        <div className="pointer-events-none absolute -right-20 top-20 h-52 w-52 rounded-full bg-pink/10 blur-3xl" />
 
-        <div className="relative flex items-start justify-between gap-4">
+        <header className="sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-white/[.07] bg-[#0d0918]/95 px-5 py-4 backdrop-blur-xl sm:px-7">
           <div className="min-w-0">
-            <h2 className="font-display text-xl font-bold text-white">Checkout</h2>
-            <p className="mt-1 truncate text-xs text-text-muted">{productName}</p>
-          </div>
-          <button type="button" onClick={close} disabled={submitting || Boolean(success)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 text-text-muted transition hover:bg-white/5 hover:text-white disabled:opacity-40" aria-label="Close checkout">
-            <X size={16} />
-          </button>
-        </div>
-
-        <div className="relative mt-4 overflow-hidden rounded-2xl border border-white/10 bg-white/[.035]">
-          <div className="flex items-center justify-between gap-4 border-b border-white/[.07] px-4 py-3">
-            <div>
-              <p className="text-[10px] uppercase tracking-[.13em] text-text-dim">Order</p>
-              <p className="mt-1 text-sm font-semibold text-white">{credits.toLocaleString()} credits</p>
+            <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.15em] text-mint">
+              <ShieldCheck size={13} /> Checkout
             </div>
-            <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[10px] font-semibold text-text-muted">One-time</span>
+            <h2 className="mt-1 truncate font-display text-lg font-bold text-white sm:text-xl">{productName}</h2>
           </div>
-          <div className="flex items-end justify-between gap-4 px-4 py-3.5">
-            <p className="text-xs font-semibold text-text-muted">Total</p>
-            <div className="text-right">
-              {hasDiscount && <p className="text-[11px] text-text-dim line-through">{money(originalAmountUsd ?? amountUsd)}</p>}
-              <div className="flex items-center justify-end gap-2">
-                {hasDiscount && <span className="rounded-full bg-mint px-2 py-0.5 text-[9px] font-black text-[#08211b]">20% OFF</span>}
-                <p className="font-display text-2xl font-black text-white">{money(amountUsd)}</p>
-              </div>
+          <div className="flex items-center gap-3">
+            <div className="hidden text-right sm:block">
+              <p className="text-[10px] uppercase tracking-[.13em] text-text-dim">Total</p>
+              <p className="font-display text-xl font-black text-white">{money(amountUsd)}</p>
             </div>
+            <button
+              type="button"
+              onClick={close}
+              disabled={submitting || Boolean(success)}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[.025] text-text-muted transition hover:bg-white/[.06] hover:text-white disabled:opacity-40"
+              aria-label="Close checkout"
+            >
+              <X size={16} />
+            </button>
           </div>
-        </div>
+        </header>
 
         {success ? (
-          <div className="relative mt-4 rounded-2xl border border-mint/30 bg-mint/[.08] p-5 text-center">
-            <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-mint/15 text-mint"><BadgeCheck size={22} /></span>
-            <p className="mt-3 text-sm font-bold text-white">Payment complete</p>
-            <p className="mt-1 text-xs text-text-muted">{displayCredits(success.creditsGranted).toLocaleString()} credits added</p>
+          <div className="relative px-5 py-12 sm:px-8 sm:py-16">
+            <div className="mx-auto max-w-md rounded-[28px] border border-emerald-300/25 bg-emerald-400/[.08] p-7 text-center shadow-[0_24px_70px_-36px_rgba(16,185,129,.9)]">
+              <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-400/15 text-emerald-300">
+                <BadgeCheck size={30} />
+              </span>
+              <h3 className="mt-4 font-display text-xl font-black text-white">Payment complete</h3>
+              <p className="mt-2 text-sm text-text-muted">{success.creditsGranted.toLocaleString()} credits added</p>
+              <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1.5 text-xs font-bold text-emerald-200">
+                <Check size={14} /> {money(success.amountUsd)} paid
+              </div>
+            </div>
           </div>
         ) : (
-          <>
-            {savedMethods.length > 0 && (
-              <section className="relative mt-4">
-                <p className="mb-2 text-xs font-semibold text-white">Saved cards</p>
-                <div className="space-y-2">
-                  {savedMethods.map((method) => (
-                    <div key={method.id} className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[.025] p-2.5">
-                      <button type="button" disabled={submitting || removingMethod === method.id} onClick={() => void payWithSavedCard(method)} className="flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-xl px-2 text-left transition hover:bg-white/[.04] disabled:opacity-50">
-                        <span className="flex h-9 w-11 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-black/20 text-violet"><CreditCard size={18} /></span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-xs font-semibold text-white">{method.brand} •••• {method.lastDigits}</span>
-                          <span className="mt-0.5 block text-[10px] text-text-dim">{method.expiry ? `Expires ${method.expiry}` : 'Saved card'}</span>
-                        </span>
-                        <span className="text-[10px] font-bold text-mint">Buy</span>
-                      </button>
-                      <button type="button" disabled={submitting || removingMethod === method.id} onClick={() => void removeSavedCard(method)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-text-dim transition hover:bg-pink/10 hover:text-pink disabled:opacity-40" aria-label={`Remove ${method.brand} ending in ${method.lastDigits}`}>
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  ))}
+          <div className="relative grid gap-0 md:grid-cols-[280px_minmax(0,1fr)]">
+            <aside className="border-b border-white/[.07] bg-white/[.018] p-5 md:border-b-0 md:border-r md:p-6">
+              <p className="text-[10px] font-bold uppercase tracking-[.15em] text-text-dim">Order summary</p>
+              <div className="mt-4 rounded-2xl border border-white/[.08] bg-black/15 p-4">
+                <p className="text-sm font-semibold text-white">{productName}</p>
+                <div className="mt-3 flex items-center justify-between gap-3 text-xs">
+                  <span className="text-text-dim">Credits</span>
+                  <span className="font-utility font-bold text-white">{credits.toLocaleString()}</span>
                 </div>
-              </section>
-            )}
-
-            <div ref={googleButtonRef} className={`${googlePayEligible ? 'relative mt-4 min-h-11 overflow-hidden rounded-xl' : 'hidden'}`} />
-
-            {loading && (
-              <div className="relative mt-4 grid gap-2.5">
-                <div className="h-12 animate-pulse rounded-xl border border-white/10 bg-white/[.025]" />
-                <div className="h-12 animate-pulse rounded-xl border border-white/10 bg-white/[.025]" />
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div className="h-12 animate-pulse rounded-xl border border-white/10 bg-white/[.025]" />
-                  <div className="h-12 animate-pulse rounded-xl border border-white/10 bg-white/[.025]" />
+                <div className="mt-2 flex items-center justify-between gap-3 text-xs">
+                  <span className="text-text-dim">Payment</span>
+                  <span className="font-semibold text-text-muted">One-time</span>
                 </div>
               </div>
-            )}
 
-            {!loading && cardEligible && (
-              <section className="relative mt-4">
-                <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-white"><CreditCard size={14} className="text-violet" /> Card</div>
-                <div className="grid gap-2.5">
-                  <div id="aiwebvideo-card-name" className="min-h-12 rounded-xl border border-white/10 bg-black/20 px-3 py-2 focus-within:border-violet/50" />
-                  <div id="aiwebvideo-card-number" className="min-h-12 rounded-xl border border-white/10 bg-black/20 px-3 py-2 focus-within:border-violet/50" />
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <div id="aiwebvideo-card-expiry" className="min-h-12 rounded-xl border border-white/10 bg-black/20 px-3 py-2 focus-within:border-violet/50" />
-                    <div id="aiwebvideo-card-cvv" className="min-h-12 rounded-xl border border-white/10 bg-black/20 px-3 py-2 focus-within:border-violet/50" />
+              <div className="mt-4 rounded-2xl border border-white/[.08] bg-white/[.025] p-4">
+                {hasDiscount && (
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <span className="rounded-full bg-mint px-2 py-0.5 text-[9px] font-black text-[#08211b]">20% OFF</span>
+                    <span className="text-xs text-text-dim line-through">{money(originalAmountUsd ?? amountUsd)}</span>
+                  </div>
+                )}
+                <div className="flex items-end justify-between gap-3">
+                  <span className="text-xs font-semibold text-text-muted">Total</span>
+                  <span className="font-display text-3xl font-black tracking-[-.04em] text-white">{money(amountUsd)}</span>
+                </div>
+              </div>
+
+              <div className="mt-5 flex items-start gap-2.5 rounded-xl border border-white/[.06] bg-black/10 p-3 text-[10px] leading-4 text-text-dim">
+                <ShieldCheck size={14} className="mt-0.5 shrink-0 text-mint" />
+                Card data is entered in PayPal-hosted fields and is not stored by AiWebVideo.
+              </div>
+            </aside>
+
+            <main className="min-w-0 p-5 sm:p-6 md:p-7">
+              {savedMethods.length > 0 && (
+                <section>
+                  <div className="mb-2.5 flex items-center justify-between gap-3">
+                    <p className="text-xs font-bold text-white">Saved cards</p>
+                    <span className="text-[9px] uppercase tracking-[.12em] text-text-dim">One click</span>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {savedMethods.slice(0, 4).map((method) => (
+                      <div key={method.id} className="group flex items-center gap-2 rounded-xl border border-white/10 bg-white/[.025] p-2">
+                        <button
+                          type="button"
+                          disabled={submitting || removingMethod === method.id}
+                          onClick={() => void payWithSavedCard(method)}
+                          className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2 text-left transition hover:bg-white/[.04] disabled:opacity-50"
+                        >
+                          <CreditCard size={16} className="shrink-0 text-violet" />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-[11px] font-bold text-white">{method.brand} •••• {method.lastDigits}</span>
+                            <span className="mt-0.5 block text-[9px] text-text-dim">{method.expiry ? `Exp ${method.expiry}` : 'Saved card'}</span>
+                          </span>
+                          <span className="text-[10px] font-black text-mint">Buy</span>
+                        </button>
+                        <button
+                          type="button"
+                          disabled={submitting || removingMethod === method.id}
+                          onClick={() => void removeSavedCard(method)}
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-text-dim transition hover:bg-rose-500/10 hover:text-rose-300 disabled:opacity-40"
+                          aria-label={`Remove ${method.brand} ending in ${method.lastDigits}`}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              <div ref={googleButtonRef} className={`${googlePayEligible ? 'mt-4 min-h-[48px] overflow-hidden rounded-xl' : 'hidden'}`} />
+
+              {googlePayEligible && cardEligible && (
+                <div className="my-4 flex items-center gap-3">
+                  <span className="h-px flex-1 bg-white/[.08]" />
+                  <span className="text-[9px] font-bold uppercase tracking-[.13em] text-text-dim">or card</span>
+                  <span className="h-px flex-1 bg-white/[.08]" />
+                </div>
+              )}
+
+              {loading && (
+                <div className="grid gap-3">
+                  <div className="h-[72px] animate-pulse rounded-xl border border-white/10 bg-white/[.025]" />
+                  <div className="h-[72px] animate-pulse rounded-xl border border-white/10 bg-white/[.025]" />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="h-[72px] animate-pulse rounded-xl border border-white/10 bg-white/[.025]" />
+                    <div className="h-[72px] animate-pulse rounded-xl border border-white/10 bg-white/[.025]" />
                   </div>
                 </div>
+              )}
 
-                {config?.vaultEnabled && (
-                  <label className="mt-3 flex cursor-pointer items-center gap-2.5 text-[11px] text-text-muted">
-                    <input type="checkbox" checked={saveCard} onChange={(event) => setSaveCard(event.target.checked)} className="h-4 w-4 rounded border-white/20 bg-black/30 accent-[#8b5cf6]" />
-                    Save card for next time
-                  </label>
-                )}
+              {!loading && cardEligible && (
+                <section>
+                  {!googlePayEligible && <p className="mb-3 text-xs font-bold text-white">Card details</p>}
+                  <div className="grid gap-3">
+                    <FieldShell label="Name on card" id="aiwebvideo-card-name" />
+                    <FieldShell label="Card number" id="aiwebvideo-card-number" />
+                    <div className="grid grid-cols-2 gap-3">
+                      <FieldShell label="Expiry" id="aiwebvideo-card-expiry" />
+                      <FieldShell label="Security code" id="aiwebvideo-card-cvv" />
+                    </div>
+                  </div>
 
-                <button type="button" onClick={() => void payWithNewCard()} disabled={submitting} className="premium-button mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-signature px-4 text-sm font-bold text-white shadow-violet transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50">
-                  <LockKeyhole size={15} /> {submitting ? 'Processing…' : `Buy ${money(amountUsd)}`}
-                </button>
-              </section>
-            )}
+                  {config?.vaultEnabled && (
+                    <label className="mt-3 flex cursor-pointer items-center gap-2.5 rounded-xl border border-white/[.06] bg-white/[.02] px-3 py-2.5 text-[11px] text-text-muted transition hover:bg-white/[.035]">
+                      <input
+                        type="checkbox"
+                        checked={saveCard}
+                        onChange={(event) => setSaveCard(event.target.checked)}
+                        className="h-4 w-4 rounded border-white/20 bg-black/30 accent-[#8b5cf6]"
+                      />
+                      <span className="font-semibold text-white">Save this card</span>
+                      <span className="ml-auto text-[9px] text-text-dim">for faster checkout</span>
+                    </label>
+                  )}
 
-            {!loading && !cardEligible && (
-              <p className="relative mt-4 rounded-xl border border-amber-300/20 bg-amber-300/[.06] px-3 py-2.5 text-[11px] text-amber-100">Card checkout is unavailable here. Try PayPal.</p>
-            )}
+                  <button
+                    type="button"
+                    onClick={() => void payWithNewCard()}
+                    disabled={submitting}
+                    className={`mt-4 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl border px-4 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-70 ${buyButtonClass}`}
+                  >
+                    {buyButtonContent}
+                  </button>
+                </section>
+              )}
 
-            {error && <p className="relative mt-3 rounded-xl border border-pink/20 bg-pink/[.06] p-3 text-xs leading-5 text-pink">{error}</p>}
+              {!loading && !cardEligible && (
+                <div className="rounded-xl border border-amber-300/15 bg-amber-300/[.05] px-3 py-2.5 text-[11px] text-amber-100">
+                  Card payment is unavailable on this browser. Use PayPal below.
+                </div>
+              )}
 
-            <button type="button" onClick={() => void continueWithPayPal()} disabled={submitting} className="relative mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[.035] px-4 text-xs font-semibold text-text-muted transition hover:border-violet/25 hover:bg-white/[.06] hover:text-white disabled:opacity-50">
-              <WalletCards size={15} /> Buy with PayPal
-            </button>
-          </>
+              {error && (
+                <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-rose-400/20 bg-rose-500/[.07] p-3 text-[11px] leading-5 text-rose-200" role="alert" aria-live="polite">
+                  <AlertCircle size={15} className="mt-0.5 shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => void continueWithPayPal()}
+                disabled={submitting}
+                className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[.03] px-4 text-xs font-bold text-text-muted transition hover:border-violet/25 hover:bg-white/[.055] hover:text-white disabled:opacity-50"
+              >
+                <WalletCards size={15} /> Buy with PayPal
+              </button>
+            </main>
+          </div>
         )}
       </div>
     </div>,
