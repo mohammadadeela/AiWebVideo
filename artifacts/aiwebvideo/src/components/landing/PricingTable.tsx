@@ -248,11 +248,9 @@ export function PricingTable() {
     return () => window.clearInterval(timer);
   }, [welcomeOffer?.active]);
 
-  const offerActive = Boolean(
-    welcomeOffer?.active &&
-    welcomeOffer.discountPercent > 0 &&
-    new Date(welcomeOffer.expiresAt).getTime() > now,
-  );
+  const activeOffer = welcomeOffer?.active && welcomeOffer.discountPercent > 0 && new Date(welcomeOffer.expiresAt).getTime() > now
+    ? welcomeOffer
+    : null;
 
   async function handleChoose(planId: string) {
     if (planId === "free") {
@@ -419,9 +417,9 @@ export function PricingTable() {
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-xs font-semibold uppercase tracking-[.16em] text-violet">No subscription</p>
-              {offerActive && (
+              {activeOffer && (
                 <span className="rounded-full border border-mint/30 bg-mint/10 px-2.5 py-1 text-[10px] font-bold text-mint">
-                  {welcomeOffer.discountPercent}% OFF · {formatWelcomeCountdown(welcomeOffer.expiresAt, now)} left
+                  {activeOffer.discountPercent}% OFF · {formatWelcomeCountdown(activeOffer.expiresAt, now)} left
                 </span>
               )}
             </div>
@@ -432,8 +430,8 @@ export function PricingTable() {
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
           {CREDIT_PACKS.map((pack) => {
             const packCredits = displayCredits(pack.credits);
-            const discounted = offerActive && welcomeOffer.eligibleProducts.includes(pack.id)
-              ? discountedPrice(pack.amountUsd, welcomeOffer.discountPercent)
+            const discounted = activeOffer && activeOffer.eligibleProducts.includes(pack.id)
+              ? discountedPrice(pack.amountUsd, activeOffer.discountPercent)
               : pack.amountUsd;
             const hasDiscount = discounted < pack.amountUsd;
             return (
@@ -443,13 +441,13 @@ export function PricingTable() {
                     <p className="font-display text-lg font-bold text-text-primary">{packCredits.toLocaleString()} credits</p>
                     <p className="mt-1 text-xs text-text-muted">{pack.note}</p>
                   </div>
-                  {hasDiscount && <span className="rounded-full bg-mint px-2 py-1 text-[9px] font-black text-[#08211b]">{welcomeOffer.discountPercent}% OFF</span>}
+                  {hasDiscount && activeOffer && <span className="rounded-full bg-mint px-2 py-1 text-[9px] font-black text-[#08211b]">{activeOffer.discountPercent}% OFF</span>}
                 </div>
                 <div className="mt-3 flex items-end gap-2">
                   <p className="font-display text-2xl font-bold text-text-primary">{formatUsd(discounted)}</p>
                   {hasDiscount && <p className="pb-0.5 text-xs text-text-dim line-through">{formatUsd(pack.amountUsd)}</p>}
                 </div>
-                {hasDiscount && <p className="mt-1 text-[10px] font-semibold text-mint">Same credits · lower price · offer ends in {formatWelcomeCountdown(welcomeOffer.expiresAt, now)}</p>}
+                {hasDiscount && activeOffer && <p className="mt-1 text-[10px] font-semibold text-mint">Same credits · lower price · offer ends in {formatWelcomeCountdown(activeOffer.expiresAt, now)}</p>}
                 <PurchaseButton
                   primary={pack.id === "topup250" || hasDiscount}
                   loading={false}
