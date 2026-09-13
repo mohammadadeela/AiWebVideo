@@ -55,11 +55,9 @@ export function PaywallModal({
     return () => window.clearInterval(timer);
   }, [welcomeOffer?.active]);
 
-  const offerActive = Boolean(
-    welcomeOffer?.active &&
-    welcomeOffer.discountPercent > 0 &&
-    new Date(welcomeOffer.expiresAt).getTime() > now,
-  );
+  const activeOffer = welcomeOffer?.active && welcomeOffer.discountPercent > 0 && new Date(welcomeOffer.expiresAt).getTime() > now
+    ? welcomeOffer
+    : null;
   const requiredCredits = estimateRenderCredits(mode, skipVoiceover, durationSeconds, outputQuality);
   const fundedCredits = currentBalance + reservedCredits;
   const shortfall = Math.max(0, requiredCredits - fundedCredits);
@@ -91,10 +89,10 @@ export function PaywallModal({
             <button type="button" onClick={onClose} disabled={Boolean(directCheckout)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 text-base text-text-muted hover:bg-white/5 hover:text-white disabled:opacity-40" aria-label="Close">×</button>
           </div>
 
-          {offerActive && (
+          {activeOffer && (
             <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-mint/25 bg-mint/[.07] px-3 py-2 text-[11px]">
-              <span className="font-semibold text-mint">{welcomeOffer.discountPercent}% off credit packs</span>
-              <span className="font-utility text-mint/80">{formatWelcomeCountdown(welcomeOffer.expiresAt, now)} left</span>
+              <span className="font-semibold text-mint">{activeOffer.discountPercent}% off credit packs</span>
+              <span className="font-utility text-mint/80">{formatWelcomeCountdown(activeOffer.expiresAt, now)} left</span>
             </div>
           )}
 
@@ -107,10 +105,10 @@ export function PaywallModal({
           {tab === 'credits' && (
             <div className="mt-4 space-y-2.5">
               {CREDIT_PACKS.map((pack) => {
-                const packCredits = displayCredits(pack.credits);
-                const discounted = offerActive && welcomeOffer.eligibleProducts.includes(pack.id)
-                  ? discountedPrice(pack.amountUsd, welcomeOffer.discountPercent)
+                const discounted = activeOffer && activeOffer.eligibleProducts.includes(pack.id)
+                  ? discountedPrice(pack.amountUsd, activeOffer.discountPercent)
                   : pack.amountUsd;
+                const packCredits = displayCredits(pack.credits);
                 const hasDiscount = discounted < pack.amountUsd;
                 return (
                   <button
@@ -131,7 +129,7 @@ export function PaywallModal({
                     <div className="text-right">
                       {hasDiscount && <p className="text-[10px] text-text-dim line-through">{formatUsd(pack.amountUsd)}</p>}
                       <p className="font-display text-xl font-bold text-white">{formatUsd(discounted)}</p>
-                      <p className={`text-[10px] font-semibold ${hasDiscount ? 'text-mint' : 'text-text-dim'}`}>{hasDiscount ? `${welcomeOffer.discountPercent}% OFF` : 'Pay securely'}</p>
+                      <p className={`text-[10px] font-semibold ${hasDiscount ? 'text-mint' : 'text-text-dim'}`}>{hasDiscount && activeOffer ? `${activeOffer.discountPercent}% OFF` : 'Pay securely'}</p>
                     </div>
                   </button>
                 );
