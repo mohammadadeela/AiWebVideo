@@ -6,6 +6,7 @@ import userRouter from './user.js';
 import paypalRouter from './paypal.js';
 import paypalCardSettlementRouter from './paypal-card-settlement.js';
 import paypalCardRouter from './paypal-card.js';
+import { paypalCardSubscriptionRouter, paypalManagedSubscriptionRouter } from './paypal-card-subscriptions.js';
 import growthRouter, { settleGrowthCredits } from './growth.js';
 import adminRouter from './admin.js';
 import * as path from 'path';
@@ -196,7 +197,13 @@ router.use('/uploads', uploadsRouter);
 router.use('/jobs', jobsRouter);
 router.use('/user', userRouter);
 router.use('/auth', userRouter);   // /api/auth/login, /register, /firebase
+// Managed card subscription cancellation is intercepted before the legacy
+// PayPal Subscriptions handler. Non-card subscriptions fall through unchanged.
+router.use('/paypal', paypalManagedSubscriptionRouter);
 router.use('/paypal', paypalRouter);
+// Embedded recurring card checkout has dedicated order/capture routes. The
+// existing embedded one-time settlement and card routers remain untouched.
+router.use('/paypal-card', paypalCardSubscriptionRouter);
 // Settlement routes run first so completed Card Fields orders can be verified
 // against the authenticated local order even when PayPal omits custom_id from
 // purchase_units and returns it only on the completed capture.
