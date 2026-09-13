@@ -4,6 +4,7 @@ import uploadsRouter from './uploads.js';
 import jobsRouter from './jobs.js';
 import userRouter from './user.js';
 import paypalRouter from './paypal.js';
+import paypalCardRouter from './paypal-card.js';
 import growthRouter, { settleGrowthCredits } from './growth.js';
 import adminRouter from './admin.js';
 import * as path from 'path';
@@ -195,6 +196,7 @@ router.use('/jobs', jobsRouter);
 router.use('/user', userRouter);
 router.use('/auth', userRouter);   // /api/auth/login, /register, /firebase
 router.use('/paypal', paypalRouter);
+router.use('/paypal-card', paypalCardRouter);
 router.use('/growth', growthRouter);
 router.use('/admin', adminRouter);
 
