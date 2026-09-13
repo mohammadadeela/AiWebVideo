@@ -123,21 +123,24 @@ const CARD_FIELD_SELECTORS = [
   '#aiwebvideo-card-cvv',
 ] as const;
 
+// Hosted fields can inherit a light autofill surface from the browser/card manager.
+// Use a deliberate light field with dark text so masked card numbers and CVV stay
+// high-contrast in every autofill state instead of becoming pale-on-white.
 const CARD_FIELD_STYLE = {
   input: {
-    color: '#f9f8ff',
-    'background-color': '#151020',
-    'font-size': '18px',
-    'line-height': '24px',
+    color: '#101322',
+    'background-color': '#ffffff',
+    'font-size': '19px',
+    'line-height': '26px',
     'font-family': 'Inter, ui-sans-serif, system-ui, sans-serif',
-    'font-weight': '600',
-    'caret-color': '#ffffff',
-    padding: '16px 16px',
+    'font-weight': '700',
+    'caret-color': '#101322',
+    padding: '15px 16px',
   },
-  'input::placeholder': { color: '#777184', 'font-weight': '500' },
-  ':focus': { color: '#ffffff', 'background-color': '#181226' },
-  '.invalid': { color: '#fb7185' },
-  '.valid': { color: '#e9fff8' },
+  'input::placeholder': { color: '#667085', 'font-weight': '600' },
+  ':focus': { color: '#101322', 'background-color': '#ffffff' },
+  '.invalid': { color: '#b4233d' },
+  '.valid': { color: '#101322' },
 };
 
 type PaymentState = 'idle' | 'processing' | 'success' | 'error';
@@ -264,12 +267,9 @@ async function waitForCardFieldContainers() {
 function FieldShell({ label, id }: { label: string; id: string }) {
   return (
     <label className="block min-w-0">
-      <span className="mb-2 block text-[12px] font-bold tracking-[.025em] text-[#c8c2d8]">{label}</span>
-      <div className="rounded-2xl bg-gradient-to-r from-violet/25 via-white/[.08] to-pink/20 p-px shadow-[0_12px_30px_-22px_rgba(139,92,246,.9)]">
-        <div
-          id={id}
-          className="h-[60px] overflow-hidden rounded-[15px] bg-[#151020] shadow-[inset_0_1px_0_rgba(255,255,255,.035)] transition focus-within:bg-[#181226] focus-within:ring-2 focus-within:ring-violet/30"
-        />
+      <span className="mb-2 block text-[13px] font-bold tracking-[.01em] text-[#d9d5e4]">{label}</span>
+      <div className="rounded-[15px] border border-white/10 bg-white p-px shadow-[0_16px_34px_-24px_rgba(139,92,246,.85)] transition focus-within:border-violet/45 focus-within:ring-2 focus-within:ring-violet/20">
+        <div id={id} className="h-[58px] overflow-hidden rounded-[13px] bg-white" />
       </div>
     </label>
   );
@@ -426,7 +426,7 @@ export function SecureCheckoutModal({
             Promise.resolve(cardFields.NameField({ placeholder: 'Name on card', style: CARD_FIELD_STYLE }).render('#aiwebvideo-card-name')),
             Promise.resolve(cardFields.NumberField({ placeholder: '1234 5678 9012 3456', style: CARD_FIELD_STYLE }).render('#aiwebvideo-card-number')),
             Promise.resolve(cardFields.ExpiryField({ placeholder: 'MM / YY', style: CARD_FIELD_STYLE }).render('#aiwebvideo-card-expiry')),
-            Promise.resolve(cardFields.CVVField({ placeholder: 'CVV', style: CARD_FIELD_STYLE }).render('#aiwebvideo-card-cvv')),
+            Promise.resolve(cardFields.CVVField({ placeholder: '123', style: CARD_FIELD_STYLE }).render('#aiwebvideo-card-cvv')),
           ]);
           if (!cancelled) setFieldsReady(true);
         }
@@ -472,7 +472,7 @@ export function SecureCheckoutModal({
               googleButtonRef.current.replaceChildren();
               const button = paymentClient.createButton({
                 buttonType: 'pay',
-                buttonColor: 'white',
+                buttonColor: 'black',
                 buttonSizeMode: 'fill',
                 allowedPaymentMethods: googleConfig.allowedPaymentMethods,
                 onClick: () => {
@@ -602,10 +602,10 @@ export function SecureCheckoutModal({
       role="dialog"
       aria-modal="true"
       aria-label={`Checkout for ${productName}`}
-      className="fixed inset-0 z-[90] flex items-end justify-center bg-black/80 p-0 backdrop-blur-md sm:items-center sm:p-5"
+      className="fixed inset-0 z-[90] flex items-end justify-center overflow-x-hidden bg-black/80 p-0 backdrop-blur-md sm:items-center sm:p-5"
       onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}
     >
-      <div className="relative max-h-[94dvh] w-full overflow-y-auto rounded-t-[30px] border border-white/10 bg-[#0d0918] shadow-[0_38px_120px_-28px_rgba(0,0,0,.96)] sm:max-w-[860px] sm:rounded-[30px]">
+      <div className="relative max-h-[94dvh] w-full overflow-x-hidden overflow-y-auto rounded-t-[30px] border border-white/10 bg-[#0d0918] shadow-[0_38px_120px_-28px_rgba(0,0,0,.96)] sm:max-w-[860px] sm:rounded-[30px]">
         <div className="pointer-events-none absolute -left-20 -top-28 h-64 w-64 rounded-full bg-violet/15 blur-3xl" />
         <div className="pointer-events-none absolute -right-20 top-20 h-52 w-52 rounded-full bg-pink/10 blur-3xl" />
 
@@ -633,7 +633,7 @@ export function SecureCheckoutModal({
             </div>
           </div>
         ) : (
-          <div className="relative grid gap-0 md:grid-cols-[290px_minmax(0,1fr)]">
+          <div className="relative grid min-w-0 gap-0 md:grid-cols-[290px_minmax(0,1fr)]">
             <aside className="border-b border-white/[.07] bg-white/[.018] p-5 md:border-b-0 md:border-r md:p-6">
               <p className="text-[10px] font-bold uppercase tracking-[.15em] text-text-dim">Order summary</p>
               <div className="mt-4 rounded-2xl border border-white/[.08] bg-black/15 p-4">
@@ -656,7 +656,7 @@ export function SecureCheckoutModal({
               </div>
             </aside>
 
-            <main className="min-w-0 p-5 sm:p-6 md:p-7">
+            <main className="min-w-0 overflow-x-hidden p-5 sm:p-6 md:p-7">
               {savedMethods.length > 0 && (
                 <section>
                   <div className="mb-3 flex items-center justify-between gap-3"><p className="text-sm font-bold text-white">Saved cards</p><span className="text-[10px] font-semibold text-text-dim">Fast checkout</span></div>
@@ -677,8 +677,8 @@ export function SecureCheckoutModal({
 
               {!recurring && (
                 <div className={`transition-all duration-300 ${googlePayEligible ? 'mt-4 opacity-100' : 'pointer-events-none h-0 overflow-hidden opacity-0'}`}>
-                  <div className="rounded-2xl bg-gradient-to-r from-[#5f8cff]/55 via-white/20 to-[#7c5cff]/55 p-px shadow-[0_16px_40px_-24px_rgba(66,133,244,.95)]">
-                    <div className="rounded-[15px] bg-white p-1.5"><div ref={googleButtonRef} className="min-h-[52px] w-full overflow-hidden rounded-xl" /></div>
+                  <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/25 p-1 shadow-[0_14px_34px_-24px_rgba(66,133,244,.9)]">
+                    <div ref={googleButtonRef} className="min-h-[52px] w-full overflow-hidden rounded-xl" />
                   </div>
                 </div>
               )}
@@ -693,7 +693,7 @@ export function SecureCheckoutModal({
                   <div className="grid gap-4">
                     <FieldShell label="Name on card" id="aiwebvideo-card-name" />
                     <FieldShell label="Card number" id="aiwebvideo-card-number" />
-                    <div className="grid grid-cols-2 gap-4"><FieldShell label="Expiry" id="aiwebvideo-card-expiry" /><FieldShell label="Security code (CVV)" id="aiwebvideo-card-cvv" /></div>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2"><FieldShell label="Expiry" id="aiwebvideo-card-expiry" /><FieldShell label="Security code (CVV)" id="aiwebvideo-card-cvv" /></div>
                   </div>
 
                   {recurring ? (
