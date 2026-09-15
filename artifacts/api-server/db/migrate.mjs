@@ -18,6 +18,10 @@ const managedSubscriptionsSql = await readFile(
   fileURLToPath(new URL('./managed-subscriptions.sql', import.meta.url)),
   'utf8',
 );
+const studioSql = await readFile(
+  fileURLToPath(new URL('./studio.sql', import.meta.url)),
+  'utf8',
+);
 
 const client = new pg.Client({
   connectionString: process.env.DATABASE_URL,
@@ -44,6 +48,7 @@ try {
 
   await client.query(sql);
   await client.query(managedSubscriptionsSql);
+  await client.query(studioSql);
 
   // Fail deployment before restarting the application if a legacy database
   // still cannot satisfy the exact columns used by account/billing queries.
@@ -81,6 +86,20 @@ try {
     r.provider_capture_id,
     r.status
     FROM paypal_managed_subscription_renewals r LIMIT 0`);
+
+  await client.query(`SELECT
+    p.id,
+    p.user_id,
+    p.project_state,
+    p.revision,
+    p.latest_context
+    FROM studio_projects p LIMIT 0`);
+
+  await client.query(`SELECT
+    a.project_id,
+    a.storage_url,
+    a.kind
+    FROM studio_assets a LIMIT 0`);
 
   console.log('Database schema is up to date.');
 } finally {

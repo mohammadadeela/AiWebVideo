@@ -9,6 +9,7 @@ import paypalCardRouter from './paypal-card.js';
 import { paypalCardSubscriptionRouter, paypalManagedSubscriptionRouter } from './paypal-card-subscriptions.js';
 import growthRouter, { settleGrowthCredits } from './growth.js';
 import adminRouter from './admin.js';
+import studioRouter from './studio.js';
 import * as path from 'path';
 import * as fs from 'fs';
 import { Readable } from 'node:stream';
@@ -123,6 +124,7 @@ const CUSTOMER_CREDIT_FIELDS = new Set([
   'narrationCredits',
   'balance',
   'reservedCredits',
+  'costCredits',
   'additionalRequired',
   'shortfall',
   'requiredCredits',
@@ -197,6 +199,9 @@ router.use('/uploads', uploadsRouter);
 router.use('/jobs', jobsRouter);
 router.use('/user', userRouter);
 router.use('/auth', userRouter);   // /api/auth/login, /register, /firebase
+// Studio owns its project state, media and AI-edit billing, but deliberately
+// reuses the same authenticated account/credit/storage infrastructure.
+router.use('/studio', studioRouter);
 // Managed card subscription cancellation is intercepted before the legacy
 // PayPal Subscriptions handler. Non-card subscriptions fall through unchanged.
 router.use('/paypal', paypalManagedSubscriptionRouter);
