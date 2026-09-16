@@ -3,6 +3,7 @@
   align-items: center !important;
   justify-content: center !important;
   gap: 8px !important;
+  margin-top: 6px !important;
 }
 
 .creator-composer > .relative > .mt-4:has(> .creator-primary-button) > .creator-primary-button {
@@ -24,6 +25,10 @@
 }
 
 @media (max-width: 639px) {
+  .creator-composer > .relative > .mt-4:has(> .creator-primary-button) {
+    margin-top: 5px !important;
+  }
+
   .creator-composer > .relative > .mt-4:has(> .creator-primary-button) > .creator-primary-button {
     width: 100% !important;
   }
