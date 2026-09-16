@@ -42,6 +42,10 @@ function assColor(hex: unknown) {
   return `&H00${value.slice(4,6)}${value.slice(2,4)}${value.slice(0,2)}`;
 }
 
+function ffmpegColor(value: string) {
+  return /^#[0-9a-f]{6}$/i.test(value) ? `0x${value.slice(1)}` : '0x05030b';
+}
+
 async function writeTextTrack(projectId: string, exportId: string, width: number, height: number, layers: StudioLayer[]) {
   const textLayers = layers.filter((layer) => layer.type === 'text' && layer.text && layer.end > layer.start);
   if (!textLayers.length) return null;
@@ -51,14 +55,14 @@ async function writeTextTrack(projectId: string, exportId: string, width: number
   const header = `[Script Info]\nScriptType: v4.00+\nPlayResX: ${width}\nPlayResY: ${height}\nScaledBorderAndShadow: yes\n\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding\nStyle: Default,DejaVu Sans,54,&H00FFFFFF,&H00FFFFFF,&H80000000,&H40000000,-1,0,0,0,100,100,0,0,1,2,1,5,20,20,20,1\n\n[Events]\nFormat: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text\n`;
   const events = textLayers.map((layer) => {
     const style = layer.style ?? {};
-    const fontSize = Math.max(14, Math.min(240, Number(style.fontSize ?? 64) * (width / 1080)));
+    const fontSize = Math.max(14, Math.min(320, Number(style.fontSize ?? 72) * (width / 1080)));
     const weight = Number(style.weight ?? 700) >= 600 ? 1 : 0;
     const x = Math.round(layer.x * width);
     const y = Math.round(layer.y * height);
     const color = assColor(style.color);
     const opacity = Math.round((1 - layer.opacity) * 255).toString(16).padStart(2,'0').toUpperCase();
     const colorWithOpacity = color.replace('&H00', `&H${opacity}`);
-    const tags = `{\\an5\\pos(${x},${y})\\fs${fontSize.toFixed(0)}\\b${weight}\\c${colorWithOpacity}}`;
+    const tags = `{\\an5\\pos(${x},${y})\\fs${fontSize.toFixed(0)}\\b${weight}\\frz${layer.rotation.toFixed(1)}\\c${colorWithOpacity}}`;
     return `Dialogue: 0,${assTime(layer.start)},${assTime(layer.end)},Default,,0,0,0,,${tags}${assEscape(layer.text ?? '')}`;
   }).join('\n');
   await fs.writeFile(filePath, `${header}${events}\n`, 'utf8');
@@ -95,35 +99,33 @@ async function renderOne(exportId: string) {
   const exportResult = await query<ExportRow>('SELECT id,project_id,user_id,status,resolution,format FROM studio_exports WHERE id=$1 LIMIT 1', [exportId]);
   const exportRow = exportResult.rows[0];
   if (!exportRow || exportRow.status === 'cancelled') return;
+
   const projectResult = await query<ProjectRow>('SELECT id,user_id,kind,project_state FROM studio_projects WHERE id=$1 AND deleted_at IS NULL LIMIT 1', [exportRow.project_id]);
   const project = projectResult.rows[0];
   if (!project || project.user_id !== exportRow.user_id) throw new Error('Studio project is unavailable.');
+
   const state = studioProjectStateSchema.parse(project.project_state);
-  if (!state.layers.length) throw new Error('Add media to the Studio timeline before exporting.');
+  if (!state.layers.length) throw new Error('Add media or text to the Studio timeline before exporting.');
   const assetsResult = await query<AssetRow>('SELECT id,kind,mime_type,storage_url FROM studio_assets WHERE project_id=$1', [project.id]);
   const assets = new Map(assetsResult.rows.map((item) => [item.id, item]));
   const visualLayers = state.layers.filter((layer) => (layer.type === 'video' || layer.type === 'image') && layer.assetId && assets.has(layer.assetId));
-  const primary = visualLayers[0];
-  if (!primary?.assetId) throw new Error('Studio export needs at least one image or video layer.');
-  const primaryAsset = assets.get(primary.assetId)!;
+  const audioOnlyLayers = state.layers.filter((layer) => layer.type === 'audio' && layer.assetId && assets.has(layer.assetId));
   const { width, height } = outputFrame(state.canvas.aspectRatio, exportRow.resolution);
-  const duration = Math.max(0.1, state.duration || primary.end || 5);
+  const duration = Math.max(0.1, state.duration || Math.max(0, ...state.layers.map((layer) => layer.end)) || 5);
   await setExport(exportId, { status: 'preparing', progress: 8, error: null });
 
   const inputArgs: string[] = [];
   const inputLayerIndexes = new Map<string, number>();
-  const orderedVisual = [primary, ...visualLayers.slice(1)];
   let inputIndex = 0;
-  for (const layer of orderedVisual) {
+  for (const layer of visualLayers) {
     const asset = assets.get(layer.assetId!);
     if (!asset) continue;
     const local = await materializeStudioAsset(asset.storage_url);
-    if (asset.mime_type.startsWith('image/')) inputArgs.push('-loop','1','-framerate','30','-t',String(Math.max(0.1, layer.end - layer.start || duration)));
+    if (asset.mime_type.startsWith('image/')) inputArgs.push('-loop','1','-framerate','30','-t',String(Math.max(0.1, layer.end - layer.start)));
     inputArgs.push('-i', local.filePath);
     inputLayerIndexes.set(layer.id, inputIndex++);
   }
-  const audioLayers = state.layers.filter((layer) => layer.type === 'audio' && layer.assetId && assets.has(layer.assetId));
-  for (const layer of audioLayers) {
+  for (const layer of audioOnlyLayers) {
     const asset = assets.get(layer.assetId!);
     if (!asset) continue;
     const local = await materializeStudioAsset(asset.storage_url);
@@ -132,23 +134,27 @@ async function renderOne(exportId: string) {
   }
 
   const filters: string[] = [];
-  const baseIndex = inputLayerIndexes.get(primary.id) ?? 0;
-  const primaryTrim = primary.trimStart > 0 ? `trim=start=${primary.trimStart}:duration=${duration},` : `trim=duration=${duration},`;
-  filters.push(`[${baseIndex}:v]${primaryTrim}setpts=PTS-STARTPTS,scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=${state.canvas.background},setsar=1[base0]`);
+  filters.push(`color=c=${ffmpegColor(state.canvas.background)}:s=${width}x${height}:d=${duration}:r=30[base0]`);
   let current = 'base0';
-  let overlayNumber = 0;
-  for (const layer of orderedVisual.slice(1)) {
+
+  for (const [overlayNumber, layer] of visualLayers.entries()) {
     const idx = inputLayerIndexes.get(layer.id);
     if (idx == null) continue;
+    const asset = assets.get(layer.assetId!);
+    if (!asset) continue;
+    const clipDuration = Math.max(0.05, layer.end - layer.start);
     const targetWidth = Math.max(24, Math.round(width * layer.width));
+    const targetHeight = Math.max(24, Math.round(height * layer.height));
     const { x, y } = normalizedOverlayPosition(layer, width, height);
     const radians = (layer.rotation * Math.PI / 180).toFixed(6);
     const overlayLabel = `ov${overlayNumber}`;
     const outputLabel = `mix${overlayNumber}`;
-    filters.push(`[${idx}:v]trim=duration=${Math.max(0.05, layer.end - layer.start)},setpts=PTS-STARTPTS+${layer.start}/TB,scale=${targetWidth}:-2,format=rgba,rotate=${radians}:ow=rotw(iw):oh=roth(ih):c=none,colorchannelmixer=aa=${layer.opacity.toFixed(3)}[${overlayLabel}]`);
-    filters.push(`[${current}][${overlayLabel}]overlay=x='${x}':y='${y}':enable='between(t,${layer.start},${layer.end})'[${outputLabel}]`);
+    const trim = asset.mime_type.startsWith('video/')
+      ? `trim=start=${Math.max(0, layer.trimStart)}:duration=${clipDuration},`
+      : `trim=duration=${clipDuration},`;
+    filters.push(`[${idx}:v]${trim}setpts=PTS-STARTPTS+${Math.max(0, layer.start)}/TB,scale=${targetWidth}:${targetHeight}:force_original_aspect_ratio=decrease,pad=${targetWidth}:${targetHeight}:(ow-iw)/2:(oh-ih)/2:color=0x00000000,format=rgba,rotate=${radians}:ow=rotw(iw):oh=roth(ih):c=none,colorchannelmixer=aa=${clampOpacity(layer.opacity)}[${overlayLabel}]`);
+    filters.push(`[${current}][${overlayLabel}]overlay=x='${x}':y='${y}':enable='between(t,${Math.max(0, layer.start)},${Math.max(layer.start, layer.end)})'[${outputLabel}]`);
     current = outputLabel;
-    overlayNumber++;
   }
 
   const assPath = await writeTextTrack(project.id, exportId, width, height, state.layers);
@@ -158,22 +164,22 @@ async function renderOne(exportId: string) {
     current = outputLabel;
   }
 
+  const audibleLayers = state.layers.filter((layer) => (layer.type === 'audio' || layer.type === 'video') && layer.assetId && assets.has(layer.assetId) && layer.volume > 0);
+  const audioPieces: string[] = [];
+  for (const [audioNumber, layer] of audibleLayers.entries()) {
+    const idx = inputLayerIndexes.get(layer.id);
+    if (idx == null) continue;
+    const clipDuration = Math.max(0.05, layer.end - layer.start);
+    const delay = Math.max(0, Math.round(layer.start * 1000));
+    const label = `aud${audioNumber}`;
+    filters.push(`[${idx}:a]atrim=start=${Math.max(0, layer.trimStart)}:duration=${clipDuration},asetpts=PTS-STARTPTS,volume=${Math.max(0, Math.min(2, layer.volume)).toFixed(3)},adelay=${delay}|${delay}[${label}]`);
+    audioPieces.push(`[${label}]`);
+  }
   let audioLabel: string | null = null;
-  if (audioLayers.length) {
-    const pieces: string[] = [];
-    for (const [index, layer] of audioLayers.entries()) {
-      const idx = inputLayerIndexes.get(layer.id);
-      if (idx == null) continue;
-      const label = `aud${index}`;
-      const delay = Math.max(0, Math.round(layer.start * 1000));
-      filters.push(`[${idx}:a]atrim=duration=${Math.max(0.05, layer.end - layer.start)},asetpts=PTS-STARTPTS,volume=${layer.volume.toFixed(3)},adelay=${delay}|${delay}[${label}]`);
-      pieces.push(`[${label}]`);
-    }
-    if (pieces.length === 1) audioLabel = pieces[0].slice(1,-1);
-    else if (pieces.length > 1) {
-      audioLabel = 'mixedaudio';
-      filters.push(`${pieces.join('')}amix=inputs=${pieces.length}:duration=longest:normalize=0[${audioLabel}]`);
-    }
+  if (audioPieces.length === 1) audioLabel = audioPieces[0].slice(1, -1);
+  else if (audioPieces.length > 1) {
+    audioLabel = 'mixedaudio';
+    filters.push(`${audioPieces.join('')}amix=inputs=${audioPieces.length}:duration=longest:normalize=0[${audioLabel}]`);
   }
 
   const outputDir = path.join(ASSETS_DIR, project.id);
@@ -190,7 +196,6 @@ async function renderOne(exportId: string) {
     if (extension === 'jpg') args.push('-q:v','2');
   } else {
     if (audioLabel) args.push('-map', `[${audioLabel}]`, '-c:a','aac','-b:a','192k');
-    else if (primaryAsset.mime_type.startsWith('video/')) args.push('-map', `${baseIndex}:a?`, '-c:a','aac','-b:a','192k');
     args.push('-c:v','libx264','-preset','medium','-crf', exportRow.resolution === '4k' ? '17' : '18','-pix_fmt','yuv420p','-r','30','-t',String(duration),'-movflags','+faststart');
   }
   args.push(outputPath);
@@ -201,6 +206,10 @@ async function renderOne(exportId: string) {
   await uploadFileToR2(project.id, filename, outputPath);
   await setExport(exportId, { status: 'completed', progress: 100, storageUrl: `/api/assets/${project.id}/${filename}`, error: null, renderTimeMs: Date.now() - startedAt, completed: true });
   if (assPath) await fs.rm(assPath, { force: true }).catch(() => {});
+}
+
+function clampOpacity(value: number) {
+  return Math.max(0, Math.min(1, value)).toFixed(3);
 }
 
 async function safeRender(exportId: string) {
