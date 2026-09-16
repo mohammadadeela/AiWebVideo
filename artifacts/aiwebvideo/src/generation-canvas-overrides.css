@@ -1,0 +1,4 @@
+/* Keep the live generation preview clean: the stage/progress UI already communicates live status. */
+section[aria-label$="generation progress"] .absolute.left-2\.5.top-2\.5.inline-flex {
+  display: none !important;
+}
