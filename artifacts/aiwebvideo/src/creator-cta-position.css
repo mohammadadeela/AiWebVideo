@@ -1,0 +1,30 @@
+.creator-composer > .relative > .mt-4:has(> .creator-primary-button) {
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+}
+
+.creator-composer > .relative > .mt-4:has(> .creator-primary-button) > .creator-primary-button {
+  order: 1;
+  flex: 0 0 auto !important;
+  width: min(100%, 480px) !important;
+  min-width: 0 !important;
+  align-self: center !important;
+  min-height: 52px !important;
+  border-radius: 16px !important;
+}
+
+.creator-composer > .relative > .mt-4:has(> .creator-primary-button) > div.flex-1 {
+  order: 2;
+  flex: 0 0 auto !important;
+  width: 100% !important;
+  text-align: center !important;
+  color: rgba(190, 181, 221, .72) !important;
+}
+
+@media (max-width: 639px) {
+  .creator-composer > .relative > .mt-4:has(> .creator-primary-button) > .creator-primary-button {
+    width: 100% !important;
+  }
+}
