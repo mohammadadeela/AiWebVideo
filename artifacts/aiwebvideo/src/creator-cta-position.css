@@ -1,118 +1,76 @@
 .creator-composer > .relative:has(> .mt-3 .creator-secondary-button) {
   display: flex !important;
   flex-wrap: wrap !important;
-  align-items: center !important;
-  column-gap: 14px !important;
+  align-items: stretch !important;
+  column-gap: 12px !important;
 }
 
-/* Normal creator content keeps its full row. */
+/* Normal creator content keeps its own full row. */
 .creator-composer > .relative:has(> .mt-3 .creator-secondary-button) > * {
   flex: 0 0 100%;
   min-width: 0;
 }
 
-/* Style / Ideas / References / Settings stay together on the left. */
+/* Keep Style / Ideas / References / Settings together on the left. */
 .creator-composer > .relative:has(> .mt-3 .creator-secondary-button) > .mt-3:has(.creator-secondary-button) {
   order: 10 !important;
-  flex: 1 1 520px !important;
+  flex: 1 1 560px !important;
   width: auto !important;
   margin-top: 12px !important;
 }
 
-/* Everything that normally follows the controls stays below this action row. */
+/* Everything after the action row stays below it. */
 .creator-composer > .relative:has(> .mt-3 .creator-secondary-button) > .mt-3:has(.creator-secondary-button) ~ * {
   order: 20;
 }
 
-/* Primary action: same row, right aligned, intentionally wide like the stronger previous CTA. */
+/* Keep the generate CTA beside the controls, but let the button itself use the old version styling. */
 .creator-composer > .relative:has(> .mt-3 .creator-secondary-button) > .mt-4:has(> .creator-primary-button) {
   order: 10 !important;
   display: flex !important;
-  flex: 0 1 440px !important;
-  width: clamp(390px, 31vw, 460px) !important;
-  align-items: center !important;
-  align-self: center !important;
-  justify-content: flex-end !important;
+  flex: 1 1 360px !important;
+  width: auto !important;
+  align-items: stretch !important;
+  align-self: stretch !important;
+  justify-content: stretch !important;
   gap: 0 !important;
   margin: 12px 0 0 auto !important;
 }
 
-/* The settings chip already communicates the setup; don't repeat it below. */
+/* The settings chip already shows the setup, so don't duplicate it beside the old-style CTA. */
 .creator-composer > .relative:has(> .mt-3 .creator-secondary-button) > .mt-4:has(> .creator-primary-button) > div.flex-1 {
   display: none !important;
 }
 
+/* Old-version button behavior: flex-fill, 48px+, rounded-xl, original gradient/shadow/text/pill from its existing classes. */
 .creator-composer > .relative:has(> .mt-3 .creator-secondary-button) > .mt-4:has(> .creator-primary-button) > .creator-primary-button {
   flex: 1 1 auto !important;
   width: 100% !important;
   min-width: 0 !important;
-  min-height: 54px !important;
-  padding: 0 17px 0 22px !important;
-  border-radius: 16px !important;
-  gap: 12px !important;
-  font-size: 13px !important;
-  line-height: 1 !important;
-  white-space: nowrap;
-  box-shadow: 0 20px 44px -22px rgba(139, 92, 246, 1) !important;
+  min-height: 48px !important;
 }
 
-.creator-composer > .relative:has(> .mt-3 .creator-secondary-button) > .mt-4:has(> .creator-primary-button) > .creator-primary-button > span:first-child {
-  flex: 1 1 auto;
-  text-align: left;
-  font-weight: 800;
-  letter-spacing: -.015em;
+/* The old button moved its arrow slightly on hover. */
+.creator-composer > .relative:has(> .mt-3 .creator-secondary-button) > .mt-4:has(> .creator-primary-button) > .creator-primary-button > svg:last-child {
+  transition: transform .2s ease;
 }
 
-/* Live quote remains obvious and updates instantly as settings change. */
-.creator-composer > .relative:has(> .mt-3 .creator-secondary-button) > .mt-4:has(> .creator-primary-button) > .creator-primary-button > span:nth-of-type(2) {
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  min-height: 32px !important;
-  padding: 0 11px !important;
-  border: 1px solid rgba(255, 255, 255, .16) !important;
-  border-radius: 999px !important;
-  background: rgba(7, 5, 14, .24) !important;
-  color: rgba(255, 255, 255, .98) !important;
-  font-size: 10px !important;
-  font-weight: 800 !important;
-  font-variant-numeric: tabular-nums;
+.creator-composer > .relative:has(> .mt-3 .creator-secondary-button) > .mt-4:has(> .creator-primary-button) > .creator-primary-button:hover > svg:last-child {
+  transform: translateX(4px);
 }
 
-.creator-composer > .relative:has(> .mt-3 .creator-secondary-button) > .mt-4:has(> .creator-primary-button) > .creator-primary-button > span:nth-of-type(2)::before {
-  content: "Cost ";
-  margin-right: 4px;
-  color: rgba(255, 255, 255, .62);
-  font-size: 7px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .08em;
-}
-
-@media (max-width: 1180px) {
-  .creator-composer > .relative:has(> .mt-3 .creator-secondary-button) > .mt-3:has(.creator-secondary-button) {
-    flex: 1 1 470px !important;
-  }
-
-  .creator-composer > .relative:has(> .mt-3 .creator-secondary-button) > .mt-4:has(> .creator-primary-button) {
-    flex-basis: 360px !important;
-    width: clamp(330px, 33vw, 390px) !important;
-  }
-}
-
-@media (max-width: 860px) {
-  .creator-composer > .relative:has(> .mt-3 .creator-secondary-button) > .mt-3:has(.creator-secondary-button) {
-    flex: 0 0 100% !important;
-  }
-
+@media (max-width: 900px) {
+  .creator-composer > .relative:has(> .mt-3 .creator-secondary-button) > .mt-3:has(.creator-secondary-button),
   .creator-composer > .relative:has(> .mt-3 .creator-secondary-button) > .mt-4:has(> .creator-primary-button) {
     flex: 0 0 100% !important;
     width: 100% !important;
+  }
+
+  .creator-composer > .relative:has(> .mt-3 .creator-secondary-button) > .mt-4:has(> .creator-primary-button) {
     margin-top: 8px !important;
   }
 
   .creator-composer > .relative:has(> .mt-3 .creator-secondary-button) > .mt-4:has(> .creator-primary-button) > .creator-primary-button {
     width: 100% !important;
-    min-height: 52px !important;
   }
 }
