@@ -9,7 +9,7 @@ const PricingPage = lazy(() => import('@/pages/PricingPage').then((module) => ({
 const ProfilePage = lazy(() => import('@/pages/ProfilePage').then((module) => ({ default: module.ProfilePage })));
 const AdminPage = lazy(() => import('@/pages/AdminPage').then((module) => ({ default: module.AdminPage })));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then((module) => ({ default: module.NotFoundPage })));
-const StudioWorkspacePage = lazy(() => import('@/pages/StudioWorkspacePage').then((module) => ({ default: module.StudioWorkspacePage })));
+const StudioDirectEditorPage = lazy(() => import('@/pages/StudioDirectEditorPage').then((module) => ({ default: module.StudioDirectEditorPage })));
 const StudioProductPage = lazy(() => import('@/pages/StudioPage').then((module) => ({ default: () => <module.StudioPage kind="product" /> })));
 const StudioIdeaPage = lazy(() => import('@/pages/StudioPage').then((module) => ({ default: () => <module.StudioPage kind="idea" /> })));
 const StudioScenarioPage = lazy(() => import('@/pages/StudioPage').then((module) => ({ default: () => <module.StudioPage kind="scenario" /> })));
@@ -54,11 +54,11 @@ function Router() {
       <Route path="/admin/reports" component={AdminPage} />
       <Route path="/admin/:section" component={AdminPage} />
       <Route path="/admin" component={AdminPage} />
-      <Route path="/studio/project/:projectId" component={StudioWorkspacePage} />
+      <Route path="/studio/project/:projectId" component={StudioDirectEditorPage} />
       <Route path="/studio/product" component={StudioProductPage} />
       <Route path="/studio/idea" component={StudioIdeaPage} />
       <Route path="/studio/scenario" component={StudioScenarioPage} />
-      <Route path="/studio" component={StudioWorkspacePage} />
+      <Route path="/studio" component={StudioDirectEditorPage} />
       <Route path="/url-to-video" component={UrlToVideoPage} />
       <Route path="/website-video-generator" component={WebsiteVideoGeneratorPage} />
       <Route path="/saas-demo-video-generator" component={SaasDemoVideoGeneratorPage} />
