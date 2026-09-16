@@ -81,7 +81,12 @@ export function ResultGrid({ assets, onUnlock, sourceKind = "website" }: { asset
 
     setOpeningStudio(true);
     try {
-      const listed = await listStudioProjects().catch(() => ({ projects: [] }));
+      let listed: Awaited<ReturnType<typeof listStudioProjects>>;
+      try {
+        listed = await listStudioProjects();
+      } catch {
+        listed = { projects: [] };
+      }
       const existing = listed.projects.find((project) => project.sourceJobId === jobId);
       if (existing) {
         navigate(`/studio/project/${existing.id}`);
