@@ -88,6 +88,17 @@ export interface StudioEditPlan {
   context: { lastLayerId?: string | null };
 }
 
+export interface StudioUploadProgress {
+  fileName: string;
+  fileIndex: number;
+  fileCount: number;
+  fileProgress: number;
+  overallProgress: number;
+  uploadedBytes: number;
+  totalBytes: number;
+  phase: 'uploading' | 'processing';
+}
+
 export function listStudioProjects() {
   return request<{ projects: Array<Omit<StudioProject,'assets'>> }>('/api/studio/projects');
 }
@@ -112,21 +123,112 @@ export function deleteStudioProject(projectId: string) {
   return request<void>(`/api/studio/projects/${encodeURIComponent(projectId)}`, { method: 'DELETE' });
 }
 
-export async function uploadStudioAssets(projectId: string, files: File[]) {
+async function parseApiResponse<T>(response: Response, fallback: string) {
+  const data = await response.json().catch(() => ({})) as T & { error?: string; code?: string };
+  if (!response.ok) throw new ApiError(data.error || fallback, response.status, data.code);
+  return data;
+}
+
+export async function uploadStudioAssets(
+  projectId: string,
+  files: File[],
+  options: { onProgress?: (progress: StudioUploadProgress) => void; signal?: AbortSignal } = {},
+) {
   const token = await getIdToken();
-  const form = new FormData();
-  for (const file of files) form.append('media', file);
-  const response = await fetch(`/api/studio/projects/${encodeURIComponent(projectId)}/media`, {
-    method: 'POST',
-    body: form,
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    credentials: 'same-origin',
-    cache: 'no-store',
-    signal: AbortSignal.timeout(10 * 60_000),
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new ApiError(data.error || 'Could not upload Studio media.', response.status, data.code);
-  return data as { assets: StudioAsset[] };
+  const totalBytes = files.reduce((sum, file) => sum + file.size, 0) || 1;
+  let completedBytes = 0;
+  const assets: StudioAsset[] = [];
+
+  for (const [fileIndex, file] of files.entries()) {
+    let uploadId: string | null = null;
+    try {
+      const initResponse = await fetch(`/api/studio/upload/projects/${encodeURIComponent(projectId)}/init`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        cache: 'no-store',
+        signal: options.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ name: file.name, mimeType: file.type, size: file.size }),
+      });
+      const init = await parseApiResponse<{ uploadId: string; chunkBytes: number; maxBytes: number; receivedBytes: number }>(initResponse, 'Could not start Studio upload.');
+      uploadId = init.uploadId;
+      let offset = Math.max(0, init.receivedBytes || 0);
+      const chunkBytes = Math.max(1024 * 1024, init.chunkBytes || 8 * 1024 * 1024);
+
+      while (offset < file.size) {
+        if (options.signal?.aborted) throw new DOMException('Upload cancelled.', 'AbortError');
+        const end = Math.min(file.size, offset + chunkBytes);
+        const chunk = file.slice(offset, end);
+        const chunkResponse = await fetch(
+          `/api/studio/upload/projects/${encodeURIComponent(projectId)}/${encodeURIComponent(init.uploadId)}/chunk?offset=${offset}`,
+          {
+            method: 'PUT',
+            credentials: 'same-origin',
+            cache: 'no-store',
+            signal: options.signal,
+            headers: {
+              'Content-Type': 'application/octet-stream',
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: chunk,
+          },
+        );
+        const chunkResult = await parseApiResponse<{ receivedBytes: number; totalBytes: number }>(chunkResponse, 'Studio upload was interrupted.');
+        offset = chunkResult.receivedBytes;
+        const uploadedBytes = completedBytes + offset;
+        options.onProgress?.({
+          fileName: file.name,
+          fileIndex,
+          fileCount: files.length,
+          fileProgress: Math.round((offset / Math.max(1, file.size)) * 100),
+          overallProgress: Math.round((uploadedBytes / totalBytes) * 100),
+          uploadedBytes,
+          totalBytes,
+          phase: 'uploading',
+        });
+      }
+
+      options.onProgress?.({
+        fileName: file.name,
+        fileIndex,
+        fileCount: files.length,
+        fileProgress: 100,
+        overallProgress: Math.round(((completedBytes + file.size) / totalBytes) * 100),
+        uploadedBytes: completedBytes + file.size,
+        totalBytes,
+        phase: 'processing',
+      });
+
+      const completeResponse = await fetch(
+        `/api/studio/upload/projects/${encodeURIComponent(projectId)}/${encodeURIComponent(init.uploadId)}/complete`,
+        {
+          method: 'POST',
+          credentials: 'same-origin',
+          cache: 'no-store',
+          signal: options.signal,
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        },
+      );
+      const completed = await parseApiResponse<{ asset: StudioAsset }>(completeResponse, 'Could not finish Studio upload.');
+      assets.push(completed.asset);
+      completedBytes += file.size;
+      uploadId = null;
+    } catch (error) {
+      if (uploadId) {
+        void fetch(`/api/studio/upload/projects/${encodeURIComponent(projectId)}/${encodeURIComponent(uploadId)}`, {
+          method: 'DELETE',
+          credentials: 'same-origin',
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        }).catch(() => undefined);
+      }
+      throw error;
+    }
+  }
+
+  return { assets };
 }
 
 export function studioHistory(projectId: string, direction: 'undo' | 'redo') {
