@@ -6,8 +6,6 @@ import { fetchWelcomeGrowthOffer, formatWelcomeCountdown, type WelcomeGrowthOffe
 
 export function formatCredits(value: number | undefined) {
   if (value === undefined) return '—';
-  // Customer API balances are already x5. Preserve the old internal 100k
-  // "Unlimited" sentinel by moving the display threshold to 500k.
   if (value >= 500_000) return 'Unlimited';
   return Math.round(value).toLocaleString();
 }
@@ -59,10 +57,11 @@ export function UserMenu({ email, plan, creditsBalance, isAdmin = false }: { ema
         <Link
           href="/studio"
           className="group inline-flex min-h-10 items-center gap-2 rounded-xl border border-violet/25 bg-violet/[.08] px-2.5 text-[11px] font-semibold text-white transition hover:border-violet/45 hover:bg-violet/[.14] sm:px-3"
-          aria-label="Open AI editing Studio"
+          aria-label="Open AI video and image editor"
+          title="Edit videos and images"
         >
           <Layers3 size={15} className="text-violet" aria-hidden="true" />
-          <span className="hidden sm:inline">Studio</span>
+          <span className="hidden sm:inline">AI Editor</span>
         </Link>
       )}
 
@@ -100,7 +99,7 @@ export function UserMenu({ email, plan, creditsBalance, isAdmin = false }: { ema
           </div>
           <div className="py-1 text-sm">
             <Link href="/dashboard" onClick={() => setOpen(false)} className="block rounded-xl px-3 py-2.5 text-text-muted hover:bg-white/5 hover:text-text-primary">Workspace</Link>
-            <Link href="/studio" onClick={() => setOpen(false)} className="block rounded-xl px-3 py-2.5 font-semibold text-violet hover:bg-violet/10">Studio editor</Link>
+            <Link href="/studio" onClick={() => setOpen(false)} className="block rounded-xl px-3 py-2.5 font-semibold text-violet hover:bg-violet/10">AI video & image editor</Link>
             <Link href="/profile" onClick={() => setOpen(false)} className="block rounded-xl px-3 py-2.5 text-text-muted hover:bg-white/5 hover:text-text-primary">Profile & billing</Link>
             <Link href="/profile#usage" onClick={() => setOpen(false)} className="block rounded-xl px-3 py-2.5 text-text-muted hover:bg-white/5 hover:text-text-primary">Usage</Link>
             {isAdmin && <Link href="/admin" onClick={() => setOpen(false)} className="block rounded-xl px-3 py-2.5 font-semibold text-violet hover:bg-violet/10">Admin control center</Link>}

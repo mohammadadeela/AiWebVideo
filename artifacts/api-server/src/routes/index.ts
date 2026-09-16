@@ -10,6 +10,7 @@ import { paypalCardSubscriptionRouter, paypalManagedSubscriptionRouter } from '.
 import growthRouter, { settleGrowthCredits } from './growth.js';
 import adminRouter from './admin.js';
 import studioRouter from './studio.js';
+import studioUploadRouter from './studio-upload.js';
 import * as path from 'path';
 import * as fs from 'fs';
 import { Readable } from 'node:stream';
@@ -26,8 +27,6 @@ router.get('/health', (_req, res) => {
   res.json({ status: 'ok', ts: new Date().toISOString() });
 });
 
-// GET /api/marketing — public, read-only landing-page videos. Prices and plan
-// copy are fixed in the application and are never loaded from this setting.
 router.get('/marketing', async (_req, res) => {
   try {
     const settings = await getMarketingSettings();
@@ -35,17 +34,14 @@ router.get('/marketing', async (_req, res) => {
     res.removeHeader('Pragma');
     res.json(settings);
   } catch {
-    // Never break the landing page over this — fall back to "nothing configured yet".
     res.setHeader('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
     res.removeHeader('Pragma');
     res.json({ heading: 'Made with AiWebVideo', description: 'See short examples created by people using the studio.', videos: { showcase: [] } });
   }
 });
 
-// Serve generated image assets
 router.get('/assets/:jobId/:filename', async (req, res) => {
   const { jobId, filename } = req.params;
-  // Basic path traversal protection
   if (!/^(?:[0-9a-f-]{36}|marketing)$/i.test(jobId) || !/^[a-z0-9][a-z0-9._-]{0,180}$/i.test(filename)) {
     res.status(400).json({ error: 'Invalid path.' });
     return;
@@ -59,8 +55,6 @@ router.get('/assets/:jobId/:filename', async (req, res) => {
     ? 'public, max-age=3600, stale-while-revalidate=86400'
     : 'private, max-age=300, no-transform';
 
-  // Keep the VPS copy as a hot processing/cache layer when it exists. R2 is
-  // the durable source, so a restart or local cleanup no longer loses media.
   if (fs.existsSync(filePath)) {
     res.setHeader('Accept-Ranges', 'bytes');
     if (req.query.download === '1') {
@@ -107,11 +101,6 @@ router.get('/assets/:jobId/:filename', async (req, res) => {
   }
 });
 
-/**
- * Customer APIs speak one consistent x5 credit denomination. Internally all
- * database balances, reservations and provider authorization continue to use
- * the original smaller unit. Admin and growth endpoints stay raw/explicit.
- */
 const CUSTOMER_CREDIT_FIELDS = new Set([
   'creditsBalance',
   'creditsSpent',
@@ -179,10 +168,6 @@ router.use((req, res, next) => {
   next();
 });
 
-// Every ordinary account refresh settles one-time growth grants first. The
-// grants are idempotent and server-owned, so the browser cannot mint credits.
-// Refresh the authenticated request snapshot too, so the first /user/me after
-// signup already returns the Starter Credits in the customer denomination.
 router.get('/user/me', requireAuth, async (req, _res, next) => {
   await settleGrowthCredits(req.user!.id)
     .then((growth) => {
@@ -198,20 +183,12 @@ router.use('/capture', captureRouter);
 router.use('/uploads', uploadsRouter);
 router.use('/jobs', jobsRouter);
 router.use('/user', userRouter);
-router.use('/auth', userRouter);   // /api/auth/login, /register, /firebase
-// Studio owns its project state, media and AI-edit billing, but deliberately
-// reuses the same authenticated account/credit/storage infrastructure.
+router.use('/auth', userRouter);
+router.use('/studio/upload', studioUploadRouter);
 router.use('/studio', studioRouter);
-// Managed card subscription cancellation is intercepted before the legacy
-// PayPal Subscriptions handler. Non-card subscriptions fall through unchanged.
 router.use('/paypal', paypalManagedSubscriptionRouter);
 router.use('/paypal', paypalRouter);
-// Embedded recurring card checkout has dedicated order/capture routes. The
-// existing embedded one-time settlement and card routers remain untouched.
 router.use('/paypal-card', paypalCardSubscriptionRouter);
-// Settlement routes run first so completed Card Fields orders can be verified
-// against the authenticated local order even when PayPal omits custom_id from
-// purchase_units and returns it only on the completed capture.
 router.use('/paypal-card', paypalCardSettlementRouter);
 router.use('/paypal-card', paypalCardRouter);
 router.use('/growth', growthRouter);
