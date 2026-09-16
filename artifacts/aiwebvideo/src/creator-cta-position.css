@@ -5,17 +5,18 @@
   column-gap: 12px !important;
 }
 
-/* Normal creator content keeps its own full row. */
+/* Keep the normal creator content on full rows. */
 .creator-composer > .relative:has(> .mt-3 .creator-secondary-button) > * {
   flex: 0 0 100%;
   min-width: 0;
 }
 
-/* Keep Style / Ideas / References / Settings together on the left. */
+/* Style / Ideas / References / Settings keep only the space they need. */
 .creator-composer > .relative:has(> .mt-3 .creator-secondary-button) > .mt-3:has(.creator-secondary-button) {
   order: 10 !important;
-  flex: 1 1 560px !important;
+  flex: 0 1 auto !important;
   width: auto !important;
+  max-width: calc(100% - 330px) !important;
   margin-top: 12px !important;
 }
 
@@ -24,12 +25,13 @@
   order: 20;
 }
 
-/* Keep the generate CTA beside the controls, but let the button itself use the old version styling. */
+/* Keep the old primary CTA on the same row and let it fill all remaining width. */
 .creator-composer > .relative:has(> .mt-3 .creator-secondary-button) > .mt-4:has(> .creator-primary-button) {
   order: 10 !important;
   display: flex !important;
-  flex: 1 1 360px !important;
+  flex: 1 1 320px !important;
   width: auto !important;
+  min-width: 300px !important;
   align-items: stretch !important;
   align-self: stretch !important;
   justify-content: stretch !important;
@@ -37,20 +39,52 @@
   margin: 12px 0 0 auto !important;
 }
 
-/* The settings chip already shows the setup, so don't duplicate it beside the old-style CTA. */
+/* The settings chip already shows the setup, so do not duplicate it beside the CTA. */
 .creator-composer > .relative:has(> .mt-3 .creator-secondary-button) > .mt-4:has(> .creator-primary-button) > div.flex-1 {
   display: none !important;
 }
 
-/* Old-version button behavior: flex-fill, 48px+, rounded-xl, original gradient/shadow/text/pill from its existing classes. */
+/* Exact old-project Create button geometry/typography. Visual gradient, sheen and shadow
+   continue to come from the original bg-signature, premium-button and shadow-violet classes. */
 .creator-composer > .relative:has(> .mt-3 .creator-secondary-button) > .mt-4:has(> .creator-primary-button) > .creator-primary-button {
-  flex: 1 1 auto !important;
+  display: flex !important;
+  flex: 1 1 0% !important;
   width: 100% !important;
   min-width: 0 !important;
   min-height: 48px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  border-radius: 12px !important;
+  padding-left: 20px !important;
+  padding-right: 20px !important;
+  font-size: 14px !important;
+  line-height: 20px !important;
+  font-weight: 700 !important;
+  color: #fff !important;
 }
 
-/* The old button moved its arrow slightly on hover. */
+/* Exact old-project credit pill. */
+.creator-composer > .relative:has(> .mt-3 .creator-secondary-button) > .mt-4:has(> .creator-primary-button) > .creator-primary-button > span:nth-of-type(2) {
+  display: inline-flex !important;
+  align-items: center !important;
+  border: 1px solid rgba(255, 255, 255, .15) !important;
+  border-radius: 9999px !important;
+  background: rgba(0, 0, 0, .15) !important;
+  padding: 4px 8px !important;
+  font-size: 10px !important;
+  line-height: 15px !important;
+  font-weight: 600 !important;
+  color: rgba(255, 255, 255, .90) !important;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The old version had no extra Cost prefix. */
+.creator-composer > .relative:has(> .mt-3 .creator-secondary-button) > .mt-4:has(> .creator-primary-button) > .creator-primary-button > span:nth-of-type(2)::before {
+  content: none !important;
+}
+
+/* Same old arrow interaction even though the current JSX does not carry cta-arrow. */
 .creator-composer > .relative:has(> .mt-3 .creator-secondary-button) > .mt-4:has(> .creator-primary-button) > .creator-primary-button > svg:last-child {
   transition: transform .2s ease;
 }
@@ -64,13 +98,11 @@
   .creator-composer > .relative:has(> .mt-3 .creator-secondary-button) > .mt-4:has(> .creator-primary-button) {
     flex: 0 0 100% !important;
     width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
   }
 
   .creator-composer > .relative:has(> .mt-3 .creator-secondary-button) > .mt-4:has(> .creator-primary-button) {
     margin-top: 8px !important;
-  }
-
-  .creator-composer > .relative:has(> .mt-3 .creator-secondary-button) > .mt-4:has(> .creator-primary-button) > .creator-primary-button {
-    width: 100% !important;
   }
 }
