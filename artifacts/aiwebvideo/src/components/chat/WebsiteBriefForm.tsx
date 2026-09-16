@@ -17,6 +17,13 @@ import {
 } from "lucide-react";
 import { normalizeWebsiteUrl } from "@/lib/websiteUrl";
 import { estimateRenderCredits } from "@/lib/credits";
+import {
+  getIdeasForIntent,
+  referenceHintForIdea,
+  type CreativeIdea,
+  type IdeaContext,
+} from "@/lib/creativeIdeas";
+import { trackStudioEvent } from "@/lib/studio-api";
 import type { AudioMode, JobMode } from "./types";
 
 export type CreationIntent =
@@ -102,34 +109,6 @@ const NARRATION_LANGUAGES = [
 
 const DURATION_PRESETS = [8, 16, 24, 32] as const;
 
-const QUICK_IDEAS: Record<CreationIntent, string[]> = {
-  website: [
-    "Launch the brand with a strong CTA",
-    "Show the best features in 20 seconds",
-    "Make a premium Reel-style promo",
-  ],
-  video: [
-    "Cinematic product launch",
-    "Fast social ad with a bold hook",
-    "Premium brand reveal",
-  ],
-  photo: [
-    "Clean luxury studio",
-    "Bright ecommerce campaign",
-    "Editorial product hero",
-  ],
-  "product-video": [
-    "Slow premium product reveal",
-    "Dynamic social product ad",
-    "Macro details and hero finish",
-  ],
-  scenario: [
-    "Founder explains the product",
-    "Two-person product conversation",
-    "Friendly customer testimonial",
-  ],
-};
-
 function normalizeDuration(value: number) {
   if (!Number.isFinite(value)) return 8;
   return Math.max(8, Math.min(144, Math.round(value)));
@@ -161,6 +140,44 @@ function fileSize(value: number) {
 function durationLabel(seconds: number) {
   if (seconds < 60) return `${seconds}s`;
   return `${Math.floor(seconds / 60)}m${seconds % 60 ? ` ${seconds % 60}s` : ""}`;
+}
+
+function MasterIdeas({
+  ideas,
+  context,
+  selectedId,
+  onSelect,
+  compact = false,
+}: {
+  ideas: CreativeIdea[];
+  context: IdeaContext;
+  selectedId: string | null;
+  onSelect: (idea: CreativeIdea) => void;
+  compact?: boolean;
+}) {
+  return (
+    <div className={compact ? "chat-scroll flex gap-2 overflow-x-auto pb-1" : "grid gap-2 sm:grid-cols-2"}>
+      {ideas.map((idea) => {
+        const selected = selectedId === idea.id;
+        const hint = referenceHintForIdea(idea, context);
+        return (
+          <button
+            key={idea.id}
+            type="button"
+            onClick={() => onSelect(idea)}
+            className={`${compact ? "w-[230px] shrink-0" : "w-full"} group rounded-xl border p-3 text-left transition ${selected ? "border-violet/55 bg-violet/[.14] shadow-[0_12px_30px_-24px_rgba(139,92,246,.9)]" : "border-white/[.09] bg-black/15 hover:border-violet/35 hover:bg-violet/[.055]"}`}
+          >
+            <span className="flex items-center justify-between gap-2">
+              <span className="rounded-full border border-violet/20 bg-violet/[.08] px-2 py-0.5 font-utility text-[7px] uppercase tracking-[.11em] text-violet">{idea.category}</span>
+              {selected && <span className="text-[8px] font-semibold text-mint">SELECTED</span>}
+            </span>
+            <span className="mt-2 block text-[11px] font-semibold leading-4 text-white">{idea.displayText}</span>
+            <span className="mt-1 block text-[8px] leading-4 text-text-dim">{hint ?? "Click to load the full master prompt. You can edit it before generating."}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 export function WebsiteBriefForm({
@@ -202,6 +219,7 @@ export function WebsiteBriefForm({
   const [customDurationText, setCustomDurationText] = useState("");
   const [customDurationSelected, setCustomDurationSelected] = useState(false);
   const [selectedWebsiteRecipe, setSelectedWebsiteRecipe] = useState<WebsiteProductionMode | null>(null);
+  const [selectedIdea, setSelectedIdea] = useState<CreativeIdea | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -220,6 +238,7 @@ export function WebsiteBriefForm({
     const previousIntent = activeModeRef.current;
     activeModeRef.current = intent;
     setActiveMode(intent);
+    setSelectedIdea(null);
     setCompactPanel(null);
     setSettingsOpen(false);
     setError(null);
@@ -265,6 +284,42 @@ export function WebsiteBriefForm({
     () => () => previews.forEach((preview) => URL.revokeObjectURL(preview.url)),
     [previews],
   );
+
+  const ideaContext = useMemo<IdeaContext>(() => ({
+    websiteUrl: activeMode === "website" ? url : undefined,
+    prompt: activeMode === "video" || activeMode === "scenario" ? prompt : brief,
+    referenceNames: files.map((file) => file.name),
+    hasReferences: files.length > 0,
+  }), [activeMode, brief, files, prompt, url]);
+
+  const masterIdeas = useMemo(
+    () => getIdeasForIntent(activeMode, ideaContext, compactLayout ? 6 : 8),
+    [activeMode, compactLayout, ideaContext],
+  );
+
+  function applyMasterIdea(idea: CreativeIdea) {
+    setSelectedIdea(idea);
+    if (activeMode === "video" || activeMode === "scenario") setPrompt(idea.masterPrompt);
+    else setBrief(idea.masterPrompt);
+    setError(null);
+    setCompactPanel(null);
+    void trackStudioEvent({ event: "idea_clicked", ideaId: idea.id, feature: idea.feature });
+    window.requestAnimationFrame(() => {
+      if (activeMode === "website") websiteBriefRef.current?.focus();
+      else studioPromptRef.current?.focus();
+    });
+  }
+
+  function toggleIdeasPanel() {
+    setSettingsOpen(false);
+    setCompactPanel((value) => {
+      const next = value === "ideas" ? null : "ideas";
+      if (next === "ideas") {
+        void trackStudioEvent({ event: "ideas_opened", feature: masterIdeas[0]?.feature });
+      }
+      return next;
+    });
+  }
 
   useEffect(() => {
     if (!settingsOpen) return;
@@ -423,6 +478,14 @@ export function WebsiteBriefForm({
 
   function submit() {
     if (disabled) return;
+    if (selectedIdea) {
+      void trackStudioEvent({
+        event: "idea_to_generate_conversion",
+        ideaId: selectedIdea.id,
+        feature: selectedIdea.feature,
+        metadata: { mode: activeMode },
+      });
+    }
     if (activeMode === "website") {
       const direction = brief.trim();
       if (!url.trim()) {
@@ -697,15 +760,12 @@ export function WebsiteBriefForm({
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setSettingsOpen(false);
-                  setCompactPanel((value) => value === "ideas" ? null : "ideas");
-                }}
+                onClick={toggleIdeasPanel}
                 aria-expanded={compactPanel === "ideas"}
                 className={`creator-secondary-button inline-flex min-h-11 items-center gap-2 rounded-xl border px-3 text-[11px] font-semibold transition ${compactPanel === "ideas" ? "border-violet/40 bg-violet/[.10] text-white" : "border-white/[.11] bg-white/[.035] text-text-muted hover:border-violet/30 hover:bg-violet/[.07] hover:text-white"}`}
               >
                 <Sparkles size={13} className="text-violet" />
-                Ideas
+                Master Ideas
                 <ChevronDown size={13} className={`transition-transform ${compactPanel === "ideas" ? "rotate-180" : ""}`} />
               </button>
               <button
@@ -765,18 +825,11 @@ export function WebsiteBriefForm({
 
             {compactPanel === "ideas" && (
               <div className="rounded-2xl border border-violet/20 bg-violet/[.045] p-2.5">
-                <div className="flex flex-wrap gap-2">
-                  {QUICK_IDEAS.website.map((idea) => (
-                    <button
-                      key={idea}
-                      type="button"
-                      onClick={() => { setBrief(idea); setCompactPanel(null); }}
-                      className="idea-chip rounded-xl border border-white/[.10] bg-black/15 px-3 py-2 text-[11px] font-medium text-text-muted transition hover:border-violet/35 hover:text-white"
-                    >
-                      {idea}
-                    </button>
-                  ))}
+                <div className="mb-2 flex items-center justify-between gap-2 px-0.5">
+                  <div><p className="text-[10px] font-semibold text-white">Master Ideas</p><p className="mt-0.5 text-[8px] text-text-dim">Free to browse — choosing one only fills your prompt.</p></div>
+                  <span className="rounded-full border border-mint/15 bg-mint/[.07] px-2 py-1 text-[7px] font-semibold text-mint">NO CREDITS</span>
                 </div>
+                <MasterIdeas ideas={masterIdeas} context={ideaContext} selectedId={selectedIdea?.id ?? null} onSelect={applyMasterIdea} compact />
               </div>
             )}
 
@@ -873,11 +926,12 @@ export function WebsiteBriefForm({
                 })}
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-1.5 pt-1">
-              <span className="mr-1 inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-[.10em] text-text-dim"><Sparkles size={11} className="text-mint" /> Try an idea</span>
-              {QUICK_IDEAS.website.map((idea) => (
-                <button key={idea} type="button" onClick={() => setBrief(idea)} className="idea-chip rounded-full border border-mint/15 bg-mint/[.045] px-2.5 py-1.5 text-[9px] font-medium text-text-muted transition hover:border-mint/45 hover:bg-mint/[.10] hover:text-white">{idea}</button>
-              ))}
+            <div className="rounded-2xl border border-violet/15 bg-violet/[.035] p-2.5">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[.10em] text-white"><Sparkles size={11} className="text-violet" /> Master Ideas</span>
+                <span className="text-[8px] text-text-dim">Click one to load its full prompt</span>
+              </div>
+              <MasterIdeas ideas={masterIdeas} context={ideaContext} selectedId={selectedIdea?.id ?? null} onSelect={applyMasterIdea} compact />
             </div>
           </div>
         )}
@@ -902,11 +956,9 @@ export function WebsiteBriefForm({
                 className="creator-field w-full resize-none rounded-2xl border border-white/[.16] bg-[#0b0818] px-4 py-3 text-base leading-relaxed text-white outline-none transition placeholder:text-white/40 sm:text-sm"
               />
             </label>
-            <div className="mt-2 flex flex-wrap items-center gap-1.5">
-              <span className="mr-1 inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-[.10em] text-text-dim"><Sparkles size={11} className="text-mint" /> Try an idea</span>
-              {QUICK_IDEAS[activeMode].map((idea) => (
-                <button key={idea} type="button" onClick={() => setPrompt(idea)} className="idea-chip rounded-full border border-mint/15 bg-mint/[.045] px-2.5 py-1.5 text-[9px] font-medium text-text-muted transition hover:border-mint/45 hover:bg-mint/[.10] hover:text-white">{idea}</button>
-              ))}
+            <div className="mt-2 rounded-2xl border border-violet/15 bg-violet/[.03] p-2.5">
+              <div className="mb-2 flex items-center justify-between gap-2"><span className="inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-[.10em] text-white"><Sparkles size={11} className="text-violet" /> Master Ideas</span><span className="text-[8px] text-text-dim">{activeMode === "video" ? "Cinematic, drone, transformation + social" : "Performance and scenario directions"}</span></div>
+              <MasterIdeas ideas={masterIdeas} context={ideaContext} selectedId={selectedIdea?.id ?? null} onSelect={applyMasterIdea} compact={compactLayout} />
             </div>
           </div>
         )}
@@ -931,11 +983,9 @@ export function WebsiteBriefForm({
                 className="creator-field w-full resize-none rounded-2xl border border-white/[.16] bg-[#0b0818] px-4 py-3 text-base leading-relaxed text-white outline-none transition placeholder:text-white/40 sm:text-sm"
               />
             </label>
-            <div className="mt-2 flex flex-wrap items-center gap-1.5">
-              <span className="mr-1 inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-[.10em] text-text-dim"><Sparkles size={11} className="text-mint" /> Try an idea</span>
-              {QUICK_IDEAS[activeMode].map((idea) => (
-                <button key={idea} type="button" onClick={() => setBrief(idea)} className="idea-chip rounded-full border border-mint/15 bg-mint/[.045] px-2.5 py-1.5 text-[9px] font-medium text-text-muted transition hover:border-mint/45 hover:bg-mint/[.10] hover:text-white">{idea}</button>
-              ))}
+            <div className="mt-2 rounded-2xl border border-violet/15 bg-violet/[.03] p-2.5">
+              <div className="mb-2 flex items-center justify-between gap-2"><span className="inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-[.10em] text-white"><Sparkles size={11} className="text-violet" /> Master Ideas</span><span className="text-[8px] text-text-dim">Built to preserve your real product</span></div>
+              <MasterIdeas ideas={masterIdeas} context={ideaContext} selectedId={selectedIdea?.id ?? null} onSelect={applyMasterIdea} compact={compactLayout} />
             </div>
           </div>
         )}
