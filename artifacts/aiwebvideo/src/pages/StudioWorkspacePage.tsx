@@ -223,8 +223,10 @@ export function StudioWorkspacePage() {
     let cancelled = false;
     setLoading(true);
     refreshLists()
-      .then(() => {
-        if (!cancelled && routeProjectId) return loadProject(routeProjectId);
+      .then(async () => {
+        if (!cancelled && routeProjectId) {
+          await loadProject(routeProjectId);
+        }
       })
       .catch(() => { if (!cancelled) setSignedIn(false); })
       .finally(() => { if (!cancelled) setLoading(false); });
