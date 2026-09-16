@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { BadgePercent, CircleUserRound } from 'lucide-react';
+import { BadgePercent, CircleUserRound, Layers3 } from 'lucide-react';
 import { signOut } from '@/lib/firebase/client';
 import { fetchWelcomeGrowthOffer, formatWelcomeCountdown, type WelcomeGrowthOffer } from '@/lib/growth';
 
@@ -57,6 +57,17 @@ export function UserMenu({ email, plan, creditsBalance, isAdmin = false }: { ema
     <div ref={ref} className="relative flex items-center gap-2">
       {inWorkspace && (
         <Link
+          href="/studio"
+          className="group inline-flex min-h-10 items-center gap-2 rounded-xl border border-violet/25 bg-violet/[.08] px-2.5 text-[11px] font-semibold text-white transition hover:border-violet/45 hover:bg-violet/[.14] sm:px-3"
+          aria-label="Open AI editing Studio"
+        >
+          <Layers3 size={15} className="text-violet" aria-hidden="true" />
+          <span className="hidden sm:inline">Studio</span>
+        </Link>
+      )}
+
+      {inWorkspace && (
+        <Link
           href="/pricing#buy-credits"
           className={`group inline-flex min-h-10 items-center gap-2 rounded-xl border px-2.5 text-[11px] font-semibold transition sm:px-3 ${activeOffer ? 'border-mint/35 bg-mint/[.08] text-mint hover:bg-mint/[.14]' : 'border-white/10 bg-white/[.035] text-text-muted hover:border-violet/30 hover:bg-violet/[.08] hover:text-white'}`}
           aria-label={activeOffer ? `${activeOffer.discountPercent}% off credit packs` : 'View pricing'}
@@ -89,6 +100,7 @@ export function UserMenu({ email, plan, creditsBalance, isAdmin = false }: { ema
           </div>
           <div className="py-1 text-sm">
             <Link href="/dashboard" onClick={() => setOpen(false)} className="block rounded-xl px-3 py-2.5 text-text-muted hover:bg-white/5 hover:text-text-primary">Workspace</Link>
+            <Link href="/studio" onClick={() => setOpen(false)} className="block rounded-xl px-3 py-2.5 font-semibold text-violet hover:bg-violet/10">Studio editor</Link>
             <Link href="/profile" onClick={() => setOpen(false)} className="block rounded-xl px-3 py-2.5 text-text-muted hover:bg-white/5 hover:text-text-primary">Profile & billing</Link>
             <Link href="/profile#usage" onClick={() => setOpen(false)} className="block rounded-xl px-3 py-2.5 text-text-muted hover:bg-white/5 hover:text-text-primary">Usage</Link>
             {isAdmin && <Link href="/admin" onClick={() => setOpen(false)} className="block rounded-xl px-3 py-2.5 font-semibold text-violet hover:bg-violet/10">Admin control center</Link>}

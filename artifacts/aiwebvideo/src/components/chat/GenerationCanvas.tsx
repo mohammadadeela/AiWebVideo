@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Check, Clock3, Film, Globe2, Image, LoaderCircle, PackageOpen, ShieldCheck, X } from "lucide-react";
 import { fetchJob, request } from "@/lib/api-client";
 import { getActiveJobId } from "@/lib/guestSession";
-import type { JobStatus } from "./types";
+import type { JobAsset, JobStatus } from "./types";
 import type { CaptureMediaItem } from "./MediaPlanningPanel";
 import {
   AlertDialog,
@@ -92,6 +92,7 @@ export function GenerationCanvas({
   brandName?: string | null;
 }) {
   const [settings, setSettings] = useState<Settings>({ quality: null, duration: null, audio: null, frameRate: null });
+  const [liveAssets, setLiveAssets] = useState<JobAsset[]>([]);
   const [stopDialogOpen, setStopDialogOpen] = useState(false);
   const [stopCreditsAtRisk, setStopCreditsAtRisk] = useState<number | null>(null);
   const [stopPreviewLoading, setStopPreviewLoading] = useState(false);
@@ -108,13 +109,20 @@ export function GenerationCanvas({
   const eta = formatEta(etaSeconds);
   const visibleReferences = referenceItems.slice(0, 6);
   const effectiveCancelling = Boolean(cancelling || stopSubmitting || stopRequested);
+  const generatedPhotos = useMemo(() => liveAssets.filter((asset) => asset.type === "photo").slice(-4), [liveAssets]);
+  const generatedVideo = useMemo(() => [...liveAssets].reverse().find((asset) => asset.type === "video") ?? null, [liveAssets]);
+  const sourceRecording = useMemo(() => [...liveAssets].reverse().find((asset) => asset.type === "recording") ?? null, [liveAssets]);
+  const sourcePreview = visibleReferences[0] ?? null;
 
   useEffect(() => {
     const id = jobId ?? getActiveJobId();
     if (!id) return;
     let active = true;
-    void fetchJob(id)
-      .then((job) => {
+    let timer = 0;
+
+    const syncJob = async () => {
+      try {
+        const job = await fetchJob(id);
         if (!active) return;
         const workflow = job.workflowState as Record<string, unknown> | null;
         const requested = workflow?.requestedDurationSeconds;
@@ -134,12 +142,21 @@ export function GenerationCanvas({
                 ? job.storyboard.frameRate
                 : null,
         });
-      })
-      .catch(() => {});
+        setLiveAssets(Array.isArray(job.assets) ? job.assets : []);
+        if (!settled && !["done", "failed", "cancelled"].includes(job.status)) {
+          timer = window.setTimeout(syncJob, 1600);
+        }
+      } catch {
+        if (active && !settled) timer = window.setTimeout(syncJob, 2400);
+      }
+    };
+
+    void syncJob();
     return () => {
       active = false;
+      window.clearTimeout(timer);
     };
-  }, [jobId]);
+  }, [jobId, settled]);
 
   useEffect(() => {
     setStopDialogOpen(false);
@@ -148,6 +165,7 @@ export function GenerationCanvas({
     setStopSubmitting(false);
     setStopRequested(false);
     setStopError(null);
+    setLiveAssets([]);
   }, [jobId]);
 
   // Keep the live production panel softly in view while new chat updates are
@@ -155,7 +173,7 @@ export function GenerationCanvas({
   // upward, while the user remains anchored on the current generation state.
   useEffect(() => {
     if (settled) return;
-    const activityKey = `${status}:${statusMessage ?? ""}:${Math.floor(safeProgress / 5)}`;
+    const activityKey = `${status}:${statusMessage ?? ""}:${Math.floor(safeProgress / 5)}:${liveAssets.length}`;
     if (lastActivityRef.current === activityKey) return;
     lastActivityRef.current = activityKey;
 
@@ -179,7 +197,7 @@ export function GenerationCanvas({
     }, 70);
 
     return () => window.clearTimeout(timer);
-  }, [safeProgress, settled, status, statusMessage]);
+  }, [liveAssets.length, safeProgress, settled, status, statusMessage]);
 
   const chips = useMemo(() => {
     const values: string[] = [copy.label, aspectRatio];
@@ -205,8 +223,6 @@ export function GenerationCanvas({
       const liveJob = await fetchJob(id);
       setStopCreditsAtRisk(Math.max(0, Math.round(liveJob.creditsSpent ?? 0)));
     } catch {
-      // Keep the dialog open with conservative copy. The backend remains the
-      // authority and still validates ownership/status when Stop is confirmed.
       setStopCreditsAtRisk(null);
     } finally {
       setStopPreviewLoading(false);
@@ -220,10 +236,6 @@ export function GenerationCanvas({
     setStopSubmitting(true);
     setStopError(null);
     try {
-      // Intentionally submit the endpoint directly after the branded in-app
-      // confirmation. The older api-client cancel helper still contains a
-      // native window.confirm for legacy callers; this production UI must never
-      // show a browser-owned dialog.
       await request<{ cancelling: boolean; immediate: boolean }>(`/api/jobs/${id}/cancel`, {
         method: "POST",
         body: "{}",
@@ -245,26 +257,26 @@ export function GenerationCanvas({
     <>
       <section
         ref={panelRef}
-        className="relative w-full overflow-hidden rounded-[18px] border border-white/[.08] bg-[#0d0a18]/95 shadow-[0_20px_56px_-42px_rgba(139,92,246,.72)]"
+        className="relative w-full overflow-hidden rounded-[20px] border border-white/[.09] bg-[#0d0a18]/95 shadow-[0_22px_64px_-42px_rgba(139,92,246,.82)]"
         aria-label={`${copy.label} generation progress`}
         aria-live="polite"
         aria-atomic="false"
       >
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_-10%,rgba(139,92,246,.14),transparent_36%),radial-gradient(circle_at_100%_100%,rgba(52,217,196,.055),transparent_28%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_-10%,rgba(139,92,246,.16),transparent_36%),radial-gradient(circle_at_100%_100%,rgba(52,217,196,.065),transparent_28%)]" />
         <div className="relative p-3.5 sm:p-4">
           <div className="flex flex-wrap items-center justify-between gap-2.5">
             <div className="flex min-w-0 items-center gap-2.5">
               <span
-                className={`flex h-8 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/[.08] bg-white/[.04] text-mint ${brandMarkUrl && productionKind === "website-video" ? "min-w-8 max-w-[104px] px-1.5" : "w-8"}`}
+                className={`flex h-9 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/[.09] bg-white/[.045] text-mint ${brandMarkUrl && productionKind === "website-video" ? "min-w-9 max-w-[112px] px-1.5" : "w-9"}`}
               >
                 {brandMarkUrl && productionKind === "website-video" ? (
                   <img
                     src={brandMarkUrl}
                     alt={brandName ? `${brandName} logo` : "Website logo"}
-                    className="max-h-5 max-w-[84px] object-contain"
+                    className="max-h-5 max-w-[88px] object-contain"
                   />
                 ) : (
-                  <Icon size={14} />
+                  <Icon size={15} />
                 )}
               </span>
               <div className="min-w-0">
@@ -273,7 +285,7 @@ export function GenerationCanvas({
                     {settled ? phase(status) : "Generating your result"}
                   </p>
                   {!settled && (
-                    <span className="inline-flex items-center gap-1 rounded-full border border-mint/15 bg-mint/[.06] px-1.5 py-0.5 font-utility text-[7px] uppercase tracking-[.12em] text-mint">
+                    <span className="inline-flex items-center gap-1 rounded-full border border-mint/15 bg-mint/[.07] px-1.5 py-0.5 font-utility text-[7px] uppercase tracking-[.12em] text-mint">
                       <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-mint shadow-[0_0_10px_rgba(52,217,196,.65)]" aria-hidden="true" />
                       Live
                     </span>
@@ -288,18 +300,97 @@ export function GenerationCanvas({
                   <Clock3 size={10} /> {eta}
                 </span>
               )}
-              <span className="font-utility text-[9px] font-semibold text-white">{safeProgress}%</span>
+              <span className="rounded-full border border-white/[.08] bg-black/20 px-2 py-1 font-utility text-[9px] font-semibold text-white">{safeProgress}%</span>
             </div>
           </div>
 
-          <div
-            className="mt-3 h-1 overflow-hidden rounded-full bg-white/[.06]"
-            role="progressbar"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={safeProgress}
-          >
-            <div className="h-full rounded-full bg-signature transition-[width] duration-700" style={{ width: `${safeProgress}%` }} />
+          {photoMode ? (
+            <div className="mt-3">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-[10px] font-semibold text-white">Live image generation</p>
+                  <p className="mt-0.5 text-[8px] text-text-dim">Each slot fills immediately when its real generated image becomes available.</p>
+                </div>
+                <span className="rounded-full border border-white/[.07] bg-white/[.025] px-2 py-1 text-[8px] text-white/60">{generatedPhotos.length}/4 ready</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {Array.from({ length: 4 }).map((_, index) => {
+                  const asset = generatedPhotos[index];
+                  return (
+                    <div
+                      key={asset?.id ?? index}
+                      className="relative aspect-[4/5] overflow-hidden rounded-xl border border-white/[.08] bg-[linear-gradient(145deg,#171229,#0a0813)]"
+                    >
+                      {asset ? (
+                        <img src={asset.url} alt={`Generated photo ${index + 1}`} className="h-full w-full object-cover" loading="eager" decoding="async" />
+                      ) : (
+                        <>
+                          {sourcePreview && <img src={sourcePreview.url} alt="" className="absolute inset-0 h-full w-full scale-105 object-cover opacity-[.12] blur-[2px]" />}
+                          <div className="generation-soft-flash pointer-events-none absolute inset-0" />
+                          <div className="absolute inset-0 bg-[radial-gradient(circle_at_35%_28%,rgba(139,92,246,.18),transparent_36%)]" />
+                          <div className="relative flex h-full flex-col items-center justify-center gap-1.5">
+                            <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-violet/20 bg-violet/[.09] text-violet">
+                              <LoaderCircle size={13} className={!settled ? "animate-spin" : ""} />
+                            </span>
+                            <span className="text-[8px] font-semibold text-white/75">Creating photo {index + 1}</span>
+                          </div>
+                        </>
+                      )}
+                      {asset && <span className="absolute right-1.5 top-1.5 inline-flex items-center gap-1 rounded-full border border-mint/20 bg-black/55 px-1.5 py-0.5 text-[7px] font-semibold text-mint backdrop-blur"><Check size={8} />Ready</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="mt-3 grid gap-2.5 sm:grid-cols-[minmax(0,1fr)_150px]">
+              <div className="relative h-40 overflow-hidden rounded-2xl border border-white/[.08] bg-[#080611] sm:h-44">
+                {generatedVideo ? (
+                  <video src={generatedVideo.url} autoPlay muted loop playsInline preload="metadata" className="h-full w-full object-contain" />
+                ) : sourceRecording ? (
+                  <video src={sourceRecording.url} autoPlay muted loop playsInline preload="metadata" className="h-full w-full object-cover opacity-55" />
+                ) : sourcePreview ? (
+                  <img src={sourcePreview.url} alt={sourcePreview.title} className="h-full w-full object-cover object-top opacity-55" loading="eager" decoding="async" />
+                ) : (
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_42%_36%,rgba(139,92,246,.2),transparent_32%),linear-gradient(145deg,#171229,#080611)]" />
+                )}
+                {!generatedVideo && <div className="generation-soft-flash pointer-events-none absolute inset-0" />}
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/15" />
+                <div className="absolute left-2.5 top-2.5 inline-flex items-center gap-1.5 rounded-full border border-mint/20 bg-black/55 px-2 py-1 text-[7px] font-semibold uppercase tracking-[.1em] text-mint backdrop-blur">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-mint" />
+                  {generatedVideo ? "Live output" : "Live canvas"}
+                </div>
+                <div className="absolute inset-x-0 bottom-0 p-3">
+                  <p className="text-[10px] font-semibold text-white">{generatedVideo ? "Generated video is arriving" : phase(status)}</p>
+                  <p className="mt-0.5 max-w-[520px] text-[8px] leading-4 text-white/55">{generatedVideo ? "Showing the real generated media as soon as the backend exposes it." : sourcePreview || sourceRecording ? "Building the final video from your selected references and creative direction." : "The live canvas stays here while the production is being prepared."}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-1">
+                <div className="rounded-xl border border-white/[.07] bg-white/[.025] p-2.5">
+                  <p className="font-utility text-[7px] uppercase tracking-[.13em] text-text-dim">Current stage</p>
+                  <p className="mt-1 text-[10px] font-semibold text-white">{phase(status)}</p>
+                  <p className="mt-1 line-clamp-2 text-[8px] leading-4 text-white/45">{statusMessage || "Production is progressing."}</p>
+                </div>
+                <div className="rounded-xl border border-white/[.07] bg-white/[.025] p-2.5">
+                  <p className="font-utility text-[7px] uppercase tracking-[.13em] text-text-dim">Output</p>
+                  <p className="mt-1 text-[10px] font-semibold text-white">{aspectRatio}{settings.quality ? ` · ${settings.quality === "4k" ? "4K" : settings.quality}` : ""}</p>
+                  <p className="mt-1 text-[8px] leading-4 text-white/45">{settings.duration ? `${settings.duration}s` : "Selected duration"}{settings.audio ? ` · ${cleanAudio(settings.audio)}` : ""}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="mt-3 flex items-center gap-3">
+            <div
+              className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-white/[.06]"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={safeProgress}
+            >
+              <div className="h-full rounded-full bg-signature shadow-[0_0_14px_rgba(236,72,153,.28)] transition-[width] duration-700" style={{ width: `${safeProgress}%` }} />
+            </div>
+            {eta && !settled && <span className="shrink-0 text-[8px] text-text-dim sm:hidden">{eta}</span>}
           </div>
 
           <div className="mt-2.5 flex flex-wrap gap-1.5">
@@ -313,61 +404,41 @@ export function GenerationCanvas({
             ))}
           </div>
 
-          {photoMode && (
-            <div className="mt-3">
-              <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-[10px] font-semibold text-white">You will receive 4 generated photos</p>
-                <p className="text-[8px] text-text-dim">Four distinct creative directions</p>
+          {visibleReferences.length > 0 && (
+            <div className="mt-3 border-t border-white/[.055] pt-2.5">
+              <div className="mb-1.5 flex items-center justify-between gap-2">
+                <p className="text-[8px] font-semibold text-white/65">Live inputs</p>
+                <p className="text-[7px] text-text-dim">Using your real references</p>
               </div>
-              <div className="grid grid-cols-4 gap-2">
-                {Array.from({ length: 4 }).map((_, index) => (
+              <div className="chat-scroll flex gap-1.5 overflow-x-auto pb-0.5">
+                {visibleReferences.map((item) => (
                   <div
-                    key={index}
-                    className="relative aspect-[4/5] overflow-hidden rounded-xl border border-white/[.07] bg-[linear-gradient(145deg,#171229,#0a0813)]"
+                    key={item.id}
+                    className="relative w-20 shrink-0 overflow-hidden rounded-lg border border-white/[.07] bg-black/20"
                   >
-                    <div className="generation-soft-flash pointer-events-none absolute inset-0" />
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_35%_28%,rgba(139,92,246,.16),transparent_36%)]" />
-                    <div className="relative flex h-full flex-col items-center justify-center gap-1.5">
-                      <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-violet/20 bg-violet/[.08] text-violet">
-                        <LoaderCircle size={12} className={!settled ? "animate-spin" : ""} />
-                      </span>
-                      <span className="text-[8px] font-semibold text-white/75">Photo {index + 1}</span>
+                    <div className="aspect-video overflow-hidden">
+                      <img
+                        src={item.url}
+                        alt={item.title}
+                        loading="eager"
+                        decoding="async"
+                        className="h-full w-full object-cover object-top"
+                      />
                     </div>
+                    {sceneAssignments[item.id] ? (
+                      <span className="absolute right-1 top-1 rounded-full bg-violet px-1 py-0.5 text-[6px] font-bold text-white">
+                        R{sceneAssignments[item.id]}
+                      </span>
+                    ) : null}
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          {!photoMode && visibleReferences.length > 0 && (
-            <div className="chat-scroll mt-3 flex gap-1.5 overflow-x-auto pb-0.5">
-              {visibleReferences.map((item) => (
-                <div
-                  key={item.id}
-                  className="relative w-20 shrink-0 overflow-hidden rounded-lg border border-white/[.07] bg-black/20"
-                >
-                  <div className="aspect-video overflow-hidden">
-                    <img
-                      src={item.url}
-                      alt={item.title}
-                      loading="eager"
-                      decoding="async"
-                      className="h-full w-full object-cover object-top"
-                    />
-                  </div>
-                  {sceneAssignments[item.id] ? (
-                    <span className="absolute right-1 top-1 rounded-full bg-violet px-1 py-0.5 text-[6px] font-bold text-white">
-                      R{sceneAssignments[item.id]}
-                    </span>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          )}
-
           <div className="mt-3 flex items-center justify-between gap-2.5 border-t border-white/[.06] pt-2.5">
             <p className="min-w-0 flex-1 truncate text-[8px] text-text-dim">
-              You can leave this chat and return without stopping generation.
+              Live progress is saved. You can leave this chat and return without stopping generation.
             </p>
             {onCancel && !settled && (
               <button

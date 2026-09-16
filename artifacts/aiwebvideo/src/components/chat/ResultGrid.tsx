@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/app-button";
 import type { JobAsset } from "./types";
-import { CheckCircle2, Clapperboard, Download, Images, X } from "lucide-react";
+import { CheckCircle2, Clapperboard, Download, Images, Layers3, X } from "lucide-react";
 
 const ASPECT_RATIOS = ["9:16", "1:1", "16:9"] as const;
 
@@ -70,7 +71,7 @@ export function ResultGrid({ assets, onUnlock, sourceKind = "website" }: { asset
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[.07] px-4 py-3.5">
             <div className="flex items-center gap-2.5">
               <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-mint/10 text-mint"><CheckCircle2 size={16} /></span>
-              <div><p className="text-xs font-semibold text-white">Final master is ready</p><p className="text-[9px] text-text-dim">Ready to preview and download</p></div>
+              <div><p className="text-xs font-semibold text-white">Final master is ready</p><p className="text-[9px] text-text-dim">Ready to preview, edit and download</p></div>
             </div>
             <span className="flex items-center gap-1.5 rounded-full border border-white/[.07] bg-white/[.035] px-2.5 py-1 text-[8px] font-semibold uppercase tracking-wider text-text-muted"><Clapperboard size={10} className="text-violet" /> AiWebVideo</span>
           </div>
@@ -81,7 +82,10 @@ export function ResultGrid({ assets, onUnlock, sourceKind = "website" }: { asset
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
             {videos.length > 1 ? <div className="flex gap-1.5">{ASPECT_RATIOS.map((ratio) => videos.some((video) => video.aspectRatio === ratio) ? <button key={ratio} onClick={() => setActiveRatio(ratio)} data-active={activeRatio === ratio} className="min-h-10 rounded-lg border border-border px-3 py-2 text-xs text-text-muted hover:text-white data-[active=true]:border-violet data-[active=true]:text-white">{ratio}</button> : null)}</div> : <span className="text-[9px] uppercase tracking-wider text-text-dim">{activeVideo.aspectRatio || activeRatio} master</span>}
-            {activeVideo.downloadable && <Button variant="secondary" size="sm" onClick={() => downloadFile(activeVideo)}><Download size={14} /> Export video</Button>}
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="secondary" size="sm" asChild><Link href="/studio"><Layers3 size={14} /> Edit in Studio</Link></Button>
+              {activeVideo.downloadable && <Button variant="secondary" size="sm" onClick={() => downloadFile(activeVideo)}><Download size={14} /> Export video</Button>}
+            </div>
           </div>
         </div>
       )}
@@ -89,8 +93,8 @@ export function ResultGrid({ assets, onUnlock, sourceKind = "website" }: { asset
       {photos.length > 0 && (
         <div className="overflow-hidden rounded-[22px] border border-white/[.09] bg-[#0c0917] p-4 shadow-[0_28px_70px_-42px_rgba(139,92,246,.75)] sm:p-5">
           <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-            <div><p className="text-sm font-semibold text-white">{photos.length === 4 ? "Your 4 generated photos are ready" : "Your generated photos are ready"}</p><p className="mt-1 text-[10px] text-text-dim">Large previews · open any image full size or download it directly.</p></div>
-            <span className="rounded-full border border-mint/15 bg-mint/[.07] px-2.5 py-1 text-[9px] font-semibold text-mint">{photos.length} photos</span>
+            <div><p className="text-sm font-semibold text-white">{photos.length === 4 ? "Your 4 generated photos are ready" : "Your generated photos are ready"}</p><p className="mt-1 text-[10px] text-text-dim">Large previews · open any image full size, edit in Studio, or download directly.</p></div>
+            <div className="flex items-center gap-2"><span className="rounded-full border border-mint/15 bg-mint/[.07] px-2.5 py-1 text-[9px] font-semibold text-mint">{photos.length} photos</span><Link href="/studio" className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-violet/25 bg-violet/[.08] px-2.5 text-[9px] font-semibold text-violet transition hover:bg-violet/[.14]"><Layers3 size={12} />Edit in Studio</Link></div>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {photos.slice(0, 8).map((photo, index) => (
