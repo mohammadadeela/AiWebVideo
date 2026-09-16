@@ -19,7 +19,7 @@ const FaqPage = lazy(() => contentPages().then((module) => ({ default: module.Fa
 const FeaturesPage = lazy(() => contentPages().then((module) => ({ default: module.FeaturesPage })));
 const HowItWorksPage = lazy(() => contentPages().then((module) => ({ default: module.HowItWorksPage })));
 const PrivacyPage = lazy(() => contentPages().then((module) => ({ default: module.PrivacyPage })));
-const TermsPage = lazy(() => contentPages().then((module) => ({ default: module.TermmsPage ?? module.TermsPage })));
+const TermsPage = lazy(() => contentPages().then((module) => ({ default: module.TermsPage })));
 const searchPages = () => import('@/pages/SearchLandingPages');
 const UrlToVideoPage = lazy(() => searchPages().then((module) => ({ default: module.UrlToVideoPage })));
 const WebsiteVideoGeneratorPage = lazy(() => searchPages().then((module) => ({ default: module.WebsiteVideoGeneratorPage })));
