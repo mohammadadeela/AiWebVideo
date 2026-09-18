@@ -274,7 +274,7 @@ export function PricingTable() {
             {plan.highlight && (
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                 <span className="inline-flex items-center rounded-full bg-signature px-2 sm:px-3 py-0.5 text-[9px] sm:text-[11px] font-semibold text-white whitespace-nowrap">
-                  Most popular
+                  Recommended for weekly marketing
                 </span>
               </div>
             )}
@@ -330,6 +330,7 @@ export function PricingTable() {
             ) : (
               <PurchaseButton
                 primary={plan.highlight}
+                label="Choose plan"
                 onBuy={() => handleChoose(plan.id)}
               />
             )}
@@ -342,7 +343,7 @@ export function PricingTable() {
           Just need one video?
         </h3>
         <p className="mt-1 text-xs sm:text-sm text-text-muted">
-          Pay once, no subscription. Your video is yours forever.
+          Pay once. No subscription. Your project stays separate from monthly plans.
         </p>
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
           {ONE_TIME_PACKS.map((pack) => (
@@ -357,7 +358,7 @@ export function PricingTable() {
               {pack.popular && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                   <span className="inline-flex items-center rounded-full bg-mint px-2 sm:px-3 py-0.5 text-[9px] sm:text-[11px] font-semibold text-black whitespace-nowrap">
-                    Best value
+                    Flexible choice
                   </span>
                 </div>
               )}
@@ -404,8 +405,8 @@ export function PricingTable() {
                 </span>
               )}
             </div>
-            <h3 className="mt-1 font-display text-xl font-bold text-text-primary">Buy production credits</h3>
-            <p className="mt-2 max-w-2xl text-sm text-text-muted">Pay once, keep the credits until you use them, and choose only the balance you need. Top-ups never change your subscription plan.</p>
+            <h3 className="mt-1 font-display text-xl font-bold text-text-primary">Top up only what you need</h3>
+            <p className="mt-2 max-w-2xl text-sm text-text-muted">Pay once, keep the credits until you use them, and choose only the balance you need. Your exact production cost is shown before generation.</p>
           </div>
         </div>
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -445,7 +446,7 @@ export function PricingTable() {
         </div>
       </section>
 
-      <div className="mt-10 overflow-x-auto rounded-xl border border-border">
+      <div className="mt-10 overflow-x-auto rounded-xl border border-border" data-growth-event="pricing_viewed">
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-border bg-panel-alt text-text-muted">
