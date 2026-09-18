@@ -7,3 +7,13 @@ export function trackGrowthEvent(event: GrowthEventName, metadata?: Record<strin
   const payload={event,sessionId:getSessionId(),path:window.location.pathname,referrer:document.referrer||undefined,landingPage:sessionStorage.getItem('aiwebvideo_growth_landing')||window.location.pathname,deviceClass:window.matchMedia('(max-width: 767px)').matches?'mobile':'desktop',utmSource:params.get('utm_source')||undefined,utmMedium:params.get('utm_medium')||undefined,utmCampaign:params.get('utm_campaign')||undefined,metadata};
   void fetch('/api/analytics/events',{method:'POST',credentials:'same-origin',keepalive:true,headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).catch(()=>{});
 }
+export function getGrowthExperiment<T extends string>(name: string, variants: readonly T[]): T {
+  if (typeof window === 'undefined') return variants[0];
+  const key = `aiwebvideo_experiment_${name}`;
+  const saved = sessionStorage.getItem(key) as T | null;
+  if (saved && variants.includes(saved)) return saved;
+  const selected = variants[Math.floor(Math.random() * variants.length)];
+  sessionStorage.setItem(key, selected);
+  trackGrowthEvent('page_view', { experiment: name, variant: selected });
+  return selected;
+}
