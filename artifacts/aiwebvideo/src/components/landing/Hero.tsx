@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { Check, Globe2 } from "lucide-react";
 import { MARKETING_COPY } from "@/lib/marketingCopy";
-import { trackGrowthEvent } from "@/lib/marketingAnalytics";
+import { getGrowthExperiment, trackGrowthEvent } from "@/lib/marketingAnalytics";
 import { ChatWidget } from "@/components/chat/ChatWidget";
 
 export function Hero() {
+  const headlineVariant = useState(() => getGrowthExperiment("hero_headline", ["A", "B", "C"] as const))[0];
+  const headline = headlineVariant === "B" ? "Turn any website into a professional marketing video." : headlineVariant === "C" ? "Your next marketing video starts with your URL." : "Your website already tells the story. Turn it into a campaign.";
   return (
     <section id="generate" className="relative scroll-mt-20 overflow-hidden border-b border-white/[.06] bg-black/10">
       <div className="pointer-events-none absolute left-1/2 top-0 h-[420px] w-[980px] -translate-x-1/2 rounded-full bg-violet/[.09] blur-[120px]" />
@@ -13,8 +16,7 @@ export function Hero() {
             <Globe2 size={12} /> {MARKETING_COPY.hero.eyebrow}
           </div>
           <h1 className="mt-4 max-w-5xl font-display text-[clamp(2.35rem,11vw,4.8rem)] font-bold leading-[.96] tracking-[-.055em] text-white">
-            Your website already tells the story.
-            <span className="block bg-signature-text">Turn it into a campaign.</span>
+            {headlineVariant === "A" ? <>Your website already tells the story.<span className="block bg-signature-text">Turn it into a campaign.</span></> : <span className="block bg-signature-text">{headline}</span>}
           </h1>
           <p className="mt-4 max-w-2xl text-[15px] leading-6 text-text-muted sm:text-base">
             Paste your URL, tell AI what you want to promote, and get a complete marketing video built around your real business.
