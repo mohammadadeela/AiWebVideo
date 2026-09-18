@@ -18,6 +18,8 @@ import {
   X,
 } from "lucide-react";
 import { normalizeWebsiteUrl } from "@/lib/websiteUrl";
+import { SMART_PROMPTS } from "@/lib/marketingCopy";
+import { trackGrowthEvent } from "@/lib/marketingAnalytics";
 import { estimateRenderCredits } from "@/lib/credits";
 import {
   getIdeasForIntent,
@@ -360,6 +362,14 @@ export function WebsiteBriefForm({
     });
   }
 
+  function applySmartPrompt(value: string, label: string) {
+    if (activeMode === "video" || activeMode === "scenario") setPrompt(value);
+    else setBrief(value);
+    setSelectedIdea(null);
+    trackGrowthEvent("suggested_prompt_clicked", { label, mode: activeMode });
+    window.requestAnimationFrame(() => (activeMode === "website" ? websiteBriefRef.current : studioPromptRef.current)?.focus());
+  }
+
   function submit() {
     if (disabled) return;
     if (selectedIdea) {
@@ -383,6 +393,7 @@ export function WebsiteBriefForm({
       }
       try {
         setError(null);
+        trackGrowthEvent("creation_started", { mode: activeMode });
         void onSubmit(normalizeWebsiteUrl(url), brief.trim(), settings, files);
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : "Enter a valid public website URL.");
@@ -412,6 +423,7 @@ export function WebsiteBriefForm({
 
     const durationSeconds = settings.durationSeconds === "auto" ? 8 : settings.durationSeconds;
     setError(null);
+    trackGrowthEvent("creation_started", { mode: activeMode });
     void onStudioSubmit({
       studioKind: isProduct ? "product" : activeMode === "scenario" ? "scenario" : "idea",
       prompt: activePrompt,
@@ -589,6 +601,14 @@ export function WebsiteBriefForm({
               className="creator-field w-full resize-none rounded-2xl border border-white/[.14] bg-[#0b0818] px-4 py-3 text-sm leading-6 text-white outline-none transition placeholder:text-white/35 focus:border-violet/55 focus:ring-2 focus:ring-violet/10"
             />
           </label>
+          <div className="mt-2">
+            <p className="mb-1.5 text-[9px] font-semibold uppercase tracking-[.12em] text-text-dim">Start with an idea</p>
+            <div className="chat-scroll flex gap-1.5 overflow-x-auto pb-1">
+              {SMART_PROMPTS.slice(0, activeMode === "website" ? 6 : 8).map(([label, value]) => (
+                <button key={label} type="button" onClick={() => applySmartPrompt(value, label)} className="shrink-0 rounded-full border border-white/[.09] bg-white/[.025] px-2.5 py-1.5 text-[9px] font-semibold text-text-muted hover:border-violet/35 hover:bg-violet/[.06] hover:text-white">{label}</button>
+              ))}
+            </div>
+          </div>
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
