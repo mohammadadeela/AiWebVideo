@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { trackGrowthEvent } from "@/lib/marketingAnalytics";
 import { Button } from "@/components/ui/app-button";
 import { SecureCheckoutModal } from "@/components/billing/SecureCheckoutModal";
 import { SubscriptionCheckoutModal } from "@/components/billing/SubscriptionCheckoutModal";
@@ -247,6 +248,8 @@ export function PricingTable() {
     }
     const plan = PLANS.find((item) => item.id === planId);
     if (!plan || plan.id === "free" || !("amountUsd" in plan) || !("internalCredits" in plan)) return;
+    trackGrowthEvent("plan_selected", { plan: plan.id, price: plan.amountUsd });
+    trackGrowthEvent("checkout_started", { kind: "subscription", plan: plan.id });
     setSubscriptionCheckout({
       plan: plan.id,
       planName: plan.name,
@@ -438,7 +441,7 @@ export function PricingTable() {
                     amountUsd: discounted,
                     originalAmountUsd: pack.amountUsd,
                     credits: packCredits,
-                  })}
+                  }); }}
                 />
               </div>
             );
