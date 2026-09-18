@@ -92,7 +92,7 @@ export function ResultGrid({ assets, onUnlock, sourceKind = "website" }: { asset
         <div className="overflow-hidden rounded-[22px] border border-white/[.09] bg-[#0c0917] p-4 shadow-[0_28px_70px_-42px_rgba(139,92,246,.75)] sm:p-5">
           <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
             <div><p className="text-sm font-semibold text-white">{photos.length === 4 ? "Your 4 generated photos are ready" : "Your generated photos are ready"}</p><p className="mt-1 text-[10px] text-text-dim">Open any image full size, download directly.</p></div>
-            <div className="flex items-center gap-2"><span className="rounded-full border border-mint/15 bg-mint/[.07] px-2.5 py-1 text-[9px] font-semibold text-mint">{photos.length} photos</span>{studioButton}</div>
+            <div className="flex items-center gap-2"><span className="rounded-full border border-mint/15 bg-mint/[.07] px-2.5 py-1 text-[9px] font-semibold text-mint">{photos.length} photos</span></div>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {photos.slice(0, 8).map((photo, index) => (
