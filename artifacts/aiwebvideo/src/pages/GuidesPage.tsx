@@ -59,7 +59,7 @@ const guides: Record<string, Guide> = {
       { heading: "4. Choose the channel before the final render", paragraphs: ["Vertical creative gives the product different composition constraints than landscape. Choose 9:16 for vertical-first social placements, 1:1 for compact feeds, and 16:9 for broader web or presentation use."] },
       { heading: "5. Create variants around one source", paragraphs: ["One product page can support multiple legitimate campaigns. Change the audience, benefit, hook or destination rather than trying to put every angle into one video."], bullets: ["Launch version", "Benefit version", "Offer version", "Lifestyle/use-case version"] },
     ],
-    related: [["Product page to video", "/product-page-to-video"], ["Product studio", "/studio/product"], ["URL to video", "/url-to-video"]],
+    related: [["Product page to video", "/product-page-to-video"], ["URL to video", "/url-to-video"]],
   },
 };
 
