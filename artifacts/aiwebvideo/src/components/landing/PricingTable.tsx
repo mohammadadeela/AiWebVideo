@@ -441,7 +441,7 @@ export function PricingTable() {
                     amountUsd: discounted,
                     originalAmountUsd: pack.amountUsd,
                     credits: packCredits,
-                  }); }}
+                  })}
                 />
               </div>
             );
