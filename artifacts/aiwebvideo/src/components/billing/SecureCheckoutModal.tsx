@@ -122,22 +122,32 @@ const CARD_FIELD_SELECTORS = [
   '#aiwebvideo-card-cvv',
 ] as const;
 
-// Hosted fields can inherit a light autofill surface from the browser/card manager.
-// Use a deliberate light field with dark text so masked card numbers and CVV stay
-// high-contrast in every autofill state instead of becoming pale-on-white.
+// PayPal Card Fields are hosted inside an iframe. Keep the iframe itself visually
+// transparent and let the application-owned container below provide the single
+// visible input surface. This avoids the nested "box inside a box" appearance.
+// These properties are limited to PayPal's documented Card Fields styling API.
 const CARD_FIELD_STYLE = {
   input: {
     color: '#171321',
-    'background-color': '#f8f7fb',
-    'font-size': '16px',
-    'line-height': '22px',
-    'font-family': 'Inter, ui-sans-serif, system-ui, sans-serif',
-    'font-weight': '600',
-    'caret-color': '#171321',
-    padding: '15px 14px',
+    background: 'transparent',
+    border: '0',
+    borderRadius: '0',
+    boxShadow: 'none',
+    fontSize: '16px',
+    lineHeight: '22px',
+    fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
+    fontWeight: '600',
+    height: '54px',
+    padding: '0 14px',
+    outline: 'none',
   },
-  'input::placeholder': { color: '#7b7488', 'font-weight': '500' },
-  ':focus': { color: '#171321', 'background-color': '#ffffff' },
+  ':focus': {
+    color: '#171321',
+    background: 'transparent',
+    border: '0',
+    boxShadow: 'none',
+    outline: 'none',
+  },
   '.invalid': { color: '#b4233d' },
   '.valid': { color: '#171321' },
 };
@@ -267,9 +277,10 @@ function FieldShell({ label, id }: { label: string; id: string }) {
   return (
     <label className="block min-w-0">
       <span className="mb-2 block text-[13px] font-bold tracking-[.01em] text-[#d9d5e4]">{label}</span>
-      <div className="rounded-[14px] border border-white/[.10] bg-[#f8f7fb] p-px shadow-[0_12px_28px_-24px_rgba(139,92,246,.7)] transition focus-within:border-violet/45 focus-within:ring-2 focus-within:ring-violet/20">
-        <div id={id} className="h-[54px] overflow-hidden rounded-[12px] bg-[#f8f7fb]" />
-      </div>
+      <div
+        id={id}
+        className="h-[56px] overflow-hidden rounded-[12px] border border-white/[.12] bg-white shadow-[0_10px_24px_-22px_rgba(139,92,246,.7)] transition focus-within:border-violet/50 focus-within:ring-2 focus-within:ring-violet/20"
+      />
     </label>
   );
 }
