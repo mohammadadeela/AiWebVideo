@@ -17,6 +17,9 @@ test('one-time checkout uses a wide responsive big-checkout layout with explicit
   assert.match(source, /Try again · Buy/);
   assert.match(source, /Order summary/);
   assert.match(source, /Security code/);
+  assert.match(source, /buttonType: 'buy'/);
+  assert.match(source, /or enter card details/);
+  assert.doesNotMatch(source, /Buy with PayPal|continueWithPayPal/);
 });
 
 test('checkout exposes save-card only when PayPal vault is enabled and keeps saved cards reusable', async () => {
@@ -26,6 +29,7 @@ test('checkout exposes save-card only when PayPal vault is enabled and keeps sav
   assert.match(source, /payWithSavedCard/);
   assert.match(source, /Saved cards/);
   assert.match(source, /PREFERRED_METHOD_KEY/);
+  assert.match(source, /Your browser may offer its saved payment details/);
 });
 
 test('profile renders a dedicated saved-card manager without exposing provider tokens', async () => {
