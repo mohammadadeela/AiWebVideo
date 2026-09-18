@@ -202,7 +202,6 @@ const pages: Record<string, SeoLanding> = {
     related: [
       ["URL to Video", "/url-to-video", "Use any public product or landing-page URL."],
       ["Product campaign guide", "/guides/product-page-video-ads", "Plan better product-page video campaigns."],
-      ["AI Product Studio", "/studio/product", "Generate product photos and videos from references."],
     ],
   },
 };
