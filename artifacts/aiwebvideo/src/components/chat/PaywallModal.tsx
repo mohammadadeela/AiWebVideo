@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { trackGrowthEvent } from '@/lib/marketingAnalytics';
 import { createPortal } from 'react-dom';
 import { SecureCheckoutModal } from '@/components/billing/SecureCheckoutModal';
 import { SubscriptionCheckoutModal } from '@/components/billing/SubscriptionCheckoutModal';
@@ -91,6 +92,8 @@ export function PaywallModal({
   const bestCreditPackId = useMemo(() => CREDIT_PACKS.find((pack) => fundedCredits + displayCredits(pack.credits) >= requiredCredits)?.id ?? null, [fundedCredits, requiredCredits]);
   const eligiblePlans = useMemo(() => PAYWALL_PLANS.filter((plan) => fundedCredits + displayCredits(plan.credits) >= requiredCredits), [fundedCredits, requiredCredits]);
 
+  useEffect(() => { trackGrowthEvent('paywall_shown', { requiredCredits, currentBalance, shortfall }); }, [requiredCredits, currentBalance, shortfall]);
+
   function chooseSubscription(planId: 'creator' | 'pro' | 'agency') {
     setError(null);
     const plan = PAYWALL_PLANS.find((item) => item.id === planId);
@@ -115,10 +118,10 @@ export function PaywallModal({
         <div className="w-full max-w-lg max-h-[92dvh] overflow-y-auto overscroll-contain rounded-t-[24px] border border-white/10 bg-[#120e22] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl animate-fade-in-up sm:max-h-[90vh] sm:rounded-3xl sm:p-5" onClick={(e) => e.stopPropagation()}>
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="font-display text-lg font-bold text-white">{context ?? 'Choose how to continue'}</p>
-              <p className="mt-1 text-xs leading-5 text-text-muted">
-                Needs {requiredCredits.toLocaleString()} credits · you have {currentBalance.toLocaleString()}{reservedCredits ? ` + ${reservedCredits.toLocaleString()} reserved` : ''}{shortfall ? ` · ${shortfall.toLocaleString()} more needed` : ''}
-              </p>
+              <p className="font-display text-lg font-bold text-white">Your video is ready to create.</p>
+              <p className="mt-1 text-xs text-text-muted">{context ?? 'Your production setup is saved.'}</p>
+              <p className="mt-1 text-xs leading-5 text-text-muted">This production requires <strong className="text-white">{requiredCredits.toLocaleString()} credits</strong>. You have <strong className="text-white">{fundedCredits.toLocaleString()}</strong>.</p>
+              {shortfall > 0 && <p className="mt-2 rounded-xl border border-mint/20 bg-mint/[.06] px-3 py-2 text-[11px] leading-5 text-mint">You need {shortfall.toLocaleString()} more credits. Your production setup is saved.</p>}
             </div>
             <button type="button" onClick={onClose} disabled={Boolean(directCheckout || subscriptionCheckout)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 text-base text-text-muted hover:bg-white/5 hover:text-white disabled:opacity-40" aria-label="Close">×</button>
           </div>
@@ -168,7 +171,7 @@ export function PaywallModal({
                   </button>
                 );
               })}
-              {shortfall > displayCredits(250) && <p className="rounded-xl border border-white/10 bg-white/[.03] p-3 text-[11px] leading-5 text-text-muted">This setup needs {shortfall.toLocaleString()} additional credits. Combine top-ups or choose a larger monthly plan.</p>}
+              {shortfall > displayCredits(250) && <p className="rounded-xl border border-white/10 bg-white/[.03] p-3 text-[11px] leading-5 text-text-muted">You need {shortfall.toLocaleString()} more credits. The highlighted option is the smallest purchase that covers this production when available.</p>}
             </div>
           )}
 
@@ -194,7 +197,7 @@ export function PaywallModal({
                 </button>
               )) : (
                 <div className="rounded-2xl border border-white/10 bg-white/[.03] p-4 text-sm leading-6 text-text-muted">
-                  This setup needs {requiredCredits.toLocaleString()} credits. Use <button type="button" onClick={() => setTab('credits')} className="font-semibold text-mint">Buy credits</button> or <button type="button" onClick={() => setTab('plans')} className="font-semibold text-violet">Plans</button>.
+                  This setup needs {requiredCredits.toLocaleString()} credits. Use <button type="button" onClick={() => setTab('credits')} className="font-semibold text-mint">Get the credits I need</button> or <button type="button" onClick={() => setTab('plans')} className="font-semibold text-violet">Plans</button>.
                 </div>
               )}
             </div>
@@ -204,7 +207,7 @@ export function PaywallModal({
             <div className="mt-4 space-y-2.5">
               {(eligiblePlans.length ? eligiblePlans : PAYWALL_PLANS).map((p) => (
                 <button key={p.id} onClick={() => chooseSubscription(p.id)} className={`flex w-full items-center justify-between rounded-2xl border p-4 text-left transition ${p.highlight ? 'border-violet/55 bg-signature-soft' : 'border-white/10 bg-white/[.025] hover:border-violet/30'}`}>
-                  <div><p className="text-sm font-bold text-white">{p.name}{p.highlight && <span className="ml-2 rounded-full bg-signature px-2 py-0.5 text-[9px]">Popular</span>}</p><p className="mt-1 text-xs text-text-muted">{displayCredits(p.credits).toLocaleString()} credits/mo · {p.pitch}</p></div>
+                  <div><p className="text-sm font-bold text-white">{p.name}{p.highlight && <span className="ml-2 rounded-full bg-signature px-2 py-0.5 text-[9px]">Recommended for weekly marketing</span>}</p><p className="mt-1 text-xs text-text-muted">{displayCredits(p.credits).toLocaleString()} credits/mo · {p.pitch}</p></div>
                   <div className="text-right"><p className="font-display text-xl font-bold text-white">${p.price}<span className="text-[10px] font-normal text-text-dim">/mo</span></p><p className="text-[10px] font-semibold text-mint">Buy</p></div>
                 </button>
               ))}
