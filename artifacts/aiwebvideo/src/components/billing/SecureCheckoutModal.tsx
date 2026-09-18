@@ -13,6 +13,7 @@ import {
   X,
 } from 'lucide-react';
 import { ApiError, request, startCheckout, type CheckoutId } from '@/lib/api-client';
+import { trackGrowthEvent } from '@/lib/marketingAnalytics';
 
 interface CheckoutConfig {
   configured: boolean;
@@ -295,6 +296,7 @@ export function SecureCheckoutModal({
   onClose: () => void;
 }) {
   const recurring = billingMode === 'subscription';
+  useEffect(() => { trackGrowthEvent('checkout_started', { product: productName, amountUsd, billingMode }); }, [productName, amountUsd, billingMode]);
   const [config, setConfig] = useState<CheckoutConfig | null>(configCache?.value ?? null);
   const [savedMethods, setSavedMethods] = useState<SavedMethod[]>([]);
   const [cardEligible, setCardEligible] = useState(false);
@@ -611,7 +613,7 @@ export function SecureCheckoutModal({
 
         <header className="sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-white/[.07] bg-[#0d0918]/95 px-5 py-4 backdrop-blur-xl sm:px-7">
           <div className="min-w-0">
-            <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.15em] text-mint"><ShieldCheck size={13} /> Checkout</div>
+            <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.15em] text-mint"><ShieldCheck size={13} /> Complete purchase</div>
             <h2 className="mt-1 truncate font-display text-lg font-bold text-white sm:text-xl">{productName}</h2>
           </div>
           <div className="flex items-center gap-3">
@@ -627,15 +629,16 @@ export function SecureCheckoutModal({
           <div className="relative px-5 py-12 sm:px-8 sm:py-16">
             <div className="mx-auto max-w-md rounded-[28px] border border-emerald-300/25 bg-emerald-400/[.08] p-7 text-center shadow-[0_24px_70px_-36px_rgba(16,185,129,.9)]">
               <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-400/15 text-emerald-300"><BadgeCheck size={30} /></span>
-              <h3 className="mt-4 font-display text-xl font-black text-white">{recurring ? 'Subscription active' : 'Payment complete'}</h3>
-              <p className="mt-2 text-sm text-text-muted">{success.creditsGranted.toLocaleString()} credits added{recurring ? ' · renews monthly' : ''}</p>
+              <h3 className="mt-4 font-display text-xl font-black text-white">{recurring ? 'You’re ready to create.' : 'You’re ready to create.'}</h3>
+              <p className="mt-2 text-sm text-text-muted">{success.creditsGranted.toLocaleString()} credits added{recurring ? ' · renews monthly until cancelled' : ' · one-time purchase'}</p>
+              <button type="button" onClick={onClose} className="mt-5 min-h-11 w-full rounded-xl bg-signature px-4 text-sm font-bold text-white shadow-violet">Continue to my project</button>
               <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1.5 text-xs font-bold text-emerald-200"><Check size={14} /> {money(success.amountUsd)} paid</div>
             </div>
           </div>
         ) : (
           <div className="relative grid min-w-0 gap-0 md:grid-cols-[290px_minmax(0,1fr)]">
             <aside className="border-b border-white/[.07] bg-white/[.018] p-5 md:border-b-0 md:border-r md:p-6">
-              <p className="text-[10px] font-bold uppercase tracking-[.15em] text-text-dim">Order summary</p>
+              <p className="text-[10px] font-bold uppercase tracking-[.15em] text-text-dim">What you’re buying</p>
               <div className="mt-4 rounded-2xl border border-white/[.08] bg-black/15 p-4">
                 <p className="text-sm font-semibold text-white">{productName}</p>
                 <div className="mt-3 flex items-center justify-between gap-3 text-xs"><span className="text-text-dim">Credits</span><span className="font-utility font-bold text-white">{credits.toLocaleString()}</span></div>
