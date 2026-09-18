@@ -2651,6 +2651,13 @@ export function ChatWidget({
             )}
             {stage === "done" && (
               <div className="finished-action-tray space-y-2.5">
+                <div className="rounded-2xl border border-violet/15 bg-violet/[.045] p-3">
+                  <p className="text-sm font-semibold text-white">Want another angle?</p>
+                  <p className="mt-1 text-[10px] leading-5 text-text-dim">Keep the same project and create a useful variation without starting over.</p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {["New version","Shorter ad","Social version","Stronger CTA"].map((label) => <button key={label} type="button" onClick={() => { trackGrowthEvent("variation_started", { label }); void handleContinueAfterResult(label); }} disabled={busy} className="rounded-full border border-white/[.09] bg-white/[.025] px-2.5 py-1.5 text-[9px] font-semibold text-text-muted hover:border-violet/35 hover:text-white disabled:opacity-50">{label}</button>)}
+                  </div>
+                </div>
                 <div className="finished-action-buttons flex flex-wrap gap-2">
                   <Button
                     variant="primary"
