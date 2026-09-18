@@ -1,0 +1,9 @@
+export type GrowthEventName = 'page_view'|'hero_cta_click'|'url_entered'|'website_capture_started'|'website_capture_completed'|'website_preview_viewed'|'suggested_prompt_clicked'|'creation_mode_selected'|'creation_started'|'auth_opened'|'auth_completed'|'quote_shown'|'paywall_shown'|'pricing_viewed'|'plan_selected'|'credit_pack_selected'|'checkout_started'|'checkout_success'|'checkout_cancelled'|'checkout_failed'|'generation_started'|'generation_completed'|'generation_failed'|'generation_cancelled'|'download_clicked'|'variation_started'|'repeat_creation_started'|'referral_opened'|'referral_completed';
+const SESSION_KEY='aiwebvideo_growth_session';
+function getSessionId(){ if(typeof window==='undefined') return null; let id=sessionStorage.getItem(SESSION_KEY); if(!id){id=crypto.randomUUID();sessionStorage.setItem(SESSION_KEY,id);} return id; }
+export function trackGrowthEvent(event: GrowthEventName, metadata?: Record<string,unknown>){
+  if(typeof window==='undefined') return; const params=new URLSearchParams(window.location.search);
+  if(!sessionStorage.getItem('aiwebvideo_growth_landing')) sessionStorage.setItem('aiwebvideo_growth_landing',window.location.pathname);
+  const payload={event,sessionId:getSessionId(),path:window.location.pathname,referrer:document.referrer||undefined,landingPage:sessionStorage.getItem('aiwebvideo_growth_landing')||window.location.pathname,deviceClass:window.matchMedia('(max-width: 767px)').matches?'mobile':'desktop',utmSource:params.get('utm_source')||undefined,utmMedium:params.get('utm_medium')||undefined,utmCampaign:params.get('utm_campaign')||undefined,metadata};
+  void fetch('/api/analytics/events',{method:'POST',credentials:'same-origin',keepalive:true,headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).catch(()=>{});
+}
