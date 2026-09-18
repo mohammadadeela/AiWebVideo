@@ -8,6 +8,7 @@ import paypalCardSettlementRouter from './paypal-card-settlement.js';
 import paypalCardRouter from './paypal-card.js';
 import { paypalCardSubscriptionRouter, paypalManagedSubscriptionRouter } from './paypal-card-subscriptions.js';
 import growthRouter, { settleGrowthCredits } from './growth.js';
+import analyticsRouter from './analytics.js';
 import adminRouter from './admin.js';
 import studioRouter from './studio.js';
 import studioUploadRouter from './studio-upload.js';
@@ -192,6 +193,7 @@ router.use('/paypal-card', paypalCardSubscriptionRouter);
 router.use('/paypal-card', paypalCardSettlementRouter);
 router.use('/paypal-card', paypalCardRouter);
 router.use('/growth', growthRouter);
+router.use('/analytics', analyticsRouter);
 router.use('/admin', adminRouter);
 
 export default router;
