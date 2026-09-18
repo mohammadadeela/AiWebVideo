@@ -54,3 +54,13 @@ test('subscription checkout reuses the embedded checkout UI and visual states', 
   assert.match(checkout, /Your payment details are encrypted in transit and securely processed/);
   assert.doesNotMatch(subscription, /writeCheckoutPlaceholder|window\.open/);
 });
+
+test('card fields render as one clean input surface without nested provider boxes', async () => {
+  const source = await frontend('src/components/billing/SecureCheckoutModal.tsx');
+  assert.match(source, /background: 'transparent'/);
+  assert.match(source, /border: '0'/);
+  assert.match(source, /borderRadius: '0'/);
+  assert.match(source, /boxShadow: 'none'/);
+  assert.match(source, /className="h-\[56px\] overflow-hidden rounded-\[12px\] border/);
+  assert.doesNotMatch(source, /p-px.*bg-\[#f8f7fb\]/);
+});
