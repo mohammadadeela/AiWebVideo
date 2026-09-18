@@ -1,12 +1,8 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { useLocation } from "wouter";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/app-button";
 import type { JobAsset } from "./types";
-import { getActiveJobId } from "@/lib/guestSession";
-import { importStudioJob, listStudioProjects } from "@/lib/studio-api";
-import { CheckCircle2, Clapperboard, Download, Images, Layers3, Loader2, X } from "lucide-react";
+import { CheckCircle2, Clapperboard, Download, Images, Loader2, X } from "lucide-react";
 
 const ASPECT_RATIOS = ["9:16", "1:1", "16:9"] as const;
 
@@ -15,7 +11,6 @@ function videoPreviewUrl(url: string) {
 }
 
 export function ResultGrid({ assets, onUnlock, sourceKind = "website" }: { assets: JobAsset[]; onUnlock: () => void; sourceKind?: "website" | "studio" | "upload" }) {
-  const [, navigate] = useLocation();
   const videos = assets.filter((asset) => asset.type === "video");
   const photos = assets.filter((asset) => asset.type === "photo");
   const screenshots = assets.filter((asset) => asset.type === "screenshot");
@@ -23,7 +18,6 @@ export function ResultGrid({ assets, onUnlock, sourceKind = "website" }: { asset
   const anyLocked = assets.some((asset) => !asset.downloadable);
   const [activeRatio, setActiveRatio] = useState<(typeof ASPECT_RATIOS)[number]>("16:9");
   const [activePhoto, setActivePhoto] = useState<JobAsset | null>(null);
-  const [openingStudio, setOpeningStudio] = useState(false);
   const activeVideo = videos.find((video) => video.aspectRatio === activeRatio) ?? videos[videos.length - 1];
 
   useEffect(() => {
@@ -66,49 +60,7 @@ export function ResultGrid({ assets, onUnlock, sourceKind = "website" }: { asset
     }
   }
 
-  async function openStudioEditor() {
-    if (openingStudio) return;
-    if (anyLocked) {
-      onUnlock();
-      return;
-    }
-    const params = new URLSearchParams(window.location.search);
-    const jobId = params.get("job") ?? getActiveJobId();
-    if (!jobId) {
-      navigate("/studio");
-      return;
-    }
-
-    setOpeningStudio(true);
-    try {
-      let listed: Awaited<ReturnType<typeof listStudioProjects>>;
-      try {
-        listed = await listStudioProjects();
-      } catch {
-        listed = { projects: [] };
-      }
-      const existing = listed.projects.find((project) => project.sourceJobId === jobId);
-      if (existing) {
-        navigate(`/studio/project/${existing.id}`);
-        return;
-      }
-      const project = await importStudioJob(jobId);
-      navigate(`/studio/project/${project.id}`);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not open this generation in Studio.");
-    } finally {
-      setOpeningStudio(false);
-    }
-  }
-
   if (!assets.length) return <div className="w-full max-w-4xl rounded-2xl border border-border bg-panel-alt p-5 text-center text-sm text-text-muted">Generation finished, but no assets were returned.</div>;
-
-  const studioButton = (
-    <Button variant="secondary" size="sm" onClick={() => void openStudioEditor()} disabled={openingStudio}>
-      {openingStudio ? <Loader2 size={14} className="animate-spin" /> : <Layers3 size={14} />}
-      {openingStudio ? "Opening editor…" : "Edit in Studio"}
-    </Button>
-  );
 
   return (
     <div className="w-full max-w-4xl space-y-4 animate-fade-in-up">
@@ -117,7 +69,7 @@ export function ResultGrid({ assets, onUnlock, sourceKind = "website" }: { asset
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[.07] px-4 py-3.5">
             <div className="flex items-center gap-2.5">
               <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-mint/10 text-mint"><CheckCircle2 size={16} /></span>
-              <div><p className="text-xs font-semibold text-white">Final master is ready</p><p className="text-[9px] text-text-dim">Preview, open the timeline editor, or download</p></div>
+              <div><p className="text-xs font-semibold text-white">Final master is ready</p><p className="text-[9px] text-text-dim">Preview or download</p></div>
             </div>
             <span className="flex items-center gap-1.5 rounded-full border border-white/[.07] bg-white/[.035] px-2.5 py-1 text-[8px] font-semibold uppercase tracking-wider text-text-muted"><Clapperboard size={10} className="text-violet" /> AiWebVideo</span>
           </div>
@@ -129,7 +81,6 @@ export function ResultGrid({ assets, onUnlock, sourceKind = "website" }: { asset
           <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
             {videos.length > 1 ? <div className="flex gap-1.5">{ASPECT_RATIOS.map((ratio) => videos.some((video) => video.aspectRatio === ratio) ? <button key={ratio} onClick={() => setActiveRatio(ratio)} data-active={activeRatio === ratio} className="min-h-10 rounded-lg border border-border px-3 py-2 text-xs text-text-muted hover:text-white data-[active=true]:border-violet data-[active=true]:text-white">{ratio}</button> : null)}</div> : <span className="text-[9px] uppercase tracking-wider text-text-dim">{activeVideo.aspectRatio || activeRatio} master</span>}
             <div className="flex flex-wrap items-center gap-2">
-              {studioButton}
               {activeVideo.downloadable && <Button variant="secondary" size="sm" onClick={() => downloadFile(activeVideo)}><Download size={14} /> Export video</Button>}
             </div>
           </div>
@@ -140,7 +91,7 @@ export function ResultGrid({ assets, onUnlock, sourceKind = "website" }: { asset
       {photos.length > 0 && (
         <div className="overflow-hidden rounded-[22px] border border-white/[.09] bg-[#0c0917] p-4 shadow-[0_28px_70px_-42px_rgba(139,92,246,.75)] sm:p-5">
           <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-            <div><p className="text-sm font-semibold text-white">{photos.length === 4 ? "Your 4 generated photos are ready" : "Your generated photos are ready"}</p><p className="mt-1 text-[10px] text-text-dim">Open any image full size, edit the generation in Studio, or download directly.</p></div>
+            <div><p className="text-sm font-semibold text-white">{photos.length === 4 ? "Your 4 generated photos are ready" : "Your generated photos are ready"}</p><p className="mt-1 text-[10px] text-text-dim">Open any image full size, download directly.</p></div>
             <div className="flex items-center gap-2"><span className="rounded-full border border-mint/15 bg-mint/[.07] px-2.5 py-1 text-[9px] font-semibold text-mint">{photos.length} photos</span>{studioButton}</div>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
