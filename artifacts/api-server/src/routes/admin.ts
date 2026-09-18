@@ -16,6 +16,7 @@ import { getPayPalReadiness, PRODUCTS } from './paypal.js';
 import { getProviderQueueSnapshot } from '../lib/provider-queue.js';
 import { isR2Configured, uploadBufferToR2 } from '../lib/r2-storage.js';
 import { classifyAdminProduction } from '../lib/admin-production.js';
+import { getGrowthFunnel } from '../lib/growth-analytics.js';
 
 const router = Router();
 router.use(requireAdmin);
@@ -271,6 +272,7 @@ router.get('/reports', async (req, res) => {
       });
     }
 
+    const growth = await getGrowthFunnel(periodStart);
     const subscriptionRows = new Map(subscriptionPlans.rows.map((row) => [String(row.plan), row]));
     const subscriptionBreakdown = (['creator', 'pro', 'agency'] as const).map((plan) => ({
       plan,
@@ -321,6 +323,7 @@ router.get('/reports', async (req, res) => {
       timeline: timeline.rows,
       paymentKinds: paymentKinds.rows,
       recentPayments: recentPayments.rows,
+      growth,
     });
   } catch (error) { sendError(res, error); }
 });
