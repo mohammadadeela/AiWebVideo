@@ -146,6 +146,25 @@ export function AdminReports({ report, range, loading, onRangeChange }: {
 
   return (
     <div className="mt-7 space-y-6">
+      <section className="rounded-3xl border border-border bg-panel p-5">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="font-display text-xl font-bold text-text-primary">Growth funnel</h2>
+            <p className="mt-1 text-xs text-text-dim">First-party product events for the selected report period. Counts are observed events, not unique customers.</p>
+          </div>
+          <span className="font-utility text-xs text-violet">{number(report.growth?.totalEvents)} tracked events</span>
+        </div>
+        <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          {(Array.isArray(report.growth?.funnel) ? report.growth.funnel : []).map((step: Record<string, unknown>, index: number) => (
+            <div key={String(step.event)} className="rounded-2xl border border-border bg-panel-alt/70 p-3">
+              <p className="text-[9px] uppercase tracking-[.1em] text-text-dim">{String(step.event).replaceAll('_',' ')}</p>
+              <p className="mt-1 font-utility text-lg font-semibold text-text-primary">{number(step.count).toLocaleString()}</p>
+              {index > 0 && <p className="mt-1 text-[9px] text-text-muted">{step.conversionFromPrevious == null ? 'No previous-stage volume' : `${number(step.conversionFromPrevious).toFixed(1)}% from previous stage`}</p>}
+            </div>
+          ))}
+        </div>
+      </section>
+
       <section className="flex flex-col gap-4 rounded-3xl border border-border bg-panel p-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="flex items-center gap-2 text-violet"><CalendarRange size={17} /><p className="font-utility text-[9px] font-semibold uppercase tracking-[.16em]">Financial reporting</p></div>
