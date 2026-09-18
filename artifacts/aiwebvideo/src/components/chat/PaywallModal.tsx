@@ -150,7 +150,7 @@ export function PaywallModal({
                 return (
                   <button
                     key={pack.id}
-                    onClick={() => setDirectCheckout({
+                    onClick={() => { trackGrowthEvent('credit_pack_selected', { pack: pack.id, credits: packCredits }); trackGrowthEvent('checkout_started', { kind: 'credit_pack', pack: pack.id }); setDirectCheckout({
                       plan: pack.id,
                       productName: `${packCredits.toLocaleString()} production credits`,
                       amountUsd: discounted,
