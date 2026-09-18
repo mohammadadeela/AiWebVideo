@@ -156,7 +156,7 @@ export function PaywallModal({
                       amountUsd: discounted,
                       originalAmountUsd: pack.amountUsd,
                       credits: packCredits,
-                    })}
+                    })}}
                     className={`flex w-full items-center justify-between rounded-2xl border p-4 text-left transition ${bestCreditPackId === pack.id ? 'border-mint/45 bg-mint/[.07]' : 'border-white/10 bg-white/[.025] hover:border-mint/30'}`}
                   >
                     <div>
