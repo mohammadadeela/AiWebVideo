@@ -181,7 +181,6 @@ export function Nav() {
               </div>
             )}
           </div>
-          <Link href="/studio" className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3.5 text-xs font-semibold text-white transition hover:bg-violet/[.10] hover:text-violet"><Layers3 size={14} />Studio</Link>
           <Link href="/examples" className="inline-flex min-h-11 items-center rounded-xl px-3.5 text-xs font-medium text-text-muted transition hover:bg-white/[.04] hover:text-white">Examples</Link>
           <Link href="/how-it-works" className="inline-flex min-h-11 items-center rounded-xl px-3.5 text-xs font-medium text-text-muted transition hover:bg-white/[.04] hover:text-white">How it works</Link>
           <Link href="/pricing" className="inline-flex min-h-11 items-center rounded-xl px-3.5 text-xs font-medium text-text-muted transition hover:bg-white/[.04] hover:text-white">Pricing</Link>
@@ -291,15 +290,6 @@ export function Nav() {
                   </Link>
                 ))}
               </div>
-
-              <Link href="/studio" onClick={() => setMobileOpen(false)} className="mt-3 flex min-h-[58px] items-center gap-3 rounded-2xl border border-violet/25 bg-[linear-gradient(135deg,rgba(139,92,246,.16),rgba(45,212,191,.05))] px-3 py-2.5 transition active:scale-[.985]">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-violet/25 bg-violet/10 text-violet"><Layers3 size={16} /></span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[12px] font-semibold text-white">Studio</span>
-                  <span className="mt-0.5 block truncate text-[9px] text-text-dim">Edit videos and images with timeline + AI Edit</span>
-                </span>
-                <ArrowRightIcon />
-              </Link>
 
               <div className="my-3 h-px bg-white/[.07]" />
               <div className="grid grid-cols-3 gap-2">
