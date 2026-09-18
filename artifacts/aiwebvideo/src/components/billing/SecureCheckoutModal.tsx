@@ -9,10 +9,9 @@ import {
   LockKeyhole,
   ShieldCheck,
   Trash2,
-  WalletCards,
   X,
 } from 'lucide-react';
-import { ApiError, request, startCheckout, type CheckoutId } from '@/lib/api-client';
+import { ApiError, request, type CheckoutId } from '@/lib/api-client';
 
 interface CheckoutConfig {
   configured: boolean;
@@ -128,19 +127,19 @@ const CARD_FIELD_SELECTORS = [
 // high-contrast in every autofill state instead of becoming pale-on-white.
 const CARD_FIELD_STYLE = {
   input: {
-    color: '#101322',
-    'background-color': '#ffffff',
-    'font-size': '19px',
-    'line-height': '26px',
+    color: '#171321',
+    'background-color': '#f8f7fb',
+    'font-size': '16px',
+    'line-height': '22px',
     'font-family': 'Inter, ui-sans-serif, system-ui, sans-serif',
-    'font-weight': '700',
-    'caret-color': '#101322',
-    padding: '15px 16px',
+    'font-weight': '600',
+    'caret-color': '#171321',
+    padding: '15px 14px',
   },
-  'input::placeholder': { color: '#667085', 'font-weight': '600' },
-  ':focus': { color: '#101322', 'background-color': '#ffffff' },
+  'input::placeholder': { color: '#7b7488', 'font-weight': '500' },
+  ':focus': { color: '#171321', 'background-color': '#ffffff' },
   '.invalid': { color: '#b4233d' },
-  '.valid': { color: '#101322' },
+  '.valid': { color: '#171321' },
 };
 
 type PaymentState = 'idle' | 'processing' | 'success' | 'error';
@@ -156,8 +155,8 @@ function money(value: number) {
 function errorMessage(error: unknown) {
   if (error instanceof ApiError) {
     if (error.code === 'PRICE_CHANGED') return 'The price changed. Close checkout, review it, and try again.';
-    if (error.code === 'PAYPAL_RECURRING_CARDS_NOT_ENABLED') return 'Monthly card billing is not enabled for this payment account yet. You can use PayPal instead.';
-    if (error.code === 'PAYPAL_ADVANCED_CARDS_NOT_ENABLED') return 'Card checkout is unavailable. Try PayPal instead.';
+    if (error.code === 'PAYPAL_RECURRING_CARDS_NOT_ENABLED') return 'Monthly card billing is not available for this payment account yet. Try another card.';
+    if (error.code === 'PAYPAL_ADVANCED_CARDS_NOT_ENABLED') return 'Card checkout is temporarily unavailable. Try again later.';
     if (error.code === 'CARD_PAYMENT_FAILED') return 'The card was not approved. Check the details or try another payment method.';
     if (error.code === 'PAYMENT_NOT_COMPLETED') return 'Your bank has not completed the payment yet. Try again in a moment.';
     if (error.code === 'SUBSCRIPTION_VAULT_PENDING') return error.message;
@@ -268,8 +267,8 @@ function FieldShell({ label, id }: { label: string; id: string }) {
   return (
     <label className="block min-w-0">
       <span className="mb-2 block text-[13px] font-bold tracking-[.01em] text-[#d9d5e4]">{label}</span>
-      <div className="rounded-[15px] border border-white/10 bg-white p-px shadow-[0_16px_34px_-24px_rgba(139,92,246,.85)] transition focus-within:border-violet/45 focus-within:ring-2 focus-within:ring-violet/20">
-        <div id={id} className="h-[58px] overflow-hidden rounded-[13px] bg-white" />
+      <div className="rounded-[14px] border border-white/[.10] bg-[#f8f7fb] p-px shadow-[0_12px_28px_-24px_rgba(139,92,246,.7)] transition focus-within:border-violet/45 focus-within:ring-2 focus-within:ring-violet/20">
+        <div id={id} className="h-[54px] overflow-hidden rounded-[12px] bg-[#f8f7fb]" />
       </div>
     </label>
   );
@@ -471,7 +470,7 @@ export function SecureCheckoutModal({
             if (ready.result && googleButtonRef.current) {
               googleButtonRef.current.replaceChildren();
               const button = paymentClient.createButton({
-                buttonType: 'pay',
+                buttonType: 'buy',
                 buttonColor: 'black',
                 buttonSizeMode: 'fill',
                 allowedPaymentMethods: googleConfig.allowedPaymentMethods,
@@ -493,7 +492,6 @@ export function SecureCheckoutModal({
                 },
               });
               button.style.width = '100%';
-              button.style.height = '52px';
               googleButtonRef.current.appendChild(button);
               setGooglePayEligible(true);
             }
@@ -505,7 +503,7 @@ export function SecureCheckoutModal({
         if (!cancelled) {
           cardFieldsRef.current = null;
           setCardEligible(false);
-          markError(new Error('Card checkout could not load. You can try PayPal instead.'));
+          markError(new Error('Card checkout could not load. Please try again in a moment.'));
         }
       }
     }
@@ -565,17 +563,6 @@ export function SecureCheckoutModal({
     }
   }
 
-  async function continueWithPayPal() {
-    if (submitting) return;
-    setPaymentState('processing');
-    setError(null);
-    try {
-      const { checkoutUrl } = await startCheckout(plan, jobId);
-      window.location.href = checkoutUrl;
-    } catch (paypalError) {
-      markError(paypalError);
-    }
-  }
 
   function close() {
     if (submitting || success) return;
@@ -652,7 +639,7 @@ export function SecureCheckoutModal({
 
               <div className="mt-5 flex items-start gap-2.5 rounded-xl border border-mint/10 bg-mint/[.035] p-3 text-[11px] leading-5 text-[#bbb5ca]">
                 <ShieldCheck size={15} className="mt-0.5 shrink-0 text-mint" />
-                Your payment details are encrypted in transit and securely processed.
+                Your card details are securely handled by the payment processor. AiWebVideo does not store your full card number or CVV.
               </div>
             </aside>
 
@@ -677,19 +664,25 @@ export function SecureCheckoutModal({
 
               {!recurring && (
                 <div className={`transition-all duration-300 ${googlePayEligible ? 'mt-4 opacity-100' : 'pointer-events-none h-0 overflow-hidden opacity-0'}`}>
-                  <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/25 p-1 shadow-[0_14px_34px_-24px_rgba(66,133,244,.9)]">
-                    <div ref={googleButtonRef} className="min-h-[52px] w-full overflow-hidden rounded-xl" />
+                  <div className="rounded-2xl border border-white/[.10] bg-white/[.035] p-2 shadow-[0_16px_34px_-26px_rgba(0,0,0,.8)]">
+                    <div ref={googleButtonRef} className="h-[56px] w-full" />
                   </div>
                 </div>
               )}
 
               {!recurring && googlePayEligible && (
-                <div className="my-5 flex items-center gap-3"><span className="h-px flex-1 bg-white/[.08]" /><span className="text-[10px] font-bold uppercase tracking-[.16em] text-text-dim">or pay by card</span><span className="h-px flex-1 bg-white/[.08]" /></div>
+                <div className="my-5 flex items-center gap-3"><span className="h-px flex-1 bg-white/[.08]" /><span className="text-[10px] font-bold uppercase tracking-[.16em] text-text-dim">or enter card details</span><span className="h-px flex-1 bg-white/[.08]" /></div>
               )}
 
               {canShowCardForm && (
                 <section className={savedMethods.length || googlePayEligible ? 'mt-4' : ''}>
-                  {!googlePayEligible && <p className="mb-4 text-sm font-bold text-white">Card details</p>}
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-bold text-white">Card details</p>
+                      <p className="mt-1 text-[10px] leading-4 text-text-dim">Enter a credit or debit card. Your browser may offer its saved payment details.</p>
+                    </div>
+                    <CreditCard size={17} className="shrink-0 text-text-dim" />
+                  </div>
                   <div className="grid gap-4">
                     <FieldShell label="Name on card" id="aiwebvideo-card-name" />
                     <FieldShell label="Card number" id="aiwebvideo-card-number" />
@@ -716,7 +709,7 @@ export function SecureCheckoutModal({
 
               {config && (!config.advancedCardsEnabled || (recurring && !config.vaultEnabled)) && (
                 <div className="rounded-xl border border-amber-300/15 bg-amber-300/[.05] px-3 py-2.5 text-[11px] leading-5 text-amber-100">
-                  {recurring ? 'Card subscriptions need saved-card billing enabled. You can still buy this plan with PayPal.' : 'Card payment is unavailable on this browser. Use PayPal below.'}
+                  {recurring ? 'Card subscriptions need saved-card billing enabled for this payment account.' : 'Card payment is unavailable right now. Please try again later.'}
                 </div>
               )}
 
@@ -724,7 +717,6 @@ export function SecureCheckoutModal({
                 <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-rose-400/20 bg-rose-500/[.07] p-3 text-[11px] leading-5 text-rose-200" role="alert" aria-live="polite"><AlertCircle size={15} className="mt-0.5 shrink-0" /><span>{error}</span></div>
               )}
 
-              <button type="button" onClick={() => void continueWithPayPal()} disabled={submitting} className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[.03] px-4 text-xs font-bold text-text-muted transition hover:border-violet/25 hover:bg-white/[.055] hover:text-white disabled:opacity-50"><WalletCards size={15} /> Buy with PayPal</button>
             </main>
           </div>
         )}
