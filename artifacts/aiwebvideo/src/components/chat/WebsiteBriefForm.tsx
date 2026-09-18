@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
-import { Link } from "wouter";
 import {
   ArrowRight,
   Check,
@@ -529,15 +528,6 @@ export function WebsiteBriefForm({
               <span className="md:hidden">{short}</span>
             </button>
           ))}
-          <Link
-            href="/studio"
-            className="flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-violet/20 bg-violet/[.06] px-3 text-[10px] font-semibold text-violet transition hover:border-violet/40 hover:bg-violet/[.12] hover:text-white sm:px-4 sm:text-[11px]"
-            title="Edit videos and images with timeline, layers and AI Edit"
-          >
-            <Layers3 size={14} />
-            <span className="hidden md:inline">AI Editor</span>
-            <span className="md:hidden">Editor</span>
-          </Link>
         </div>
       </div>
 
