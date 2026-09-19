@@ -173,6 +173,7 @@ async function loadReferenceCaptures(
   meta: CaptureMeta | null,
   aspectRatio: "16:9" | "9:16" | "1:1",
   selectedCaptureIds?: string[],
+  selectedGeneratedPhotoIds?: string[],
 ) {
   const captures: Array<{ id: string; label: string; buffer: Buffer }> = [];
   const uploadedMedia = meta?.sourceType === "upload" || meta?.sourceType === "studio";
@@ -258,10 +259,17 @@ async function loadReferenceCaptures(
   } catch {
     /* optional */
   }
+  // Add finished AI photos before applying selection so the exact images the
+  // user chose can become first-class video/edit references.
+  for (const [index, storageUrl] of (meta?.generatedReferenceUrls ?? []).entries()) {
+    await addGeneratedReference(storageUrl, index);
+  }
+
   const selectedIds = selectedCaptureIds ?? [];
-  const selectedSet = selectedIds.length ? new Set(selectedIds) : null;
-  const selectedPages = selectedSet
-    ? selectedIds
+  const selectedGeneratedIds = selectedGeneratedPhotoIds ?? [];
+  const hasExplicitSelection = selectedIds.length > 0 || selectedGeneratedIds.length > 0;
+  const selectedPages = hasExplicitSelection
+    ? [...selectedIds, ...selectedGeneratedIds]
         .map((id) => captures.find((capture) => capture.id === id))
         .filter((capture): capture is { id: string; label: string; buffer: Buffer } => Boolean(capture))
     : captures;
@@ -269,13 +277,6 @@ async function loadReferenceCaptures(
     0,
     websiteIcon?.length ? MAX_REFERENCE_CAPTURES - 1 : MAX_REFERENCE_CAPTURES,
   );
-
-  for (const [index, storageUrl] of (meta?.generatedReferenceUrls ?? []).entries()) {
-    if (pageCaptures.length >= (websiteIcon?.length ? MAX_REFERENCE_CAPTURES - 1 : MAX_REFERENCE_CAPTURES)) break;
-    const before = captures.length;
-    await addGeneratedReference(storageUrl, index);
-    if (captures.length > before) pageCaptures.push(captures[captures.length - 1]);
-  }
 
   if (websiteIcon?.length)
     pageCaptures.push({
@@ -666,6 +667,10 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
           )
           .max(MAX_REFERENCE_CAPTURES)
           .optional(),
+        selectedGeneratedPhotoIds: z
+          .array(z.string().regex(/^generated-photo-\d+$/))
+          .max(MAX_REFERENCE_CAPTURES)
+          .optional(),
       })
       .parse(req.body);
     const {
@@ -678,6 +683,7 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
       audioMode: requestedAudioMode,
       frameRate,
       selectedCaptureIds,
+      selectedGeneratedPhotoIds,
     } = storyboardInput;
     const aspectRatio = mode === "icon" ? ("1:1" as const) : storyboardInput.aspectRatio;
 
@@ -815,6 +821,7 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
         outputQuality,
         frameRate,
         selectedCaptureIds,
+        selectedGeneratedPhotoIds,
       });
     } catch (setupError) {
       await refundJobCredits(job.id, req.user!.id, planningQuote.totalCredits, `Planning setup failed ${job.id}`).catch(
@@ -857,7 +864,7 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
           /* no full-page screenshot cached */
         }
 
-        const plannerCaptures = await loadReferenceCaptures(job.id, meta, aspectRatio, selectedCaptureIds);
+        const plannerCaptures = await loadReferenceCaptures(job.id, meta, aspectRatio, selectedCaptureIds, selectedGeneratedPhotoIds);
         if (
           selectedCaptureIds?.length &&
           plannerCaptures.filter((capture) => capture.id !== "website-icon.jpg").length === 0
