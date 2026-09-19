@@ -78,7 +78,7 @@ export interface CaptureMetadata {
   pageCount: number;
   /** Mirrors the API capture metadata so shared workspace UI can stay source-aware. */
   sourceType?: "website" | "upload" | "studio";
-  studioKind?: "product" | "idea" | "scenario" | null;
+  studioKind?: "product" | "idea" | "scenario" | "interior" | null;
   ideaPrompt?: string | null;
   screenshotUrl?: string | null;
   title?: string;
