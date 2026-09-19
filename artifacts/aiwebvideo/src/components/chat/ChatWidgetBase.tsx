@@ -178,7 +178,12 @@ const isImageMode = (value: JobMode) => value === "photos" || value === "icon";
 let msgCounter = 0;
 const nextId = () => `m${++msgCounter}`;
 
-function doneResultMessage(job: JobStatusResponse, onUnlock: () => void, onGeneratedPhotoSelectionChange?: (assetIds: string[]) => void, selectedGeneratedPhotoIds: string[] = []): ReactNode {
+function doneResultMessage(
+  job: JobStatusResponse,
+  onUnlock: () => void,
+  onGeneratedPhotoSelectionChange?: (assetIds: string[]) => void,
+  selectedGeneratedPhotoIds: string[] = [],
+): ReactNode {
   const label =
     job.mode === "photos"
       ? "Your AI photo campaign is ready."
@@ -187,15 +192,33 @@ function doneResultMessage(job: JobStatusResponse, onUnlock: () => void, onGener
         : job.sourceUrl.startsWith("upload://")
           ? "Your AI-generated production is ready."
           : "Your website campaign is ready.";
+
+  const photos = (job.assets ?? []).filter((asset) => asset.type === "photo");
+  const hasPhotoSelection = photos.length > 0 && Boolean(onGeneratedPhotoSelectionChange);
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <p>{label}</p>
       {job.errorMessage && (
         <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
           {job.errorMessage}
         </p>
       )}
-      <ResultGrid assets={job.assets} onUnlock={onUnlock} sourceKind={resultSourceKind(job)} selectedGeneratedPhotoIds={selectedGeneratedPhotoIds} onGeneratedPhotoSelectionChange={onGeneratedPhotoSelectionChange} />
+      <ResultGrid
+        assets={job.assets}
+        onUnlock={onUnlock}
+        sourceKind={resultSourceKind(job)}
+        selectedGeneratedPhotoIds={selectedGeneratedPhotoIds}
+        onGeneratedPhotoSelectionChange={onGeneratedPhotoSelectionChange}
+      />
+      {hasPhotoSelection && (
+        <div className="rounded-xl border border-white/10 bg-white/[.025] p-3">
+          <p className="text-xs font-medium text-text-primary">Choose images for your next video or edit</p>
+          <p className="mt-1 text-[11px] leading-relaxed text-text-muted">
+            Select one or more images above. Your next video or edit will use exactly those selected images as visual references.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
