@@ -125,6 +125,39 @@ export const STUDIO_CONFIGS: Record<StudioKind, StudioConfig> = {
     ],
     startingCreditsNote: 'From 160 credits for an 8-second premium 1080p scenario · optional AI narration adds 30 credits',
   },
+  interior: {
+    kind: 'interior',
+    path: '/studio/interior',
+    navLabel: 'Interior Design',
+    seoTitle: 'AI Interior Design Generator for Architects and Engineers',
+    seoDescription: 'Upload room, shop, property or architectural references and generate high-fidelity interior concepts, architectural visuals and walkthrough videos grounded in the supplied geometry and measurements.',
+    eyebrow: 'New — Professional Interior Studio',
+    heading: 'Turn your space into a professional design concept',
+    subheading: 'Upload photos, plans, sketches or elevations, provide exact measurements and describe the design. AI uses the references as geometry ground truth for high-fidelity interior images and walkthrough videos.',
+    ideaLabel: 'Describe the design and technical requirements',
+    ideaPlaceholder: 'e.g. “Shop is 4m wide × 12m long, curved ceiling, keep the existing roof. Modern luxury fit-out with gypsum, linear and magnetic lighting, warm stone, wood joinery and a clear customer path.”',
+    ideaHelper: 'Exact measurements you provide are treated as constraints. If a dimension cannot be verified from an image, AI must not invent precision.',
+    ideaRequired: true,
+    photosLabel: 'Upload space references',
+    photosHelper: 'Add clear photos from multiple angles plus plans, sketches, elevations or ceiling references when available. More reference views improve geometric consistency.',
+    photosRequired: true,
+    modeOptions: [
+      { label: 'Design images', mode: 'photos' },
+      { label: 'Walkthrough video', mode: 'custom' },
+    ],
+    defaultAudioMode: 'silent',
+    howItWorks: [
+      'Upload the actual space from multiple angles and add any plan, sketch or elevation.',
+      'Enter exact measurements and constraints, then describe materials, ceiling, lighting, furniture and design intent.',
+      'AI cross-checks the references and creates consistent architectural visualizations or a continuous walkthrough.',
+    ],
+    examplePrompts: [
+      '4m × 12m retail shop, preserve the curved roof, modern luxury fit-out, gypsum ceiling with linear and magnetic lighting, stone and walnut joinery.',
+      'Redesign this apartment living room while keeping all windows, doors, ceiling height and wall positions exactly as shown.',
+      'Create a professional real-estate walkthrough with warm indirect lighting, premium finishes and realistic furniture scale.',
+    ],
+    startingCreditsNote: 'Professional interior generations use the existing credit system; image/video cost is shown before generation.',
+  },
 };
 
-export const STUDIO_ORDER: StudioKind[] = ['product', 'idea', 'scenario'];
+export const STUDIO_ORDER: StudioKind[] = ['product', 'idea', 'scenario', 'interior'];
