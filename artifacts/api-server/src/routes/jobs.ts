@@ -105,6 +105,34 @@ async function copyCaptureFiles(sourceJobId: string, targetJobId: string) {
   );
 }
 
+async function copyGeneratedPhotoAssets(
+  sourceJobId: string,
+  targetJobId: string,
+  assets: Array<{ type: string; storage_url: string }>,
+) {
+  const targetDir = path.join(ASSETS_DIR, targetJobId);
+  await fs.mkdir(targetDir, { recursive: true });
+
+  await Promise.all(
+    assets
+      .filter((asset) => asset.type === "photo")
+      .map(async (asset) => {
+        let filename = "";
+        try {
+          filename = path.basename(new URL(asset.storage_url, "http://local").pathname);
+        } catch {
+          filename = path.basename(asset.storage_url);
+        }
+        if (!/^[a-z0-9][a-z0-9._-]{0,220}$/i.test(filename)) return;
+        const localPath = await ensureLocalAsset(sourceJobId, filename).catch(() => null);
+        if (!localPath) return;
+        const targetPath = path.join(targetDir, filename);
+        await fs.copyFile(localPath, targetPath);
+        await uploadFileToR2(targetJobId, filename, targetPath);
+      }),
+  );
+}
+
 function initialAiVideoEstimate(sceneCount: number, finishAllowanceSeconds: number) {
   // Conservative only until the first scene completes; live throughput then
   // replaces this value. Scenes are processed concurrently, so this is not a
@@ -125,6 +153,7 @@ type CaptureMeta = {
   sourceType?: "website" | "upload" | "studio";
   studioKind?: "product" | "idea" | "scenario" | "interior" | null;
   ideaPrompt?: string | null;
+  generatedReferenceUrls?: string[];
 };
 
 function effectiveVideoModeForMeta(meta: CaptureMeta | null, requestedMode: string) {
@@ -158,6 +187,23 @@ async function loadReferenceCaptures(
       captures.push({ id: filename, label, buffer });
     } catch {
       /* optional capture */
+    }
+  };
+  const addGeneratedReference = async (storageUrl: string, index: number) => {
+    try {
+      const filename = path.basename(new URL(storageUrl, "http://local").pathname);
+      if (!/^[a-z0-9][a-z0-9._-]{0,220}$/i.test(filename)) return;
+      const localPath = await ensureLocalAsset(jobId, filename);
+      if (!localPath) return;
+      const buffer = await fs.readFile(localPath);
+      if (!buffer.length || captures.some((item) => item.buffer.equals(buffer))) return;
+      captures.push({
+        id: `generated-photo-${index + 1}`,
+        label: `Finished AI image ${index + 1} — visual reference for this next request`,
+        buffer,
+      });
+    } catch {
+      /* optional generated result reference */
     }
   };
 
@@ -223,6 +269,14 @@ async function loadReferenceCaptures(
     0,
     websiteIcon?.length ? MAX_REFERENCE_CAPTURES - 1 : MAX_REFERENCE_CAPTURES,
   );
+
+  for (const [index, storageUrl] of (meta?.generatedReferenceUrls ?? []).entries()) {
+    if (pageCaptures.length >= (websiteIcon?.length ? MAX_REFERENCE_CAPTURES - 1 : MAX_REFERENCE_CAPTURES)) break;
+    const before = captures.length;
+    await addGeneratedReference(storageUrl, index);
+    if (captures.length > before) pageCaptures.push(captures[captures.length - 1]);
+  }
+
   if (websiteIcon?.length)
     pageCaptures.push({
       id: "website-icon.jpg",
@@ -658,6 +712,20 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
       job = await createJobFromCapture(ownerId, source);
       await copyCaptureFiles(source.id, job.id);
       const sourceMeta = source.capture_metadata as CaptureMeta | null;
+
+      const generatedPhotoAssets = existingAssets
+        .filter((asset) => asset.type === "photo")
+        .map((asset) => asset.storage_url)
+        .filter((url): url is string => typeof url === "string" && url.length > 0);
+      if (generatedPhotoAssets.length) {
+        await copyGeneratedPhotoAssets(source.id, job.id, existingAssets);
+        const nextMeta = {
+          ...(sourceMeta ?? {}),
+          generatedReferenceUrls: generatedPhotoAssets.map((url) => url.replaceAll(source.id, job.id)),
+        } as Record<string, unknown>;
+        await updateJob(job.id, { capture_metadata: nextMeta });
+      }
+
       const variantLabel =
         sourceMeta?.sourceType === "studio"
           ? sourceMeta.studioKind === "product"
