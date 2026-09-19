@@ -1,6 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import { recordGeminiTextUsage } from './costs.js';
-import { runQueuedProviderCall } from './provider-queue.js';
+import { isProviderBillingUnavailable, runQueuedProviderCall } from './provider-queue.js';
 
 let _client: GoogleGenAI | null = null;
 
@@ -974,6 +974,15 @@ export async function generateStoryboard(input: StoryboardInput & { jobId: strin
   } catch (err) {
     const aiError = describeStoryboardError(err, model);
     console.error(`[storyboard] ${aiError}`);
+
+    // A provider billing/prepay failure is a hard stop, not a reason to fall
+    // back to a local storyboard and then launch another paid provider call.
+    // Re-throw it so the job route can fail the production immediately and
+    // restore the reserved credits.
+    if (isProviderBillingUnavailable(err)) {
+      throw err;
+    }
+
     return { storyboard: buildFallbackStoryboard(input), aiError };
   }
 }
