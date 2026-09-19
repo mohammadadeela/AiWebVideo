@@ -455,6 +455,26 @@ export function ProductPageToVideoPage() {
   return <SearchLandingPage page={pages.productPage} />;
 }
 
+export function AiVideoGeneratorPage() {
+  return <SearchLandingPage page={pages.aiVideo} />;
+}
+
+export function ProductPhotoGeneratorPage() {
+  return <SearchLandingPage page={pages.productPhoto} />;
+}
+
+export function ProductVideoGeneratorPage() {
+  return <SearchLandingPage page={pages.productVideo} />;
+}
+
+export function TalkingVideoGeneratorPage() {
+  return <SearchLandingPage page={pages.talkingVideo} />;
+}
+
+export function InteriorDesignGeneratorPage() {
+  return <SearchLandingPage page={pages.interiorDesign} />;
+}
+
 const exampleCards = [
   ["SaaS launch", "Use the product website to ground a concise feature or launch story.", ScanSearch],
   ["Product campaign", "Use an ecommerce page or real product references to direct product-focused media.", PackageOpen],
