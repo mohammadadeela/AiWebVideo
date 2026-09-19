@@ -35,24 +35,27 @@ function withRenderProfile(profile: string | undefined, run: () => void) {
   }
 }
 
-test('the automatic Gemini model chain defaults to premium Veo 3.1 Standard', () => {
-  withVideoModel(undefined, () => assert.deepEqual(geminiModelChain(), ['veo-3.1-generate-preview']));
+test('the automatic Gemini model chain defaults to Veo 3.1 Fast for responsive customer renders', () => {
+  withVideoModel(undefined, () => assert.deepEqual(geminiModelChain(), ['veo-3.1-fast-generate-preview']));
 });
 
-test('an old Fast setting cannot silently downgrade a final customer render', { concurrency: false }, () => {
+test('an explicit Fast model remains selected in the default speed mode', { concurrency: false }, () => {
   withRenderProfile(undefined, () => {
-    withVideoModel('veo-3.1-fast-generate-preview', () => {
-      assert.deepEqual(geminiModelChain(), ['veo-3.1-generate-preview']);
-    });
-  });
-});
-
-test('Fast remains available only through the explicit draft render profile', { concurrency: false }, () => {
-  withRenderProfile('draft', () => {
     withVideoModel('veo-3.1-fast-generate-preview', () => {
       assert.deepEqual(geminiModelChain(), ['veo-3.1-fast-generate-preview']);
     });
   });
+});
+
+test('quality mode explicitly selects standard Veo 3.1', { concurrency: false }, () => {
+  const previous = process.env.AI_VIDEO_SPEED_MODE;
+  process.env.AI_VIDEO_SPEED_MODE = 'quality';
+  try {
+    withVideoModel(undefined, () => assert.deepEqual(geminiModelChain(), ['veo-3.1-generate-preview']));
+  } finally {
+    if (previous === undefined) delete process.env.AI_VIDEO_SPEED_MODE;
+    else process.env.AI_VIDEO_SPEED_MODE = previous;
+  }
 });
 
 test('premium Standard 1080p and 4K credit rates cover provider cost by at least 2x', () => {
