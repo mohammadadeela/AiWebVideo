@@ -234,6 +234,7 @@ export function WebsiteBriefForm({
   const [settings, setSettings] = useState<WebsiteGenerationSettings>(DEFAULT_SETTINGS);
   const [selectedWebsiteRecipe, setSelectedWebsiteRecipe] = useState<WebsiteProductionMode | null>(null);
   const [selectedIdea, setSelectedIdea] = useState<CreativeIdea | null>(null);
+  const [interiorOutput, setInteriorOutput] = useState<"images" | "video">("images");
   const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -422,7 +423,7 @@ export function WebsiteBriefForm({
       studioKind: isProduct ? "product" : activeMode === "scenario" ? "scenario" : "interior",
       prompt: activePrompt,
       files,
-      mode: activeMode === "photo" ? "photos" : activeMode === "product-video" ? "video" : isInterior ? (["video","tour","walkthrough","flythrough","cinematic"].some((word) => activePrompt.toLowerCase().includes(word)) ? "custom" : "photos") : "custom",
+      mode: activeMode === "photo" ? "photos" : activeMode === "product-video" ? "video" : isInterior ? (interiorOutput === "video" ? "custom" : "photos") : "custom",
       durationSeconds: activeMode === "photo" ? 8 : durationSeconds,
       aspectRatio: settings.aspectRatio,
       outputQuality: settings.outputQuality,
@@ -543,6 +544,19 @@ export function WebsiteBriefForm({
       </div>
 
       <div className={`relative ${compactLayout ? "p-3 sm:p-4" : "p-4 sm:p-5"}`}>
+        {activeMode === "interior" && (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-300/15 bg-emerald-300/[.04] p-3">
+            <div>
+              <p className="text-[11px] font-semibold text-white">Interior output</p>
+              <p className="mt-0.5 text-[9px] text-text-dim">Images for design review or a continuous walkthrough video.</p>
+            </div>
+            <div className="flex rounded-xl border border-white/10 bg-black/20 p-1">
+              <button type="button" onClick={() => setInteriorOutput("images")} className={optionClass(interiorOutput === "images")}>Design images</button>
+              <button type="button" onClick={() => setInteriorOutput("video")} className={optionClass(interiorOutput === "video")}>Walkthrough video</button>
+            </div>
+          </div>
+        )}
+
         {!compactLayout && (
           <div className="mb-4">
             <p className="font-display text-base font-semibold text-white">
