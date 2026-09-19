@@ -123,7 +123,7 @@ type CaptureMeta = {
   logoUrl?: string | null;
   pages?: Array<{ url?: string; title?: string; screenshotUrl?: string }>;
   sourceType?: "website" | "upload" | "studio";
-  studioKind?: "product" | "idea" | "scenario" | null;
+  studioKind?: "product" | "idea" | "scenario" | "interior" | null;
   ideaPrompt?: string | null;
 };
 
