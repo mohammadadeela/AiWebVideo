@@ -226,6 +226,126 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
       links: [['AI Video Generator', '/ai-video-generator'], ['Product Photo Generator', '/product-photo-generator'], ['How it works', '/how-it-works']],
     },
   },
+  '/interior-design-walkthrough-video': {
+    title: 'AI Interior Design Walkthrough Video Generator | AiWebVideo',
+    description: 'Turn room photos, plans, sketches, or design concepts into an AI interior design walkthrough video for homes, shops, and property presentations.',
+    copy: {
+      eyebrow: 'Interior design walkthrough video',
+      h1: 'Create an AI interior design walkthrough video',
+      intro: 'Upload the space and describe the design direction to create a presentation-style walkthrough grounded in your references.',
+      createHref: '/?create=interior#generate',
+      sections: [
+        { heading: 'Upload the space', body: 'Add photos, plans, sketches, elevations, or other references you are authorized to use.' },
+        { heading: 'Describe the redesign', body: 'Specify style, materials, furniture, colors, lighting, and changes.' },
+        { heading: 'Choose a walkthrough', body: 'Create a presentation-oriented tour from the supplied design references.' },
+      ],
+      faq: [
+        ['Can I use a floor plan?', 'Yes. Use a scaled plan or explicit measurements when accurate proportions matter.'],
+        ['Is it construction documentation?', 'No. Generated visuals are presentation concepts and do not replace professional construction documentation.'],
+      ],
+      links: [['AI Interior Design Generator', '/ai-interior-design-generator'], ['3D House Walkthrough', '/3d-house-walkthrough'], ['Floor Plan to 3D', '/floor-plan-to-3d']],
+    },
+  },
+  '/real-estate-walkthrough-video': {
+    title: 'AI Real Estate Walkthrough Video Generator | AiWebVideo',
+    description: 'Create property walkthrough and presentation videos from real estate photos, plans, sketches, and interior design references.',
+    copy: {
+      eyebrow: 'Real estate walkthrough video',
+      h1: 'Create an AI real estate property walkthrough',
+      intro: 'Turn property references into a guided visual tour or redesign presentation for homes, apartments, shops, and other spaces.',
+      createHref: '/?create=interior#generate',
+      sections: [
+        { heading: 'Add property references', body: 'Upload photos, plans, sketches, or other authorized media.' },
+        { heading: 'Describe the property story', body: 'Explain rooms, audience, style, key features, and desired pacing.' },
+        { heading: 'Generate the walkthrough', body: 'Create a presentation-style property tour from the project references.' },
+      ],
+      faq: [
+        ['Can I use listing photos?', 'Yes, when you have authorization to use them.'],
+        ['Can it guarantee exact dimensions?', 'Use scaled plans or explicit measurements when dimensional accuracy matters; ordinary photos alone cannot guarantee it.'],
+      ],
+      links: [['Interior Design Walkthrough', '/interior-design-walkthrough-video'], ['AI Interior Design Generator', '/ai-interior-design-generator'], ['3D House Walkthrough', '/3d-house-walkthrough']],
+    },
+  },
+  '/3d-house-walkthrough': {
+    title: '3D House Walkthrough AI Generator | AiWebVideo',
+    description: 'Create a 3D-style visual walkthrough concept for a house using photos, floor plans, sketches, and interior design references.',
+    copy: {
+      eyebrow: '3D house walkthrough',
+      h1: 'Create a 3D-style house walkthrough with AI',
+      intro: 'Start from house references and describe the architectural and interior direction to create a presentation walkthrough.',
+      createHref: '/?create=interior#generate',
+      sections: [
+        { heading: 'Upload references', body: 'Use house photos, floor plans, sketches, elevations, or design references.' },
+        { heading: 'Describe the architecture', body: 'Specify materials, style, rooms, circulation, landscaping, or interior direction.' },
+        { heading: 'Generate the walkthrough', body: 'Create a 3D-style presentation sequence around the supplied concept.' },
+      ],
+      faq: [
+        ['Is this a CAD or BIM model?', 'No. It is a generated visual presentation, not a substitute for CAD, BIM, surveying, or construction documentation.'],
+        ['Can I use a floor plan?', 'Yes. Scaled plans or explicit measurements are recommended when geometry matters.'],
+      ],
+      links: [['Interior Design Walkthrough', '/interior-design-walkthrough-video'], ['Floor Plan to 3D', '/floor-plan-to-3d'], ['AI Architectural Visualization', '/ai-architectural-visualization']],
+    },
+  },
+  '/ai-architectural-visualization': {
+    title: 'AI Architectural Visualization Generator | AiWebVideo',
+    description: 'Create architectural concept images and walkthrough-style presentations from plans, sketches, elevations, and reference photos.',
+    copy: {
+      eyebrow: 'AI architectural visualization',
+      h1: 'Create AI architectural visualization from plans and references',
+      intro: 'Upload architectural references and describe the intended design to create presentation-oriented visual material.',
+      createHref: '/?create=interior#generate',
+      sections: [
+        { heading: 'Upload drawings', body: 'Add plans, sketches, elevations, or authorized reference photos.' },
+        { heading: 'Describe design intent', body: 'Specify architecture, materials, lighting, landscape, interiors, and presentation style.' },
+        { heading: 'Generate concept visuals', body: 'Create images or walkthrough-style presentation media while keeping supplied references central.' },
+      ],
+      faq: [
+        ['Can it replace architectural drawings?', 'No. Generated visuals are presentation concepts and do not replace professional architectural, engineering, surveying, CAD, or BIM documentation.'],
+        ['Can I use a sketch?', 'Yes. Sketches and plans can be supplied as visual references.'],
+      ],
+      links: [['AI Interior Design Generator', '/ai-interior-design-generator'], ['3D House Walkthrough', '/3d-house-walkthrough'], ['Floor Plan to 3D', '/floor-plan-to-3d']],
+    },
+  },
+  '/floor-plan-to-3d': {
+    title: 'Floor Plan to 3D AI Generator — Visualize Floor Plans | AiWebVideo',
+    description: 'Use a floor plan, sketch, or architectural reference to create AI interior design images and walkthrough-style visual concepts.',
+    copy: {
+      eyebrow: 'Floor plan to 3D concept',
+      h1: 'Turn a floor plan into a 3D-style design concept',
+      intro: 'Upload a floor plan and describe the style, materials, furniture, rooms, and presentation you want.',
+      createHref: '/?create=interior#generate',
+      sections: [
+        { heading: 'Upload the plan', body: 'Add a clear floor plan, sketch, or other authorized architectural reference.' },
+        { heading: 'Provide scale', body: 'Include dimensions or a scale reference when room proportions must be reliable.' },
+        { heading: 'Visualize the interior', body: 'Create still concepts or a presentation-style walkthrough.' },
+      ],
+      faq: [
+        ['Will the AI infer exact dimensions from any image?', 'No. Use a scaled plan or explicit dimensions when accurate geometry matters.'],
+        ['Can I create a video tour?', 'Yes. The Interior Design workflow supports walkthrough-style video output.'],
+      ],
+      links: [['AI Architectural Visualization', '/ai-architectural-visualization'], ['Room Redesign AI', '/room-redesign-ai'], ['Interior Design Walkthrough', '/interior-design-walkthrough-video']],
+    },
+  },
+  '/room-redesign-ai': {
+    title: 'AI Room Redesign Generator — Redesign Any Room From a Photo | AiWebVideo',
+    description: 'Upload a room photo and create interior redesign concepts with new furniture, materials, colors, lighting, and style.',
+    copy: {
+      eyebrow: 'AI room redesign',
+      h1: 'Redesign a room from a photo with AI',
+      intro: 'Upload a room photo and describe the look you want. Explore interior directions while keeping the room as the visual starting point.',
+      createHref: '/?create=interior#generate',
+      sections: [
+        { heading: 'Upload the room', body: 'Add a clear room photo or an additional plan/reference if available.' },
+        { heading: 'Describe the style', body: 'Tell the creator the furniture, materials, colors, lighting, and atmosphere you want.' },
+        { heading: 'Generate design images', body: 'Create visual concepts and continue to a walkthrough-style output when useful.' },
+      ],
+      faq: [
+        ['Can a photo guarantee exact room dimensions?', 'No. A photo alone cannot guarantee exact measurements. Use a scaled plan or explicit dimensions when geometry matters.'],
+        ['Can I ask it to keep windows and doors?', 'Yes. State the existing elements that must remain in the request.'],
+      ],
+      links: [['AI Interior Design Generator', '/ai-interior-design-generator'], ['Interior Design Walkthrough', '/interior-design-walkthrough-video'], ['Floor Plan to 3D', '/floor-plan-to-3d']],
+    },
+  },
   '/examples': {
     title: 'AI Website Video Examples and Use Cases | AiWebVideo',
     description:
