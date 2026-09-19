@@ -1251,9 +1251,11 @@ export function ChatWidget({
         ? "video"
         : request.studioKind === "scenario"
           ? "scenario"
-          : request.mode === "photos"
-            ? "photo"
-            : "product-video";
+          : request.studioKind === "interior"
+            ? "interior"
+            : request.mode === "photos"
+              ? "photo"
+              : "product-video";
     window.location.assign(`/dashboard?create=${encodeURIComponent(mappedCreate)}&handoff=1`);
   }
 
@@ -1618,14 +1620,20 @@ export function ChatWidget({
     storyboardedRef.current = false;
     renderedRef.current = false;
     pushUser(
-      request.studioKind === "product"
+      request.studioKind === "interior"
+        ? `Create an interior design${request.prompt ? ` · ${request.prompt}` : ""}`
+        : request.studioKind === "product"
         ? request.mode === "photos"
           ? `Create a product photo campaign${request.prompt ? ` · ${request.prompt}` : ""}`
           : `Create a product video${request.prompt ? ` · ${request.prompt}` : ""}`
         : request.prompt,
     );
     pushBot(
-      request.mode === "photos"
+      request.studioKind === "interior"
+        ? request.mode === "photos"
+          ? "I’m cross-checking your space references, measurements and architectural constraints before creating the interior concept. The result will stay grounded in the supplied geometry."
+          : "I’m building a continuous architectural walkthrough from your references, measurements and design direction. The camera path will stay consistent with the supplied space."
+        : request.mode === "photos"
         ? "I’m reviewing your references and art-directing a complete AI photo campaign. The next updates will appear right here."
         : request.studioKind === "product"
           ? "I’m grounding the film in your product references, then building one continuous film plan, pacing and audio here in the same conversation."
