@@ -717,6 +717,7 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
       if (!ownerId) throw new AppError("Sign in to create another version.", 401, "AUTH_REQUIRED");
       const source = job;
       job = await createJobFromCapture(ownerId, source);
+      if (!job) throw new AppError("Unable to create the new production job.", 500, "JOB_CREATE_FAILED");
       await copyCaptureFiles(source.id, job.id);
       const sourceMeta = source.capture_metadata as CaptureMeta | null;
 
