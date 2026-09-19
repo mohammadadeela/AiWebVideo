@@ -67,7 +67,7 @@ export async function uploadStudioMedia(opts: {
   files?: File[];
   title?: string;
   ideaPrompt?: string;
-  studioKind: 'product' | 'idea' | 'scenario';
+  studioKind: 'product' | 'idea' | 'scenario' | 'interior';
   mode: JobMode;
   durationSeconds: number;
   audioMode: AudioMode;
