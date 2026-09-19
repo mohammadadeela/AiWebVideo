@@ -178,7 +178,7 @@ const isImageMode = (value: JobMode) => value === "photos" || value === "icon";
 let msgCounter = 0;
 const nextId = () => `m${++msgCounter}`;
 
-function doneResultMessage(job: JobStatusResponse, onUnlock: () => void): ReactNode {
+function doneResultMessage(job: JobStatusResponse, onUnlock: () => void, onGeneratedPhotoSelectionChange?: (assetIds: string[]) => void): ReactNode {
   const label =
     job.mode === "photos"
       ? "Your AI photo campaign is ready."
@@ -195,7 +195,7 @@ function doneResultMessage(job: JobStatusResponse, onUnlock: () => void): ReactN
           {job.errorMessage}
         </p>
       )}
-      <ResultGrid assets={job.assets} onUnlock={onUnlock} sourceKind={resultSourceKind(job)} />
+      <ResultGrid assets={job.assets} onUnlock={onUnlock} sourceKind={resultSourceKind(job)} onGeneratedPhotoSelectionChange={onGeneratedPhotoSelectionChange} />
     </div>
   );
 }
@@ -348,6 +348,7 @@ export function ChatWidget({
   const [frameRate, setFrameRate] = useState<24 | 30 | 60>(24);
   const [activeCaptureMetadata, setActiveCaptureMetadata] = useState<CaptureMetadata | null>(null);
   const [selectedCaptureIds, setSelectedCaptureIds] = useState<string[]>([]);
+  const [selectedGeneratedPhotoIds, setSelectedGeneratedPhotoIds] = useState<string[]>([]);
   const selectionKeyRef = useRef("");
   const chatRootRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -824,7 +825,7 @@ export function ChatWidget({
               : {
                   id: nextId(),
                   role: "bot",
-                  content: doneResultMessage(saved, () => setShowAuthModal(true)),
+                  content: doneResultMessage(saved, () => setShowAuthModal(true), setSelectedGeneratedPhotoIds),
                 },
           );
           setMessages(rebuilt);
@@ -1889,6 +1890,7 @@ export function ChatWidget({
         audioMode,
         frameRate,
         selectedCaptureIds,
+        selectedGeneratedPhotoIds,
       });
       if (response.creditsRemaining !== undefined) setCreditBalance(response.creditsRemaining);
       if (response.jobId !== requestedJobId) {
@@ -2202,6 +2204,13 @@ export function ChatWidget({
 
     const nextBrief = understood.brief;
     const nextMode = understood.nextMode;
+
+    const wantsFollowUpProduction = understood.intent !== "non_generation";
+    if (wantsFollowUpProduction && (understood.intent === "video" || understood.intent === "edit") && selectedGeneratedPhotoIds.length === 0) {
+      pushUser(nextBrief);
+      pushBot("Choose at least one of the generated photos above first. I’ll use exactly the selected images as visual references for your next video or edit.");
+      return;
+    }
     const nextAspectRatio = nextMode === "photos" ? "1:1" as const : aspectRatio;
     const nextAudioMode = nextMode === "photos" ? "silent" as AudioMode : audioMode;
     const vibe = MODE_DEFAULT_VIBES[nextMode];
