@@ -1071,7 +1071,7 @@ router.post("/:id/render", requireAuth, async (req, res) => {
           : `Generate with ${audioLabel}`;
     await addJobMessage(job.id, "user", renderRequest, "render_request");
     await updateJob(job.id, {
-      status_message: "Preparing your production",
+      status_message: "Preparing your AI production",
       eta_seconds: initialEta,
       workflow_state: renderWorkflow as unknown as Record<string, unknown>,
     });
@@ -1312,7 +1312,7 @@ router.post("/:id/render", requireAuth, async (req, res) => {
                   publishRenderProgress({
                     progress: pct,
                     status_message:
-                      message ?? (pct >= 96 ? "Finishing your AI video" : "Generating one continuous AI video"),
+                      message ?? (pct >= 96 ? "Finalizing your AI video" : "Veo is generating your video"),
                     eta_seconds: liveEta,
                   });
                 },
