@@ -24,7 +24,7 @@ import { buildPartialDeliveryMetadata, type PartialDeliveryMetadata } from './pa
 
 const execFileAsync = promisify(execFile);
 const POLL_MS = Math.max(2_000, Number(process.env.GEMINI_VIDEO_POLL_MS ?? 10_000));
-const POLL_LOG_MS = Math.max(POLL_MS, Number(process.env.GEMINI_VIDEO_POLL_LOG_MS ?? 30_000));
+const POLL_LOG_MS = Math.max(POLL_MS, Number(process.env.GEMINI_VIDEO_POLL_LOG_MS ?? 20_000));
 const GENERATION_TIMEOUT_MS = Math.max(60_000, Number(process.env.GEMINI_VIDEO_TIMEOUT_MS ?? 12 * 60_000));
 const PROVIDER_SCENE_SECONDS = 8;
 
@@ -234,7 +234,7 @@ async function waitForSceneOperation({
   aspectRatio: VideoAspectRatio;
   quality: '1080p' | '4k';
   useAssetReferences: boolean;
-  onStatus?: (message: string) => void;
+  onStatus?: (message: string, elapsedSeconds: number) => void;
   shouldCancel?: () => Promise<boolean>;
   deadlineAt?: number;
 }): Promise<string> {
@@ -260,7 +260,7 @@ async function waitForSceneOperation({
 
   let operation: Awaited<ReturnType<typeof client.models.generateVideos>>;
   try {
-    onStatus?.(`Submitting premium scene ${sceneIndex + 1}`);
+    onStatus?.(`Veo is starting premium scene ${sceneIndex + 1}`, 0);
     operation = await runQueuedProviderCall({
       kind: 'video',
       model,
@@ -285,6 +285,7 @@ async function waitForSceneOperation({
   const started = Date.now();
   let lastPollLogAt = 0;
   console.info(`[ai-video] job=${jobId} premium_scene=${sceneIndex + 1} submitted operation=${operationName} resolution=${quality}`);
+  onStatus?.(`Veo is generating premium scene ${sceneIndex + 1}`, 0);
 
   while (!operation.done) {
     const now = Date.now();
@@ -297,7 +298,8 @@ async function waitForSceneOperation({
     if (shouldCancel && await shouldCancel()) throw new Error('AI video generation was cancelled by the user.');
     if (now - lastPollLogAt >= POLL_LOG_MS) {
       lastPollLogAt = now;
-      onStatus?.(`Premium scene ${sceneIndex + 1} · ${Math.round((now - started) / 1000)}s elapsed`);
+      const elapsedSeconds = Math.round((now - started) / 1000);
+      onStatus?.(`Veo is generating premium scene ${sceneIndex + 1} · ${elapsedSeconds}s elapsed`, elapsedSeconds);
     }
     await new Promise((resolve) => setTimeout(resolve, POLL_MS));
     try {
@@ -724,11 +726,20 @@ export async function generateMarketingVideo(
           aspectRatio,
           quality: outputQuality,
           useAssetReferences,
-          onStatus: (message) => onProgress?.(
-            Math.min(93, Math.max(81, pctBase + 1)),
-            message,
-            Math.max(35, (segments.length - index) * 80),
-          ),
+          onStatus: (message, elapsedSeconds) => {
+            // Provider APIs do not expose a trustworthy percentage while an
+            // operation is running. Use a deliberately conservative estimated
+            // progress ramp so the UI visibly moves without pretending we know
+            // the provider's internal completion percentage. A scene completion
+            // event remains the authoritative jump forward.
+            const elapsedProgress = Math.min(6, Math.floor(elapsedSeconds / 20));
+            const livePct = Math.min(93, Math.max(81, pctBase + 1 + elapsedProgress));
+            onProgress?.(
+              livePct,
+              message,
+              Math.max(20, (segments.length - index) * 75 - Math.min(45, elapsedSeconds)),
+            );
+          },
           shouldCancel,
           deadlineAt,
         });
