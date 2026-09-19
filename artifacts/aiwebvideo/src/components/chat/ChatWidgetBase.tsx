@@ -43,6 +43,7 @@ import {
   type WorkflowStage,
 } from "./types";
 import { normalizeWebsiteUrl } from "@/lib/websiteUrl";
+import { INTERIOR_MASTER_PROMPT } from "@/lib/creativeIdeas";
 import { estimateRenderCredits } from "@/lib/credits";
 import {
   clearLocalJobWorkflow,
@@ -1607,6 +1608,9 @@ export function ChatWidget({
   }
 
   async function performStudioSubmit(request: StudioGenerationRequest) {
+    const effectiveStudioPrompt = request.studioKind === "interior"
+      ? `${INTERIOR_MASTER_PROMPT}\n\nUSER DESIGN BRIEF (highest-priority creative direction):\n${request.prompt}`
+      : request.prompt;
     setBusy(true);
     setActiveCaptureMetadata(null);
     setSelectedCaptureIds([]);
@@ -1664,7 +1668,7 @@ export function ChatWidget({
         audioMode: request.audioMode,
         aspectRatio: request.aspectRatio,
         outputQuality: request.outputQuality,
-        ideaPrompt: request.prompt || undefined,
+        ideaPrompt: effectiveStudioPrompt || undefined,
       });
       selectJobId(upload.jobId);
       onJobCreated?.(upload.jobId);
@@ -1687,7 +1691,7 @@ export function ChatWidget({
         request.durationSeconds,
         undefined,
         {
-          creativeBrief: request.prompt || undefined,
+          creativeBrief: effectiveStudioPrompt || undefined,
           aspectRatio: request.aspectRatio,
           outputQuality: request.outputQuality,
           audioMode: request.audioMode,
