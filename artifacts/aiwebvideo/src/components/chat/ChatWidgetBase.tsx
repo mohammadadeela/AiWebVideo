@@ -2130,31 +2130,115 @@ export function ChatWidget({
     }
   }
 
+  type PostResultIntent = "video" | "photos" | "edit" | "non_generation";
+
+  function understandPostResultIntent(text: string): {
+    intent: PostResultIntent;
+    nextMode: JobMode;
+    brief: string;
+    explanation: string;
+  } {
+    const normalized = text.trim().toLowerCase();
+    const wantsVideo =
+      /\b(video|film|movie|reel|clip|walkthrough|tour)\b/.test(normalized) ||
+      /\b(turn|convert|make|create|generate)\b.{0,35}\b(video|film|reel|clip|walkthrough|tour)\b/.test(normalized) ||
+      /(فيديو|فلم|فيلم|ريل|تحويل.*فيديو|اعمل.*فيديو|سوي.*فيديو)/.test(normalized);
+    const wantsPhotos =
+      /\b(photo|photos|image|images|picture|pictures|render|renders|poster|creative|visual)\b/.test(normalized) ||
+      /\b(make|create|generate|turn|convert)\b.{0,35}\b(photo|photos|image|images|picture|pictures|render|renders)\b/.test(normalized) ||
+      /(صورة|صور|صوره|رندر|تصميم.*صورة|اعمل.*صور|سوي.*صور)/.test(normalized);
+    const asksToEdit =
+      /\b(edit|change|modify|fix|adjust|improve|update|redo|remake|retouch|remove|replace|add|make it|make this|change this|different|brighter|darker|cleaner|bigger|smaller)\b/.test(normalized) ||
+      /(عدل|عدّل|تعديل|غيّر|غير|تحسين|حسّن|حسن|احذف|أضف|اضف|بدل|استبدل|خليه|خليها)/.test(normalized);
+    const nonGeneration =
+      /\b(download|save|export|show|preview|view|open|where|what did you make|what is this)\b/.test(normalized) ||
+      /(تحميل|تنزيل|احفظ|حفظ|اعرض|عرض|افتح|وين|أين|شو عملت|ماذا صنعت)/.test(normalized);
+
+    if (nonGeneration && !wantsVideo && !wantsPhotos && !asksToEdit) {
+      return {
+        intent: "non_generation",
+        nextMode: mode,
+        brief: text.trim(),
+        explanation: "I’ll keep the finished result unchanged. You can use its existing preview/download controls.",
+      };
+    }
+
+    if (wantsVideo && !wantsPhotos) {
+      return {
+        intent: "video",
+        nextMode: "video",
+        brief: text.trim(),
+        explanation: "Got it — you want a video from the finished result. I’ll keep the result as a visual reference and build the next video around exactly what you asked for.",
+      };
+    }
+
+    if (wantsPhotos && !wantsVideo) {
+      return {
+        intent: "photos",
+        nextMode: "photos",
+        brief: text.trim(),
+        explanation: "Got it — you want new images from the finished result. I’ll keep the finished result as a visual reference and apply your direction.",
+      };
+    }
+
+    return {
+      intent: "edit",
+      nextMode: mode,
+      brief: text.trim(),
+      explanation: "Got it — I’ll treat this as an edit to the finished result and keep the existing project references and settings unless your message changes them.",
+    };
+  }
+
   async function handleContinueAfterResult(text: string) {
-    if (!jobId || !text.trim()) return;
+    if (!jobId || !text.trim() || busy) return;
+
     const sourceJobId = jobId;
-    const nextBrief = text.trim();
-    const vibe = MODE_DEFAULT_VIBES[mode];
+    const understood = understandPostResultIntent(text);
+    if (understood.intent === "non_generation") {
+      pushUser(text.trim());
+      pushBot(understood.explanation);
+      return;
+    }
+
+    const nextBrief = understood.brief;
+    const nextMode = understood.nextMode;
+    const nextAspectRatio = nextMode === "photos" ? "1:1" as const : aspectRatio;
+    const nextAudioMode = nextMode === "photos" ? "silent" as AudioMode : audioMode;
+    const vibe = MODE_DEFAULT_VIBES[nextMode];
+
+    // This is intentionally the first paid-production gate. Natural-language
+    // understanding is local/free; no AI planner, image model, video model,
+    // editor action, or provider call is allowed until the exact credit quote
+    // says the account can afford the requested next production.
     const canStartPaidPlanning = await ensureCreditsBeforePaidPlanning(
       sourceJobId,
-      mode,
+      nextMode,
       durationSeconds,
       outputQuality,
-      audioMode,
+      nextAudioMode,
     );
     if (!canStartPaidPlanning) return;
+
     pushUser(nextBrief);
+    if (nextMode !== mode) {
+      setMode(nextMode);
+      setAspectRatio(nextAspectRatio);
+      setAudioMode(nextAudioMode);
+      pushBot(understood.explanation);
+    } else {
+      pushBot(understood.explanation);
+    }
     setCreativeBrief(nextBrief);
     setBusy(true);
     storyboardedRef.current = true;
     renderedRef.current = false;
     setStage("storyboarding");
     try {
-      const response = await requestStoryboard(sourceJobId, mode, vibe, durationSeconds, featuresText ?? undefined, {
+      const response = await requestStoryboard(sourceJobId, nextMode, vibe, durationSeconds, featuresText ?? undefined, {
         creativeBrief: nextBrief,
-        aspectRatio,
+        aspectRatio: nextAspectRatio,
         outputQuality,
-        audioMode,
+        audioMode: nextAudioMode,
         frameRate,
         selectedCaptureIds,
       });
