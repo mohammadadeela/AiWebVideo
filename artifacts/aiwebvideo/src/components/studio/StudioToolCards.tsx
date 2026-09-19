@@ -3,6 +3,7 @@ import {
   ArrowRight,
   Check,
   ImagePlus,
+  Ruler,
   MessageCircleMore,
   MousePointerClick,
   Play,
@@ -65,11 +66,24 @@ const STUDIO_CARD_META: Record<StudioKind, StudioCardMeta> = {
     pillStyle: 'border-cyan-300/20 bg-cyan-400/10 text-cyan-50',
     borderHover: 'hover:border-cyan-300/45 hover:shadow-[0_24px_60px_-32px_rgba(34,211,238,.75)]',
   },
+  interior: {
+    icon: Ruler,
+    kicker: 'Professional interior studio',
+    bestFor: 'Engineers, architects & real estate',
+    description: 'Use photos, plans, sketches and measurements as references to create high-fidelity interior concepts and walkthroughs.',
+    outputs: ['Architectural design images', 'Interior walkthrough video'],
+    cta: 'Design this space',
+    accent: 'from-emerald-300 via-cyan-400 to-violet-500',
+    glow: 'bg-emerald-400/20',
+    iconStyle: 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100',
+    pillStyle: 'border-emerald-300/20 bg-emerald-400/10 text-emerald-50',
+    borderHover: 'hover:border-emerald-300/45 hover:shadow-[0_24px_60px_-32px_rgba(52,211,153,.75)]',
+  },
 };
 
 export function StudioToolCards({ className = '', detailed = false }: { className?: string; detailed?: boolean }) {
   return (
-    <div className={`grid gap-3 sm:gap-4 md:grid-cols-3 ${className}`}>
+    <div className={`grid gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-4 ${className}`}>
       {STUDIO_ORDER.map((kind, index) => {
         const config = STUDIO_CONFIGS[kind];
         const meta = STUDIO_CARD_META[kind];
