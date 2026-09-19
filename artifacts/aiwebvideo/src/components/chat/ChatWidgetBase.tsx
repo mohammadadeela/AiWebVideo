@@ -348,7 +348,8 @@ export function ChatWidget({
   const [frameRate, setFrameRate] = useState<24 | 30 | 60>(24);
   const [activeCaptureMetadata, setActiveCaptureMetadata] = useState<CaptureMetadata | null>(null);
   const [selectedCaptureIds, setSelectedCaptureIds] = useState<string[]>([]);
-  const [selectedGeneratedPhotoIds, setSelectedGeneratedPhotoIds] = useState<string[]>([]);\n  const pendingPostResultRequestRef = useRef<string | null>(null);
+  const [selectedGeneratedPhotoIds, setSelectedGeneratedPhotoIds] = useState<string[]>([]);
+  const pendingPostResultRequestRef = useRef<string | null>(null);
   const selectionKeyRef = useRef("");
   const chatRootRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -1320,7 +1321,8 @@ export function ChatWidget({
       pushBot(error instanceof Error ? error.message : "Enter a valid website name.");
       return;
     }
-    pushUser(brief ? `${normalized}\nPromotion direction: ${brief}` : normalized);
+    pushUser(brief ? `${normalized}
+Promotion direction: ${brief}` : normalized);
     setActiveCaptureMetadata(null);
     setSelectedCaptureIds([]);
     setBusy(true);
@@ -1610,7 +1612,10 @@ export function ChatWidget({
 
   async function performStudioSubmit(request: StudioGenerationRequest) {
     const effectiveStudioPrompt = request.studioKind === "interior"
-      ? `${INTERIOR_MASTER_PROMPT}\n\nUSER DESIGN BRIEF (highest-priority creative direction):\n${request.prompt}`
+      ? `${INTERIOR_MASTER_PROMPT}
+
+USER DESIGN BRIEF (highest-priority creative direction):
+${request.prompt}`
       : request.prompt;
     setBusy(true);
     setActiveCaptureMetadata(null);
@@ -2220,9 +2225,14 @@ export function ChatWidget({
         ? `Use the user's selected finished AI images as the primary visual reference and style anchors for this request. Preserve their visual language, composition quality, materials, color relationships, lighting character, subject identity, and overall art direction unless the user explicitly asks to change them. Use the selected images as references, not as unrelated examples. Selected reference IDs: ${effectiveSelectedGeneratedPhotoIds.join(", ")}. User request: ${nextBrief}`
         : nextBrief;
 
-    if ((understood.intent === "video" || understood.intent === "edit") && effectiveSelectedGeneratedPhotoIds.length === 0) {
+    const availablePhotos = (job?.assets ?? []).filter((asset) => asset.type === "photo");
+    if (
+      (understood.intent === "video" || understood.intent === "edit") &&
+      effectiveSelectedGeneratedPhotoIds.length === 0 &&
+      availablePhotos.length > 0
+    ) {
+      pendingPostResultRequestRef.current = nextBrief;
       pushUser(nextBrief);
-      const availablePhotos = (job?.assets ?? []).filter((asset) => asset.type === "photo");
       pushBot(
         <div className="space-y-3">
           <p>Choose the image or images you want me to use for this next step. I’ll use exactly the selected images as visual references for your next video or edit.</p>
