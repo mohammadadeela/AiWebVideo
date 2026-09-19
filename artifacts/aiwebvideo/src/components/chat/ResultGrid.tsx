@@ -45,7 +45,6 @@ export function ResultGrid({ assets, onUnlock, sourceKind = "website", onGenerat
   const anyLocked = assets.some((asset) => !asset.downloadable);
   const [activeRatio, setActiveRatio] = useState<(typeof ASPECT_RATIOS)[number]>("16:9");
   const [activePhoto, setActivePhoto] = useState<JobAsset | null>(null);
-  const [selectedGeneratedPhotoIds, setSelectedGeneratedPhotoIds] = useState<string[]>([]);
   const activeVideo = videos.find((video) => video.aspectRatio === activeRatio) ?? videos[videos.length - 1];
 
   useEffect(() => {
@@ -116,7 +115,7 @@ export function ResultGrid({ assets, onUnlock, sourceKind = "website", onGenerat
         </div>
       )}
 
-      {photos.length > 0 && <GeneratedPhotoPicker photos={photos} selectedGeneratedPhotoIds={selectedGeneratedPhotoIds} onSelectionChange={(next) => { setSelectedGeneratedPhotoIds(next); onGeneratedPhotoSelectionChange?.(next); }} />}
+      {photos.length > 0 && <GeneratedPhotoPicker photos={photos} selectedGeneratedPhotoIds={selectedGeneratedPhotoIds} onSelectionChange={(next) => { onGeneratedPhotoSelectionChange?.(next); }} />}
 
       {photos.length > 0 && (
         <div className="overflow-hidden rounded-[22px] border border-white/[.09] bg-[#0c0917] p-4 shadow-[0_28px_70px_-42px_rgba(139,92,246,.75)] sm:p-5">
