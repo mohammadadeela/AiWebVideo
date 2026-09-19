@@ -1,6 +1,6 @@
 import type { AudioMode, JobMode } from '@/components/chat/types';
 
-export type StudioKind = 'product' | 'idea' | 'scenario';
+export type StudioKind = 'product' | 'idea' | 'scenario' | 'interior';
 
 export interface StudioConfig {
   kind: StudioKind;
