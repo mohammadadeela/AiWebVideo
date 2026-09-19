@@ -1890,7 +1890,7 @@ export function ChatWidget({
         audioMode,
         frameRate,
         selectedCaptureIds,
-        selectedGeneratedPhotoIds,
+        selectedGeneratedPhotoIds: effectiveSelectedGeneratedPhotoIds,
       });
       if (response.creditsRemaining !== undefined) setCreditBalance(response.creditsRemaining);
       if (response.jobId !== requestedJobId) {
@@ -2197,11 +2197,11 @@ export function ChatWidget({
     const pending = pendingPostResultRequestRef.current;
     if (next.length > 0 && pending && !busy) {
       pendingPostResultRequestRef.current = null;
-      void handleContinueAfterResult(pending, next);
+      void handleContinueAfterResult(pending, next, false);
     }
   }
 
-  async function handleContinueAfterResult(text: string, forcedSelectedGeneratedPhotoIds?: string[]) {
+  async function handleContinueAfterResult(text: string, forcedSelectedGeneratedPhotoIds?: string[], echoUser = true) {
     if (!jobId || !text.trim() || busy) return;
 
     const sourceJobId = jobId;
@@ -2216,11 +2216,11 @@ export function ChatWidget({
     const nextBrief = understood.brief;
     const nextMode = understood.nextMode;
     const generationBrief =
-      selectedGeneratedPhotoIds.length > 0
+      effectiveSelectedGeneratedPhotoIds.length > 0
         ? `Use the user's selected finished AI images as the primary visual reference and style anchors for this request. Preserve their visual language, composition quality, materials, color relationships, lighting character, subject identity, and overall art direction unless the user explicitly asks to change them. Use the selected images as references, not as unrelated examples. Selected reference IDs: ${effectiveSelectedGeneratedPhotoIds.join(", ")}. User request: ${nextBrief}`
         : nextBrief;
 
-    if ((understood.intent === "video" || understood.intent === "edit") && selectedGeneratedPhotoIds.length === 0) {
+    if ((understood.intent === "video" || understood.intent === "edit") && effectiveSelectedGeneratedPhotoIds.length === 0) {
       pushUser(nextBrief);
       const availablePhotos = (job?.assets ?? []).filter((asset) => asset.type === "photo");
       pushBot(
@@ -2228,7 +2228,7 @@ export function ChatWidget({
           <p>Choose the image or images you want me to use for this next step. I’ll use exactly the selected images as visual references for your next video or edit.</p>
           <GeneratedPhotoPicker
             photos={availablePhotos}
-            selectedGeneratedPhotoIds={selectedGeneratedPhotoIds}
+            selectedGeneratedPhotoIds={effectiveSelectedGeneratedPhotoIds}
             onSelectionChange={handleGeneratedPhotoSelectionChange}
             compact
           />
@@ -2244,7 +2244,7 @@ export function ChatWidget({
     // understand it do we pass the next production through the exact credit
     // gate. No AI planner, image/video model, editor action, or provider call
     // is allowed before that gate passes.
-    pushUser(nextBrief);
+    if (echoUser) pushUser(nextBrief);
     const canStartPaidPlanning = await ensureCreditsBeforePaidPlanning(
       sourceJobId,
       nextMode,
