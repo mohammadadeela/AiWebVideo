@@ -2274,7 +2274,7 @@ export function ChatWidget({
         audioMode: nextAudioMode,
         frameRate,
         selectedCaptureIds,
-        selectedGeneratedPhotoIds,
+        selectedGeneratedPhotoIds: effectiveSelectedGeneratedPhotoIds,
       });
       if (response.creditsRemaining !== undefined) setCreditBalance(response.creditsRemaining);
       if (response.jobId !== sourceJobId) {
