@@ -255,7 +255,7 @@ export function WebsiteBriefForm({
     setError(null);
     setSettings((current) => {
       if (intent === "photo" || intent === "interior") return { ...current, aspectRatio: intent === "interior" ? "16:9" : "1:1", audioMode: "silent" };
-      const leavingPhotoDefaults = previousIntent === "photo" && current.aspectRatio === "1:1" && current.audioMode === "silent";
+      const leavingPhotoDefaults = (previousIntent === "photo" || previousIntent === "interior") && current.audioMode === "silent";
       return leavingPhotoDefaults ? { ...current, aspectRatio: "9:16", audioMode: "native_audio" } : current;
     });
   }
