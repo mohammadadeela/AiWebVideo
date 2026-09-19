@@ -2206,10 +2206,11 @@ export function ChatWidget({
     const nextAudioMode = nextMode === "photos" ? "silent" as AudioMode : audioMode;
     const vibe = MODE_DEFAULT_VIBES[nextMode];
 
-    // This is intentionally the first paid-production gate. Natural-language
-    // understanding is local/free; no AI planner, image model, video model,
-    // editor action, or provider call is allowed until the exact credit quote
-    // says the account can afford the requested next production.
+    // The user's message is normal chat and costs nothing. Only after we
+    // understand it do we pass the next production through the exact credit
+    // gate. No AI planner, image/video model, editor action, or provider call
+    // is allowed before that gate passes.
+    pushUser(nextBrief);
     const canStartPaidPlanning = await ensureCreditsBeforePaidPlanning(
       sourceJobId,
       nextMode,
@@ -2218,8 +2219,6 @@ export function ChatWidget({
       nextAudioMode,
     );
     if (!canStartPaidPlanning) return;
-
-    pushUser(nextBrief);
     if (nextMode !== mode) {
       setMode(nextMode);
       setAspectRatio(nextAspectRatio);
