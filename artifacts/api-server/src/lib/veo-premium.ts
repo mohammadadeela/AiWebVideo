@@ -310,7 +310,7 @@ async function waitForSceneOperation({
       // Safe transport retry: poll the SAME paid operation, never submit a
       // second generation for the same scene.
       console.warn(`[ai-video] job=${jobId} premium_scene=${sceneIndex + 1} transient_poll_failure operation=${operationName}: ${message}`);
-      onStatus?.(`Connection interrupted — continuing premium scene ${sceneIndex + 1}`);
+      onStatus?.(`Connection interrupted — continuing premium scene ${sceneIndex + 1}`, Math.round((now - started) / 1000));
     }
   }
 
@@ -326,7 +326,7 @@ async function waitForSceneOperation({
   const dir = path.join(ASSETS_DIR, jobId);
   await fs.mkdir(dir, { recursive: true });
   const output = path.join(dir, `premium-scene-${sceneIndex + 1}-provider.mp4`);
-  onStatus?.(`Downloading premium scene ${sceneIndex + 1}`);
+  onStatus?.(`Downloading premium scene ${sceneIndex + 1}`, Math.round((Date.now() - started) / 1000));
   await downloadProviderVideo(client, video, output);
   const seconds = await duration(output);
   const dimensions = await videoDimensions(output);
