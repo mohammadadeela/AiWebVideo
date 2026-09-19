@@ -3,7 +3,7 @@ import { ChatBubble } from "./ChatBubble";
 import { QuickReplyChips } from "./QuickReplyChips";
 import { ChatInputBar } from "./ChatInputBar";
 import { SiteCard } from "./SiteCard";
-import { ResultGrid } from "./ResultGrid";
+import { GeneratedPhotoPicker, ResultGrid } from "./ResultGrid";
 import { Button } from "@/components/ui/app-button";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { watchAuthState } from "@/lib/firebase/client";
@@ -178,7 +178,7 @@ const isImageMode = (value: JobMode) => value === "photos" || value === "icon";
 let msgCounter = 0;
 const nextId = () => `m${++msgCounter}`;
 
-function doneResultMessage(job: JobStatusResponse, onUnlock: () => void, onGeneratedPhotoSelectionChange?: (assetIds: string[]) => void): ReactNode {
+function doneResultMessage(job: JobStatusResponse, onUnlock: () => void, onGeneratedPhotoSelectionChange?: (assetIds: string[]) => void, selectedGeneratedPhotoIds: string[] = []): ReactNode {
   const label =
     job.mode === "photos"
       ? "Your AI photo campaign is ready."
@@ -195,7 +195,7 @@ function doneResultMessage(job: JobStatusResponse, onUnlock: () => void, onGener
           {job.errorMessage}
         </p>
       )}
-      <ResultGrid assets={job.assets} onUnlock={onUnlock} sourceKind={resultSourceKind(job)} onGeneratedPhotoSelectionChange={onGeneratedPhotoSelectionChange} />
+      <ResultGrid assets={job.assets} onUnlock={onUnlock} sourceKind={resultSourceKind(job)} selectedGeneratedPhotoIds={selectedGeneratedPhotoIds} onGeneratedPhotoSelectionChange={onGeneratedPhotoSelectionChange} />
     </div>
   );
 }
@@ -2212,7 +2212,18 @@ export function ChatWidget({
 
     if ((understood.intent === "video" || understood.intent === "edit") && selectedGeneratedPhotoIds.length === 0) {
       pushUser(nextBrief);
-      pushBot("Choose at least one of the generated photos above first. I’ll use exactly the selected images as visual references for your next video or edit.");
+      const availablePhotos = (job?.assets ?? []).filter((asset) => asset.type === "photo");
+      pushBot(
+        <div className="space-y-3">
+          <p>Choose the image or images you want me to use for this next step. I’ll use exactly the selected images as visual references for your next video or edit.</p>
+          <GeneratedPhotoPicker
+            photos={availablePhotos}
+            selectedGeneratedPhotoIds={selectedGeneratedPhotoIds}
+            onSelectionChange={setSelectedGeneratedPhotoIds}
+            compact
+          />
+        </div>,
+      );
       return;
     }
     const nextAspectRatio = nextMode === "photos" ? "1:1" as const : aspectRatio;
@@ -2253,6 +2264,7 @@ export function ChatWidget({
         audioMode: nextAudioMode,
         frameRate,
         selectedCaptureIds,
+        selectedGeneratedPhotoIds,
       });
       if (response.creditsRemaining !== undefined) setCreditBalance(response.creditsRemaining);
       if (response.jobId !== sourceJobId) {
