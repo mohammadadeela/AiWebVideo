@@ -106,6 +106,28 @@ export function GenerationCanvas({
   const settled = ["done", "failed", "cancelled"].includes(status);
   const photoMode = productionKind === "product-photos" || productionKind === "campaign-photos";
   const safeProgress = status === "done" ? 100 : Math.max(2, Math.min(99, Math.round(progress || 2)));
+  const progressIsEstimated = !settled && status === "rendering" && !generatedVideo;
+  const liveStage = useMemo(() => {
+    const message = (statusMessage ?? "").toLowerCase();
+    if (message.includes("veo is generating") || message.includes("veo is starting")) return "Veo rendering";
+    if (message.includes("premium scene") && message.includes("ready")) return "Scene completed";
+    if (message.includes("assembling")) return "Assembling";
+    if (message.includes("finishing")) return "Finalizing";
+    if (message.includes("starting")) return "Starting";
+    if (status === "storyboarding") return "Creative planning";
+    if (status === "capturing") return "Reading references";
+    return phase(status);
+  }, [status, statusMessage]);
+  const elapsedLabel = useMemo(() => {
+    const match = statusMessage?.match(/(\\d+)s elapsed/i);
+    if (!match) return null;
+    const seconds = Number(match[1]);
+    if (!Number.isFinite(seconds)) return null;
+    if (seconds < 60) return `${seconds}s elapsed`;
+    const minutes = Math.floor(seconds / 60);
+    const remainder = seconds % 60;
+    return `${minutes}m ${String(remainder).padStart(2, "0")}s elapsed`;
+  }, [statusMessage]);
   const eta = formatEta(etaSeconds);
   const visibleReferences = referenceItems.slice(0, 6);
   const effectiveCancelling = Boolean(cancelling || stopSubmitting || stopRequested);
@@ -300,7 +322,7 @@ export function GenerationCanvas({
                   <Clock3 size={10} /> {eta}
                 </span>
               )}
-              <span className="rounded-full border border-white/[.08] bg-black/20 px-2 py-1 font-utility text-[9px] font-semibold text-white">{safeProgress}%</span>
+              <span className="rounded-full border border-white/[.08] bg-black/20 px-2 py-1 font-utility text-[9px] font-semibold text-white">{safeProgress}%{progressIsEstimated ? " est." : ""}</span>
             </div>
           </div>
 
@@ -362,14 +384,15 @@ export function GenerationCanvas({
                 </div>
                 <div className="absolute inset-x-0 bottom-0 p-3">
                   <p className="text-[10px] font-semibold text-white">{generatedVideo ? "Generated video is arriving" : phase(status)}</p>
-                  <p className="mt-0.5 max-w-[520px] text-[8px] leading-4 text-white/55">{generatedVideo ? "Showing the real generated media as soon as the backend exposes it." : sourcePreview || sourceRecording ? "Building the final video from your selected references and creative direction." : "The live canvas stays here while the production is being prepared."}</p>
+                  <p className="mt-0.5 max-w-[520px] text-[8px] leading-4 text-white/55">{generatedVideo ? "Showing the real generated media as soon as the backend exposes it." : statusMessage || (sourcePreview || sourceRecording ? "Veo is generating the next premium shot from your selected references and creative direction." : "Preparing your production.")}</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-1">
                 <div className="rounded-xl border border-white/[.07] bg-white/[.025] p-2.5">
                   <p className="font-utility text-[7px] uppercase tracking-[.13em] text-text-dim">Current stage</p>
-                  <p className="mt-1 text-[10px] font-semibold text-white">{phase(status)}</p>
+                  <p className="mt-1 text-[10px] font-semibold text-white">{liveStage}</p>
                   <p className="mt-1 line-clamp-2 text-[8px] leading-4 text-white/45">{statusMessage || "Production is progressing."}</p>
+                  {elapsedLabel && <p className="mt-1 text-[7px] font-medium text-mint/75">{elapsedLabel}</p>}
                 </div>
                 <div className="rounded-xl border border-white/[.07] bg-white/[.025] p-2.5">
                   <p className="font-utility text-[7px] uppercase tracking-[.13em] text-text-dim">Output</p>
@@ -438,7 +461,7 @@ export function GenerationCanvas({
 
           <div className="mt-3 flex items-center justify-between gap-2.5 border-t border-white/[.06] pt-2.5">
             <p className="min-w-0 flex-1 truncate text-[8px] text-text-dim">
-              Live progress is saved. You can leave this chat and return without stopping generation.
+              {progressIsEstimated ? "Estimated progress · provider generation time varies. Live stage and elapsed time are real." : "Live progress is saved. You can leave this chat and return without stopping generation."}
             </p>
             {onCancel && !settled && (
               <button
