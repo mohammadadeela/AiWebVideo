@@ -716,9 +716,10 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
       const ownerId = req.user!.id;
       if (!ownerId) throw new AppError("Sign in to create another version.", 401, "AUTH_REQUIRED");
       const source = job;
-      job = await createJobFromCapture(ownerId, source);
-      if (!job) throw new AppError("Unable to create the new production job.", 500, "JOB_CREATE_FAILED");
-      await copyCaptureFiles(source.id, job.id);
+      const newJob = await createJobFromCapture(ownerId, source);
+      if (!newJob) throw new AppError("Unable to create the new production job.", 500, "JOB_CREATE_FAILED");
+      job = newJob;
+      await copyCaptureFiles(source.id, newJob.id);
       const sourceMeta = source.capture_metadata as CaptureMeta | null;
 
       const generatedPhotoAssets = existingAssets
@@ -726,12 +727,12 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
         .map((asset) => asset.storage_url)
         .filter((url): url is string => typeof url === "string" && url.length > 0);
       if (generatedPhotoAssets.length) {
-        await copyGeneratedPhotoAssets(source.id, job.id, existingAssets);
+        await copyGeneratedPhotoAssets(source.id, newJob.id, existingAssets);
         const nextMeta = {
           ...(sourceMeta ?? {}),
-          generatedReferenceUrls: generatedPhotoAssets.map((url) => url.replaceAll(source.id, job.id)),
+          generatedReferenceUrls: generatedPhotoAssets.map((url) => url.replaceAll(source.id, newJob.id)),
         } as Record<string, unknown>;
-        await updateJob(job.id, { capture_metadata: nextMeta });
+        await updateJob(newJob.id, { capture_metadata: nextMeta });
       }
 
       const variantLabel =
