@@ -10,6 +10,7 @@ import {
   Menu,
   MessageCircleMore,
   PackageOpen,
+  House,
   ShieldCheck,
   X,
 } from "lucide-react";
@@ -38,6 +39,7 @@ const productItems = [
   ["Product Photos", "Campaign images from real references", "/?create=photo#generate", ImageIcon],
   ["Product Video", "Generated product film from references", "/?create=product-video#generate", PackageOpen],
   ["Talking Scenes", "Dialogue and scenario-driven video", "/?create=scenario#generate", MessageCircleMore],
+  ["Interior Design", "Redesign rooms, homes and spaces", "/?create=interior#generate", House],
 ] as const;
 
 export function Nav() {
@@ -112,7 +114,7 @@ export function Nav() {
 
     const requested = target.searchParams.get("create");
     const intent =
-      requested === "video" || requested === "photo" || requested === "product-video" || requested === "scenario" || requested === "website"
+      requested === "video" || requested === "photo" || requested === "product-video" || requested === "scenario" || requested === "interior" || requested === "website"
         ? requested
         : "website";
 
