@@ -223,7 +223,7 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
         ['Will a normal room photo give exact dimensions?', 'No. A photo alone cannot guarantee exact measurements. Use a scaled plan or explicit dimensions when geometry must be reliable.'],
         ['Can I use it for real estate?', 'Yes. Real estate presentation is a practical use case for concept images and walkthrough-style media, but generated visuals should not be presented as construction-ready drawings unless separately verified by a qualified professional.'],
       ],
-      links: [['AI Video Generator', '/ai-video-generator'], ['Product Photo Generator', '/product-photo-generator'], ['How it works', '/how-it-works']],
+      links: [['Interior Design Walkthrough', '/interior-design-walkthrough-video'], ['Real Estate Walkthrough', '/real-estate-walkthrough-video'], ['3D House Walkthrough', '/3d-house-walkthrough'], ['AI Architectural Visualization', '/ai-architectural-visualization'], ['Floor Plan to 3D', '/floor-plan-to-3d'], ['Room Redesign AI', '/room-redesign-ai']],
     },
   },
   '/interior-design-walkthrough-video': {
