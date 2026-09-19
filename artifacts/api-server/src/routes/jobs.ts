@@ -745,7 +745,7 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
           : sourceMeta?.sourceType === "upload"
             ? "Fresh direction started from the project references. Previous results remain in this conversation."
             : "Fresh campaign direction started from the website source. Previous results remain in this conversation.";
-      await addJobMessage(job.id, "assistant", variantLabel, "variant", {
+      await addJobMessage(newJob.id, "assistant", variantLabel, "variant", {
         sourceJobId: source.id,
       });
     }
