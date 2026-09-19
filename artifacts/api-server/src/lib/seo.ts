@@ -12,6 +12,7 @@ type SeoCopy = {
   sections?: Array<{ heading: string; body: string }>;
   faq?: Array<[string, string]>;
   links?: Array<[string, string]>;
+  createHref?: string;
 };
 
 type PublicPageDefinition = Omit<SeoPage, 'path' | 'index'> & { copy: SeoCopy };
@@ -117,6 +118,112 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
         ['Can I create product photos too?', 'Yes. The unified creator includes product-photo generation from supplied reference images.'],
       ],
       links: [['URL to Video', '/url-to-video'], ['Product video guide', '/guides/product-page-video-ads'], ['Product Studio', '/studio/product'], ['Examples', '/examples']],
+    },
+  },
+  '/ai-video-generator': {
+    title: 'AI Video Generator — Create AI Videos From Prompts | AiWebVideo',
+    description: 'Create original AI videos from a prompt and optional image references. Direct the story, camera, style, pacing, and format with AiWebVideo.',
+    copy: {
+      eyebrow: 'AI video generator',
+      h1: 'Create an original AI video from an idea',
+      intro: 'Describe the video you want in normal language, add references when useful, and let AiWebVideo turn the idea into a complete AI-directed video.',
+      createHref: '/?create=video#generate',
+      sections: [
+        { heading: 'Describe the idea', body: 'Explain the subject, setting, action, style, audience, or story in your own words.' },
+        { heading: 'Add optional references', body: 'Supply images when identity, appearance, product details, or visual direction should stay grounded.' },
+        { heading: 'Generate a coherent video', body: 'The creator turns the brief into a planned production with camera, motion, pacing, and visual direction.' },
+      ],
+      faq: [
+        ['What is an AI video generator?', 'It is a tool that uses an instruction and optional references to generate video content. AiWebVideo adds creative planning so the request becomes a coherent production.'],
+        ['Can I use an image as a reference?', 'Yes. Optional reference images can help anchor subjects, products, identity, or visual direction.'],
+        ['Can I choose portrait video?', 'Yes. The creator supports common landscape, portrait, and square formats.'],
+      ],
+      links: [['Product Video Generator', '/product-video-generator'], ['Product Photo Generator', '/product-photo-generator'], ['Talking Video Generator', '/talking-video-generator'], ['Interior Design Generator', '/ai-interior-design-generator']],
+    },
+  },
+  '/product-photo-generator': {
+    title: 'AI Product Photo Generator — Create Product Images | AiWebVideo',
+    description: 'Upload real product references and create polished AI product photos for ecommerce, campaigns, social media, and marketing.',
+    copy: {
+      eyebrow: 'AI product photo generator',
+      h1: 'Create product images from real references',
+      intro: 'Give AiWebVideo your real product images and describe the scene, styling, background, or campaign you want. The product remains the visual anchor.',
+      createHref: '/?create=photo#generate',
+      sections: [
+        { heading: 'Upload the real product', body: 'Add clear product images that show the shape, materials, colors, and important details.' },
+        { heading: 'Describe the campaign image', body: 'Ask for a studio setup, lifestyle environment, seasonal concept, campaign mood, or specific composition.' },
+        { heading: 'Generate variations', body: 'Create multiple visual directions from the same product reference for ecommerce, social, and marketing use.' },
+      ],
+      faq: [
+        ['Do I need to upload a product image?', 'Yes. Product-photo generation is designed around supplied references when the exact product should remain central.'],
+        ['Can I request a specific background?', 'Yes. Describe the environment, surface, lighting, composition, and campaign mood you want.'],
+        ['Can I make a product video from the same product?', 'Yes. Product Video is a separate mode designed for reference-grounded motion.'],
+      ],
+      links: [['Product Video Generator', '/product-video-generator'], ['Product Page to Video', '/product-page-to-video'], ['AI Video Generator', '/ai-video-generator'], ['Interior Design Generator', '/ai-interior-design-generator']],
+    },
+  },
+  '/product-video-generator': {
+    title: 'AI Product Video Generator — Create Product Videos | AiWebVideo',
+    description: 'Create AI product videos from real product images. Preserve the product as the reference while generating commercial motion, camera movement, and environments.',
+    copy: {
+      eyebrow: 'AI product video generator',
+      h1: 'Create product videos from real references',
+      intro: 'Upload the real product, describe the commercial direction, and let AiWebVideo build a continuous product-focused film around it.',
+      createHref: '/?create=product-video#generate',
+      sections: [
+        { heading: 'Use real product references', body: 'Provide clear images that show the real product and important details.' },
+        { heading: 'Direct the commercial', body: 'Specify the audience, environment, mood, motion, benefit, or campaign angle.' },
+        { heading: 'Generate one coherent film', body: 'The workflow is designed around a complete product film rather than unrelated clips.' },
+      ],
+      faq: [
+        ['Does it use my real product image?', 'Yes. Product Video is designed around supplied product references so the real item remains the primary visual anchor.'],
+        ['Can I control the video style?', 'Yes. Describe the camera, environment, mood, pacing, audience, and campaign goal in the brief.'],
+        ['Can I make product photos too?', 'Yes. Use Product Photos when you need still campaign imagery.'],
+      ],
+      links: [['Product Photo Generator', '/product-photo-generator'], ['Product Page to Video', '/product-page-to-video'], ['AI Video Generator', '/ai-video-generator'], ['Talking Video Generator', '/talking-video-generator']],
+    },
+  },
+  '/talking-video-generator': {
+    title: 'AI Talking Video Generator — Create Dialogue & Scenario Videos | AiWebVideo',
+    description: 'Create AI talking and scenario videos from a description of the characters, dialogue, setting, camera, and performance you want.',
+    copy: {
+      eyebrow: 'AI talking video generator',
+      h1: 'Direct a talking or scenario-driven AI video',
+      intro: 'Describe the people, conversation, testimonial, or scripted scenario and let AiWebVideo direct the performance, camera blocking, pacing, and scene audio.',
+      createHref: '/?create=scenario#generate',
+      sections: [
+        { heading: 'Describe the scene', body: 'Explain who is present, where they are, what happens, and what the viewer should understand.' },
+        { heading: 'Direct dialogue and performance', body: 'Provide exact lines when wording matters and specify tone, reactions, camera style, and pacing.' },
+        { heading: 'Generate the scene', body: 'Create a coherent talking or scenario-driven video with the selected audio direction.' },
+      ],
+      faq: [
+        ['Can I provide exact dialogue?', 'Yes. When exact wording is supplied, the production direction is designed to keep the spoken content faithful.'],
+        ['Can I add character references?', 'Yes. Reference images can help anchor identity and visual direction where supported.'],
+        ['Can I make a normal AI video instead?', 'Yes. Use the AI Video Generator for non-dialogue original concepts.'],
+      ],
+      links: [['AI Video Generator', '/ai-video-generator'], ['Product Video Generator', '/product-video-generator'], ['Website Video Generator', '/website-video-generator']],
+    },
+  },
+  '/ai-interior-design-generator': {
+    title: 'AI Interior Design Generator — Create Interior Design Images & Tours | AiWebVideo',
+    description: 'Upload room photos, plans, or sketches and create AI interior design concepts, realistic redesign images, and walkthrough videos with reference-aware controls.',
+    copy: {
+      eyebrow: 'AI interior design generator',
+      h1: 'Redesign rooms, homes, shops, and real estate spaces with AI',
+      intro: 'Upload photos, floor plans, sketches, or elevations, then describe the interior you want. AiWebVideo can create design images or a walkthrough while using your references as the visual and architectural starting point.',
+      createHref: '/?create=interior#generate',
+      sections: [
+        { heading: 'Upload the space', body: 'Add room photos, plans, sketches, elevations, or other references you are authorized to use.' },
+        { heading: 'Describe the design', body: 'Explain the style, materials, furniture, colors, lighting, function, and changes you want.' },
+        { heading: 'Choose images or a walkthrough', body: 'Generate still design concepts or a presentation-style walkthrough while keeping the reference space as the starting point.' },
+      ],
+      faq: [
+        ['Can I upload a floor plan?', 'Yes. Plans and sketches can be used as references, and explicit measurements should be supplied when accurate proportions matter.'],
+        ['Can it make a walkthrough video?', 'Yes. Interior Design supports design-image and walkthrough-video outputs.'],
+        ['Will a normal room photo give exact dimensions?', 'No. A photo alone cannot guarantee exact measurements. Use a scaled plan or explicit dimensions when geometry must be reliable.'],
+        ['Can I use it for real estate?', 'Yes. Real estate presentation is a practical use case for concept images and walkthrough-style media, but generated visuals should not be presented as construction-ready drawings unless separately verified by a qualified professional.'],
+      ],
+      links: [['AI Video Generator', '/ai-video-generator'], ['Product Photo Generator', '/product-photo-generator'], ['How it works', '/how-it-works']],
     },
   },
   '/examples': {
@@ -395,7 +502,7 @@ function renderSeoSnapshot(page: SeoPage): string {
   const links = copy.links?.length
     ? `<nav aria-label="Related AiWebVideo pages"><h2>Explore AiWebVideo</h2><ul>${copy.links.map(([label, href]) => `<li><a href="${escapeAttribute(href)}">${escapeText(label)}</a></li>`).join('')}</ul></nav>`
     : '';
-  return `<div class="seo-initial" data-seo-initial="true"><div class="seo-initial__inner"><p class="seo-initial__eyebrow">${escapeText(copy.eyebrow)}</p><h1>${escapeText(copy.h1)}</h1><p class="seo-initial__intro">${escapeText(copy.intro)}</p>${sections}${faq}${links}<p class="seo-initial__cta"><a href="/?create=website#generate">Start creating with AiWebVideo</a></p></div></div>`;
+  return `<div class="seo-initial" data-seo-initial="true"><div class="seo-initial__inner"><p class="seo-initial__eyebrow">${escapeText(copy.eyebrow)}</p><h1>${escapeText(copy.h1)}</h1><p class="seo-initial__intro">${escapeText(copy.intro)}</p>${sections}${faq}${links}<p class="seo-initial__cta"><a href="${definition.copy.createHref ?? "/?create=website#generate"}">Start creating with AiWebVideo</a></p></div></div>`;
 }
 
 export function renderSeoDocument(html: string, page: SeoPage, publicUrl: string): string {
