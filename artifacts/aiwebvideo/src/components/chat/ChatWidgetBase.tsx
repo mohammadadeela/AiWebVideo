@@ -1918,7 +1918,7 @@ ${request.prompt}`
         audioMode,
         frameRate,
         selectedCaptureIds,
-        selectedGeneratedPhotoIds: effectiveSelectedGeneratedPhotoIds,
+        selectedGeneratedPhotoIds,
       });
       if (response.creditsRemaining !== undefined) setCreditBalance(response.creditsRemaining);
       if (response.jobId !== requestedJobId) {
