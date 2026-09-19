@@ -26,6 +26,12 @@ const ProductPhotoGeneratorPage = lazy(() => searchPages().then((module) => ({ d
 const ProductVideoGeneratorPage = lazy(() => searchPages().then((module) => ({ default: module.ProductVideoGeneratorPage })));
 const TalkingVideoGeneratorPage = lazy(() => searchPages().then((module) => ({ default: module.TalkingVideoGeneratorPage })));
 const InteriorDesignGeneratorPage = lazy(() => searchPages().then((module) => ({ default: module.InteriorDesignGeneratorPage })));
+const InteriorDesignWalkthroughVideoPage = lazy(() => searchPages().then((module) => ({ default: module.InteriorDesignWalkthroughVideoPage })));
+const RealEstateWalkthroughVideoPage = lazy(() => searchPages().then((module) => ({ default: module.RealEstateWalkthroughVideoPage })));
+const HouseWalkthrough3dPage = lazy(() => searchPages().then((module) => ({ default: module.HouseWalkthrough3dPage })));
+const ArchitecturalVisualizationPage = lazy(() => searchPages().then((module) => ({ default: module.ArchitecturalVisualizationPage })));
+const FloorPlanTo3dPage = lazy(() => searchPages().then((module) => ({ default: module.FloorPlanTo3dPage })));
+const RoomRedesignAiPage = lazy(() => searchPages().then((module) => ({ default: module.RoomRedesignAiPage })));
 const ExamplesPage = lazy(() => searchPages().then((module) => ({ default: module.ExamplesPage })));
 const guidePages = () => import('@/pages/GuidesPage');
 const WebsiteToVideoGuidePage = lazy(() => guidePages().then((module) => ({ default: module.WebsiteToVideoGuidePage })));
@@ -64,6 +70,12 @@ function Router() {
       <Route path="/product-video-generator" component={ProductVideoGeneratorPage} />
       <Route path="/talking-video-generator" component={TalkingVideoGeneratorPage} />
       <Route path="/ai-interior-design-generator" component={InteriorDesignGeneratorPage} />
+      <Route path="/interior-design-walkthrough-video" component={InteriorDesignWalkthroughVideoPage} />
+      <Route path="/real-estate-walkthrough-video" component={RealEstateWalkthroughVideoPage} />
+      <Route path="/3d-house-walkthrough" component={HouseWalkthrough3dPage} />
+      <Route path="/ai-architectural-visualization" component={ArchitecturalVisualizationPage} />
+      <Route path="/floor-plan-to-3d" component={FloorPlanTo3dPage} />
+      <Route path="/room-redesign-ai" component={RoomRedesignAiPage} />
       <Route path="/examples" component={ExamplesPage} />
       <Route path="/guides/turn-website-into-video" component={WebsiteToVideoGuidePage} />
       <Route path="/guides/saas-product-demo-video" component={SaasProductVideoGuidePage} />
