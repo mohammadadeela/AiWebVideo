@@ -348,7 +348,7 @@ export function ChatWidget({
   const [frameRate, setFrameRate] = useState<24 | 30 | 60>(24);
   const [activeCaptureMetadata, setActiveCaptureMetadata] = useState<CaptureMetadata | null>(null);
   const [selectedCaptureIds, setSelectedCaptureIds] = useState<string[]>([]);
-  const [selectedGeneratedPhotoIds, setSelectedGeneratedPhotoIds] = useState<string[]>([]);
+  const [selectedGeneratedPhotoIds, setSelectedGeneratedPhotoIds] = useState<string[]>([]);\n  const pendingPostResultRequestRef = useRef<string | null>(null);
   const selectionKeyRef = useRef("");
   const chatRootRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -825,7 +825,7 @@ export function ChatWidget({
               : {
                   id: nextId(),
                   role: "bot",
-                  content: doneResultMessage(saved, () => setShowAuthModal(true), setSelectedGeneratedPhotoIds, selectedGeneratedPhotoIds),
+                  content: doneResultMessage(saved, () => setShowAuthModal(true), handleGeneratedPhotoSelectionChange, selectedGeneratedPhotoIds),
                 },
           );
           setMessages(rebuilt);
@@ -1062,7 +1062,7 @@ export function ChatWidget({
       void fetchMe()
         .then((account) => setCreditBalance(account.creditsBalance))
         .catch(() => {});
-      pushBot(doneResultMessage(job, () => setShowAuthModal(true), setSelectedGeneratedPhotoIds, selectedGeneratedPhotoIds));
+      pushBot(doneResultMessage(job, () => setShowAuthModal(true), handleGeneratedPhotoSelectionChange, selectedGeneratedPhotoIds));
       setStage("done");
     } else if (job.status === "cancelled") {
       renderedRef.current = true;
@@ -2192,11 +2192,21 @@ export function ChatWidget({
     };
   }
 
-  async function handleContinueAfterResult(text: string) {
+  function handleGeneratedPhotoSelectionChange(next: string[]) {
+    setSelectedGeneratedPhotoIds(next);
+    const pending = pendingPostResultRequestRef.current;
+    if (next.length > 0 && pending && !busy) {
+      pendingPostResultRequestRef.current = null;
+      void handleContinueAfterResult(pending, next);
+    }
+  }
+
+  async function handleContinueAfterResult(text: string, forcedSelectedGeneratedPhotoIds?: string[]) {
     if (!jobId || !text.trim() || busy) return;
 
     const sourceJobId = jobId;
     const understood = understandPostResultIntent(text);
+    const effectiveSelectedGeneratedPhotoIds = forcedSelectedGeneratedPhotoIds ?? selectedGeneratedPhotoIds;
     if (understood.intent === "non_generation") {
       pushUser(text.trim());
       pushBot(understood.explanation);
@@ -2207,7 +2217,7 @@ export function ChatWidget({
     const nextMode = understood.nextMode;
     const generationBrief =
       selectedGeneratedPhotoIds.length > 0
-        ? `Use the user's selected finished AI images as the primary visual reference and style anchors for this request. Preserve their visual language, composition quality, materials, color relationships, lighting character, subject identity, and overall art direction unless the user explicitly asks to change them. Use the selected images as references, not as unrelated examples. Selected reference IDs: ${selectedGeneratedPhotoIds.join(", ")}. User request: ${nextBrief}`
+        ? `Use the user's selected finished AI images as the primary visual reference and style anchors for this request. Preserve their visual language, composition quality, materials, color relationships, lighting character, subject identity, and overall art direction unless the user explicitly asks to change them. Use the selected images as references, not as unrelated examples. Selected reference IDs: ${effectiveSelectedGeneratedPhotoIds.join(", ")}. User request: ${nextBrief}`
         : nextBrief;
 
     if ((understood.intent === "video" || understood.intent === "edit") && selectedGeneratedPhotoIds.length === 0) {
@@ -2219,7 +2229,7 @@ export function ChatWidget({
           <GeneratedPhotoPicker
             photos={availablePhotos}
             selectedGeneratedPhotoIds={selectedGeneratedPhotoIds}
-            onSelectionChange={setSelectedGeneratedPhotoIds}
+            onSelectionChange={handleGeneratedPhotoSelectionChange}
             compact
           />
         </div>,
