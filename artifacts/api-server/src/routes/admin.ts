@@ -113,6 +113,7 @@ const inferredProductSql = `COALESCE(product_id, CASE
 const adminJobFeatureSql = `CASE
   WHEN j.capture_metadata->>'sourceType'='studio' AND j.capture_metadata->>'studioKind'='product' THEN CASE WHEN j.mode='photos' THEN 'product-photos' ELSE 'product-video' END
   WHEN j.capture_metadata->>'sourceType'='studio' AND j.capture_metadata->>'studioKind'='scenario' THEN 'talking-scene'
+  WHEN j.capture_metadata->>'sourceType'='studio' AND j.capture_metadata->>'studioKind'='interior' THEN 'interior-design'
   WHEN j.capture_metadata->>'sourceType'='studio' AND j.capture_metadata->>'studioKind'='idea' THEN 'ai-video'
   WHEN j.mode='product-video' THEN 'product-video'
   WHEN j.mode='talking-scene' THEN 'talking-scene'
