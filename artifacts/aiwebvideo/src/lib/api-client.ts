@@ -128,7 +128,7 @@ export function requestStoryboard(
   vibeBrief: string,
   durationSeconds = 8,
   featuresText?: string,
-  options?: { creativeBrief?: string; aspectRatio?: '16:9' | '9:16' | '1:1'; outputQuality?: '1080p' | '4k'; audioMode?: AudioMode; frameRate?: 24 | 30 | 60; selectedCaptureIds?: string[] }
+  options?: { creativeBrief?: string; aspectRatio?: '16:9' | '9:16' | '1:1'; outputQuality?: '1080p' | '4k'; audioMode?: AudioMode; frameRate?: 24 | 30 | 60; selectedCaptureIds?: string[]; selectedGeneratedPhotoIds?: string[] }
 ) {
   return request<{ jobId: string; status: string; creditsReserved?: number; creditsRemaining?: number }>(`/api/jobs/${jobId}/storyboard`, {
     method: 'POST',
