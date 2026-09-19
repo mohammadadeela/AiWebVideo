@@ -825,7 +825,7 @@ export function ChatWidget({
               : {
                   id: nextId(),
                   role: "bot",
-                  content: doneResultMessage(saved, () => setShowAuthModal(true), setSelectedGeneratedPhotoIds),
+                  content: doneResultMessage(saved, () => setShowAuthModal(true), setSelectedGeneratedPhotoIds, selectedGeneratedPhotoIds),
                 },
           );
           setMessages(rebuilt);
@@ -1062,7 +1062,7 @@ export function ChatWidget({
       void fetchMe()
         .then((account) => setCreditBalance(account.creditsBalance))
         .catch(() => {});
-      pushBot(doneResultMessage(job, () => setShowAuthModal(true)));
+      pushBot(doneResultMessage(job, () => setShowAuthModal(true), setSelectedGeneratedPhotoIds, selectedGeneratedPhotoIds));
       setStage("done");
     } else if (job.status === "cancelled") {
       renderedRef.current = true;
