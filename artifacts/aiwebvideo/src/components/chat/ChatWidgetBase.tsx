@@ -1987,9 +1987,9 @@ export function ChatWidget({
                   : mode === "both"
                     ? `Creating both deliverables in parallel: a true AI-generated ${durationLabel(durationSeconds)} website video grounded in the selected site states, plus four AI marketing photos based on the captured brand/products.`
                     : mode === "demo"
-                      ? `Generating one continuous ${durationLabel(durationSeconds)} cinematic brand film grounded in your real logo, products, UI and captured brand content. Longer durations continue the same Veo video instead of stitching unrelated clips.`
+                      ? `Directing a ${durationLabel(durationSeconds)} cinematic brand film from your real logo, products, UI and captured brand content. Longer productions are rendered as connected premium shots with consistent visual direction and continuity.`
                       : isVideo && durationSeconds > 8
-                        ? `Generating one continuous ${durationLabel(durationSeconds)} AI video from the selected real website references. Important actions resolve naturally, and longer durations continue the same Veo-generated film instead of stitching separate scene clips.`
+                        ? `Generating a ${durationLabel(durationSeconds)} AI video from your selected real website references. Important actions resolve naturally, and longer productions use connected premium shots with consistent subjects, camera language and visual direction.`
                         : "Generating a complete short AI-video beat from the strongest real website state. The key action is planned to finish inside the clip instead of being cut off, while visible UI text and brand details must stay faithful to the reference.",
     );
     try {
