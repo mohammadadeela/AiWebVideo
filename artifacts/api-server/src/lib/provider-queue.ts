@@ -124,7 +124,14 @@ function safeProviderErrorText(error: unknown) {
 function isRateLimitError(error: unknown) {
   const value = errorText(error);
   const status = Number((error as { status?: unknown; code?: unknown } | null)?.status ?? (error as { code?: unknown } | null)?.code);
-  return status === 429 || /\b429\b|RESOURCE_EXHAUSTED|rate.?limit|quota|too many requests/i.test(value);
+  return status === 429 || /\\b429\\b|RESOURCE_EXHAUSTED|rate.?limit|quota|too many requests/i.test(value);
+}
+
+function isProviderBillingUnavailable(error: unknown) {
+  const value = errorText(error);
+  const status = Number((error as { status?: unknown; code?: unknown } | null)?.status ?? (error as { code?: unknown } | null)?.code);
+  return status === 402 ||
+    /prepayment credits? (?:are )?depleted|credits? (?:are )?depleted|prepay(?:ment)?[^\\n]{0,80}(?:no credits|depleted|zero)|billing[^\\n]{0,100}(?:inactive|unsupported|required|disabled|suspended)|payment[^\\n]{0,80}(?:required|failed|declined)|insufficient (?:funds|credits)/i.test(value);
 }
 
 /**
@@ -349,7 +356,8 @@ async function drain(kind: ProviderQueueKind, model: string) {
           if (rateLimited) {
             const providerDelayMs = retryAfterFromProvider(error);
             const delayMs = retryAfterMs(error, item.attempt, kind);
-            const clearlyLongLived = isClearlyLongLivedQuota(error);
+            const billingUnavailable = isProviderBillingUnavailable(error);
+            const clearlyLongLived = billingUnavailable || isClearlyLongLivedQuota(error);
             const storyboardDelayTooLong =
               kind === 'storyboard' && providerDelayMs != null && providerDelayMs > maxStoryboardRetryDelayMs();
             const canRetry = item.attempt < maxRetries && !clearlyLongLived && !storyboardDelayTooLong;
@@ -365,6 +373,7 @@ async function drain(kind: ProviderQueueKind, model: string) {
                 delayMs: canRetry ? delayMs : 0,
                 attempt: item.attempt + 1,
                 maxRetries,
+                billingUnavailable,
                 clearlyLongLived,
                 storyboardDelayTooLong,
               },
@@ -393,6 +402,13 @@ async function drain(kind: ProviderQueueKind, model: string) {
             } else {
               void publishStoryboardFallbackStatus(item);
               item.reject(error);
+              if (billingUnavailable || isClearlyLongLivedQuota(error)) {
+                const pending = state.waiting.splice(0, state.waiting.length);
+                for (const queued of pending) {
+                  void publishStoryboardFallbackStatus(queued);
+                  queued.reject(error);
+                }
+              }
             }
           } else {
             item.reject(error);
