@@ -390,6 +390,23 @@ async function normalizeSceneClip(
   }
 
   const sourceHasAudio = await hasAudio(input);
+
+  // Veo is explicitly asked for the user's selected 16:9 or 9:16 aspect ratio.
+  // Do not silently crop a provider response that comes back in a different
+  // shape. For non-square delivery, a mismatch is a provider/configuration
+  // failure and must stop the render instead of changing the user's framing.
+  const requestedProviderRatio = aspectRatio === '9:16' ? 9 / 16 : 16 / 9;
+  const actualProviderRatio = sourceSize.width / sourceSize.height;
+  const ratioError = Math.abs(actualProviderRatio - requestedProviderRatio) / requestedProviderRatio;
+  if (aspectRatio !== '1:1' && ratioError > 0.02) {
+    throw new Error(
+      `Format gate rejected ${path.basename(input)}: requested ${aspectRatio}, but Gemini returned ${sourceSize.width}x${sourceSize.height} (${actualProviderRatio.toFixed(4)}). The selected aspect ratio will not be silently cropped or changed.`,
+    );
+  }
+
+  // For 16:9 and 9:16, the provider should already match the requested frame.
+  // The crop remains only as a deterministic final-size step. Square is the
+  // one intentional exception because Veo has no native 1:1 generation mode.
   const videoFilter = `scale=${width}:${height}:force_original_aspect_ratio=increase:flags=lanczos,crop=${width}:${height},setsar=1,fps=${frameRate}`;
   const args = ['-y', '-hide_banner', '-loglevel', 'error', '-i', input];
   let filterComplex = `[0:v]${videoFilter}[v]`;
