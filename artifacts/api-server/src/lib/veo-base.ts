@@ -263,7 +263,7 @@ export function geminiModelChain(): string[] {
   const wantsQuality = speedMode === 'quality' || speedMode === 'standard';
   if (pinned && !/(?:^|[-_.])lite(?:$|[-_.])/i.test(pinned)) {
     const isFast = /(?:^|[-_.])fast(?:$|[-_.])/i.test(pinned);
-    if (!isFast || !wantsQuality) return [pinned];
+    if (wantsQuality || isFast) return [pinned];
   }
   return [wantsQuality ? 'veo-3.1-generate-preview' : 'veo-3.1-fast-generate-preview'];
 }
