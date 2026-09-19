@@ -6,7 +6,7 @@ import {
   Film,
   Globe2,
   Image as ImageIcon,
-  Layers3,
+  House,
   MessageCircleMore,
   Monitor,
   PackageOpen,
@@ -89,7 +89,7 @@ const CREATION_MODES = [
   { id: "photo" as const, label: "Product Photos", short: "Photos", icon: ImageIcon },
   { id: "product-video" as const, label: "Product Video", short: "Product", icon: PackageOpen },
   { id: "scenario" as const, label: "Talking Scene", short: "Talking", icon: MessageCircleMore },
-  { id: "interior" as const, label: "Interior Design", short: "Interior", icon: Layers3 },
+  { id: "interior" as const, label: "Interior Design", short: "Interior", icon: House },
 ] as const;
 
 const ACCEPTED_IMAGES = ["image/jpeg", "image/png", "image/webp"];
