@@ -33,7 +33,8 @@ export type CreationIntent =
   | "video"
   | "photo"
   | "product-video"
-  | "scenario";
+  | "scenario"
+  | "interior";
 
 export type WebsiteProductionMode = Extract<
   JobMode,
@@ -50,7 +51,7 @@ export interface WebsiteGenerationSettings {
 }
 
 export interface StudioGenerationRequest {
-  studioKind: "product" | "idea" | "scenario";
+  studioKind: "product" | "idea" | "scenario" | "interior";
   prompt: string;
   files: File[];
   mode: "photos" | "video" | "custom";
@@ -88,6 +89,7 @@ const CREATION_MODES = [
   { id: "photo" as const, label: "Product Photos", short: "Photos", icon: ImageIcon },
   { id: "product-video" as const, label: "Product Video", short: "Product", icon: PackageOpen },
   { id: "scenario" as const, label: "Talking Scene", short: "Talking", icon: MessageCircleMore },
+  { id: "interior" as const, label: "Interior Design", short: "Interior", icon: Layers3 },
 ] as const;
 
 const ACCEPTED_IMAGES = ["image/jpeg", "image/png", "image/webp"];
@@ -122,6 +124,7 @@ function intentFromSearch(): CreationIntent | null {
   if (value === "photo" || value === "product") return "photo";
   if (value === "product-video") return "product-video";
   if (value === "scenario" || value === "talking") return "scenario";
+  if (value === "interior" || value === "interior-design" || value === "architecture") return "interior";
   if (value === "video" || value === "idea") return "video";
   if (value === "website") return "website";
   return null;
@@ -250,7 +253,7 @@ export function WebsiteBriefForm({
     setSettingsOpen(false);
     setError(null);
     setSettings((current) => {
-      if (intent === "photo") return { ...current, aspectRatio: "1:1", audioMode: "silent" };
+      if (intent === "photo" || intent === "interior") return { ...current, aspectRatio: intent === "interior" ? "16:9" : "1:1", audioMode: "silent" };
       const leavingPhotoDefaults = previousIntent === "photo" && current.aspectRatio === "1:1" && current.audioMode === "silent";
       return leavingPhotoDefaults ? { ...current, aspectRatio: "9:16", audioMode: "native_audio" } : current;
     });
@@ -391,11 +394,14 @@ export function WebsiteBriefForm({
     }
 
     const isProduct = activeMode === "photo" || activeMode === "product-video";
-    const activePrompt = isProduct ? brief.trim() : prompt.trim();
+    const isInterior = activeMode === "interior";
+    const activePrompt = isProduct || isInterior ? brief.trim() : prompt.trim();
     if (!activePrompt) {
       setError(
         activeMode === "scenario"
           ? "Describe the talking scene you want to create before generating."
+          : activeMode === "interior"
+            ? "Describe the space, measurements, design direction and output you want before generating."
           : activeMode === "photo"
             ? "Describe the product-photo campaign you want before generating."
             : activeMode === "product-video"
@@ -405,26 +411,27 @@ export function WebsiteBriefForm({
       studioPromptRef.current?.focus();
       return;
     }
-    if (isProduct && files.length === 0) {
-      setError("Attach at least one real product or reference photo.");
+    if ((isProduct || isInterior) && files.length === 0) {
+      setError(isInterior ? "Attach at least one clear photo, sketch, plan, elevation, or reference image of the space." : "Attach at least one real product or reference photo.");
       return;
     }
 
     const durationSeconds = settings.durationSeconds === "auto" ? 8 : settings.durationSeconds;
     setError(null);
     void onStudioSubmit({
-      studioKind: isProduct ? "product" : activeMode === "scenario" ? "scenario" : "idea",
+      studioKind: isProduct ? "product" : activeMode === "scenario" ? "scenario" : "interior",
       prompt: activePrompt,
       files,
-      mode: activeMode === "photo" ? "photos" : activeMode === "product-video" ? "video" : "custom",
+      mode: activeMode === "photo" ? "photos" : activeMode === "product-video" ? "video" : isInterior ? (["video","tour","walkthrough","flythrough","cinematic"].some((word) => activePrompt.toLowerCase().includes(word)) ? "custom" : "photos") : "custom",
       durationSeconds: activeMode === "photo" ? 8 : durationSeconds,
       aspectRatio: settings.aspectRatio,
       outputQuality: settings.outputQuality,
-      audioMode: activeMode === "photo" ? "silent" : settings.audioMode,
+      audioMode: activeMode === "photo" || isInterior ? "silent" : settings.audioMode,
     });
   }
 
   const isProductMode = activeMode === "photo" || activeMode === "product-video";
+  const isInteriorMode = activeMode === "interior";
   const isVideoMode = activeMode !== "photo";
   const durationSeconds = settings.durationSeconds === "auto" ? 8 : settings.durationSeconds;
   const formatSummary = settings.aspectRatio === "9:16" ? "Portrait" : settings.aspectRatio === "16:9" ? "Wide" : "Square";
@@ -443,7 +450,9 @@ export function WebsiteBriefForm({
       ? !url.trim() || !brief.trim()
       : isProductMode
         ? files.length === 0 || !brief.trim()
-        : !prompt.trim()
+        : isInteriorMode
+          ? files.length === 0 || !brief.trim()
+          : !prompt.trim()
   );
   const createLabel = activeMode === "website"
     ? "Create website campaign"
@@ -453,7 +462,9 @@ export function WebsiteBriefForm({
         ? "Create product photos"
         : activeMode === "product-video"
           ? "Create product video"
-          : "Create talking scene";
+          : activeMode === "interior"
+            ? "Create interior design"
+            : "Create talking scene";
 
   return (
     <div
