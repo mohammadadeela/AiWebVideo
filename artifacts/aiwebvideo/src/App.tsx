@@ -21,6 +21,11 @@ const UrlToVideoPage = lazy(() => searchPages().then((module) => ({ default: mod
 const WebsiteVideoGeneratorPage = lazy(() => searchPages().then((module) => ({ default: module.WebsiteVideoGeneratorPage })));
 const SaasDemoVideoGeneratorPage = lazy(() => searchPages().then((module) => ({ default: module.SaasDemoVideoGeneratorPage })));
 const ProductPageToVideoPage = lazy(() => searchPages().then((module) => ({ default: module.ProductPageToVideoPage })));
+const AiVideoGeneratorPage = lazy(() => searchPages().then((module) => ({ default: module.AiVideoGeneratorPage })));
+const ProductPhotoGeneratorPage = lazy(() => searchPages().then((module) => ({ default: module.ProductPhotoGeneratorPage })));
+const ProductVideoGeneratorPage = lazy(() => searchPages().then((module) => ({ default: module.ProductVideoGeneratorPage })));
+const TalkingVideoGeneratorPage = lazy(() => searchPages().then((module) => ({ default: module.TalkingVideoGeneratorPage })));
+const InteriorDesignGeneratorPage = lazy(() => searchPages().then((module) => ({ default: module.InteriorDesignGeneratorPage })));
 const ExamplesPage = lazy(() => searchPages().then((module) => ({ default: module.ExamplesPage })));
 const guidePages = () => import('@/pages/GuidesPage');
 const WebsiteToVideoGuidePage = lazy(() => guidePages().then((module) => ({ default: module.WebsiteToVideoGuidePage })));
@@ -54,6 +59,11 @@ function Router() {
       <Route path="/website-video-generator" component={WebsiteVideoGeneratorPage} />
       <Route path="/saas-demo-video-generator" component={SaasDemoVideoGeneratorPage} />
       <Route path="/product-page-to-video" component={ProductPageToVideoPage} />
+      <Route path="/ai-video-generator" component={AiVideoGeneratorPage} />
+      <Route path="/product-photo-generator" component={ProductPhotoGeneratorPage} />
+      <Route path="/product-video-generator" component={ProductVideoGeneratorPage} />
+      <Route path="/talking-video-generator" component={TalkingVideoGeneratorPage} />
+      <Route path="/ai-interior-design-generator" component={InteriorDesignGeneratorPage} />
       <Route path="/examples" component={ExamplesPage} />
       <Route path="/guides/turn-website-into-video" component={WebsiteToVideoGuidePage} />
       <Route path="/guides/saas-product-demo-video" component={SaasProductVideoGuidePage} />
