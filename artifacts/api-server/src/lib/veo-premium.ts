@@ -23,7 +23,7 @@ import { videoCreditQuote } from './credits.js';
 import { buildPartialDeliveryMetadata, type PartialDeliveryMetadata } from './partial-delivery.js';
 
 const execFileAsync = promisify(execFile);
-const POLL_MS = Math.max(2_000, Number(process.env.GEMINI_VIDEO_POLL_MS ?? 10_000));
+const POLL_MS = Math.max(2_000, Number(process.env.GEMINI_VIDEO_POLL_MS ?? 5_000));
 const POLL_LOG_MS = Math.max(POLL_MS, Number(process.env.GEMINI_VIDEO_POLL_LOG_MS ?? 20_000));
 const GENERATION_TIMEOUT_MS = Math.max(60_000, Number(process.env.GEMINI_VIDEO_TIMEOUT_MS ?? 12 * 60_000));
 const PROVIDER_SCENE_SECONDS = 8;
