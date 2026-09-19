@@ -155,8 +155,26 @@ export function ChatWidget({
       const nextTray = shell.querySelector<HTMLElement>(".finished-action-tray");
 
       if (nextTray !== currentTray) {
+        const isNewFinishedResult = Boolean(nextTray && currentTray === null);
         currentTray = nextTray;
         setActionTray(nextTray);
+
+        // Every newly completed generation should land the user on the
+        // generated result and leave the large action area collapsed. The
+        // user can reopen it with the small connected chevron whenever they
+        // want another version, a direction edit, or saved references.
+        if (isNewFinishedResult) {
+          setFinishControlsCollapsed(true);
+          writeFinishedPanelState(activeChatId, true);
+
+          window.requestAnimationFrame(() => {
+            const messages = shell.querySelector<HTMLElement>("[data-chat-messages]");
+            if (messages) messages.scrollTop = messages.scrollHeight;
+
+            const controls = shell.querySelector<HTMLElement>("[data-chat-controls]");
+            if (controls) controls.scrollTop = controls.scrollHeight;
+          });
+        }
       }
 
       if (!nextTray) {
