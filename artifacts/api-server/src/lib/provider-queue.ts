@@ -127,7 +127,7 @@ function isRateLimitError(error: unknown) {
   return status === 429 || /\b429\b|RESOURCE_EXHAUSTED|rate.?limit|quota|too many requests/i.test(value);
 }
 
-function isProviderBillingUnavailable(error: unknown) {
+export function isProviderBillingUnavailable(error: unknown) {
   const value = errorText(error);
   const status = Number((error as { status?: unknown; code?: unknown } | null)?.status ?? (error as { code?: unknown } | null)?.code);
   return status === 402 ||
