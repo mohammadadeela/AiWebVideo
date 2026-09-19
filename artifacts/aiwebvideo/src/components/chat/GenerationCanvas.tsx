@@ -106,6 +106,13 @@ export function GenerationCanvas({
   const settled = ["done", "failed", "cancelled"].includes(status);
   const photoMode = productionKind === "product-photos" || productionKind === "campaign-photos";
   const safeProgress = status === "done" ? 100 : Math.max(2, Math.min(99, Math.round(progress || 2)));
+  const eta = formatEta(etaSeconds);
+  const visibleReferences = referenceItems.slice(0, 6);
+  const effectiveCancelling = Boolean(cancelling || stopSubmitting || stopRequested);
+  const generatedPhotos = useMemo(() => liveAssets.filter((asset) => asset.type === "photo").slice(-4), [liveAssets]);
+  const generatedVideo = useMemo(() => [...liveAssets].reverse().find((asset) => asset.type === "video") ?? null, [liveAssets]);
+  const sourceRecording = useMemo(() => [...liveAssets].reverse().find((asset) => asset.type === "recording") ?? null, [liveAssets]);
+  const sourcePreview = visibleReferences[0] ?? null;
   const progressIsEstimated = !settled && status === "rendering" && !generatedVideo;
   const liveStage = useMemo(() => {
     const message = (statusMessage ?? "").toLowerCase();
@@ -119,7 +126,7 @@ export function GenerationCanvas({
     return phase(status);
   }, [status, statusMessage]);
   const elapsedLabel = useMemo(() => {
-    const match = statusMessage?.match(/(\\d+)s elapsed/i);
+    const match = statusMessage?.match(/(\d+)s elapsed/i);
     if (!match) return null;
     const seconds = Number(match[1]);
     if (!Number.isFinite(seconds)) return null;
@@ -128,13 +135,6 @@ export function GenerationCanvas({
     const remainder = seconds % 60;
     return `${minutes}m ${String(remainder).padStart(2, "0")}s elapsed`;
   }, [statusMessage]);
-  const eta = formatEta(etaSeconds);
-  const visibleReferences = referenceItems.slice(0, 6);
-  const effectiveCancelling = Boolean(cancelling || stopSubmitting || stopRequested);
-  const generatedPhotos = useMemo(() => liveAssets.filter((asset) => asset.type === "photo").slice(-4), [liveAssets]);
-  const generatedVideo = useMemo(() => [...liveAssets].reverse().find((asset) => asset.type === "video") ?? null, [liveAssets]);
-  const sourceRecording = useMemo(() => [...liveAssets].reverse().find((asset) => asset.type === "recording") ?? null, [liveAssets]);
-  const sourcePreview = visibleReferences[0] ?? null;
 
   useEffect(() => {
     const id = jobId ?? getActiveJobId();
