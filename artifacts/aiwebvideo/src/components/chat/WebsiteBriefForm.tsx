@@ -433,7 +433,7 @@ export function WebsiteBriefForm({
 
   const isProductMode = activeMode === "photo" || activeMode === "product-video";
   const isInteriorMode = activeMode === "interior";
-  const isVideoMode = activeMode !== "photo" && activeMode !== "interior";
+  const isVideoMode = activeMode !== "photo" && (activeMode !== "interior" || interiorOutput === "video");
   const durationSeconds = settings.durationSeconds === "auto" ? 8 : settings.durationSeconds;
   const formatSummary = settings.aspectRatio === "9:16" ? "Portrait" : settings.aspectRatio === "16:9" ? "Wide" : "Square";
   const audioSummary = settings.audioMode === "voice_music"
@@ -443,7 +443,7 @@ export function WebsiteBriefForm({
       : settings.audioMode === "music_only"
         ? "Music only"
         : "Silent";
-  const exactCredits = activeMode === "photo"
+  const exactCredits = activeMode === "photo" || (activeMode === "interior" && interiorOutput === "images")
     ? estimateRenderCredits("photos", true, 8, "1080p")
     : estimateRenderCredits("video", settings.audioMode !== "voice_music", durationSeconds, settings.outputQuality);
   const submitDisabled = disabled || (
