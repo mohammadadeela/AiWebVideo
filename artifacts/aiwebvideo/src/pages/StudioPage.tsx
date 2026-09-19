@@ -1,4 +1,4 @@
-import { ArrowLeft, Film, Image, MessageCircleMore } from "lucide-react";
+import { ArrowLeft, Film, Image, MessageCircleMore, Ruler } from "lucide-react";
 import { Link } from "wouter";
 import { Nav } from "@/components/landing/Nav";
 import { Footer } from "@/components/landing/Footer";
@@ -18,6 +18,7 @@ const iconForKind = {
   product: Image,
   idea: Film,
   scenario: MessageCircleMore,
+  interior: Ruler,
 } as const;
 
 export function StudioPage({ kind }: { kind: StudioKind }) {
