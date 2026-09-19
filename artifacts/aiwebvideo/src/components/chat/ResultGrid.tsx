@@ -10,7 +10,7 @@ function videoPreviewUrl(url: string) {
   return `${url.split("#", 1)[0]}#t=0.001`;
 }
 
-export function ResultGrid({ assets, onUnlock, sourceKind = "website", onGeneratedPhotoSelectionChange }: { assets: JobAsset[]; onUnlock: () => void; sourceKind?: "website" | "studio" | "upload"; onGeneratedPhotoSelectionChange?: (assetIds: string[]) => void }) {
+export function GeneratedPhotoPicker({ photos, selectedGeneratedPhotoIds = [], onSelectionChange, compact = false }: { photos: JobAsset[]; selectedGeneratedPhotoIds?: string[]; onSelectionChange: (assetIds: string[]) => void; compact?: boolean }) {\n  const visiblePhotos = photos.filter((asset) => asset.type === "photo").slice(0, 8);\n  if (!visiblePhotos.length) return null;\n  return (\n    <div className={`rounded-[22px] border border-violet/20 bg-violet/[.045] ${compact ? "p-3" : "p-4 sm:p-5"}`}>\n      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">\n        <div><p className="text-sm font-semibold text-white">Choose the images to continue</p><p className="mt-1 text-[10px] text-text-dim">Select one or more. I’ll use exactly these finished images for the next video or edit.</p></div>\n        <span className="rounded-full border border-violet/20 bg-violet/10 px-2.5 py-1 text-[9px] font-semibold text-violet">{selectedGeneratedPhotoIds.length} selected</span>\n      </div>\n      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">\n        {visiblePhotos.map((photo, index) => {\n          const generatedReferenceId = `generated-photo-${index + 1}`;\n          const selected = selectedGeneratedPhotoIds.includes(generatedReferenceId);\n          return <button key={photo.id} type="button" onClick={() => {\n            const next = selected ? selectedGeneratedPhotoIds.filter((id) => id !== generatedReferenceId) : [...selectedGeneratedPhotoIds, generatedReferenceId];\n            onSelectionChange(next);\n          }} className={`relative overflow-hidden rounded-xl border text-left transition ${selected ? "border-violet ring-2 ring-violet/30" : "border-white/[.08] hover:border-white/[.18]"}`}>\n            <img src={photo.url} alt={`Generated photo ${index + 1}`} className="aspect-square w-full object-cover" />\n            <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-1 text-[9px] font-semibold text-white">Photo {index + 1}</span>\n            {selected && <span className="absolute right-2 top-2 rounded-full bg-violet px-2 py-1 text-[9px] font-bold text-white">Selected</span>}\n          </button>;\n        })}\n      </div>\n    </div>\n  );\n}\n\nexport function ResultGrid({ assets, onUnlock, sourceKind = "website", onGeneratedPhotoSelectionChange, selectedGeneratedPhotoIds = [] }: { assets: JobAsset[]; onUnlock: () => void; sourceKind?: "website" | "studio" | "upload"; onGeneratedPhotoSelectionChange?: (assetIds: string[]) => void; selectedGeneratedPhotoIds?: string[] }) {
   const videos = assets.filter((asset) => asset.type === "video");
   const photos = assets.filter((asset) => asset.type === "photo");
   const screenshots = assets.filter((asset) => asset.type === "screenshot");
@@ -89,29 +89,7 @@ export function ResultGrid({ assets, onUnlock, sourceKind = "website", onGenerat
         </div>
       )}
 
-      {photos.length > 0 && (
-        <div className="rounded-[22px] border border-violet/20 bg-violet/[.045] p-4 sm:p-5">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <div><p className="text-sm font-semibold text-white">Choose images for your next video or edit</p><p className="mt-1 text-[10px] text-text-dim">Select at least one. Your selected images will be sent as visual style/reference anchors for the next AI request.</p></div>
-            <span className="rounded-full border border-violet/20 bg-violet/10 px-2.5 py-1 text-[9px] font-semibold text-violet">{selectedGeneratedPhotoIds.length} selected</span>
-          </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {photos.slice(0, 8).map((photo, index) => {
-              const generatedReferenceId = `generated-photo-${index + 1}`;
-              const selected = selectedGeneratedPhotoIds.includes(generatedReferenceId);
-              return <button key={photo.id} type="button" onClick={() => {
-                const next = selected ? selectedGeneratedPhotoIds.filter((id) => id !== generatedReferenceId) : [...selectedGeneratedPhotoIds, generatedReferenceId];
-                setSelectedGeneratedPhotoIds(next);
-                onGeneratedPhotoSelectionChange?.(next);
-              }} className={`relative overflow-hidden rounded-xl border text-left transition ${selected ? "border-violet ring-2 ring-violet/30" : "border-white/[.08] hover:border-white/[.18]"}`}>
-                <img src={photo.url} alt={`Generated photo ${index + 1}`} className="aspect-square w-full object-cover" />
-                <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-1 text-[9px] font-semibold text-white">Photo {index + 1}</span>
-                {selected && <span className="absolute right-2 top-2 rounded-full bg-violet px-2 py-1 text-[9px] font-bold text-white">Selected</span>}
-              </button>;
-            })}
-          </div>
-        </div>
-      )}
+      {photos.length > 0 && <GeneratedPhotoPicker photos={photos} selectedGeneratedPhotoIds={selectedGeneratedPhotoIds} onSelectionChange={(next) => { setSelectedGeneratedPhotoIds(next); onGeneratedPhotoSelectionChange?.(next); }} />}
 
       {photos.length > 0 && (
         <div className="overflow-hidden rounded-[22px] border border-white/[.09] bg-[#0c0917] p-4 shadow-[0_28px_70px_-42px_rgba(139,92,246,.75)] sm:p-5">
