@@ -2210,8 +2210,7 @@ export function ChatWidget({
         ? `Use the user's selected finished AI images as the primary visual reference and style anchors for this request. Preserve their visual language, composition quality, materials, color relationships, lighting character, subject identity, and overall art direction unless the user explicitly asks to change them. Use the selected images as references, not as unrelated examples. Selected reference IDs: ${selectedGeneratedPhotoIds.join(", ")}. User request: ${nextBrief}`
         : nextBrief;
 
-    const wantsFollowUpProduction = understood.intent !== "non_generation";
-    if (wantsFollowUpProduction && (understood.intent === "video" || understood.intent === "edit") && selectedGeneratedPhotoIds.length === 0) {
+    if ((understood.intent === "video" || understood.intent === "edit") && selectedGeneratedPhotoIds.length === 0) {
       pushUser(nextBrief);
       pushBot("Choose at least one of the generated photos above first. I’ll use exactly the selected images as visual references for your next video or edit.");
       return;
