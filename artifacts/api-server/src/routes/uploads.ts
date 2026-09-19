@@ -77,7 +77,7 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
     if (ideaPrompt.length > 8000) {
       throw new AppError('Your prompt is longer than 8,000 characters. Shorten it slightly so every detail can be sent without hidden truncation.', 400, 'PROMPT_TOO_LONG');
     }
-    const studioKind = ['product', 'idea', 'scenario'].includes(req.body?.studioKind) ? req.body.studioKind as 'product' | 'idea' | 'scenario' : null;
+    const studioKind = ['product', 'idea', 'scenario', 'interior'].includes(req.body?.studioKind) ? req.body.studioKind as 'product' | 'idea' | 'scenario' | 'interior' : null;
     const studioMode = ['video', 'photos', 'both', 'custom'].includes(req.body?.mode) ? req.body.mode as 'video' | 'photos' | 'both' | 'custom' : null;
     const studioAudioMode = ['voice_music', 'native_audio', 'music_only', 'silent'].includes(req.body?.audioMode)
       ? req.body.audioMode as 'voice_music' | 'native_audio' | 'music_only' | 'silent'
@@ -99,6 +99,12 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
       }
       if ((studioKind === 'idea' || studioKind === 'scenario') && studioMode !== 'custom') {
         throw new AppError('Custom Idea and Scenario productions use the independent custom-video engine.', 400, 'INVALID_STUDIO_MODE');
+      }
+      if (studioKind === 'interior' && !['photos', 'custom'].includes(studioMode)) {
+        throw new AppError('Interior Design uses image generation or custom video mode.', 400, 'INVALID_STUDIO_MODE');
+      }
+      if (studioKind === 'interior' && !files.length) {
+        throw new AppError('Upload at least one interior photo, plan, sketch, elevation, or reference image.', 400, 'INTERIOR_REFERENCE_REQUIRED');
       }
       if (studioKind === 'product' && !files.length) {
         throw new AppError('Upload at least one real product photo before generating a product campaign.', 400, 'PRODUCT_PHOTO_REQUIRED');
