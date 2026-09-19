@@ -20,7 +20,7 @@ export interface WebsiteCreatorHandoff {
 export interface StudioCreatorHandoff {
   kind: "studio";
   request: {
-    studioKind: "product" | "idea" | "scenario";
+    studioKind: "product" | "idea" | "scenario" | "interior";
     prompt: string;
     mode: "photos" | "video" | "custom";
     durationSeconds: number;
