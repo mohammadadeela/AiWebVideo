@@ -11,6 +11,7 @@ const intentForKind: Record<StudioKind, CreationIntent> = {
   product: "photo",
   idea: "video",
   scenario: "scenario",
+  interior: "interior",
 };
 
 const iconForKind = {
