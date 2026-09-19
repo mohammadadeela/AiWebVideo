@@ -702,7 +702,8 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
     // Never regenerate into a completed job. A completed production is immutable
     // history; every new concept/version gets a fresh job ID and clean output
     // directory while reusing only the saved browser captures. This prevents old
-    // MP4/assets from being returned as the new result.
+    // MP4/assets from being returned as the new result; only saved source
+    // captures and finished photo references are intentionally carried forward.
     const existingAssets = await getAssetsByJob(job.id);
     const hasGeneratedResult = existingAssets.some((asset) => asset.type === "video" || asset.type === "photo");
     if (job.status === "done" || hasGeneratedResult) {
