@@ -97,9 +97,10 @@ export function ResultGrid({ assets, onUnlock, sourceKind = "website", onGenerat
           </div>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {photos.slice(0, 8).map((photo, index) => {
-              const selected = selectedGeneratedPhotoIds.includes(photo.id);
+              const generatedReferenceId = `generated-photo-${index + 1}`;
+              const selected = selectedGeneratedPhotoIds.includes(generatedReferenceId);
               return <button key={photo.id} type="button" onClick={() => {
-                const next = selected ? selectedGeneratedPhotoIds.filter((id) => id !== photo.id) : [...selectedGeneratedPhotoIds, photo.id];
+                const next = selected ? selectedGeneratedPhotoIds.filter((id) => id !== generatedReferenceId) : [...selectedGeneratedPhotoIds, generatedReferenceId];
                 setSelectedGeneratedPhotoIds(next);
                 onGeneratedPhotoSelectionChange?.(next);
               }} className={`relative overflow-hidden rounded-xl border text-left transition ${selected ? "border-violet ring-2 ring-violet/30" : "border-white/[.08] hover:border-white/[.18]"}`}>
