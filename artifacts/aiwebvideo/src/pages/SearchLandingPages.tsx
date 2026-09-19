@@ -22,11 +22,13 @@ type SeoLanding = {
   useCases: Array<[string, string]>;
   faq: Array<[string, string]>;
   related: Array<[string, string, string]>;
+  createHref: string;
 };
 
 const pages: Record<string, SeoLanding> = {
   urlToVideo: {
     path: "/url-to-video",
+    createHref: "/?create=website#generate",
     eyebrow: "URL to video AI",
     title: "Turn any website URL into an AI video",
     seoTitle: "URL to Video AI Generator — Turn a Website Into Video",
@@ -72,6 +74,7 @@ const pages: Record<string, SeoLanding> = {
   },
   websiteVideoGenerator: {
     path: "/website-video-generator",
+    createHref: "/?create=website#generate",
     eyebrow: "Website video generator",
     title: "Create a marketing video from your website",
     seoTitle: "AI Website Video Generator — Website to Marketing Video",
@@ -117,6 +120,7 @@ const pages: Record<string, SeoLanding> = {
   },
   saasDemo: {
     path: "/saas-demo-video-generator",
+    createHref: "/?create=website#generate",
     eyebrow: "SaaS video generator",
     title: "Turn your SaaS website into a product story",
     seoTitle: "SaaS Demo Video Generator — Create Product Videos With AI",
@@ -162,6 +166,7 @@ const pages: Record<string, SeoLanding> = {
   },
   productPage: {
     path: "/product-page-to-video",
+    createHref: "/?create=website#generate",
     eyebrow: "Product page to video",
     title: "Turn a product page into campaign video",
     seoTitle: "Product Page to Video AI — Ecommerce Video Generator",
@@ -204,7 +209,97 @@ const pages: Record<string, SeoLanding> = {
       ["Product campaign guide", "/guides/product-page-video-ads", "Plan better product-page video campaigns."],
     ],
   },
-};
+  aiVideo: {
+    path: "/ai-video-generator",
+    createHref: "/?create=video#generate",
+    eyebrow: "AI video generator",
+    title: "AI Video Generator — Create Videos From Text and Images",
+    seoTitle: "AI Video Generator — Create AI Videos From Prompts | AiWebVideo",
+    description: "Create original AI videos from a prompt and optional image references. Direct the story, camera, style, pacing and format with AiWebVideo.",
+    intro: "Describe the video you want in normal language, add references when useful, and let AiWebVideo turn the idea into a complete AI-directed video.",
+    primaryLabel: "Create an AI video",
+    highlights: ["Text-to-video creative direction", "Optional image references", "Landscape, portrait and square", "Campaign-ready output"],
+    problemTitle: "Start with an idea instead of a blank timeline",
+    problemBody: "AI video generation should understand the creative intent behind a request. Describe the subject, setting, action, mood, camera language or story and let the creator organize those decisions into a coherent production.",
+    workflow: [["Describe the idea", "Explain the subject, setting, action, style, audience or story in your own words."], ["Add references", "Supply images when identity, appearance, product details or visual direction should stay grounded."], ["Direct the result", "Use duration, aspect ratio, quality and audio choices when they matter for the campaign."], ["AI plans the production", "The creator turns the brief into a coherent sequence with camera, motion, pacing and visual direction."], ["Generate the video", "Follow production in the workspace and review the finished AI video when it is ready."]],
+    benefits: [["Natural-language control", "Describe the outcome instead of learning a complex timeline or prompt syntax."], ["Reference-aware", "Optional images can anchor the visual direction when the result needs a specific subject or look."], ["Multiple formats", "Create landscape, portrait or square media for different destinations."], ["Built for complete videos", "The workflow is designed around one coherent final production rather than unrelated clips."]],
+    useCases: [["Social campaigns", "Create original visual concepts for vertical and square social content."], ["Brand concepts", "Explore cinematic concepts, product stories and campaign directions before production."], ["Explainer visuals", "Turn a concept or scenario into visual storytelling without recording a traditional shoot."], ["Creative testing", "Generate different visual directions around the same campaign idea."]],
+    faq: [["What is an AI video generator?", "It is a tool that uses an instruction and optional references to generate video content. AiWebVideo adds creative planning so the request becomes a coherent production."], ["Can I use an image as a reference?", "Yes. Optional reference images can help anchor subjects, products, identity or visual direction."], ["Can I choose portrait video?", "Yes. The creator supports common landscape, portrait and square formats."], ["Can I make a product video instead?", "Yes. Use the dedicated Product Video page when the real product should remain the central reference."]],
+    related: [["Product Video Generator", "/product-video-generator", "Create a reference-grounded product film."], ["Product Photo Generator", "/product-photo-generator", "Create campaign images from real product references."], ["Talking Video Generator", "/talking-video-generator", "Create dialogue and scenario-driven video."]],
+  },
+  productPhoto: {
+    path: "/product-photo-generator",
+    createHref: "/?create=photo#generate",
+    eyebrow: "AI product photo generator",
+    title: "AI Product Photo Generator — Create Product Images From References",
+    seoTitle: "AI Product Photo Generator — Create Product Images | AiWebVideo",
+    description: "Upload real product references and create polished AI product photos for ecommerce, campaigns, social media and marketing.",
+    intro: "Give AiWebVideo your real product images and describe the scene, styling, background or campaign you want. The product remains the visual anchor.",
+    primaryLabel: "Create product photos",
+    highlights: ["Real product references", "Campaign image directions", "Ecommerce-ready concepts", "Multiple visual styles"],
+    problemTitle: "Create new product imagery without reshooting every concept",
+    problemBody: "Product marketing often needs many visual contexts: clean studio shots, lifestyle scenes, seasonal campaigns and social variations. Reference-based generation lets you start from the real product while directing the creative setting.",
+    workflow: [["Upload the real product", "Add clear product images that show the shape, materials, colors and important details."], ["Describe the scene", "Ask for a studio setup, lifestyle environment, seasonal concept, campaign mood or specific composition."], ["Keep the product grounded", "The supplied reference remains the primary visual anchor rather than becoming an unrelated inspiration image."], ["Generate the image", "AiWebVideo creates the requested product-focused visual direction."], ["Create variations", "Use different prompts and compositions to build a consistent campaign set."]],
+    benefits: [["Reference-first", "Start from the actual product rather than a generic text-only object."], ["More campaign variations", "Explore multiple scenes and art directions from the same source product."], ["Useful across channels", "Create visuals for ecommerce, social, ads and promotional campaigns."], ["Creative consistency", "Keep the product and visual language central while changing the environment."]],
+    useCases: [["Ecommerce hero images", "Create new merchandising concepts around the same real product."], ["Lifestyle campaigns", "Place the product in a directed environment that matches the campaign."], ["Seasonal promotions", "Create visual concepts for launches, holidays and promotional periods."], ["Social content", "Generate fresh product compositions for recurring social campaigns."]],
+    faq: [["Do I need to upload a product image?", "Yes. Product-photo generation is designed around supplied references when the exact product should remain central."], ["Can I request a specific background?", "Yes. Describe the environment, surface, lighting, composition and campaign mood you want."], ["Can I make a product video from the same product?", "Yes. Product Video is a separate mode designed for reference-grounded motion."], ["Are these just background replacements?", "No. The workflow can create a new campaign composition around the referenced product, subject to the capabilities of the underlying image model."]],
+    related: [["Product Video Generator", "/product-video-generator", "Turn the real product into a moving commercial."], ["AI Video Generator", "/ai-video-generator", "Create original AI video from an idea."], ["Product Page to Video", "/product-page-to-video", "Start a product campaign from a public product page."]],
+  },
+  productVideo: {
+    path: "/product-video-generator",
+    createHref: "/?create=product-video#generate",
+    eyebrow: "AI product video generator",
+    title: "AI Product Video Generator — Create Product Videos From Real References",
+    seoTitle: "AI Product Video Generator — Create Product Videos | AiWebVideo",
+    description: "Create AI product videos from real product images. Preserve the product as the reference while generating commercial motion, camera movement and environments.",
+    intro: "Upload the real product, describe the commercial direction, and let AiWebVideo build a continuous product-focused film around it.",
+    primaryLabel: "Create a product video",
+    highlights: ["Real product image references", "Commercial camera motion", "Continuous product storytelling", "Portrait, landscape and square"],
+    problemTitle: "Turn a real product image into a campaign film",
+    problemBody: "A product video needs to keep the item recognizable while adding useful motion, camera language, lighting and context. Reference-first production is designed to keep the supplied product central to the result.",
+    workflow: [["Upload product references", "Provide clear images that show the real product and important details."], ["Describe the commercial", "Specify the audience, environment, mood, motion, benefit or campaign angle."], ["AI plans the film", "The production direction organizes camera movement, product reveals, pacing and visual continuity."], ["Generate one coherent video", "The goal is a complete product film rather than a random collection of unrelated shots."], ["Review and download", "Keep the finished media in the same workspace for review and delivery."]],
+    benefits: [["Product-faithful direction", "Real references are treated as the visual anchor for the production."], ["Commercial motion", "Use camera movement, hero reveals, macro details and environments to make the product feel alive."], ["Multiple campaign angles", "Create launch, benefit, lifestyle and promotional variants from the same product."], ["Flexible formats", "Choose the format that matches your destination."]],
+    useCases: [["Product launch", "Introduce a new product with a concise commercial film."], ["Paid social", "Create vertical-first product creative for social advertising."], ["Ecommerce promotion", "Show the product through motion and detail rather than a static listing image."], ["Lifestyle campaign", "Place the product in a directed environment while keeping it central."]],
+    faq: [["Does it use my real product image?", "Yes. Product Video is designed around supplied product references so the real item remains the primary visual anchor."], ["Can I control the video style?", "Yes. Describe the camera, environment, mood, pacing, audience and campaign goal in the brief."], ["Can I make product photos too?", "Yes. Use Product Photos when you need still campaign imagery."], ["Can I start from a product page instead?", "Yes. Product Page to Video is the URL-based workflow for public ecommerce pages."]],
+    related: [["Product Photo Generator", "/product-photo-generator", "Create still campaign images from the same kind of reference."], ["Product Page to Video", "/product-page-to-video", "Turn a public product page into campaign video."], ["AI Video Generator", "/ai-video-generator", "Create original video from a broader creative idea."]],
+  },
+  talkingVideo: {
+    path: "/talking-video-generator",
+    createHref: "/?create=scenario#generate",
+    eyebrow: "AI talking video generator",
+    title: "AI Talking Video Generator — Create Dialogue, Testimonials and Scenes",
+    seoTitle: "AI Talking Video Generator — Create Dialogue & Scenario Videos | AiWebVideo",
+    description: "Create AI talking and scenario videos from a description of the characters, dialogue, setting, camera and performance you want.",
+    intro: "Describe the people, conversation, testimonial or scripted scenario and let AiWebVideo direct the performance, camera blocking, pacing and scene audio.",
+    primaryLabel: "Create a talking video",
+    highlights: ["Dialogue and scenarios", "Character direction", "Camera and performance", "Scene audio"],
+    problemTitle: "Direct a complete scene without organizing a traditional shoot",
+    problemBody: "Talking videos depend on more than words: identity, eyelines, gestures, reactions, pauses, camera blocking and audio continuity all affect whether a scene feels coherent. The scenario workflow keeps those decisions together.",
+    workflow: [["Describe the scene", "Explain who is present, where they are, what happens and what the viewer should understand."], ["Write the dialogue", "Provide exact lines when wording matters, or describe the conversation when you want the system to direct it."], ["Set performance direction", "Specify tone, reactions, camera style, pacing and visual references where needed."], ["Generate the scene", "AI produces a coherent talking or scenario-driven video with the selected audio direction."], ["Review the result", "Keep the finished scene in the same project workflow for download or follow-up creation."]],
+    benefits: [["Dialogue-first", "Designed around conversations, testimonials, scripted scenes and narrated situations."], ["Performance-aware", "Keep identity, eyelines, gestures, reactions and camera blocking connected."], ["Useful for marketing", "Create testimonial-style concepts, explainers, announcements and story-driven campaigns."], ["Natural-language control", "Describe the scene without learning a conventional video production interface."]],
+    useCases: [["Testimonials", "Create a scenario around a customer or spokesperson-style story."], ["Product conversations", "Use dialogue to introduce a product, feature or use case."], ["Story scenes", "Create cinematic conversations and narrative moments."], ["Explainer scenarios", "Show a problem and solution through a directed interaction."]],
+    faq: [["Can I provide exact dialogue?", "Yes. When exact wording is supplied, the production direction is designed to keep the spoken content faithful."], ["Can I add character references?", "Yes. Reference images can help anchor identity and visual direction where supported."], ["Can I make a normal AI video instead?", "Yes. Use the AI Video Generator for non-dialogue original concepts."], ["Does the result include audio?", "The scenario workflow supports scene audio according to the selected production settings and provider capabilities."]],
+    related: [["AI Video Generator", "/ai-video-generator", "Create original non-dialogue AI video."], ["Product Video Generator", "/product-video-generator", "Create a product-focused commercial."], ["Website Video Generator", "/website-video-generator", "Create a campaign from a real website."]],
+  },
+  interiorDesign: {
+    path: "/ai-interior-design-generator",
+    createHref: "/?create=interior#generate",
+    eyebrow: "AI interior design generator",
+    title: "AI Interior Design Generator — Redesign Rooms, Homes and Spaces",
+    seoTitle: "AI Interior Design Generator — Create Interior Design Images & Tours | AiWebVideo",
+    description: "Upload room photos, plans or sketches and create AI interior design concepts, realistic redesign images and walkthrough videos with reference-aware controls.",
+    intro: "Upload photos, floor plans, sketches or elevations, then describe the interior you want. AiWebVideo can create design images or a walkthrough while using your references as the visual and architectural starting point.",
+    primaryLabel: "Create an interior design",
+    highlights: ["Room photos and plans", "Design concept images", "Interior walkthrough video", "Reference-aware geometry"],
+    problemTitle: "Turn a real space into a visual design concept",
+    problemBody: "Interior design concepts need to respect the existing space. Reference photos, plans, sketches and explicit measurements provide the grounding needed to explore materials, furniture, lighting and layouts without treating a generic image as a construction drawing.",
+    workflow: [["Upload the space", "Add room photos, plans, sketches, elevations or other references you are authorized to use."], ["Describe the design", "Explain the style, materials, furniture, colors, lighting, function and changes you want."], ["Add measurements when accuracy matters", "Explicit dimensions and scaled plans are authoritative when you need reliable proportions or geometry."], ["Choose the output", "Generate design images for still concepts or a walkthrough video for presenting the space."], ["Explore variations", "Try different styles, materials and furnishing directions while keeping the reference space as the starting point."]],
+    benefits: [["Reference-first design", "Use real photos and plans rather than starting from an unrelated generic room."], ["Multiple outputs", "Create still interior concepts or a presentation-style walkthrough video."], ["Natural-language design", "Describe the desired look and function in normal language."], ["Architecture-aware guardrails", "The workflow is designed to preserve important existing geometry unless you explicitly ask for a change."]],
+    useCases: [["Real estate presentation", "Show a potential furnishing or renovation direction for a property."], ["Home redesign", "Explore furniture, materials, colors and lighting for an existing room."], ["Retail and shops", "Visualize a store interior, display direction or customer experience."], ["Architectural concept", "Create visual concept material from plans, sketches and reference images."]],
+    faq: [["Can I upload a floor plan?", "Yes. Plans and sketches can be used as references, and explicit measurements should be supplied when accurate proportions matter."], ["Can it make a walkthrough video?", "Yes. Interior Design supports design-image and walkthrough-video outputs."], ["Will a normal room photo give exact dimensions?", "No. A photo alone cannot guarantee exact measurements. Use a scaled plan or explicit dimensions when geometry must be reliable."], ["Can I use it for a real estate property?", "Yes. Real estate presentation is one practical use case for concept images and walkthrough-style media, but generated visuals should not be presented as construction-ready drawings unless separately verified by a qualified professional."]],
+    related: [["AI Video Generator", "/ai-video-generator", "Create original AI video from any concept."], ["Product Photo Generator", "/product-photo-generator", "Create reference-grounded campaign images."], ["How it works", "/how-it-works", "Understand the shared AI production workflow."]],
+  },
+  }; 
 
 function SearchLandingPage({ page }: { page: SeoLanding }) {
   useSeo({ title: page.seoTitle, description: page.description, path: page.path, faq: page.faq });
@@ -228,7 +323,7 @@ function SearchLandingPage({ page }: { page: SeoLanding }) {
                 {page.intro}
               </p>
               <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-                <Button asChild><Link href="/?create=website#generate">{page.primaryLabel} <ArrowRight size={14} /></Link></Button>
+                <Button asChild><Link href={page.createHref}>{page.primaryLabel} <ArrowRight size={14} /></Link></Button>
                 <Button variant="secondary" asChild><Link href="/examples">See examples</Link></Button>
               </div>
               <div className="mt-8 flex flex-wrap justify-center gap-2">
@@ -335,7 +430,7 @@ function SearchLandingPage({ page }: { page: SeoLanding }) {
             <Link2 size={20} className="relative mx-auto text-mint" />
             <h2 className="relative mt-4 font-display text-3xl font-bold tracking-[-.035em] text-white">Your next video can start with one link</h2>
             <p className="relative mx-auto mt-3 max-w-xl text-sm leading-6 text-text-muted">Paste the public source, describe the campaign, and keep the production in one creative workspace.</p>
-            <Button className="relative mt-6" asChild><Link href="/?create=website#generate">Start with a website <ArrowRight size={14} /></Link></Button>
+            <Button className="relative mt-6" asChild><Link href={page.createHref}>{page.primaryLabel} <ArrowRight size={14} /></Link></Button>
           </div>
         </section>
       </main>
