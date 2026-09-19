@@ -12,7 +12,7 @@ test('Gemini prepayment depletion is treated as provider billing failure', async
   const text = await source();
   assert.match(text, /function isProviderBillingUnavailable/);
   assert.match(text, /status === 402/);
-  assert.match(text, /prepayment credits\\?/i);
+  assert.match(text, /prepayment credits\?/i);
   assert.match(text, /const canRetry = item\.attempt < maxRetries && !clearlyLongLived/);
 });
 
