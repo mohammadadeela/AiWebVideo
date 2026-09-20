@@ -167,13 +167,29 @@ export function ChatWidget({
           setFinishControlsCollapsed(true);
           writeFinishedPanelState(activeChatId, true);
 
-          window.requestAnimationFrame(() => {
+          const alignToFinishedResult = () => {
             const messages = shell.querySelector<HTMLElement>("[data-chat-messages]");
-            if (messages) messages.scrollTop = messages.scrollHeight;
+            if (!messages) return;
+            const results = messages.querySelectorAll<HTMLElement>('[data-generated-result="true"]');
+            const result = results[results.length - 1];
+            if (!result) {
+              messages.scrollTop = messages.scrollHeight;
+              return;
+            }
+            const messagesRect = messages.getBoundingClientRect();
+            const resultRect = result.getBoundingClientRect();
+            const top = Math.max(0, messages.scrollTop + resultRect.top - messagesRect.top - 10);
+            messages.scrollTo({
+              top,
+              behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+            });
+          };
 
-            const controls = shell.querySelector<HTMLElement>("[data-chat-controls]");
-            if (controls) controls.scrollTop = controls.scrollHeight;
+          window.requestAnimationFrame(() => {
+            window.requestAnimationFrame(alignToFinishedResult);
           });
+          window.setTimeout(alignToFinishedResult, 220);
+          window.setTimeout(alignToFinishedResult, 720);
         }
       }
 

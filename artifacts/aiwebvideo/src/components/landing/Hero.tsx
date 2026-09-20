@@ -15,13 +15,17 @@ export function Hero() {
             <span className="block bg-signature-text">into a video.</span>
           </h1>
           <p className="mt-4 max-w-2xl text-[15px] leading-6 text-text-muted sm:text-base">
-            Paste the URL, tell AI what matters, and continue to your video.
+            Paste your URL. We capture real pages and brand context for free, show you exactly what we found, then you decide whether to generate.
           </p>
         </div>
 
         <div className="relative w-full">
           <div className="pointer-events-none absolute -inset-x-6 -inset-y-4 rounded-[44px] bg-gradient-to-r from-violet/[.08] via-pink/[.06] to-gold/[.04] blur-3xl" />
           <ChatWidget compactLanding className="relative w-full" />
+          <div className="relative mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-[10px] font-medium text-text-dim sm:text-[11px]">
+            <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-mint" />Website analysis & screenshots are free</span>
+            <span>Pay only when you choose AI generation</span>
+          </div>
         </div>
       </div>
     </section>

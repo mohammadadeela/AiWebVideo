@@ -197,7 +197,7 @@ function doneResultMessage(
   const hasPhotoSelection = photos.length > 0 && Boolean(onGeneratedPhotoSelectionChange);
 
   return (
-    <div className="space-y-3">
+    <div data-generated-result="true" className="space-y-3 scroll-mt-3">
       <p>{label}</p>
       {job.errorMessage && (
         <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
@@ -242,7 +242,7 @@ function restoredMessageContent(
   const assets = Array.isArray(message.payload?.resultAssets) ? (message.payload?.resultAssets as JobAsset[]) : [];
   if (message.kind === "result" && assets.length > 0) {
     return (
-      <div className="space-y-3">
+      <div data-generated-result="true" className="space-y-3 scroll-mt-3">
         <p>{message.content}</p>
         <ResultGrid assets={assets} onUnlock={onUnlock} sourceKind={sourceKind} />
       </div>
@@ -377,6 +377,7 @@ export function ChatWidget({
   const chatRootRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const generationProcessRef = useRef<HTMLDivElement>(null);
+  const finishedResultFocusRef = useRef<string | null>(null);
   const previousPollingActiveRef = useRef(false);
   const pendingActionRef = useRef<(() => unknown | Promise<unknown>) | null>(null);
   const redirectAfterAuthRef = useRef(false);
@@ -614,6 +615,49 @@ export function ChatWidget({
         behavior: "smooth",
       });
   }, [messages, stage, pollingActive]);
+
+  // A finished video/photo must become the visible focus of the conversation.
+  // Align to the START of the final result instead of the generic bottom of the
+  // chat, then settle again after media dimensions load. This is UI-only and
+  // does not touch any generation, provider, credit or render logic.
+  useEffect(() => {
+    if (stage !== "done" || !jobId) return;
+    const focusKey = `${jobId}:done`;
+    if (finishedResultFocusRef.current === focusKey) return;
+    finishedResultFocusRef.current = focusKey;
+
+    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const behavior: ScrollBehavior = reducedMotion ? "auto" : "smooth";
+    let firstFrame = 0;
+    let secondFrame = 0;
+    let settleTimer = 0;
+    let mediaTimer = 0;
+
+    const alignFinishedResult = () => {
+      const scroller = scrollRef.current;
+      if (!scroller) return;
+      const results = scroller.querySelectorAll<HTMLElement>('[data-generated-result="true"]');
+      const target = results[results.length - 1];
+      if (!target) return;
+      const scrollerRect = scroller.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      const targetTop = Math.max(0, scroller.scrollTop + targetRect.top - scrollerRect.top - 10);
+      scroller.scrollTo({ top: targetTop, behavior });
+    };
+
+    firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(alignFinishedResult);
+    });
+    settleTimer = window.setTimeout(alignFinishedResult, 180);
+    mediaTimer = window.setTimeout(alignFinishedResult, 700);
+
+    return () => {
+      if (firstFrame) window.cancelAnimationFrame(firstFrame);
+      if (secondFrame) window.cancelAnimationFrame(secondFrame);
+      if (settleTimer) window.clearTimeout(settleTimer);
+      if (mediaTimer) window.clearTimeout(mediaTimer);
+    };
+  }, [stage, jobId, messages.length]);
 
   // When a generation actually starts, move the outer page and the chat to the
   // live production canvas automatically. This makes the click on Generate feel
@@ -2598,14 +2642,47 @@ ${request.prompt}`
               <div className="space-y-3">
                 <div className="rounded-2xl border border-mint/25 bg-mint/[.055] p-4">
                   <p className="font-utility text-[9px] font-semibold uppercase tracking-[.16em] text-mint">
-                    Website preview ready
+                    Your website is ready
                   </p>
-                  <p className="mt-1 text-sm font-semibold text-white">We reached your website successfully.</p>
+                  <p className="mt-1 text-sm font-semibold text-white">
+                    We captured {websiteBrandName(job?.sourceUrl, projectCaptureMetadata?.title)} and saved the useful context.
+                  </p>
                   <p className="mt-1 text-[11px] leading-5 text-text-muted">
-                    Your domain, promotion brief, favicon and useful screenshots are saved for free. Continue when you
-                    are ready; credits are checked before any paid AI planning, video, image or voice provider starts.
+                    These are your real website pages, favicon and brand signals. The free preview proves the source is connected before you decide whether to pay for AI production.
                   </p>
+                  <div className="mt-3 grid gap-2 text-[10px] text-text-muted sm:grid-cols-3">
+                    <span className="rounded-lg bg-black/15 px-2.5 py-2">{projectCaptureMetadata?.pageCount ?? liveReferenceItems.length} useful page{(projectCaptureMetadata?.pageCount ?? liveReferenceItems.length) === 1 ? "" : "s"} saved</span>
+                    <span className="rounded-lg bg-black/15 px-2.5 py-2">{durationLabel(durationSeconds)} · {aspectRatio}</span>
+                    <span className="rounded-lg bg-black/15 px-2.5 py-2">{outputQuality === "4k" ? "4K" : "1080p"} · {audioMode === "voice_music" ? "Narrated" : audioMode === "native_audio" ? "Scene audio" : audioMode === "music_only" ? "Music" : "Silent"}</span>
+                  </div>
                 </div>
+
+                <div className="rounded-2xl border border-white/[.08] bg-white/[.025] p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-utility text-[9px] font-semibold uppercase tracking-[.16em] text-violet">Your campaign setup</p>
+                      <p className="mt-1 text-xs font-semibold text-white">Everything needed to continue is saved.</p>
+                    </div>
+                    <span className="rounded-full border border-white/10 bg-black/20 px-2 py-1 text-[9px] font-semibold text-mint">Free preview</span>
+                  </div>
+                  <p className="mt-3 rounded-xl border border-white/[.06] bg-black/15 px-3 py-2.5 text-[11px] leading-5 text-text-muted">
+                    <span className="font-semibold text-white">Goal:</span> {creativeBrief?.trim() || "Create a brand-aware campaign from the captured website."}
+                  </p>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                    {[
+                      ["01", "Hook", "AI will choose the strongest opening."],
+                      ["02", "Show value", "Real site context stays attached to the plan."],
+                      ["03", "Finish", "The final generation happens only after you approve payment."],
+                    ].map(([number, title, body]) => (
+                      <div key={number} className="rounded-xl border border-white/[.06] bg-black/10 p-3">
+                        <p className="font-utility text-[8px] text-violet">{number}</p>
+                        <p className="mt-1 text-[11px] font-semibold text-white">{title}</p>
+                        <p className="mt-1 text-[10px] leading-4 text-text-dim">{body}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 <Button
                   variant="primary"
                   size="lg"
@@ -2619,10 +2696,10 @@ ${request.prompt}`
                   }}
                   disabled={busy}
                 >
-                  {!isPublicCreatorPath() && isSignedIn ? "Continue to AI production" : "Continue in Workspace"}
+                  {!isPublicCreatorPath() && isSignedIn ? "Continue to AI production" : "Continue with this campaign"}
                 </Button>
                 <p className="text-center text-[10px] text-text-dim">
-                  Website preview and screenshots are free. No generation credits are used here.
+                  Website analysis and screenshots are free. No AI generation provider has started and nothing has been charged.
                 </p>
               </div>
             )}
@@ -2784,7 +2861,9 @@ ${request.prompt}`
                 <Button variant="primary" size="lg" className="w-full" onClick={handleGenerate} disabled={busy}>
                   {isSignedIn
                     ? estimatedShortfall > 0
-                      ? `Add ${estimatedShortfall} credits and continue`
+                      ? mode === "photos"
+                        ? "Finish this photo campaign"
+                        : "Finish and generate this video"
                       : estimatedAdditionalCredits === 0
                         ? mode === "photos"
                           ? "Start final photo generation · credits reserved"
@@ -2794,6 +2873,11 @@ ${request.prompt}`
                           : `Generate the final video · ${estimatedAdditionalCredits} more credits`
                     : "Sign in and generate"}
                 </Button>
+                {isSignedIn && estimatedShortfall > 0 && (
+                  <p className="text-center text-[10px] leading-4 text-text-dim">
+                    Your project is saved. One-time checkout is available when a matching production pack exists; subscriptions are optional.
+                  </p>
+                )}
                 <button
                   type="button"
                   disabled={busy}

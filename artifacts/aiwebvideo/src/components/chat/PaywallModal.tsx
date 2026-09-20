@@ -61,7 +61,11 @@ export function PaywallModal({
   jobId?: string | null;
 }) {
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>('credits');
+  const [tab, setTab] = useState<Tab>(() =>
+    mode !== 'photos' && mode !== 'icon' && mode !== 'both' && outputQuality === '1080p' && [8, 48, 144].includes(durationSeconds)
+      ? 'video'
+      : 'credits',
+  );
   const [welcomeOffer, setWelcomeOffer] = useState<WelcomeGrowthOffer | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [directCheckout, setDirectCheckout] = useState<DirectCheckout | null>(null);
@@ -90,6 +94,11 @@ export function PaywallModal({
     : [], [fundedCredits, mode, outputQuality, requiredCredits]);
   const bestCreditPackId = useMemo(() => CREDIT_PACKS.find((pack) => fundedCredits + displayCredits(pack.credits) >= requiredCredits)?.id ?? null, [fundedCredits, requiredCredits]);
   const eligiblePlans = useMemo(() => PAYWALL_PLANS.filter((plan) => fundedCredits + displayCredits(plan.credits) >= requiredCredits), [fundedCredits, requiredCredits]);
+  const exactVideoPack = useMemo(() => {
+    if (mode === 'photos' || mode === 'icon' || mode === 'both' || outputQuality !== '1080p') return null;
+    const id = durationSeconds === 8 ? 'single8' : durationSeconds === 48 ? 'single48' : durationSeconds === 144 ? 'single144' : null;
+    return id ? VIDEO_PACKS.find((pack) => pack.id === id) ?? null : null;
+  }, [durationSeconds, mode, outputQuality]);
 
   function chooseSubscription(planId: 'creator' | 'pro' | 'agency') {
     setError(null);
@@ -115,10 +124,15 @@ export function PaywallModal({
         <div className="w-full max-w-lg max-h-[92dvh] overflow-y-auto overscroll-contain rounded-t-[24px] border border-white/10 bg-[#120e22] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl animate-fade-in-up sm:max-h-[90vh] sm:rounded-3xl sm:p-5" onClick={(e) => e.stopPropagation()}>
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="font-display text-lg font-bold text-white">{context ?? 'Choose how to continue'}</p>
+              <p className="font-utility text-[9px] font-semibold uppercase tracking-[.16em] text-mint">Your project is saved</p>
+              <p className="mt-1 font-display text-lg font-bold text-white">Finish this production</p>
               <p className="mt-1 text-xs leading-5 text-text-muted">
-                Needs {requiredCredits.toLocaleString()} credits · you have {currentBalance.toLocaleString()}{reservedCredits ? ` + ${reservedCredits.toLocaleString()} reserved` : ''}{shortfall ? ` · ${shortfall.toLocaleString()} more needed` : ''}
+                The source, references and creative setup are ready. Nothing is charged until you choose a checkout option below.
               </p>
+              <p className="mt-2 text-[11px] font-medium text-white/75">
+                {durationSeconds}s · {outputQuality === '4k' ? '4K' : '1080p'} · {requiredCredits.toLocaleString()} credits required
+              </p>
+              {context && <p className="mt-1 text-[10px] leading-4 text-text-dim">{context}</p>}
             </div>
             <button type="button" onClick={onClose} disabled={Boolean(directCheckout || subscriptionCheckout)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 text-base text-text-muted hover:bg-white/5 hover:text-white disabled:opacity-40" aria-label="Close">×</button>
           </div>
@@ -130,8 +144,32 @@ export function PaywallModal({
             </div>
           )}
 
+          {exactVideoPack && shortfall > 0 && (
+            <button
+              type="button"
+              onClick={() => setDirectCheckout({
+                plan: exactVideoPack.id,
+                productName: exactVideoPack.name,
+                amountUsd: exactVideoPack.amountUsd,
+                originalAmountUsd: exactVideoPack.amountUsd,
+                credits: displayCredits(exactVideoPack.credits),
+              })}
+              className="mt-4 flex w-full items-center justify-between rounded-2xl border border-violet/45 bg-gradient-to-br from-violet/[.13] via-pink/[.07] to-transparent p-4 text-left shadow-[0_20px_60px_-36px_rgba(139,92,246,.9)] transition hover:border-violet/70 hover:bg-violet/[.12]"
+            >
+              <div>
+                <p className="font-utility text-[8px] font-semibold uppercase tracking-[.15em] text-violet">Fastest path</p>
+                <p className="mt-1 text-sm font-bold text-white">Generate this {durationSeconds}s video</p>
+                <p className="mt-1 text-[11px] text-text-muted">One-time purchase · no subscription required</p>
+              </div>
+              <div className="text-right">
+                <p className="font-display text-xl font-bold text-white">{formatUsd(exactVideoPack.amountUsd)}</p>
+                <p className="text-[10px] font-semibold text-mint">Buy</p>
+              </div>
+            </button>
+          )}
+
           <div className="mt-4 grid grid-cols-3 gap-1 rounded-2xl border border-white/10 bg-black/20 p-1">
-            {([['plans','Plans'],['credits','Buy credits'],['video','Buy video']] as const).map(([id,label]) => (
+            {([['video','This video'],['credits','Credits'],['plans','Plans']] as const).map(([id,label]) => (
               <button key={id} type="button" onClick={() => setTab(id)} className={`min-h-10 rounded-xl px-2 py-2 text-[11px] font-semibold transition sm:px-3 sm:py-2.5 sm:text-xs ${tab === id ? 'bg-signature text-white shadow-lg' : 'text-text-muted hover:bg-white/5 hover:text-white'}`}>{label}</button>
             ))}
           </div>

@@ -163,9 +163,9 @@ export function HomePage() {
           <div className="pointer-events-none absolute right-0 top-0 h-[520px] w-[520px] rounded-full bg-pink/[.06] blur-[130px]" />
           <div className="relative mx-auto max-w-7xl px-4 py-12 sm:px-5 sm:py-16 lg:py-20">
             <div className="max-w-3xl">
-              <p className="font-utility text-[10px] uppercase tracking-[.2em] text-mint">One product · multiple creative starts</p>
-              <h2 className="mt-4 font-display text-3xl font-bold leading-tight tracking-[-.04em] text-white sm:text-5xl">Start anywhere. Stay in one creator.</h2>
-              <p className="mt-5 max-w-2xl text-sm leading-7 text-text-muted sm:text-base">Five starting points. One creative chat.</p>
+              <p className="font-utility text-[10px] uppercase tracking-[.2em] text-mint">Start with what you have</p>
+              <h2 className="mt-4 font-display text-3xl font-bold leading-tight tracking-[-.04em] text-white sm:text-5xl">Website, product, image or idea.</h2>
+              <p className="mt-5 max-w-2xl text-sm leading-7 text-text-muted sm:text-base">Choose the source you already have. AiWebVideo keeps the creation inside one project conversation.</p>
             </div>
 
             <div className="mt-12 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
@@ -332,6 +332,7 @@ export function HomePage() {
               <div>
                 <p className="font-utility text-[10px] uppercase tracking-[.2em] text-mint">Pricing preview</p>
                 <h2 className="mt-4 font-display text-3xl font-bold tracking-[-.04em] text-white sm:text-4xl">Know the cost before generation.</h2>
+                <p className="mt-3 max-w-xl text-xs leading-6 text-text-muted">Website analysis and screenshots are free. Paid credits start only when you choose AI planning or generation.</p>
               </div>
               <a href="/pricing" className="inline-flex items-center gap-2 text-xs font-semibold text-white transition hover:text-mint">See plans and top-ups <ArrowRight size={14} /></a>
             </div>

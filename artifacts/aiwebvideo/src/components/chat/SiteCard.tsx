@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import type { CaptureMetadata } from './types';
 
 export function SiteCard({ sourceUrl, metadata }: { sourceUrl: string; metadata: CaptureMetadata }) {
@@ -40,7 +40,21 @@ export function SiteCard({ sourceUrl, metadata }: { sourceUrl: string; metadata:
   }, [previewIndex, allShots.length]);
 
   return (
-    <div className="w-full max-w-sm rounded-xl border border-border bg-panel p-4 animate-fade-in-up">
+    <div className="w-full max-w-xl rounded-xl border border-border bg-panel p-4 animate-fade-in-up">
+      {!isUpload && (
+        <div className="mb-3 rounded-xl border border-mint/25 bg-mint/[.055] p-3.5">
+          <p className="font-utility text-[9px] font-semibold uppercase tracking-[.16em] text-mint">Website connected</p>
+          <p className="mt-1 text-sm font-semibold text-white">We found {displayName}.</p>
+          <p className="mt-1 text-[11px] leading-5 text-text-muted">
+            This is real context from your website — not a demo. The capture is free and nothing has been generated or charged yet.
+          </p>
+          <div className="mt-3 grid gap-2 text-[10px] text-text-muted sm:grid-cols-3">
+            <span className="flex items-center gap-1.5 rounded-lg bg-black/15 px-2.5 py-2"><Check size={12} className="text-mint" />Website reached</span>
+            <span className="flex items-center gap-1.5 rounded-lg bg-black/15 px-2.5 py-2"><Check size={12} className="text-mint" />{metadata.pageCount} useful page{metadata.pageCount === 1 ? '' : 's'}</span>
+            <span className="flex items-center gap-1.5 rounded-lg bg-black/15 px-2.5 py-2"><Check size={12} className="text-mint" />{metadata.logoUrl || metadata.brandColors.length ? 'Brand context saved' : 'Visual context saved'}</span>
+          </div>
+        </div>
+      )}
       {allShots.length > 0 && (
         <div className="mb-3 rounded-xl border border-white/[.08] bg-white/[.025] p-3">
           <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
