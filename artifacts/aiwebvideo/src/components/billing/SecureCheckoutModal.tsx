@@ -35,6 +35,8 @@ interface SavedMethod {
 interface CardOrder {
   orderId: string;
   amountUsd: number;
+  baseAmountUsd: number;
+  feeUsd: number;
   normalAmountUsd: number;
   discountApplied: boolean;
   creditsGranted: number;
@@ -160,7 +162,21 @@ let configCache: { value: CheckoutConfig; expiresAt: number } | null = null;
 let configPromise: Promise<CheckoutConfig> | null = null;
 
 function money(value: number) {
-  return `$${Math.max(0, Number(value) || 0).toFixed(2)}`;
+  return `${Math.max(0, Number(value) || 0).toFixed(2)}`;
+}
+
+function checkoutTotalUsd(baseAmountUsd: number) {
+  const base = Math.round((Math.max(0, Number(baseAmountUsd) || 0) + Number.EPSILON) * 100) / 100;
+  if (base <= 1.005) return base;
+  const minimumGross = (base + 0.35) / (1 - 0.0401);
+  let total = Math.floor(minimumGross) + 0.99;
+  if (total + 0.000001 < minimumGross) total += 1;
+  return Math.round((total + Number.EPSILON) * 100) / 100;
+}
+
+function checkoutFeeUsd(baseAmountUsd: number) {
+  const base = Math.round((Math.max(0, Number(baseAmountUsd) || 0) + Number.EPSILON) * 100) / 100;
+  return Math.round((Math.max(0, checkoutTotalUsd(base) - base) + Number.EPSILON) * 100) / 100;
 }
 
 function errorMessage(error: unknown) {
@@ -325,6 +341,9 @@ export function SecureCheckoutModal({
   const googleButtonRef = useRef<HTMLDivElement>(null);
   const saveCardRef = useRef(false);
   const amountRef = useRef(amountUsd);
+  const checkoutTotal = checkoutTotalUsd(amountUsd);
+  const checkoutFee = checkoutFeeUsd(amountUsd);
+  const totalRef = useRef(checkoutTotal);
   const closingRef = useRef(false);
 
   const submitting = paymentState === 'processing';
@@ -332,7 +351,10 @@ export function SecureCheckoutModal({
   const canShowCardForm = !config || (config.configured && config.advancedCardsEnabled && (!recurring || config.vaultEnabled));
 
   useEffect(() => { saveCardRef.current = saveCard; }, [saveCard]);
-  useEffect(() => { amountRef.current = amountUsd; }, [amountUsd]);
+  useEffect(() => {
+    amountRef.current = amountUsd;
+    totalRef.current = checkoutTotalUsd(amountUsd);
+  }, [amountUsd]);
 
   function markError(value: unknown) {
     setPaymentState('error');
@@ -418,7 +440,7 @@ export function SecureCheckoutModal({
           style: CARD_FIELD_STYLE,
           createOrder: async () => {
             const order = await createOrder('card');
-            if (Math.abs(order.amountUsd - amountRef.current) > 0.005) {
+            if (Math.abs(order.baseAmountUsd - amountRef.current) > 0.005) {
               throw new Error(`Price changed to ${money(order.amountUsd)}. Close checkout and review it.`);
             }
             return order.orderId;
@@ -464,7 +486,7 @@ export function SecureCheckoutModal({
                     setPaymentState('processing');
                     setError(null);
                     const order = await createOrder('google_pay');
-                    if (Math.abs(order.amountUsd - amountRef.current) > 0.005) throw new Error(`Price changed to ${money(order.amountUsd)}.`);
+                    if (Math.abs(order.baseAmountUsd - amountRef.current) > 0.005) throw new Error(`Price changed to ${money(order.amountUsd)}.`);
                     const paymentMethodData = (paymentData as { paymentMethodData?: unknown })?.paymentMethodData;
                     const confirmed = await paypalGoogle.confirmOrder({ orderId: order.orderId, paymentMethodData });
                     if (confirmed.status === 'PAYER_ACTION_REQUIRED') {
@@ -505,7 +527,7 @@ export function SecureCheckoutModal({
                     transactionInfo: {
                       currencyCode: 'USD',
                       totalPriceStatus: 'FINAL',
-                      totalPrice: amountRef.current.toFixed(2),
+                      totalPrice: totalRef.current.toFixed(2),
                     },
                     callbackIntents: ['PAYMENT_AUTHORIZATION'],
                   }).catch((googleError) => markError(googleError));
@@ -553,7 +575,7 @@ export function SecureCheckoutModal({
     setError(null);
     try {
       const order = await createOrder('saved_card', method.id);
-      if (Math.abs(order.amountUsd - amountRef.current) > 0.005) throw new Error(`Price changed to ${money(order.amountUsd)}.`);
+      if (Math.abs(order.baseAmountUsd - amountRef.current) > 0.005) throw new Error(`Price changed to ${money(order.amountUsd)}.`);
       try {
         localStorage.setItem(PREFERRED_METHOD_KEY, method.id);
         setPreferredSavedMethodId(method.id);
@@ -614,7 +636,7 @@ export function SecureCheckoutModal({
       : 'border-white/10 bg-signature text-white shadow-violet hover:brightness-110';
 
   const buyButtonContent = paymentState === 'success'
-    ? <><Check size={18} strokeWidth={2.7} /> {recurring ? 'Subscription active' : `Paid ${money(amountUsd)}`}</>
+    ? <><Check size={18} strokeWidth={2.7} /> {recurring ? 'Subscription active' : `Paid ${money(checkoutTotal)}`}</>
     : paymentState === 'processing'
       ? <><LoaderCircle size={18} className="animate-spin" /> Processing…</>
       : paymentState === 'error'
@@ -641,7 +663,7 @@ export function SecureCheckoutModal({
           <div className="flex items-center gap-3">
             <div className="hidden text-right sm:block">
               <p className="text-[10px] uppercase tracking-[.13em] text-text-dim">{recurring ? 'Today' : 'Total'}</p>
-              <p className="font-display text-xl font-black text-white">{money(amountUsd)}{recurring ? '/mo' : ''}</p>
+              <p className="font-display text-xl font-black text-white">{money(checkoutTotal)}{recurring ? '/mo' : ''}</p>
             </div>
             <button type="button" onClick={close} disabled={submitting || Boolean(success)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[.025] text-text-muted transition hover:bg-white/[.06] hover:text-white disabled:opacity-40" aria-label="Close checkout"><X size={16} /></button>
           </div>
@@ -668,10 +690,22 @@ export function SecureCheckoutModal({
 
               <div className="mt-4 rounded-2xl border border-white/[.08] bg-white/[.025] p-4">
                 {hasDiscount && (
-                  <div className="mb-2 flex items-center justify-between gap-3"><span className="rounded-full bg-mint px-2 py-0.5 text-[9px] font-black text-[#08211b]">20% OFF</span><span className="text-xs text-text-dim line-through">{money(originalAmountUsd ?? amountUsd)}</span></div>
+                  <div className="mb-3 flex items-center justify-between gap-3"><span className="rounded-full bg-mint px-2 py-0.5 text-[9px] font-black text-[#08211b]">20% OFF</span><span className="text-xs text-text-dim line-through">{money(originalAmountUsd ?? amountUsd)}</span></div>
                 )}
-                <div className="flex items-end justify-between gap-3"><span className="text-xs font-semibold text-text-muted">{recurring ? 'Due today' : 'Total'}</span><span className="font-display text-3xl font-black tracking-[-.04em] text-white">{money(amountUsd)}</span></div>
-                {recurring && <p className="mt-2 text-[10px] leading-4 text-text-dim">Renews monthly at {money(amountUsd)} until cancelled.</p>}
+                <div className="flex items-center justify-between gap-3 text-xs">
+                  <span className="text-text-dim">{recurring ? 'Monthly price' : 'Price'}</span>
+                  <span className="font-semibold text-white">{money(amountUsd)}</span>
+                </div>
+                <div className="mt-2 flex items-center justify-between gap-3 text-xs">
+                  <span className="text-text-dim">Fees</span>
+                  <span className="font-semibold text-white">{money(checkoutFee)}</span>
+                </div>
+                <div className="my-3 h-px bg-white/[.08]" />
+                <div className="flex items-end justify-between gap-3">
+                  <span className="text-xs font-semibold text-text-muted">{recurring ? 'Due today' : 'Total'}</span>
+                  <span className="font-display text-3xl font-black tracking-[-.04em] text-white">{money(checkoutTotal)}</span>
+                </div>
+                {recurring && <p className="mt-2 text-[10px] leading-4 text-text-dim">Renews monthly at {money(checkoutTotal)} until cancelled.</p>}
               </div>
 
               {savedMethods.length > 0 && (
@@ -734,9 +768,9 @@ export function SecureCheckoutModal({
                               disabled={submitting || removingMethod === method.id}
                               onClick={() => void payWithSavedCard(method)}
                               className="mt-2.5 flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-mint/20 bg-mint/[.075] px-3 text-[10px] font-black text-mint transition hover:border-mint/35 hover:bg-mint/[.12] disabled:opacity-55"
-                              aria-label={`Pay ${money(amountUsd)} with saved ${method.brand} ending in ${method.lastDigits}`}
+                              aria-label={`Pay ${money(checkoutTotal)} with saved ${method.brand} ending in ${method.lastDigits}`}
                             >
-                              {isPaying ? <><LoaderCircle size={13} className="animate-spin" /> Processing…</> : <><LockKeyhole size={12} /> Pay {money(amountUsd)} with saved card</>}
+                              {isPaying ? <><LoaderCircle size={13} className="animate-spin" /> Processing…</> : <><LockKeyhole size={12} /> Pay {money(checkoutTotal)} with saved card</>}
                             </button>
 
                             <button
