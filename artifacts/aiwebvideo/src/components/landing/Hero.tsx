@@ -10,13 +10,10 @@ export function Hero() {
           <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[.035] px-3 py-1.5 font-utility text-[9px] uppercase tracking-[.16em] text-mint backdrop-blur">
             <Globe2 size={12} /> Website → Video
           </div>
-          <h1 className="mt-4 max-w-5xl font-display text-[clamp(2.35rem,11vw,4.8rem)] font-bold leading-[.96] tracking-[-.055em] text-white">
+          <h1 className="mt-10 max-w-5xl font-display text-[clamp(2.35rem,11vw,4.8rem)] font-bold leading-[.96] tracking-[-.055em] text-white">
             Turn your website
             <span className="block bg-signature-text">into a video.</span>
           </h1>
-          <p className="mt-4 max-w-2xl text-[15px] leading-6 text-text-muted sm:text-base">
-            Paste your URL. We capture real pages and brand context for free, show you exactly what we found, then you decide whether to generate.
-          </p>
         </div>
 
         <div className="relative w-full">
