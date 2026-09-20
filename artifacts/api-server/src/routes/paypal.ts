@@ -33,7 +33,7 @@ export const PRODUCTS = {
   creator: { ...BILLING_CREDIT_PRODUCTS.creator, mode: 'subscription', amountUsd: 39, name: 'Creator' },
   pro: { ...BILLING_CREDIT_PRODUCTS.pro, mode: 'subscription', amountUsd: 99, name: 'Pro' },
   agency: { ...BILLING_CREDIT_PRODUCTS.agency, mode: 'subscription', amountUsd: 249, name: 'Agency' },
-  single8: { ...BILLING_CREDIT_PRODUCTS.single8, mode: 'payment', amountUsd: 1, name: 'Quick Video' },
+  single8: { ...BILLING_CREDIT_PRODUCTS.single8, mode: 'payment', amountUsd: 9.99, name: 'Quick Video' },
   single48: { ...BILLING_CREDIT_PRODUCTS.single48, mode: 'payment', amountUsd: 52.99, name: 'Full Marketing Video' },
   single144: { ...BILLING_CREDIT_PRODUCTS.single144, mode: 'payment', amountUsd: 149.99, name: 'Extended Video' },
   topup50: { ...BILLING_CREDIT_PRODUCTS.topup50, mode: 'payment', amountUsd: 14.99, name: '250 Credits' },
@@ -51,11 +51,11 @@ function roundMoney(value: number) {
 /**
  * Customer-facing prices stay unchanged until checkout.
  * At checkout we gross the charge up to cover the configured payment fee,
- * then use a clean x.99 total. The temporary $1 Quick Video remains exactly $1.
+ * then use a clean x.99 total.
  */
 export function checkoutTotalUsd(baseAmountUsd: number) {
   const base = roundMoney(Math.max(0, Number(baseAmountUsd) || 0));
-  if (base <= 1.005) return base;
+  if (base <= 0) return 0;
   const minimumGross = (base + CHECKOUT_FIXED_FEE_USD) / (1 - CHECKOUT_FEE_RATE);
   let marketingTotal = Math.floor(minimumGross) + 0.99;
   if (marketingTotal + 0.000001 < minimumGross) marketingTotal += 1;
