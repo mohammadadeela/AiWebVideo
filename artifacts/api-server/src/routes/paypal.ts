@@ -68,6 +68,8 @@ const WEBHOOK_EVENTS = [
   'PAYMENT.CAPTURE.COMPLETED',
   'PAYMENT.CAPTURE.REFUNDED',
   'PAYMENT.CAPTURE.REVERSED',
+  'VAULT.PAYMENT-TOKEN.CREATED',
+  'VAULT.PAYMENT-TOKEN.DELETED',
   'PAYMENT.SALE.COMPLETED',
   'PAYMENT.SALE.REFUNDED',
   'PAYMENT.SALE.REVERSED',
@@ -669,6 +671,80 @@ async function sendOneTimeReceipt(orderId: string, payment: PendingPayment) {
   ).catch(() => {});
 }
 
+async function ensureSavedPaymentMethodSchema() {
+  await query('ALTER TABLE users ADD COLUMN IF NOT EXISTS paypal_customer_id TEXT');
+  await query(`
+    CREATE TABLE IF NOT EXISTS paypal_saved_payment_methods (
+      id UUID PRIMARY KEY,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      provider TEXT NOT NULL DEFAULT 'paypal',
+      provider_token_ref TEXT NOT NULL,
+      brand TEXT,
+      last_digits TEXT,
+      expiry TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(provider, provider_token_ref)
+    )
+  `);
+  await query('CREATE INDEX IF NOT EXISTS paypal_saved_payment_methods_user_idx ON paypal_saved_payment_methods(user_id, created_at DESC)');
+}
+
+async function handleVaultPaymentTokenCreated(resource: Record<string, unknown>) {
+  const tokenId = typeof resource.id === 'string' ? resource.id : '';
+  const customer = resource.customer as { id?: unknown; merchant_customer_id?: unknown } | undefined;
+  const paypalCustomerId = typeof customer?.id === 'string' ? customer.id : '';
+  const merchantCustomerId = typeof customer?.merchant_customer_id === 'string' ? customer.merchant_customer_id : '';
+  const card = (resource.payment_source as { card?: Record<string, unknown> } | undefined)?.card;
+  if (!tokenId || !card) return;
+
+  await ensureSavedPaymentMethodSchema();
+
+  let userId = '';
+  const merchantUser = z.string().uuid().safeParse(merchantCustomerId);
+  if (merchantUser.success) {
+    const direct = await query<{ id: string }>('SELECT id FROM users WHERE id=$1 LIMIT 1', [merchantUser.data]);
+    userId = direct.rows[0]?.id ?? '';
+  }
+  if (!userId && paypalCustomerId) {
+    const matched = await query<{ id: string }>('SELECT id FROM users WHERE paypal_customer_id=$1 LIMIT 1', [paypalCustomerId]);
+    userId = matched.rows[0]?.id ?? '';
+  }
+  if (!userId) {
+    logger.warn({ tokenId, paypalCustomerId }, '[paypal] vault token created without a matching AiWebVideo user');
+    return;
+  }
+
+  if (paypalCustomerId) {
+    await query('UPDATE users SET paypal_customer_id=$1,updated_at=NOW() WHERE id=$2', [paypalCustomerId, userId]);
+  }
+
+  const brand = typeof card.brand === 'string' ? card.brand : null;
+  const lastDigits = typeof card.last_digits === 'string' ? card.last_digits : null;
+  const expiry = typeof card.expiry === 'string' ? card.expiry : null;
+  await query(
+    `INSERT INTO paypal_saved_payment_methods(id,user_id,provider,provider_token_ref,brand,last_digits,expiry)
+     VALUES ($1,$2,'paypal',$3,$4,$5,$6)
+     ON CONFLICT(provider,provider_token_ref) DO UPDATE SET
+       brand=EXCLUDED.brand,
+       last_digits=EXCLUDED.last_digits,
+       expiry=EXCLUDED.expiry,
+       updated_at=NOW()
+     WHERE paypal_saved_payment_methods.user_id=EXCLUDED.user_id`,
+    [randomUUID(), userId, tokenId, brand, lastDigits, expiry],
+  );
+}
+
+async function handleVaultPaymentTokenDeleted(resource: Record<string, unknown>) {
+  const tokenId = typeof resource.id === 'string' ? resource.id : '';
+  if (!tokenId) return;
+  await ensureSavedPaymentMethodSchema();
+  await query(
+    "DELETE FROM paypal_saved_payment_methods WHERE provider='paypal' AND provider_token_ref=$1",
+    [tokenId],
+  );
+}
+
 router.post('/webhook', async (req, res) => {
   try {
     const event = z.object({
@@ -685,6 +761,16 @@ router.post('/webhook', async (req, res) => {
       if (event.event_type === 'PAYMENT.CAPTURE.COMPLETED') {
         const orderId = (resource.supplementary_data as { related_ids?: { order_id?: unknown } } | undefined)?.related_ids?.order_id;
         if (typeof orderId === 'string') await grantOneTimePayment(orderId);
+        return;
+      }
+
+      if (event.event_type === 'VAULT.PAYMENT-TOKEN.CREATED') {
+        await handleVaultPaymentTokenCreated(resource);
+        return;
+      }
+
+      if (event.event_type === 'VAULT.PAYMENT-TOKEN.DELETED') {
+        await handleVaultPaymentTokenDeleted(resource);
         return;
       }
 
