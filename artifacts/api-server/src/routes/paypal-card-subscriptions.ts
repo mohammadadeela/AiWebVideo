@@ -52,6 +52,7 @@ interface ManagedSubscriptionRow {
   user_id: string;
   plan: SubscriptionId;
   payment_method_id: string;
+  renewal_amount_usd: string | number | null;
   current_period_end: Date;
   last_payment_failed_at: Date | null;
 }
@@ -495,7 +496,7 @@ paypalCardSubscriptionRouter.post('/subscription-orders', requireAuth, async (re
         purchase_units: [{
           custom_id: req.user!.id,
           description: `AiWebVideo ${product.name} monthly subscription`,
-          amount: { currency_code: 'USD', value: product.amountUsd.toFixed(2) },
+          amount: { currency_code: 'USD', value: renewalAmountUsd.toFixed(2) },
         }],
         payment_source: { card: cardSource },
       },
@@ -603,7 +604,7 @@ async function renewOne(subscription: ManagedSubscriptionRow) {
     if (!acquired.rows[0]?.locked) return;
 
     const current = await lockClient.query<ManagedSubscriptionRow>(
-      `SELECT id,user_id,plan,payment_method_id,current_period_end,last_payment_failed_at
+      `SELECT id,user_id,plan,payment_method_id,renewal_amount_usd,current_period_end,last_payment_failed_at
        FROM subscriptions
        WHERE id=$1 AND billing_source='paypal_card' AND auto_renew=true
          AND status IN ('active','past_due') AND current_period_end <= NOW()
@@ -617,6 +618,8 @@ async function renewOne(subscription: ManagedSubscriptionRow) {
     const method = await savedMethod(row.user_id, row.payment_method_id);
     if (!method) throw new Error('Saved card is no longer available.');
     const product = PRODUCTS[row.plan] as SubscriptionProduct;
+    const renewalAmountUsd = Number(row.renewal_amount_usd ?? product.amountUsd);
+    if (!Number.isFinite(renewalAmountUsd) || renewalAmountUsd <= 0) throw new Error('Subscription renewal amount is invalid.');
     const periodStart = new Date(row.current_period_end);
     const periodEnd = addOneMonth(periodStart);
     const renewalKey = `${row.id}:${periodStart.toISOString()}`;
@@ -643,7 +646,7 @@ async function renewOne(subscription: ManagedSubscriptionRow) {
           purchase_units: [{
             custom_id: row.user_id,
             description: `AiWebVideo ${product.name} monthly renewal`,
-            amount: { currency_code: 'USD', value: product.amountUsd.toFixed(2) },
+            amount: { currency_code: 'USD', value: renewalAmountUsd.toFixed(2) },
           }],
           payment_source: {
             card: {
@@ -666,7 +669,7 @@ async function renewOne(subscription: ManagedSubscriptionRow) {
     const verified = validateEmbeddedCompletedOrder(completed, {
       orderId,
       userId: row.user_id,
-      amountUsd: product.amountUsd,
+      amountUsd: renewalAmountUsd,
       currency: 'USD',
     });
 
@@ -676,12 +679,12 @@ async function renewOne(subscription: ManagedSubscriptionRow) {
         `INSERT INTO payments(user_id,provider,provider_ref,provider_capture_ref,kind,amount_usd,currency,credits_granted,plan,product_id,status)
          VALUES ($1,'paypal',$2,$3,'subscription_renewal',$4,'USD',$5,$6,$7,'paid')
          ON CONFLICT(provider,provider_ref) DO UPDATE SET status='paid',provider_capture_ref=EXCLUDED.provider_capture_ref`,
-        [row.user_id, orderId, verified.captureId, product.amountUsd, product.credits, product.plan, row.plan],
+        [row.user_id, orderId, verified.captureId, renewalAmountUsd, product.credits, product.plan, row.plan],
       );
       await lockClient.query(
         `UPDATE subscriptions SET status='active',provider_status='ACTIVE',current_period_start=$2,current_period_end=$3,
          last_payment_failed_at=NULL,last_provider_order_id=$4,renewal_amount_usd=$5,updated_at=NOW() WHERE id=$1`,
-        [row.id, periodStart, periodEnd, orderId, product.amountUsd],
+        [row.id, periodStart, periodEnd, orderId, renewalAmountUsd],
       );
       await lockClient.query(
         `UPDATE paypal_managed_subscription_renewals SET status='paid',provider_capture_id=$2,last_error=NULL,updated_at=NOW() WHERE id=$1`,
@@ -705,7 +708,7 @@ async function renewOne(subscription: ManagedSubscriptionRow) {
         to: email,
         plan: product.name,
         credits: product.credits * CREDIT_DISPLAY_MULTIPLIER,
-        amountUsd: product.amountUsd,
+        amountUsd: renewalAmountUsd,
         reference: orderId,
         nextBillingDate: periodEnd.toISOString().slice(0, 10),
       }),
@@ -740,7 +743,7 @@ export async function runManagedSubscriptionRenewals() {
   try {
     await ensureManagedSubscriptionSchema();
     const { rows } = await query<ManagedSubscriptionRow>(
-      `SELECT id,user_id,plan,payment_method_id,current_period_end,last_payment_failed_at
+      `SELECT id,user_id,plan,payment_method_id,renewal_amount_usd,current_period_end,last_payment_failed_at
        FROM subscriptions
        WHERE billing_source='paypal_card' AND auto_renew=true
          AND status IN ('active','past_due') AND current_period_end <= NOW()
