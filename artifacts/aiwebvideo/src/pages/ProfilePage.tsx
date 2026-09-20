@@ -18,6 +18,7 @@ import { Nav } from "@/components/landing/Nav";
 import { Footer } from "@/components/landing/Footer";
 import { Button } from "@/components/ui/app-button";
 import { AuthModal } from "@/components/auth/AuthModal";
+import { SecureCheckoutModal } from "@/components/billing/SecureCheckoutModal";
 import { formatCredits } from "@/components/account/UserMenu";
 import { watchAuthState } from "@/lib/firebase/client";
 import {
@@ -28,7 +29,6 @@ import {
   fetchBillingHistory,
   cancelSubscription,
   changePassword,
-  startTopup,
   ApiError,
   type SubscriptionSummary,
   type UserJobSummary,
@@ -96,6 +96,7 @@ export function ProfilePage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showTopupCheckout, setShowTopupCheckout] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
@@ -132,18 +133,9 @@ export function ProfilePage() {
     [jobs],
   );
 
-  async function buyCredits() {
-    setBusy(true);
+  function buyCredits() {
     setError(null);
-    try {
-      window.location.href = (await startTopup()).checkoutUrl;
-    } catch {
-      setError(
-        "Billing is temporarily unavailable. Your account and projects are unchanged; please try again shortly.",
-      );
-    } finally {
-      setBusy(false);
-    }
+    setShowTopupCheckout(true);
   }
 
   async function stopRenewal(subscriptionId: string) {
@@ -654,6 +646,15 @@ export function ProfilePage() {
         </section>
       </main>
       <Footer />
+      {showTopupCheckout && (
+        <SecureCheckoutModal
+          plan="topup100"
+          productName="500 production credits"
+          amountUsd={28.99}
+          credits={500}
+          onClose={() => setShowTopupCheckout(false)}
+        />
+      )}
       {showAuthModal && (
         <AuthModal
           onClose={() => setShowAuthModal(false)}
