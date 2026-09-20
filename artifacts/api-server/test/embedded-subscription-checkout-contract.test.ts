@@ -76,15 +76,16 @@ test('generic capture webhook cannot double-grant managed renewal credits', asyn
   assert.match(index, /ensureSubscriptionReceiptGuard\(\)/);
 });
 
-test('Quick Video uses the temporary one dollar payment-test price consistently', async () => {
+test('Quick Video uses the normal 9.99 base price consistently before checkout fees', async () => {
   const pricing = await source('../aiwebvideo/src/components/landing/PricingTable.tsx');
   const paywall = await source('../aiwebvideo/src/components/chat/PaywallModal.tsx');
   const paypal = await source('src/routes/paypal.ts');
   const index = await source('src/index.ts');
-  assert.match(paypal, /single8:[^\n]*amountUsd: 1,/);
-  assert.match(pricing, /price: "\$1\.00"/);
-  assert.match(pricing, /amountUsd: 1,/);
-  assert.match(paywall, /single8[^\n]*amountUsd: 1,/);
+  assert.match(paypal, /single8:[^\n]*amountUsd: 9\.99/);
+  assert.match(pricing, /price: "\$9\.99"/);
+  assert.match(pricing, /amountUsd: 9\.99/);
+  assert.match(paywall, /single8[^\n]*amountUsd: 9\.99/);
+  assert.match(paypal, /checkoutTotalUsd/);
   assert.doesNotMatch(index, /applyTemporaryPaymentTestPricing/);
 });
 
