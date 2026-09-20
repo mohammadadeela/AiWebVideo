@@ -7,21 +7,21 @@ import { displayCredits, estimateRenderCredits } from '@/lib/credits';
 import { discountedPrice, fetchWelcomeGrowthOffer, formatUsd, formatWelcomeCountdown, type WelcomeGrowthOffer } from '@/lib/growth';
 
 const PAYWALL_PLANS = [
-  { id: 'creator' as const, name: 'Creator', price: 39, credits: 150, pitch: 'For regular creators', highlight: false },
-  { id: 'pro' as const, name: 'Pro', price: 99, credits: 400, pitch: 'Best for weekly marketing', highlight: true },
-  { id: 'agency' as const, name: 'Agency', price: 249, credits: 1000, pitch: 'For client and agency production', highlight: false },
+  { id: 'creator' as const, name: 'Creator', price: 41.99, credits: 150, pitch: 'For regular creators', highlight: false },
+  { id: 'pro' as const, name: 'Pro', price: 103.99, credits: 400, pitch: 'Best for weekly marketing', highlight: true },
+  { id: 'agency' as const, name: 'Agency', price: 259.99, credits: 1000, pitch: 'For client and agency production', highlight: false },
 ];
 
 const VIDEO_PACKS = [
   { id: 'single8' as const, name: 'Quick Video', label: '8s video pack', amountUsd: 1, credits: 38 },
-  { id: 'single48' as const, name: 'Full Marketing Video', label: '48s video pack', amountUsd: 52.99, credits: 198 },
-  { id: 'single144' as const, name: 'Extended Video', label: '144s video pack', amountUsd: 149.99, credits: 582 },
+  { id: 'single48' as const, name: 'Full Marketing Video', label: '48s video pack', amountUsd: 55.99, credits: 198 },
+  { id: 'single144' as const, name: 'Extended Video', label: '144s video pack', amountUsd: 156.99, credits: 582 },
 ];
 
 const CREDIT_PACKS = [
-  { id: 'topup50' as const, credits: 50, amountUsd: 14.99, note: 'Quick refill' },
-  { id: 'topup100' as const, credits: 100, amountUsd: 28.99, note: 'Small production balance' },
-  { id: 'topup250' as const, credits: 250, amountUsd: 69.99, note: 'For several productions' },
+  { id: 'topup50' as const, credits: 50, amountUsd: 15.99, note: 'Quick refill' },
+  { id: 'topup100' as const, credits: 100, amountUsd: 30.99, note: 'Small production balance' },
+  { id: 'topup250' as const, credits: 250, amountUsd: 73.99, note: 'For several productions' },
 ];
 
 type Tab = 'plans' | 'credits' | 'video';
