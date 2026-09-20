@@ -127,3 +127,22 @@ test('PayPal remains a fallback while raw card data stays outside AiWebVideo sto
   assert.match(client, /paypal\.CardFields/);
   assert.doesNotMatch(client, /Card number and CVV never touch AiWebVideo servers/);
 });
+
+
+test('one-time saved cards are explicitly treated as subsequent customer stored credentials', async () => {
+  const server = await source('src/routes/paypal-card.ts');
+  assert.match(server, /vault_id: tokenRef/);
+  assert.match(server, /payment_initiator: 'CUSTOMER'/);
+  assert.match(server, /payment_type: 'ONE_TIME'/);
+  assert.match(server, /usage: 'SUBSEQUENT'/);
+});
+
+test('delayed PayPal vault creation is subscribed and persisted for the matching customer', async () => {
+  const paypal = await source('src/routes/paypal.ts');
+  assert.match(paypal, /VAULT\.PAYMENT-TOKEN\.CREATED/);
+  assert.match(paypal, /VAULT\.PAYMENT-TOKEN\.DELETED/);
+  assert.match(paypal, /merchant_customer_id/);
+  assert.match(paypal, /paypal_customer_id/);
+  assert.match(paypal, /paypal_saved_payment_methods/);
+  assert.match(paypal, /handleVaultPaymentTokenCreated/);
+});
