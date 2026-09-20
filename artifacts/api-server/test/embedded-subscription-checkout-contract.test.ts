@@ -31,6 +31,9 @@ test('managed recurring billing is authenticated, idempotent and database locked
   assert.match(server, /paypal_managed_subscription_renewals/);
   assert.match(server, /paypal:managed-renewal:/);
   assert.match(server, /billing_source='paypal_card'/);
+  assert.match(server, /renewal_amount_usd/);
+  assert.match(server, /const renewalAmountUsd = Number\(row\.renewal_amount_usd \?\? product\.amountUsd\)/);
+  assert.match(server, /value: renewalAmountUsd\.toFixed\(2\)/);
   assert.match(routes, /paypalManagedSubscriptionRouter/);
   assert.match(routes, /paypalCardSubscriptionRouter/);
 });
