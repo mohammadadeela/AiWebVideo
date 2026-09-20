@@ -13,7 +13,7 @@ import {
   sendSubscriptionPaymentFailedEmail,
 } from '../lib/mailer.js';
 import { CREDIT_DISPLAY_MULTIPLIER } from '../lib/growth-offers.js';
-import { PRODUCTS, normalizePayPalEnvironment } from './paypal.js';
+import { PRODUCTS, checkoutFeeUsd, checkoutTotalUsd, normalizePayPalEnvironment } from './paypal.js';
 import { validateEmbeddedCompletedOrder } from './paypal-card-settlement.js';
 
 export const paypalCardSubscriptionRouter = Router();
@@ -459,6 +459,8 @@ paypalCardSubscriptionRouter.post('/subscription-orders', requireAuth, async (re
     if (input.expectedAmountUsd !== undefined && Math.abs(input.expectedAmountUsd - product.amountUsd) > 0.005) {
       throw new AppError('The subscription price changed. Review the current price and try again.', 409, 'PRICE_CHANGED');
     }
+    const checkoutAmountUsd = checkoutTotalUsd(product.amountUsd);
+    const feeUsd = checkoutFeeUsd(product.amountUsd);
 
     let paymentMethodId: string | null = null;
     let cardSource: Record<string, unknown>;
@@ -496,7 +498,7 @@ paypalCardSubscriptionRouter.post('/subscription-orders', requireAuth, async (re
         purchase_units: [{
           custom_id: req.user!.id,
           description: `AiWebVideo ${product.name} monthly subscription`,
-          amount: { currency_code: 'USD', value: renewalAmountUsd.toFixed(2) },
+          amount: { currency_code: 'USD', value: checkoutAmountUsd.toFixed(2) },
         }],
         payment_source: { card: cardSource },
       },
@@ -507,13 +509,13 @@ paypalCardSubscriptionRouter.post('/subscription-orders', requireAuth, async (re
     await query(
       `INSERT INTO paypal_managed_subscription_intents(order_id,user_id,plan,payment_method_id,amount_usd,credits,job_id)
        VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(order_id) DO NOTHING`,
-      [orderId, req.user!.id, input.plan, paymentMethodId, product.amountUsd, product.credits, input.jobId ?? null],
+      [orderId, req.user!.id, input.plan, paymentMethodId, checkoutAmountUsd, product.credits, input.jobId ?? null],
     );
     await query(
       `INSERT INTO payments(user_id,provider,provider_ref,kind,amount_usd,currency,credits_granted,plan,product_id,status)
        VALUES ($1,'paypal',$2,'subscription_initial',$3,'USD',$4,$5,$6,'pending')
        ON CONFLICT(provider,provider_ref) DO NOTHING`,
-      [req.user!.id, orderId, product.amountUsd, product.credits, product.plan, input.plan],
+      [req.user!.id, orderId, checkoutAmountUsd, product.credits, product.plan, input.plan],
     );
     await query(
       `INSERT INTO paypal_managed_subscription_returns(id,user_id,order_id,job_id)
@@ -525,7 +527,9 @@ paypalCardSubscriptionRouter.post('/subscription-orders', requireAuth, async (re
     res.setHeader('Cache-Control', 'private, no-store');
     res.json({
       orderId,
-      amountUsd: product.amountUsd,
+      amountUsd: checkoutAmountUsd,
+      baseAmountUsd: product.amountUsd,
+      feeUsd,
       normalAmountUsd: product.amountUsd,
       discountApplied: false,
       creditsGranted: product.credits,
