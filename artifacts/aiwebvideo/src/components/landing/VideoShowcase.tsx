@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Play } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, Play } from "lucide-react";
 import { fetchMarketingSettings, type MarketingVideo } from "@/lib/api-client";
 import { resolveVideoEmbed } from "@/lib/videoEmbed";
 
@@ -122,6 +122,10 @@ function SupportingFilm({ video, index }: { video: MarketingVideo; index: number
     <article className="relative h-full overflow-hidden rounded-[20px] border border-white/10 bg-[#0d0919] transition duration-300 hover:-translate-y-1 hover:border-violet/40">
       <div className="relative aspect-[9/16] overflow-hidden bg-black">
         <CampaignMedia video={video} />
+        <div className="pointer-events-none absolute inset-x-2 top-2 flex items-center justify-between gap-2">
+          <span className="rounded-full border border-white/15 bg-black/65 px-2 py-1 font-utility text-[7px] font-semibold uppercase tracking-[.13em] text-white backdrop-blur">Made with AiWebVideo</span>
+          <span className="max-w-[48%] truncate rounded-full border border-white/10 bg-black/55 px-2 py-1 text-[7px] font-semibold text-white/85 backdrop-blur">{video.eyebrow || `Campaign ${index + 1}`}</span>
+        </div>
       </div>
       <div className="p-3">
         <p className="font-utility text-[8px] uppercase tracking-[.16em] text-violet">{video.eyebrow || `Campaign ${index + 1}`}</p>
@@ -152,6 +156,11 @@ export function VideoShowcase() {
   const videos = settings?.videos.showcase.filter((video) => video.url) ?? [];
   const featured = videos[0];
   const supporting = videos.slice(1);
+
+  function openWebsiteCreator() {
+    window.dispatchEvent(new CustomEvent("aiwebvideo:creation-intent", { detail: "website" }));
+    window.setTimeout(() => document.getElementById("generate")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+  }
 
   useEffect(() => {
     setActiveSlide((current) => Math.min(current, Math.max(0, supporting.length - 1)));
@@ -203,14 +212,17 @@ export function VideoShowcase() {
         <div className="grid w-full min-w-0 grid-cols-1 gap-6 lg:grid-cols-[.62fr_1.38fr] lg:items-center lg:gap-8">
           <div className="min-w-0 max-w-xl">
             <div className="inline-flex items-center rounded-full border border-white/10 bg-white/[.035] px-3 py-1.5 font-utility text-[8px] uppercase tracking-[.16em] text-mint backdrop-blur">
-              Examples
+              Made with AiWebVideo
             </div>
             <h2 className="mt-3 max-w-[15ch] [text-wrap:balance] font-display text-[clamp(2.1rem,10vw,3.35rem)] font-bold leading-[.98] tracking-[-.045em] text-white sm:mt-4 sm:max-w-none">
-              See what it can <span className="bg-signature-text">create.</span>
+              Recognize the <span className="bg-signature-text">result.</span>
             </h2>
             <p className="mt-3 max-w-md text-[13px] leading-6 text-text-muted sm:text-sm">
-              Real campaign videos created with AiWebVideo.
+              Every card below is a finished AiWebVideo campaign. The labels stay visible while the video plays so visitors know what they are looking at.
             </p>
+            <button type="button" onClick={openWebsiteCreator} className="mt-5 inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/10 bg-white/[.04] px-3.5 text-[11px] font-semibold text-white transition hover:border-mint/30 hover:bg-white/[.07]">
+              Create one for my website <ArrowRight size={13} />
+            </button>
           </div>
 
           <div className="relative w-full min-w-0 max-w-full">
@@ -218,6 +230,17 @@ export function VideoShowcase() {
             <div className="relative">
               <div className="relative aspect-video w-full min-w-0 overflow-hidden rounded-[20px] border border-white/12 bg-black shadow-[0_34px_100px_-48px_rgba(139,92,246,.85)] sm:rounded-[24px]">
                 {featured ? <CampaignMedia video={featured} eager /> : <PlaceholderFilm />}
+                {featured && (
+                  <>
+                    <div className="pointer-events-none absolute left-3 top-3 rounded-full border border-white/15 bg-black/65 px-2.5 py-1 font-utility text-[8px] font-semibold uppercase tracking-[.14em] text-white backdrop-blur">
+                      Made with AiWebVideo
+                    </div>
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent px-4 pb-4 pt-12">
+                      <p className="font-utility text-[8px] uppercase tracking-[.15em] text-mint">{featured.eyebrow || "Finished campaign"}</p>
+                      <p className="mt-1 max-w-xl text-xs font-semibold leading-5 text-white sm:text-sm">{featured.caption || featured.overlayText || "AI-directed campaign result"}</p>
+                    </div>
+                  </>
+                )}
               </div>
               {featured && (
                 <div className="mt-3 px-1">
