@@ -26,9 +26,9 @@ test('starter credits use x5 display units and cannot authorize the cheapest pai
 
 test('20 percent welcome offer lowers price, never credits, and keeps at least 2x modeled provider coverage', () => {
   const packs = [
-    { id: 'topup50', amountUsd: 14.99, credits: 50 },
-    { id: 'topup100', amountUsd: 28.99, credits: 100 },
-    { id: 'topup250', amountUsd: 69.99, credits: 250 },
+    { id: 'topup50', amountUsd: 15.99, credits: 50 },
+    { id: 'topup100', amountUsd: 30.99, credits: 100 },
+    { id: 'topup250', amountUsd: 73.99, credits: 250 },
   ];
 
   assert.equal(WELCOME_DISCOUNT_PERCENT, 20);
@@ -53,8 +53,8 @@ test('20 percent welcome offer lowers price, never credits, and keeps at least 2
 
 test('discount guard refuses unsupported products and unsafe economics', () => {
   assert.equal(
-    marginSafeWelcomePrice({ productId: 'agency', amountUsd: 249, purchasedInternalCredits: 1000 }),
-    249,
+    marginSafeWelcomePrice({ productId: 'agency', amountUsd: 259.99, purchasedInternalCredits: 1000 }),
+    259.99,
   );
   assert.equal(
     marginSafeWelcomePrice({ productId: 'topup250', amountUsd: 1, purchasedInternalCredits: 250 }),
