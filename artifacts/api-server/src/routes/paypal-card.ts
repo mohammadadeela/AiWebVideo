@@ -577,6 +577,11 @@ router.post('/orders', requireAuth, async (req, res) => {
       paymentSource = {
         card: {
           vault_id: tokenRef,
+          stored_credential: {
+            payment_initiator: 'CUSTOMER',
+            payment_type: 'ONE_TIME',
+            usage: 'SUBSEQUENT',
+          },
           attributes: { verification: { method: 'SCA_WHEN_REQUIRED' } },
           experience_context: {
             shipping_preference: 'NO_SHIPPING',
@@ -591,7 +596,9 @@ router.post('/orders', requireAuth, async (req, res) => {
       };
       if (input.saveCard && vaultEnabled()) {
         const customerId = await paypalCustomerId(req.user!.id);
-        if (customerId) attributes.customer = { id: customerId };
+        attributes.customer = customerId
+          ? { id: customerId, merchant_customer_id: req.user!.id }
+          : { merchant_customer_id: req.user!.id };
         attributes.vault = { store_in_vault: 'ON_SUCCESS' };
       }
       paymentSource = {
