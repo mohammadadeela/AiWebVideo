@@ -640,8 +640,8 @@ export function SecureCheckoutModal({
     : paymentState === 'processing'
       ? <><LoaderCircle size={18} className="animate-spin" /> Processing…</>
       : paymentState === 'error'
-        ? <><AlertCircle size={18} /> Try again · Buy {money(amountUsd)}{recurring ? '/mo' : ''}</>
-        : <><LockKeyhole size={17} /> Buy {money(amountUsd)}{recurring ? '/mo' : ''}</>;
+        ? <><AlertCircle size={18} /> Try again · Buy {money(checkoutTotal)}{recurring ? '/mo' : ''}</>
+        : <><LockKeyhole size={17} /> Buy {money(checkoutTotal)}{recurring ? '/mo' : ''}</>;
 
   return createPortal(
     <div
