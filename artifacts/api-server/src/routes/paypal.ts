@@ -30,20 +30,46 @@ function customerCredits(internalCredits: number) {
 
 /** The server owns all prices and grants. The browser submits only a product id. */
 export const PRODUCTS = {
-  creator: { ...BILLING_CREDIT_PRODUCTS.creator, mode: 'subscription', amountUsd: 41.99, name: 'Creator' },
-  pro: { ...BILLING_CREDIT_PRODUCTS.pro, mode: 'subscription', amountUsd: 103.99, name: 'Pro' },
-  agency: { ...BILLING_CREDIT_PRODUCTS.agency, mode: 'subscription', amountUsd: 259.99, name: 'Agency' },
+  creator: { ...BILLING_CREDIT_PRODUCTS.creator, mode: 'subscription', amountUsd: 39, name: 'Creator' },
+  pro: { ...BILLING_CREDIT_PRODUCTS.pro, mode: 'subscription', amountUsd: 99, name: 'Pro' },
+  agency: { ...BILLING_CREDIT_PRODUCTS.agency, mode: 'subscription', amountUsd: 249, name: 'Agency' },
   single8: { ...BILLING_CREDIT_PRODUCTS.single8, mode: 'payment', amountUsd: 1, name: 'Quick Video' },
-  single48: { ...BILLING_CREDIT_PRODUCTS.single48, mode: 'payment', amountUsd: 55.99, name: 'Full Marketing Video' },
-  single144: { ...BILLING_CREDIT_PRODUCTS.single144, mode: 'payment', amountUsd: 156.99, name: 'Extended Video' },
-  topup50: { ...BILLING_CREDIT_PRODUCTS.topup50, mode: 'payment', amountUsd: 15.99, name: '250 Credits' },
-  topup100: { ...BILLING_CREDIT_PRODUCTS.topup100, mode: 'payment', amountUsd: 30.99, name: '500 Credits' },
-  topup250: { ...BILLING_CREDIT_PRODUCTS.topup250, mode: 'payment', amountUsd: 73.99, name: '1,250 Credits' },
+  single48: { ...BILLING_CREDIT_PRODUCTS.single48, mode: 'payment', amountUsd: 52.99, name: 'Full Marketing Video' },
+  single144: { ...BILLING_CREDIT_PRODUCTS.single144, mode: 'payment', amountUsd: 149.99, name: 'Extended Video' },
+  topup50: { ...BILLING_CREDIT_PRODUCTS.topup50, mode: 'payment', amountUsd: 14.99, name: '250 Credits' },
+  topup100: { ...BILLING_CREDIT_PRODUCTS.topup100, mode: 'payment', amountUsd: 28.99, name: '500 Credits' },
+  topup250: { ...BILLING_CREDIT_PRODUCTS.topup250, mode: 'payment', amountUsd: 69.99, name: '1,250 Credits' },
 } as const;
+
+const CHECKOUT_FEE_RATE = 0.0401;
+const CHECKOUT_FIXED_FEE_USD = 0.35;
+
+function roundMoney(value: number) {
+  return Math.round((Number(value) + Number.EPSILON) * 100) / 100;
+}
+
+/**
+ * Customer-facing prices stay unchanged until checkout.
+ * At checkout we gross the charge up to cover the configured payment fee,
+ * then use a clean x.99 total. The temporary $1 Quick Video remains exactly $1.
+ */
+export function checkoutTotalUsd(baseAmountUsd: number) {
+  const base = roundMoney(Math.max(0, Number(baseAmountUsd) || 0));
+  if (base <= 1.005) return base;
+  const minimumGross = (base + CHECKOUT_FIXED_FEE_USD) / (1 - CHECKOUT_FEE_RATE);
+  let marketingTotal = Math.floor(minimumGross) + 0.99;
+  if (marketingTotal + 0.000001 < minimumGross) marketingTotal += 1;
+  return roundMoney(marketingTotal);
+}
+
+export function checkoutFeeUsd(baseAmountUsd: number) {
+  const base = roundMoney(Math.max(0, Number(baseAmountUsd) || 0));
+  return roundMoney(Math.max(0, checkoutTotalUsd(base) - base));
+}
 
 export type ProductId = keyof typeof PRODUCTS;
 type SubscriptionProductId = 'creator' | 'pro' | 'agency';
-const PAYPAL_PRICING_VERSION = '2026-09-fee-inclusive-v1';
+const PAYPAL_PRICING_VERSION = '2026-09-checkout-fees-v2';
 
 interface PayPalRuntimeSettings {
   environment: 'sandbox' | 'live';
@@ -339,7 +365,8 @@ async function ensurePlanIds(productId: string): Promise<Record<SubscriptionProd
   const planIds = {} as Record<SubscriptionProductId, string>;
   for (const id of SUBSCRIPTION_IDS) {
     const product = PRODUCTS[id];
-    const planName = `AiWebVideo ${product.name} Monthly · ${product.amountUsd.toFixed(2)}`;
+    const billedAmountUsd = checkoutTotalUsd(product.amountUsd);
+    const planName = `AiWebVideo ${product.name} Monthly · ${billedAmountUsd.toFixed(2)}`;
     const existing = plans.find((item) => item.name === planName && item.status === 'ACTIVE' && typeof item.id === 'string');
     if (existing?.id) {
       planIds[id] = String(existing.id);
@@ -347,7 +374,7 @@ async function ensurePlanIds(productId: string): Promise<Record<SubscriptionProd
     }
     const created = await paypalFetch('/v1/billing/plans', {
       method: 'POST',
-      idempotencyKey: `plan-${paypalEnvironment()}-${id}-${product.amountUsd}`,
+      idempotencyKey: `plan-${paypalEnvironment()}-${id}-${billedAmountUsd}`,
       body: {
         product_id: productId,
         name: planName,
@@ -356,7 +383,7 @@ async function ensurePlanIds(productId: string): Promise<Record<SubscriptionProd
         billing_cycles: [{
           frequency: { interval_unit: 'MONTH', interval_count: 1 },
           tenure_type: 'REGULAR', sequence: 1, total_cycles: 0,
-          pricing_scheme: { fixed_price: { value: product.amountUsd.toFixed(2), currency_code: 'USD' } },
+          pricing_scheme: { fixed_price: { value: billedAmountUsd.toFixed(2), currency_code: 'USD' } },
         }],
         payment_preferences: {
           auto_bill_outstanding: true,
@@ -441,14 +468,15 @@ router.post('/checkout', requireAuth, async (req, res) => {
     const growth = WELCOME_OFFER_PRODUCTS.has(plan)
       ? await settleGrowthCredits(req.user!.id).catch(() => null)
       : null;
-    const checkoutAmountUsd = growth?.active
+    const baseCheckoutAmountUsd = growth?.active
       ? marginSafeWelcomePrice({
           productId: plan,
           amountUsd: product.amountUsd,
           purchasedInternalCredits: product.credits,
         })
       : product.amountUsd;
-    const welcomeDiscountApplied = checkoutAmountUsd < product.amountUsd;
+    const checkoutAmountUsd = checkoutTotalUsd(baseCheckoutAmountUsd);
+    const welcomeDiscountApplied = baseCheckoutAmountUsd < product.amountUsd;
 
     const data = await paypalFetch('/v2/checkout/orders', {
       method: 'POST',
