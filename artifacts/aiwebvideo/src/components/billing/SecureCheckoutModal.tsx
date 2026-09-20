@@ -657,7 +657,7 @@ export function SecureCheckoutModal({
             </div>
           </div>
         ) : (
-          <div className="relative grid min-w-0 gap-0 md:grid-cols-[290px_minmax(0,1fr)]">
+          <div className="relative grid min-w-0 gap-0 md:grid-cols-[330px_minmax(0,1fr)]">
             <aside className="border-b border-white/[.07] bg-white/[.018] p-5 md:border-b-0 md:border-r md:p-6">
               <p className="text-[10px] font-bold uppercase tracking-[.15em] text-text-dim">Order summary</p>
               <div className="mt-4 rounded-2xl border border-white/[.08] bg-black/15 p-4">
@@ -674,6 +674,91 @@ export function SecureCheckoutModal({
                 {recurring && <p className="mt-2 text-[10px] leading-4 text-text-dim">Renews monthly at {money(amountUsd)} until cancelled.</p>}
               </div>
 
+              {savedMethods.length > 0 && (
+                <section className="mt-5">
+                  <div className="mb-2.5 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-mint/20 bg-mint/10 text-mint">
+                        <WalletCards size={14} />
+                      </span>
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[.12em] text-white">Saved card</p>
+                        <p className="mt-0.5 text-[9px] text-text-dim">One-tap secure checkout</p>
+                      </div>
+                    </div>
+                    <span className="rounded-full border border-mint/20 bg-mint/[.08] px-2 py-1 text-[7px] font-black uppercase tracking-[.12em] text-mint">Fastest</span>
+                  </div>
+
+                  <div className="space-y-3">
+                    {savedMethods.slice(0, 2).map((method) => {
+                      const preferred = preferredSavedMethodId === method.id;
+                      const isPaying = processingSavedMethodId === method.id && submitting;
+                      return (
+                        <div key={method.id} className={`group overflow-hidden rounded-[18px] border transition ${preferred ? 'border-violet/45 bg-violet/[.07]' : 'border-white/[.09] bg-black/20 hover:border-violet/30'}`}>
+                          <div className="p-3">
+                            <div className="relative overflow-hidden rounded-[15px] border border-white/[.12] bg-gradient-to-br from-[#2d1b4e] via-[#1a122c] to-[#0d0918] p-3.5 shadow-[0_18px_38px_-24px_rgba(139,92,246,.8)]">
+                              <div className="pointer-events-none absolute -right-8 -top-10 h-24 w-24 rounded-full bg-violet/20 blur-2xl" />
+                              <div className="pointer-events-none absolute -bottom-10 -left-8 h-20 w-20 rounded-full bg-mint/10 blur-2xl" />
+
+                              <div className="relative flex items-start justify-between gap-3">
+                                <div className="flex items-center gap-2">
+                                  <span className="flex h-8 w-10 items-center justify-center rounded-[9px] border border-amber-100/20 bg-gradient-to-br from-amber-100/80 to-amber-300/45 shadow-inner">
+                                    <span className="h-3.5 w-5 rounded-[3px] border border-[#6f5825]/50 bg-amber-100/40" />
+                                  </span>
+                                  <span className="rounded-full border border-white/10 bg-white/[.06] px-2 py-0.5 text-[7px] font-black uppercase tracking-[.13em] text-white/55">Saved</span>
+                                </div>
+                                <span className="text-[10px] font-black uppercase tracking-[.12em] text-white">{method.brand || 'Card'}</span>
+                              </div>
+
+                              <div className="relative mt-5 font-utility text-[16px] font-bold tracking-[.14em] text-white">
+                                •••• •••• •••• {method.lastDigits}
+                              </div>
+
+                              <div className="relative mt-3 flex items-end justify-between gap-3">
+                                <div>
+                                  <p className="text-[6px] font-bold uppercase tracking-[.14em] text-white/35">Expires</p>
+                                  <p className="mt-0.5 text-[9px] font-semibold text-white/75">{method.expiry || 'Saved securely'}</p>
+                                </div>
+                                {preferred ? (
+                                  <span className="inline-flex items-center gap-1 rounded-full border border-violet/25 bg-violet/15 px-2 py-1 text-[7px] font-bold text-violet">
+                                    <Check size={9} /> Last used
+                                  </span>
+                                ) : (
+                                  <ShieldCheck size={14} className="text-mint/80" />
+                                )}
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              disabled={submitting || removingMethod === method.id}
+                              onClick={() => void payWithSavedCard(method)}
+                              className="mt-2.5 flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-mint/20 bg-mint/[.075] px-3 text-[10px] font-black text-mint transition hover:border-mint/35 hover:bg-mint/[.12] disabled:opacity-55"
+                              aria-label={`Pay ${money(amountUsd)} with saved ${method.brand} ending in ${method.lastDigits}`}
+                            >
+                              {isPaying ? <><LoaderCircle size={13} className="animate-spin" /> Processing…</> : <><LockKeyhole size={12} /> Pay {money(amountUsd)} with saved card</>}
+                            </button>
+
+                            <button
+                              type="button"
+                              disabled={submitting || removingMethod === method.id}
+                              onClick={() => void removeSavedCard(method)}
+                              className="mt-1.5 flex min-h-7 w-full items-center justify-center gap-1.5 rounded-lg text-[8px] font-semibold text-text-dim transition hover:bg-rose-500/[.06] hover:text-rose-300 disabled:opacity-40"
+                              aria-label={`Remove ${method.brand} ending in ${method.lastDigits}`}
+                            >
+                              {removingMethod === method.id ? <LoaderCircle size={10} className="animate-spin" /> : <Trash2 size={10} />}
+                              {removingMethod === method.id ? 'Removing…' : 'Remove saved card'}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {savedMethods.length > 2 && <p className="mt-2 text-center text-[8px] text-text-dim">Your 2 most recent saved cards are shown here.</p>}
+                </section>
+              )}
+
               <div className="mt-5 flex items-start gap-2.5 rounded-xl border border-mint/10 bg-mint/[.035] p-3 text-[11px] leading-5 text-[#bbb5ca]">
                 <ShieldCheck size={15} className="mt-0.5 shrink-0 text-mint" />
                 Your card details are securely handled by the payment processor. AiWebVideo does not store your full card number or CVV.
@@ -681,81 +766,6 @@ export function SecureCheckoutModal({
             </aside>
 
             <main className="min-w-0 overflow-x-hidden p-5 sm:p-6 md:p-7">
-              {savedMethods.length > 0 && (
-                <section className="rounded-[22px] border border-mint/20 bg-gradient-to-br from-mint/[.07] via-violet/[.05] to-transparent p-4 shadow-[0_24px_70px_-42px_rgba(45,212,191,.45)]">
-                  <div className="mb-4 flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3">
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-mint/20 bg-mint/10 text-mint">
-                        <WalletCards size={18} />
-                      </span>
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-sm font-black text-white">Pay with your saved card</p>
-                          <span className="rounded-full border border-mint/20 bg-mint/10 px-2 py-0.5 text-[8px] font-black uppercase tracking-[.12em] text-mint">Fastest</span>
-                        </div>
-                        <p className="mt-1 text-[10px] leading-4 text-text-muted">No need to enter your card details again. Choose a saved card below.</p>
-                      </div>
-                    </div>
-                    <ShieldCheck size={17} className="mt-1 shrink-0 text-mint" />
-                  </div>
-
-                  <div className="space-y-3">
-                    {savedMethods.slice(0, 4).map((method) => {
-                      const preferred = preferredSavedMethodId === method.id;
-                      const isPaying = processingSavedMethodId === method.id && submitting;
-                      return (
-                        <div
-                          key={method.id}
-                          className={`group overflow-hidden rounded-2xl border transition ${preferred ? 'border-violet/45 bg-violet/[.09]' : 'border-white/10 bg-black/15 hover:border-violet/30'}`}
-                        >
-                          <div className="flex items-center gap-3 p-3.5">
-                            <button
-                              type="button"
-                              disabled={submitting || removingMethod === method.id}
-                              onClick={() => void payWithSavedCard(method)}
-                              className="flex min-w-0 flex-1 items-center gap-3 text-left disabled:opacity-55"
-                              aria-label={`Pay ${money(amountUsd)} with saved ${method.brand} ending in ${method.lastDigits}`}
-                            >
-                              <span className="relative flex h-12 w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/15 bg-gradient-to-br from-violet/35 via-[#211730] to-black/40 shadow-lg">
-                                <span className="absolute left-2 top-1.5 text-[6px] font-black uppercase tracking-[.14em] text-white/55">Saved</span>
-                                <CreditCard size={20} className="mt-2 text-white" />
-                              </span>
-                              <span className="min-w-0 flex-1">
-                                <span className="flex flex-wrap items-center gap-2">
-                                  <span className="truncate text-[11px] font-black uppercase tracking-[.08em] text-white">{method.brand || 'Card'}</span>
-                                  {preferred && <span className="rounded-full bg-violet/15 px-2 py-0.5 text-[8px] font-bold text-violet">Last used</span>}
-                                </span>
-                                <span className="mt-1 block font-utility text-[15px] font-bold tracking-[.11em] text-white">•••• •••• •••• {method.lastDigits}</span>
-                                <span className="mt-1 block text-[9px] text-text-dim">{method.expiry ? `Expires ${method.expiry}` : 'Securely saved for faster checkout'}</span>
-                              </span>
-                            </button>
-                            <button
-                              type="button"
-                              disabled={submitting || removingMethod === method.id}
-                              onClick={() => void removeSavedCard(method)}
-                              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-text-dim transition hover:bg-rose-500/10 hover:text-rose-300 disabled:opacity-40"
-                              aria-label={`Remove ${method.brand} ending in ${method.lastDigits}`}
-                            >
-                              {removingMethod === method.id ? <LoaderCircle size={13} className="animate-spin" /> : <Trash2 size={13} />}
-                            </button>
-                          </div>
-                          <button
-                            type="button"
-                            disabled={submitting || removingMethod === method.id}
-                            onClick={() => void payWithSavedCard(method)}
-                            className="flex min-h-11 w-full items-center justify-center gap-2 border-t border-white/[.08] bg-white/[.035] px-4 text-[11px] font-black text-mint transition hover:bg-mint/[.08] disabled:opacity-55"
-                          >
-                            {isPaying ? <><LoaderCircle size={14} className="animate-spin" /> Paying with saved card…</> : <><LockKeyhole size={13} /> Pay {money(amountUsd)} with this saved card</>}
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="my-4 flex items-center gap-3"><span className="h-px flex-1 bg-white/[.08]" /><span className="text-[9px] font-bold uppercase tracking-[.15em] text-text-dim">or use another payment method</span><span className="h-px flex-1 bg-white/[.08]" /></div>
-                </section>
-              )}
-
               {!recurring && (
                 <div className={`transition-all duration-300 ${googlePayEligible ? 'mt-4 opacity-100' : 'pointer-events-none h-0 overflow-hidden opacity-0'}`}>
                   <div className="rounded-2xl border border-white/[.10] bg-white/[.035] p-2 shadow-[0_16px_34px_-26px_rgba(0,0,0,.8)]">
@@ -769,7 +779,7 @@ export function SecureCheckoutModal({
               )}
 
               {canShowCardForm && (
-                <section className={savedMethods.length || googlePayEligible ? 'mt-4' : ''}>
+                <section className={googlePayEligible ? 'mt-4' : ''}>
                   <div className="mb-4 flex items-center justify-between gap-3">
                     <div>
                       <p className="text-sm font-bold text-white">Card details</p>
