@@ -170,6 +170,9 @@ function errorMessage(error: unknown) {
     if (error.code === 'PAYPAL_ADVANCED_CARDS_NOT_ENABLED') return 'Card checkout is temporarily unavailable. Try again later.';
     if (error.code === 'CARD_PAYMENT_FAILED') return 'The card was not approved. Check the details or try another payment method.';
     if (error.code === 'PAYMENT_NOT_COMPLETED') return 'Your bank has not completed the payment yet. Try again in a moment.';
+    if (error.code === 'PAYMENT_METHOD_NOT_FOUND') return 'This saved card is no longer available. Use another saved card or enter a new card.';
+    if (error.code === 'PAYMENT_METHOD_REQUIRED') return 'Choose a saved card or enter a new card to continue.';
+    if (error.code === 'PAYMENT_METHOD_OWNERSHIP_MISMATCH') return 'This saved card could not be verified for your account. Please use another card.';
     if (error.code === 'SUBSCRIPTION_VAULT_PENDING') return error.message;
     if (error.code?.startsWith('PAYMENT_')) {
       return 'We could not finish verifying this payment. If your bank shows a charge, do not pay again—refresh your balance or contact support.';
@@ -564,6 +567,15 @@ export function SecureCheckoutModal({
       finishPayment(result);
     } catch (paymentError) {
       setProcessingSavedMethodId(null);
+      if (paymentError instanceof ApiError && paymentError.code === 'PAYMENT_METHOD_NOT_FOUND') {
+        setSavedMethods((current) => current.filter((item) => item.id !== method.id));
+        try {
+          if (localStorage.getItem(PREFERRED_METHOD_KEY) === method.id) {
+            localStorage.removeItem(PREFERRED_METHOD_KEY);
+            setPreferredSavedMethodId(null);
+          }
+        } catch { /* optional */ }
+      }
       markError(paymentError);
     }
   }
