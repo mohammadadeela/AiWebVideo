@@ -13,7 +13,7 @@ import {
   marginSafeWelcomePrice,
 } from '../lib/growth-offers.js';
 import { settleGrowthCredits } from './growth.js';
-import { PRODUCTS, normalizePayPalEnvironment, validateCompletedOrder } from './paypal.js';
+import { PRODUCTS, checkoutFeeUsd, checkoutTotalUsd, normalizePayPalEnvironment, validateCompletedOrder } from './paypal.js';
 
 const router = Router();
 
@@ -241,7 +241,7 @@ async function currentCheckoutAmount(userId: string, plan: OneTimeProductId) {
   const growth = WELCOME_OFFER_PRODUCTS.has(plan)
     ? await settleGrowthCredits(userId).catch(() => null)
     : null;
-  const amountUsd = growth?.active
+  const baseAmountUsd = growth?.active
     ? marginSafeWelcomePrice({
         productId: plan,
         amountUsd: product.amountUsd,
@@ -249,9 +249,11 @@ async function currentCheckoutAmount(userId: string, plan: OneTimeProductId) {
       })
     : product.amountUsd;
   return {
-    amountUsd,
+    baseAmountUsd,
+    feeUsd: checkoutFeeUsd(baseAmountUsd),
+    amountUsd: checkoutTotalUsd(baseAmountUsd),
     normalAmountUsd: product.amountUsd,
-    discountApplied: amountUsd < product.amountUsd,
+    discountApplied: baseAmountUsd < product.amountUsd,
   };
 }
 
@@ -558,7 +560,7 @@ router.post('/orders', requireAuth, async (req, res) => {
     if (product.mode !== 'payment') throw new AppError('This product uses subscription checkout.', 400, 'CARD_CHECKOUT_NOT_SUPPORTED');
 
     const pricing = await currentCheckoutAmount(req.user!.id, input.plan);
-    if (input.expectedAmountUsd !== undefined && input.expectedAmountUsd + 0.005 < pricing.amountUsd) {
+    if (input.expectedAmountUsd !== undefined && Math.abs(input.expectedAmountUsd - pricing.baseAmountUsd) > 0.005) {
       throw new AppError('The limited-time price changed before payment. Review the current price and try again.', 409, 'PRICE_CHANGED');
     }
 
@@ -655,6 +657,8 @@ router.post('/orders', requireAuth, async (req, res) => {
     res.json({
       orderId,
       amountUsd: pricing.amountUsd,
+      baseAmountUsd: pricing.baseAmountUsd,
+      feeUsd: pricing.feeUsd,
       normalAmountUsd: pricing.normalAmountUsd,
       discountApplied: pricing.discountApplied,
       creditsGranted: product.credits,
