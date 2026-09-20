@@ -626,7 +626,7 @@ export function SecureCheckoutModal({
       role="dialog"
       aria-modal="true"
       aria-label={`Checkout for ${productName}`}
-      className="fixed inset-0 z-[90] flex items-end justify-center overflow-x-hidden bg-black/80 p-0 backdrop-blur-md sm:items-center sm:p-5"
+      className="fixed inset-0 z-[90] flex items-end justify-center overflow-x-hidden bg-[#080410]/35 p-0 backdrop-blur-[2px] backdrop-saturate-125 sm:items-center sm:p-5"
       onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}
     >
       <div className="relative max-h-[94dvh] w-full overflow-x-hidden overflow-y-auto rounded-t-[30px] border border-white/10 bg-[#0d0918] shadow-[0_38px_120px_-28px_rgba(0,0,0,.96)] sm:max-w-[860px] sm:rounded-[30px]">
