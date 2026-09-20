@@ -9,6 +9,7 @@ import {
   LockKeyhole,
   ShieldCheck,
   Trash2,
+  WalletCards,
   X,
 } from 'lucide-react';
 import { ApiError, request, type CheckoutId } from '@/lib/api-client';
@@ -311,6 +312,8 @@ export function SecureCheckoutModal({
   const [fieldsReady, setFieldsReady] = useState(false);
   const [googlePayEligible, setGooglePayEligible] = useState(false);
   const [saveCard, setSaveCard] = useState(false);
+  const [preferredSavedMethodId, setPreferredSavedMethodId] = useState<string | null>(null);
+  const [processingSavedMethodId, setProcessingSavedMethodId] = useState<string | null>(null);
   const [removingMethod, setRemovingMethod] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<CaptureResult | null>(null);
@@ -394,8 +397,11 @@ export function SecureCheckoutModal({
         let methods = methodsResponse.methods;
         try {
           const preferred = localStorage.getItem(PREFERRED_METHOD_KEY);
+          setPreferredSavedMethodId(preferred);
           if (preferred) methods = [...methods].sort((a, b) => Number(b.id === preferred) - Number(a.id === preferred));
-        } catch { /* optional preference */ }
+        } catch {
+          setPreferredSavedMethodId(null);
+        }
         setSavedMethods(methods);
 
         if (!nextConfig.configured || !nextConfig.advancedCardsEnabled || (recurring && !nextConfig.vaultEnabled)) return;
@@ -539,12 +545,16 @@ export function SecureCheckoutModal({
 
   async function payWithSavedCard(method: SavedMethod) {
     if (submitting) return;
+    setProcessingSavedMethodId(method.id);
     setPaymentState('processing');
     setError(null);
     try {
       const order = await createOrder('saved_card', method.id);
       if (Math.abs(order.amountUsd - amountRef.current) > 0.005) throw new Error(`Price changed to ${money(order.amountUsd)}.`);
-      try { localStorage.setItem(PREFERRED_METHOD_KEY, method.id); } catch { /* optional */ }
+      try {
+        localStorage.setItem(PREFERRED_METHOD_KEY, method.id);
+        setPreferredSavedMethodId(method.id);
+      } catch { /* optional */ }
       if (order.payerActionRequired) {
         if (!order.payerActionUrl) throw new Error('Your bank requires verification. Try the card again.');
         window.location.href = order.payerActionUrl;
@@ -553,6 +563,7 @@ export function SecureCheckoutModal({
       const result = await capture(order.orderId);
       finishPayment(result);
     } catch (paymentError) {
+      setProcessingSavedMethodId(null);
       markError(paymentError);
     }
   }
@@ -565,7 +576,10 @@ export function SecureCheckoutModal({
       await request<{ deleted: true }>(`/api/paypal-card/methods/${encodeURIComponent(method.id)}`, { method: 'DELETE' });
       setSavedMethods((current) => current.filter((item) => item.id !== method.id));
       try {
-        if (localStorage.getItem(PREFERRED_METHOD_KEY) === method.id) localStorage.removeItem(PREFERRED_METHOD_KEY);
+        if (localStorage.getItem(PREFERRED_METHOD_KEY) === method.id) {
+          localStorage.removeItem(PREFERRED_METHOD_KEY);
+          setPreferredSavedMethodId(null);
+        }
       } catch { /* optional */ }
     } catch (removeError) {
       markError(removeError);
@@ -656,20 +670,77 @@ export function SecureCheckoutModal({
 
             <main className="min-w-0 overflow-x-hidden p-5 sm:p-6 md:p-7">
               {savedMethods.length > 0 && (
-                <section>
-                  <div className="mb-3 flex items-center justify-between gap-3"><p className="text-sm font-bold text-white">Saved cards</p><span className="text-[10px] font-semibold text-text-dim">Fast checkout</span></div>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {savedMethods.slice(0, 4).map((method) => (
-                      <div key={method.id} className="group flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[.025] p-2.5 transition hover:border-violet/25 hover:bg-white/[.04]">
-                        <button type="button" disabled={submitting || removingMethod === method.id} onClick={() => void payWithSavedCard(method)} className="flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-xl px-2 text-left disabled:opacity-50">
-                          <span className="flex h-9 w-11 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-black/15"><CreditCard size={17} className="text-violet" /></span>
-                          <span className="min-w-0 flex-1"><span className="block truncate text-xs font-bold text-white">{method.brand} •••• {method.lastDigits}</span><span className="mt-0.5 block text-[10px] text-text-dim">{method.expiry ? `Expires ${method.expiry}` : 'Saved card'}</span></span>
-                          <span className="text-[11px] font-black text-mint">Buy</span>
-                        </button>
-                        <button type="button" disabled={submitting || removingMethod === method.id} onClick={() => void removeSavedCard(method)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-text-dim transition hover:bg-rose-500/10 hover:text-rose-300 disabled:opacity-40" aria-label={`Remove ${method.brand} ending in ${method.lastDigits}`}><Trash2 size={13} /></button>
+                <section className="rounded-[22px] border border-mint/20 bg-gradient-to-br from-mint/[.07] via-violet/[.05] to-transparent p-4 shadow-[0_24px_70px_-42px_rgba(45,212,191,.45)]">
+                  <div className="mb-4 flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-mint/20 bg-mint/10 text-mint">
+                        <WalletCards size={18} />
+                      </span>
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-black text-white">Pay with your saved card</p>
+                          <span className="rounded-full border border-mint/20 bg-mint/10 px-2 py-0.5 text-[8px] font-black uppercase tracking-[.12em] text-mint">Fastest</span>
+                        </div>
+                        <p className="mt-1 text-[10px] leading-4 text-text-muted">No need to enter your card details again. Choose a saved card below.</p>
                       </div>
-                    ))}
+                    </div>
+                    <ShieldCheck size={17} className="mt-1 shrink-0 text-mint" />
                   </div>
+
+                  <div className="space-y-3">
+                    {savedMethods.slice(0, 4).map((method) => {
+                      const preferred = preferredSavedMethodId === method.id;
+                      const isPaying = processingSavedMethodId === method.id && submitting;
+                      return (
+                        <div
+                          key={method.id}
+                          className={`group overflow-hidden rounded-2xl border transition ${preferred ? 'border-violet/45 bg-violet/[.09]' : 'border-white/10 bg-black/15 hover:border-violet/30'}`}
+                        >
+                          <div className="flex items-center gap-3 p-3.5">
+                            <button
+                              type="button"
+                              disabled={submitting || removingMethod === method.id}
+                              onClick={() => void payWithSavedCard(method)}
+                              className="flex min-w-0 flex-1 items-center gap-3 text-left disabled:opacity-55"
+                              aria-label={`Pay ${money(amountUsd)} with saved ${method.brand} ending in ${method.lastDigits}`}
+                            >
+                              <span className="relative flex h-12 w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/15 bg-gradient-to-br from-violet/35 via-[#211730] to-black/40 shadow-lg">
+                                <span className="absolute left-2 top-1.5 text-[6px] font-black uppercase tracking-[.14em] text-white/55">Saved</span>
+                                <CreditCard size={20} className="mt-2 text-white" />
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="flex flex-wrap items-center gap-2">
+                                  <span className="truncate text-[11px] font-black uppercase tracking-[.08em] text-white">{method.brand || 'Card'}</span>
+                                  {preferred && <span className="rounded-full bg-violet/15 px-2 py-0.5 text-[8px] font-bold text-violet">Last used</span>}
+                                </span>
+                                <span className="mt-1 block font-utility text-[15px] font-bold tracking-[.11em] text-white">•••• •••• •••• {method.lastDigits}</span>
+                                <span className="mt-1 block text-[9px] text-text-dim">{method.expiry ? `Expires ${method.expiry}` : 'Securely saved for faster checkout'}</span>
+                              </span>
+                            </button>
+                            <button
+                              type="button"
+                              disabled={submitting || removingMethod === method.id}
+                              onClick={() => void removeSavedCard(method)}
+                              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-text-dim transition hover:bg-rose-500/10 hover:text-rose-300 disabled:opacity-40"
+                              aria-label={`Remove ${method.brand} ending in ${method.lastDigits}`}
+                            >
+                              {removingMethod === method.id ? <LoaderCircle size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                            </button>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={submitting || removingMethod === method.id}
+                            onClick={() => void payWithSavedCard(method)}
+                            className="flex min-h-11 w-full items-center justify-center gap-2 border-t border-white/[.08] bg-white/[.035] px-4 text-[11px] font-black text-mint transition hover:bg-mint/[.08] disabled:opacity-55"
+                          >
+                            {isPaying ? <><LoaderCircle size={14} className="animate-spin" /> Paying with saved card…</> : <><LockKeyhole size={13} /> Pay {money(amountUsd)} with this saved card</>}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="my-4 flex items-center gap-3"><span className="h-px flex-1 bg-white/[.08]" /><span className="text-[9px] font-bold uppercase tracking-[.15em] text-text-dim">or use another payment method</span><span className="h-px flex-1 bg-white/[.08]" /></div>
                 </section>
               )}
 
