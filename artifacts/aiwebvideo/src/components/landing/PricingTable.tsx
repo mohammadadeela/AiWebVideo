@@ -50,8 +50,8 @@ const PLANS = [
   {
     id: "creator" as const,
     name: "Creator",
-    price: "$39",
-    amountUsd: 39,
+    price: "$41.99",
+    amountUsd: 41.99,
     period: "/mo",
     sub: "",
     credits: "750 credits / mo",
@@ -69,8 +69,8 @@ const PLANS = [
   {
     id: "pro" as const,
     name: "Pro",
-    price: "$99",
-    amountUsd: 99,
+    price: "$103.99",
+    amountUsd: 103.99,
     period: "/mo",
     sub: "",
     credits: "2,000 credits / mo",
@@ -88,8 +88,8 @@ const PLANS = [
   {
     id: "agency" as const,
     name: "Agency",
-    price: "$249",
-    amountUsd: 249,
+    price: "$259.99",
+    amountUsd: 259.99,
     period: "/mo",
     sub: "",
     credits: "5,000 credits / mo",
@@ -99,7 +99,7 @@ const PLANS = [
       "26 narrated quick clips or 7 standard campaigns",
       "Unlimited client websites",
       "Priority generation concurrency",
-      "Flexible one-time top-ups from $14.99",
+      "Flexible one-time top-ups from $15.99",
     ],
     cta: "Buy",
     highlight: false,
@@ -120,8 +120,8 @@ const ONE_TIME_PACKS = [
     id: "single48" as const,
     name: "Full Marketing Video",
     length: "48 seconds",
-    price: "$52.99",
-    amountUsd: 52.99,
+    price: "$55.99",
+    amountUsd: 55.99,
     credits: 198,
     note: "A complete marketing video with room for a full story",
     popular: true,
@@ -130,17 +130,17 @@ const ONE_TIME_PACKS = [
     id: "single144" as const,
     name: "Extended Video",
     length: "144 seconds",
-    price: "$149.99",
-    amountUsd: 149.99,
+    price: "$156.99",
+    amountUsd: 156.99,
     credits: 582,
     note: "A longer presentation, tutorial, or detailed brand story",
   },
 ];
 
 const CREDIT_PACKS = [
-  { id: "topup50" as const, credits: 50, amountUsd: 14.99, note: "Quick refill" },
-  { id: "topup100" as const, credits: 100, amountUsd: 28.99, note: "Small production balance" },
-  { id: "topup250" as const, credits: 250, amountUsd: 69.99, note: "For several productions" },
+  { id: "topup50" as const, credits: 50, amountUsd: 15.99, note: "Quick refill" },
+  { id: "topup100" as const, credits: 100, amountUsd: 30.99, note: "Small production balance" },
+  { id: "topup250" as const, credits: 250, amountUsd: 73.99, note: "For several productions" },
 ];
 
 const CREDIT_COSTS = [
