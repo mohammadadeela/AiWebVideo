@@ -101,10 +101,6 @@ test('one-time premium 1080p packs include narration credits and clear the 2x co
   withVideoModel(undefined, () => {
     for (const { product, seconds } of packs) {
       assert.equal(product.credits, videoCreditCost('video', false, seconds, '1080p'));
-      if (product === PRODUCTS.single8) {
-        assert.equal(product.amountUsd, 1);
-        continue;
-      }
       const conservativeCost = seconds * STANDARD_1080P_USD_PER_SEC + seconds * TTS_USD_PER_SEC + TEXT_AND_INPUT_ALLOWANCE_USD;
       const netRevenue = product.amountUsd * (1 - PAYMENT_FEE_RESERVE);
       assert.ok(netRevenue >= conservativeCost * 2, `${product.amountUsd} pack must cover 2x ${conservativeCost.toFixed(2)} after fee reserve`);
