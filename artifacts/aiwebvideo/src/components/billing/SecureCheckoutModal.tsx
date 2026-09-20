@@ -167,7 +167,7 @@ function money(value: number) {
 
 function checkoutTotalUsd(baseAmountUsd: number) {
   const base = Math.round((Math.max(0, Number(baseAmountUsd) || 0) + Number.EPSILON) * 100) / 100;
-  if (base <= 1.005) return base;
+  if (base <= 0) return 0;
   const minimumGross = (base + 0.35) / (1 - 0.0401);
   let total = Math.floor(minimumGross) + 0.99;
   if (total + 0.000001 < minimumGross) total += 1;
