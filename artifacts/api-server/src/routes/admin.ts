@@ -623,7 +623,7 @@ router.get('/jobs', async (req, res) => {
       };
       clauses.push(searchClauses[searchBy] ?? `(COALESCE(j.title,'') ILIKE ${value} OR j.id::text ILIKE ${value} OR j.source_url ILIKE ${value} OR u.email ILIKE ${value} OR COALESCE(j.generation_provider,'') ILIKE ${value} OR COALESCE(j.error_message,'') ILIKE ${value} OR COALESCE(j.status_message,'') ILIKE ${value})`);
     }
-    if (['website-video', 'ai-video', 'ai-images', 'product-photos', 'product-video', 'talking-scene'].includes(feature)) {
+    if (['website-video', 'ai-video', 'ai-images', 'product-photos', 'product-video', 'talking-scene', 'interior-design'].includes(feature)) {
       values.push(feature);
       clauses.push(`(${adminJobFeatureSql})=$${values.length}`);
     }

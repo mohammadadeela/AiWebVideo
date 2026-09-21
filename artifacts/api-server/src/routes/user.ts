@@ -17,6 +17,7 @@ import { signPrivateAssetUrl } from '../lib/asset-access.js';
 import { passwordMatchesAny } from '../lib/password-security.js';
 import { logger } from '../lib/logger.js';
 import { query } from '../lib/pool.js';
+import { classifyAdminProduction } from '../lib/admin-production.js';
 
 const router = Router();
 
@@ -116,9 +117,19 @@ router.post('/logout', (_req, res) => {
 router.get('/jobs', requireAuth, async (req, res) => {
   try {
     const jobs = await getJobsByUser(req.user!.id, 100);
+    const photos = jobs.length
+      ? await query<{ job_id: string; storage_url: string }>(
+          `SELECT DISTINCT ON (job_id) job_id,storage_url FROM assets
+           WHERE job_id=ANY($1::uuid[]) AND type='photo'
+           ORDER BY job_id,created_at ASC`,
+          [jobs.map((job) => job.id)],
+        )
+      : { rows: [] };
+    const previewByJob = new Map(photos.rows.map((asset) => [asset.job_id, asset.storage_url]));
     res.json({
       jobs: jobs.map((job) => {
         const metadata = job.capture_metadata as { title?: string; screenshotUrl?: string } | null;
+        const feature = classifyAdminProduction({ mode: job.mode, captureMetadata: metadata, workflowState: job.workflow_state });
         let fallbackTitle = job.source_url;
         try { fallbackTitle = new URL(job.source_url).hostname.replace(/^www\./, ''); } catch { /* keep URL */ }
         return {
@@ -128,7 +139,10 @@ router.get('/jobs', requireAuth, async (req, res) => {
           status: job.status,
           progress: job.progress,
           mode: job.mode,
+          featureType: feature.type,
+          featureLabel: feature.label,
           screenshotUrl: metadata?.screenshotUrl ? signPrivateAssetUrl(metadata.screenshotUrl) : null,
+          previewUrl: previewByJob.has(job.id) ? signPrivateAssetUrl(previewByJob.get(job.id)!) : null,
           pinned: job.pinned,
           updatedAt: job.updated_at,
           createdAt: job.created_at,

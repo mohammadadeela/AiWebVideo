@@ -544,7 +544,7 @@ router.post("/:id/reuse", requireAuth, async (req, res) => {
     if (!source || source.deleted_at || source.user_id !== req.user!.id || !source.capture_metadata) {
       throw new AppError("Saved capture not found.", 404, "NOT_FOUND");
     }
-    const job = await createJobFromCapture(req.user!.id, source);
+    const job = await createJobFromCapture(req.user!.id, source, false);
     await copyCaptureFiles(source.id, job.id);
     const sourceMeta = source.capture_metadata as CaptureMeta | null;
     const continuationLabel =

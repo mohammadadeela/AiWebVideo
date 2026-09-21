@@ -626,7 +626,7 @@ export async function createJob(userId: string | null, sourceUrl: string, mode: 
   return rows[0];
 }
 
-export async function createJobFromCapture(userId: string, source: JobRow): Promise<JobRow> {
+export async function createJobFromCapture(userId: string, source: JobRow, continueThread = true): Promise<JobRow> {
   const metadata = source.capture_metadata
     ? (JSON.parse(JSON.stringify(source.capture_metadata).replaceAll(source.id, '__NEW_JOB_ID__')) as Record<
         string,
@@ -638,7 +638,7 @@ export async function createJobFromCapture(userId: string, source: JobRow): Prom
       (user_id, source_url, status, progress, mode, status_message, eta_seconds, capture_metadata, title, parent_job_id, pinned)
      VALUES ($1,$2,'captured',40,'video','Saved source ready',0,$3,$4,$5,$6)
      RETURNING *`,
-    [userId, source.source_url, metadata, source.title, source.parent_job_id ?? source.id, source.pinned]
+    [userId, source.source_url, metadata, source.title, continueThread ? source.parent_job_id ?? source.id : null, source.pinned]
   );
   const job = rows[0];
   let result = job;

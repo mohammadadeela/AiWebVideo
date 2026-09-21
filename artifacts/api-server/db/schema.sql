@@ -140,6 +140,16 @@ CREATE TABLE IF NOT EXISTS job_messages (
 );
 CREATE INDEX IF NOT EXISTS job_messages_job_idx ON job_messages(job_id, created_at);
 
+-- Reused captures start new chats. Older reuse jobs were linked as versions
+-- of their source, which made history collapse them into a single entry.
+-- The marker is written only by the reuse endpoint; true versions stay linked.
+UPDATE jobs AS j SET parent_job_id = NULL
+WHERE j.parent_job_id IS NOT NULL
+  AND EXISTS (
+    SELECT 1 FROM job_messages AS m
+    WHERE m.job_id = j.id AND m.kind = 'source_continuation'
+  );
+
 -- Assets table
 CREATE TABLE IF NOT EXISTS assets (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),

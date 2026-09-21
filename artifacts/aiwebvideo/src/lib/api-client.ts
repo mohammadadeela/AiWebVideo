@@ -301,7 +301,10 @@ export interface UserJobSummary {
   status: string;
   progress: number;
   mode: string;
+  featureType: string;
+  featureLabel: string;
   screenshotUrl: string | null;
+  previewUrl: string | null;
   pinned: boolean;
   updatedAt: string;
   createdAt: string;

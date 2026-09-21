@@ -72,7 +72,8 @@ export function DashboardClient() {
       requested === "video" ||
       requested === "photo" ||
       requested === "product-video" ||
-      requested === "scenario"
+      requested === "scenario" ||
+      requested === "interior"
       ? requested
       : undefined;
   }, []);
@@ -165,7 +166,7 @@ export function DashboardClient() {
   const runningJobs = useMemo(() => jobs.filter((job) => ACTIVE_STATUSES.has(job.status)), [jobs]);
 
   const filteredJobs = useMemo(
-    () => jobs.filter((job) => `${job.title} ${job.sourceUrl} ${job.mode}`.toLowerCase().includes(query.toLowerCase())),
+    () => jobs.filter((job) => `${job.title} ${job.sourceUrl} ${job.mode} ${job.featureLabel ?? ""}`.toLowerCase().includes(query.toLowerCase())),
     [jobs, query],
   );
 
@@ -378,6 +379,9 @@ export function DashboardClient() {
                   className="block w-full px-3 py-2.5 pr-9 text-left"
                 >
                   <div className="flex items-center gap-2">
+                    {(item.previewUrl || item.screenshotUrl) && (
+                      <img src={item.previewUrl || item.screenshotUrl || ""} alt="" loading="lazy" className="h-8 w-8 shrink-0 rounded-lg border border-white/10 object-cover" />
+                    )}
                     <span
                       className={`h-1.5 w-1.5 shrink-0 rounded-full ${item.status === "done" ? "bg-mint" : item.status === "failed" ? "bg-pink" : "bg-violet animate-pulse-soft"}`}
                     />
@@ -387,7 +391,7 @@ export function DashboardClient() {
                   </div>
                   <div className="mt-1 flex items-center gap-2 pl-3.5">
                     <p className="min-w-0 flex-1 truncate text-[10px] capitalize text-text-dim">
-                      {item.mode} · {statusLabel(item.status, item.progress)}
+                      {item.featureLabel || item.mode} · {statusLabel(item.status, item.progress)}
                     </p>
                     {ACTIVE_STATUSES.has(item.status) && (
                       <span className="h-1 w-12 overflow-hidden rounded-full bg-white/10">

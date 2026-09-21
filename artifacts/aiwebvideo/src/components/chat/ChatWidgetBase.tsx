@@ -238,13 +238,20 @@ function restoredMessageContent(
   message: JobStatusResponse["messages"][number],
   onUnlock: () => void,
   sourceKind: "website" | "studio" | "upload" = "website",
+  fallbackAssets: JobAsset[] = [],
+  onGeneratedPhotoSelectionChange?: (assetIds: string[]) => void,
+  selectedGeneratedPhotoIds: string[] = [],
 ): ReactNode {
-  const assets = Array.isArray(message.payload?.resultAssets) ? (message.payload?.resultAssets as JobAsset[]) : [];
+  const assets = Array.isArray(message.payload?.resultAssets) && message.payload.resultAssets.length
+    ? (message.payload.resultAssets as JobAsset[])
+    : fallbackAssets;
   if (message.kind === "result" && assets.length > 0) {
     return (
       <div data-generated-result="true" className="space-y-3 scroll-mt-3">
         <p>{message.content}</p>
-        <ResultGrid assets={assets} onUnlock={onUnlock} sourceKind={sourceKind} />
+        <ResultGrid assets={assets} onUnlock={onUnlock} sourceKind={sourceKind}
+          onGeneratedPhotoSelectionChange={onGeneratedPhotoSelectionChange}
+          selectedGeneratedPhotoIds={selectedGeneratedPhotoIds} />
       </div>
     );
   }
@@ -888,6 +895,9 @@ export function ChatWidget({
                     savedFinalResult,
                     () => setShowAuthModal(true),
                     resultSourceKind(saved),
+                    saved.assets,
+                    handleGeneratedPhotoSelectionChange,
+                    selectedGeneratedPhotoIds,
                   ),
                 }
               : {
