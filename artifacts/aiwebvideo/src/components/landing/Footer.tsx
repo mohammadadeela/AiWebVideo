@@ -39,7 +39,7 @@ export function Footer() {
             <div>
               <Wordmark />
               <p className="mt-4 max-w-sm text-sm leading-7 text-text-muted">
-                Create website videos, original AI video, product media, talking scenes, and interior design from your own sources.
+                AI-directed marketing production from websites, ideas and real product references—all inside one creative workspace.
               </p>
               <Link href="/dashboard" className="mt-5 inline-flex min-h-11 items-center text-sm font-semibold text-white transition hover:text-violet">
                 Open workspace
