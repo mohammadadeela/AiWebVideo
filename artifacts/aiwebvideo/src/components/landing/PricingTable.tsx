@@ -261,18 +261,19 @@ export function PricingTable() {
         id="plans"
         className="scroll-mt-24 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4"
       >
-        {PLANS.map((plan) => (
+        {PLANS.map((plan, i) => (
           <div
             key={plan.id}
-            className={`relative flex flex-col rounded-2xl border p-4 sm:p-5 transition-colors ${
+            className={`relative flex flex-col rounded-2xl border p-3 sm:p-5 transition-all duration-200 hover:-translate-y-1 animate-fade-in-up ${
               plan.highlight
-                ? "border-violet/45 bg-violet/[.045]"
+                ? "border-violet/60 bg-signature-soft shadow-[0_0_40px_-10px_rgba(139,92,246,0.3)]"
                 : "border-border bg-panel hover:border-violet/30"
             }`}
+            style={{ animationDelay: `${i * 80}ms` }}
           >
             {plan.highlight && (
-              <div className="mb-3">
-                <span className="text-xs font-semibold text-violet">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <span className="inline-flex items-center rounded-full bg-signature px-2 sm:px-3 py-0.5 text-[9px] sm:text-[11px] font-semibold text-white whitespace-nowrap">
                   Most popular
                 </span>
               </div>
@@ -347,15 +348,15 @@ export function PricingTable() {
           {ONE_TIME_PACKS.map((pack) => (
             <div
               key={pack.id}
-              className={`relative flex flex-col rounded-2xl border p-4 sm:p-5 transition-colors ${
+              className={`relative flex flex-col rounded-2xl border p-3 sm:p-5 transition-all duration-200 hover:-translate-y-1 ${
                 pack.popular
-                  ? "border-mint/35 bg-panel"
+                  ? "border-mint/50 bg-panel shadow-[0_0_40px_-12px_rgba(52,211,153,0.35)]"
                   : "border-border bg-panel hover:border-mint/30"
               }`}
             >
               {pack.popular && (
-                <div className="mb-3">
-                  <span className="text-xs font-semibold text-mint">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                  <span className="inline-flex items-center rounded-full bg-mint px-2 sm:px-3 py-0.5 text-[9px] sm:text-[11px] font-semibold text-black whitespace-nowrap">
                     Best value
                   </span>
                 </div>

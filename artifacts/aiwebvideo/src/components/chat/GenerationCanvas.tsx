@@ -279,12 +279,12 @@ export function GenerationCanvas({
     <>
       <section
         ref={panelRef}
-        className="relative w-full overflow-hidden rounded-[16px] border border-white/[.09] bg-[#0d0d10]/98 shadow-[0_22px_64px_-48px_rgba(0,0,0,.95)]"
+        className="relative w-full overflow-hidden rounded-[20px] border border-white/[.09] bg-[#0d0a18]/95 shadow-[0_22px_64px_-42px_rgba(139,92,246,.82)]"
         aria-label={`${copy.label} generation progress`}
         aria-live="polite"
         aria-atomic="false"
       >
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,.018),transparent_42%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_-10%,rgba(139,92,246,.16),transparent_36%),radial-gradient(circle_at_100%_100%,rgba(52,217,196,.065),transparent_28%)]" />
         <div className="relative p-3.5 sm:p-4">
           <div className="flex flex-wrap items-center justify-between gap-2.5">
             <div className="flex min-w-0 items-center gap-2.5">
@@ -307,22 +307,22 @@ export function GenerationCanvas({
                     {settled ? phase(status) : "Generating your result"}
                   </p>
                   {!settled && (
-                    <span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-mint">
+                    <span className="inline-flex items-center gap-1 rounded-full border border-mint/15 bg-mint/[.07] px-1.5 py-0.5 font-utility text-[7px] uppercase tracking-[.12em] text-mint">
                       <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-mint shadow-[0_0_10px_rgba(52,217,196,.65)]" aria-hidden="true" />
                       Live
                     </span>
                   )}
                 </div>
-                <p className="mt-0.5 truncate text-[11px] text-text-dim">{statusMessage || phase(status)}</p>
+                <p className="mt-0.5 truncate text-[9px] text-text-dim">{statusMessage || phase(status)}</p>
               </div>
             </div>
             <div className="flex items-center gap-2.5">
               {eta && !settled && (
-                <span className="hidden items-center gap-1 text-[11px] text-text-dim sm:flex">
+                <span className="hidden items-center gap-1 text-[8px] text-text-dim sm:flex">
                   <Clock3 size={10} /> {eta}
                 </span>
               )}
-              <span className="font-mono text-[11px] font-semibold text-white">{safeProgress}%{progressIsEstimated ? " est." : ""}</span>
+              <span className="rounded-full border border-white/[.08] bg-black/20 px-2 py-1 font-utility text-[9px] font-semibold text-white">{safeProgress}%{progressIsEstimated ? " est." : ""}</span>
             </div>
           </div>
 
@@ -341,7 +341,7 @@ export function GenerationCanvas({
                   return (
                     <div
                       key={asset?.id ?? index}
-                      className="relative aspect-[4/5] overflow-hidden rounded-xl border border-white/[.08] bg-[linear-gradient(145deg,#17171d,#0b0b0e)]"
+                      className="relative aspect-[4/5] overflow-hidden rounded-xl border border-white/[.08] bg-[linear-gradient(145deg,#171229,#0a0813)]"
                     >
                       {asset ? (
                         <img src={asset.url} alt={`Generated photo ${index + 1}`} className="h-full w-full object-cover" loading="eager" decoding="async" />
@@ -366,7 +366,7 @@ export function GenerationCanvas({
             </div>
           ) : (
             <div className="mt-3 grid gap-2.5 sm:grid-cols-[minmax(0,1fr)_150px]">
-              <div className="relative h-40 overflow-hidden rounded-2xl border border-white/[.08] bg-[#09090b] sm:h-44">
+              <div className="relative h-40 overflow-hidden rounded-2xl border border-white/[.08] bg-[#080611] sm:h-44">
                 {generatedVideo ? (
                   <video src={generatedVideo.url} autoPlay muted loop playsInline preload="metadata" className="h-full w-full object-contain" />
                 ) : sourceRecording ? (
@@ -374,7 +374,7 @@ export function GenerationCanvas({
                 ) : sourcePreview ? (
                   <img src={sourcePreview.url} alt={sourcePreview.title} className="h-full w-full object-cover object-top opacity-55" loading="eager" decoding="async" />
                 ) : (
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_42%_36%,rgba(139,92,246,.2),transparent_32%),linear-gradient(145deg,#17171d,#09090b)]" />
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_42%_36%,rgba(139,92,246,.2),transparent_32%),linear-gradient(145deg,#171229,#080611)]" />
                 )}
                 {!generatedVideo && <div className="generation-soft-flash pointer-events-none absolute inset-0" />}
                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/15" />
