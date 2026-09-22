@@ -203,7 +203,7 @@ export function VideoShowcase() {
         <div className="grid w-full min-w-0 grid-cols-1 gap-6 lg:grid-cols-[.62fr_1.38fr] lg:items-center lg:gap-8">
           <div className="min-w-0 max-w-xl">
             <h2 className="max-w-[15ch] [text-wrap:balance] font-display text-[clamp(2.1rem,10vw,3.35rem)] font-bold leading-[.98] tracking-[-.045em] text-white sm:max-w-none">
-              See what it <span className="bg-signature-text">can create.</span>
+              See what it <span className="bg-signature-text">creates.</span>
             </h2>
           </div>
 
