@@ -635,11 +635,11 @@ export function StudioWorkspacePage() {
     }
   }
 
-  if (loading) return <div className="grid min-h-screen place-items-center bg-[#090710] text-text-muted"><Loader2 className="animate-spin" /></div>;
+  if (loading) return <div className="grid min-h-screen place-items-center bg-[#09090b] text-text-muted"><Loader2 className="animate-spin" /></div>;
 
   if (!signedIn) return (
-    <div className="grid min-h-screen place-items-center bg-[#090710] px-5">
-      <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#120e1d] p-7 text-center shadow-2xl">
+    <div className="grid min-h-screen place-items-center bg-[#09090b] px-5">
+      <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#111116] p-7 text-center shadow-2xl">
         <Layers3 className="mx-auto text-violet" size={34} />
         <h1 className="mt-4 text-2xl font-semibold text-white">Sign in to open the editor</h1>
         <p className="mt-2 text-sm leading-6 text-text-muted">Your uploaded media, edits and exports stay private in your AiWebVideo account.</p>
@@ -654,7 +654,7 @@ export function StudioWorkspacePage() {
   const paidBlocked = Boolean(aiPlan?.execution === 'paid' && (account?.creditsBalance ?? 0) < (aiPlan?.costCredits ?? 0));
 
   return (
-    <div className="flex h-[100dvh] min-h-[680px] flex-col overflow-hidden bg-[#090710] text-text-primary">
+    <div className="flex h-[100dvh] min-h-[680px] flex-col overflow-hidden bg-[#09090b] text-text-primary">
       <input ref={fileInputRef} type="file" accept={ACCEPT} multiple className="hidden" onChange={(event) => { void addFiles(Array.from(event.currentTarget.files ?? [])); event.currentTarget.value = ''; }} />
 
       <header className="z-30 flex h-14 shrink-0 items-center gap-2 border-b border-white/[.08] bg-[#0c0913]/95 px-2.5 backdrop-blur-xl sm:px-4">
@@ -865,7 +865,7 @@ export function StudioWorkspacePage() {
               </div>
 
               <div className="shrink-0 border-t border-white/[.08] p-3">
-                <div className="rounded-2xl border border-white/10 bg-[#090710] p-2.5 focus-within:border-violet/35">
+                <div className="rounded-2xl border border-white/10 bg-[#09090b] p-2.5 focus-within:border-violet/35">
                   <textarea value={aiInstruction} onChange={(event) => { setAiInstruction(event.currentTarget.value); setAiPlan(null); }} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void planAi(); } }} rows={3} placeholder="Describe the edit…" className="w-full resize-none bg-transparent text-[11px] leading-5 text-white outline-none placeholder:text-white/25" />
                   <div className="mt-2 flex items-center justify-between gap-2"><span className="text-[8px] text-text-dim">{account?.creditsBalance ?? 0} credits available</span><button onClick={() => void planAi()} disabled={!aiInstruction.trim() || aiBusy || Boolean(aiOperationId)} className="grid h-8 w-8 place-items-center rounded-lg bg-violet text-white disabled:opacity-30">{aiBusy ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}</button></div>
                 </div>

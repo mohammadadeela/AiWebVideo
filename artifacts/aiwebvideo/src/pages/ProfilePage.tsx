@@ -222,10 +222,10 @@ export function ProfilePage() {
           <div className="mx-auto max-w-7xl px-5 py-10 sm:py-14">
             <header className="flex flex-col justify-between gap-5 border-b border-border pb-8 lg:flex-row lg:items-end">
               <div>
-                <p className="font-utility text-[10px] font-semibold uppercase tracking-[.2em] text-mint">
-                  Account center
+                <p className="text-sm font-medium text-violet">
+                  Account
                 </p>
-                <h1 className="mt-3 font-display text-3xl font-bold tracking-[-.035em] text-text-primary sm:text-4xl">
+                <h1 className="mt-3 font-display text-3xl font-semibold tracking-[-.04em] text-text-primary sm:text-4xl">
                   Account, plan and projects
                 </h1>
                 <p className="mt-3 max-w-xl text-sm leading-6 text-text-muted">
@@ -243,7 +243,7 @@ export function ProfilePage() {
 
             <nav
               aria-label="Account sections"
-              className="chat-scroll -mx-1 flex gap-1 overflow-x-auto py-4"
+              className="chat-scroll -mx-1 flex gap-5 overflow-x-auto border-b border-white/[.08] py-4"
             >
               {[
                 ["Overview", "#overview"],
@@ -256,7 +256,7 @@ export function ProfilePage() {
                 <a
                   key={href}
                   href={href}
-                  className="shrink-0 rounded-lg px-3 py-2 text-xs font-semibold text-text-muted transition hover:bg-white/5 hover:text-text-primary"
+                  className="shrink-0 min-h-10 py-2 text-xs font-semibold text-text-muted transition hover:text-text-primary"
                 >
                   {label}
                 </a>
@@ -275,7 +275,7 @@ export function ProfilePage() {
             <div id="overview" className="grid scroll-mt-24 gap-5 lg:grid-cols-[1.15fr_.85fr]">
               <section className="rounded-3xl border border-border bg-panel p-6 sm:p-7">
                 <div className="flex items-center gap-4">
-                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-violet/25 bg-violet/10 text-text-primary">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-white/[.09] bg-white/[.035] text-text-primary">
                     <CircleUserRound size={34} strokeWidth={1.6} aria-hidden="true" />
                   </div>
                   <div className="min-w-0">
@@ -350,7 +350,7 @@ export function ProfilePage() {
             <section id="usage" className="mt-5 scroll-mt-24 rounded-3xl border border-border bg-panel p-5 sm:p-7">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div className="flex items-start gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-violet/20 bg-violet/10 text-violet">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center text-violet">
                     <BarChart3 size={18} aria-hidden="true" />
                   </span>
                   <div>
@@ -360,8 +360,8 @@ export function ProfilePage() {
                     </p>
                   </div>
                 </div>
-                <div className="rounded-xl border border-mint/20 bg-mint/[.06] px-3 py-2 text-left sm:text-right">
-                  <p className="text-[10px] font-semibold uppercase tracking-[.14em] text-text-dim">Current balance</p>
+                <div className="border-l border-white/[.1] px-3 py-1 text-left sm:text-right">
+                  <p className="text-xs font-medium text-text-dim">Current balance</p>
                   <p className="mt-0.5 font-utility text-lg font-bold text-mint">{formatCredits(usage?.balance ?? me?.creditsBalance)}</p>
                 </div>
               </div>

@@ -1,4 +1,4 @@
-import { ArrowRight, BookOpen, CheckCircle2 } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import { Nav } from "@/components/landing/Nav";
 import { Footer } from "@/components/landing/Footer";
@@ -121,32 +121,77 @@ function GuidePage({ guide }: { guide: Guide }) {
     <>
       <Nav />
       <main>
-        <section className="relative overflow-hidden border-b border-white/[.06]">
-          <div className="hero-mesh pointer-events-none absolute inset-0" />
-          <div className="relative mx-auto max-w-4xl px-5 py-16 text-center sm:py-24">
-            <div className="inline-flex items-center gap-2 rounded-full border border-violet/20 bg-violet/[.06] px-3 py-2 font-utility text-[9px] uppercase tracking-[.18em] text-violet"><BookOpen size={12} /> Practical guide</div>
-            <h1 className="mt-6 font-display text-4xl font-bold leading-tight tracking-[-.045em] text-white sm:text-6xl">{guide.title}</h1>
-            <p className="mx-auto mt-6 max-w-3xl text-sm leading-7 text-text-muted sm:text-base sm:leading-8">{guide.intro}</p>
+        <section className="border-b border-white/[.07]">
+          <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+            <p className="text-sm font-medium text-violet">Practical guide</p>
+            <div className="mt-3 grid gap-7 lg:grid-cols-[1fr_.72fr] lg:items-end">
+              <h1 className="max-w-[17ch] font-display text-4xl font-semibold leading-[1.02] tracking-[-.05em] text-white sm:text-5xl lg:text-6xl">
+                {guide.title}
+              </h1>
+              <p className="max-w-xl text-sm leading-7 text-text-muted sm:text-base">
+                {guide.intro}
+              </p>
+            </div>
           </div>
         </section>
-        <article className="mx-auto max-w-4xl px-5 py-14 sm:py-18">
-          <div className="space-y-12">
-            {guide.sections.map((section) => (
-              <section key={section.heading}>
-                <h2 className="font-display text-2xl font-bold tracking-[-.025em] text-white sm:text-3xl">{section.heading}</h2>
-                {section.paragraphs.map((paragraph) => <p key={paragraph} className="mt-4 text-sm leading-7 text-text-muted sm:text-base sm:leading-8">{paragraph}</p>)}
-                {section.bullets && <ul className="mt-5 grid gap-2">{section.bullets.map((item) => <li key={item} className="flex gap-2 rounded-xl border border-white/[.07] bg-white/[.02] px-4 py-3 text-sm leading-6 text-text-muted"><CheckCircle2 size={15} className="mt-1 shrink-0 text-mint" />{item}</li>)}</ul>}
+
+        <article className="mx-auto max-w-5xl px-4 py-14 sm:px-6 sm:py-20">
+          <div className="space-y-14">
+            {guide.sections.map((section, sectionIndex) => (
+              <section key={section.heading} className="grid gap-5 lg:grid-cols-[48px_1fr] lg:gap-8">
+                <span className="pt-1 font-mono text-xs text-text-dim">
+                  {String(sectionIndex + 1).padStart(2, "0")}
+                </span>
+                <div>
+                  <h2 className="font-display text-2xl font-semibold tracking-[-.035em] text-white sm:text-3xl">
+                    {section.heading}
+                  </h2>
+                  <div className="mt-4 max-w-3xl">
+                    {section.paragraphs.map((paragraph) => (
+                      <p key={paragraph} className="mt-4 first:mt-0 text-sm leading-7 text-text-muted sm:text-base sm:leading-8">
+                        {paragraph}
+                      </p>
+                    ))}
+                  </div>
+                  {section.bullets ? (
+                    <ul className="mt-6 max-w-3xl border-t border-white/[.09]">
+                      {section.bullets.map((item) => (
+                        <li key={item} className="flex gap-3 border-b border-white/[.09] py-3 text-sm leading-6 text-text-muted">
+                          <span aria-hidden="true" className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-mint" />
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
               </section>
             ))}
           </div>
-          <div className="mt-14 rounded-[28px] border border-violet/25 bg-violet/[.06] p-6 sm:p-8">
-            <h2 className="font-display text-xl font-semibold text-white">Put the guide into practice</h2>
-            <p className="mt-2 text-sm leading-7 text-text-muted">Bring the source described above and give the creator a clear goal. Review the selected mode and credit estimate before generating.</p>
-            <Button className="mt-5" asChild><Link href={guide.createHref}>Start creating <ArrowRight size={14} /></Link></Button>
+
+          <div className="mt-16 grid gap-6 border-y border-white/[.09] py-8 sm:grid-cols-[1fr_auto] sm:items-end">
+            <div>
+              <h2 className="font-display text-2xl font-semibold tracking-[-.035em] text-white">
+                Put the guide into practice.
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-7 text-text-muted">
+                Bring the source described above and give the creator a clear goal. Review the selected mode and credit estimate before generating.
+              </p>
+            </div>
+            <Button asChild><Link href={guide.createHref}>Start creating <ArrowRight size={14} /></Link></Button>
           </div>
-          <div className="mt-12 grid gap-3 sm:grid-cols-3">
-            {guide.related.map(([label, href]) => <Link key={href} href={href} className="rounded-2xl border border-white/[.08] bg-white/[.02] p-4 text-sm font-semibold text-white transition hover:border-violet/30">{label}<ArrowRight size={12} className="ml-1 inline" /></Link>)}
-          </div>
+
+          <nav className="mt-10 border-t border-white/[.09]" aria-label="Related guides">
+            {guide.related.map(([label, href]) => (
+              <Link
+                key={href}
+                href={href}
+                className="group flex min-h-12 items-center justify-between gap-4 border-b border-white/[.09] py-3 text-sm font-semibold text-text-muted transition hover:text-white"
+              >
+                <span>{label}</span>
+                <ArrowRight size={13} className="transition group-hover:translate-x-1" />
+              </Link>
+            ))}
+          </nav>
         </article>
       </main>
       <Footer />

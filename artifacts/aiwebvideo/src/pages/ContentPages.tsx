@@ -43,18 +43,15 @@ function Shell({
     <>
       <Nav />
       <main>
-        <section className="relative overflow-hidden border-b border-white/[.06]">
-          <div className="hero-mesh pointer-events-none absolute inset-0" />
-          <div className="relative mx-auto max-w-5xl px-4 py-12 sm:px-5 sm:py-16 text-center sm:py-20">
-            <p className="font-utility text-[10px] uppercase tracking-[.22em] text-mint">
-              {eyebrow}
-            </p>
-            <h1 className="mt-5 font-display text-4xl font-bold tracking-[-.045em] text-white sm:text-6xl">
-              {title}
-            </h1>
-            <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-text-muted sm:text-base">
-              {intro}
-            </p>
+        <section className="border-b border-white/[.07]">
+          <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+            <p className="text-sm font-medium text-violet">{eyebrow}</p>
+            <div className="mt-3 grid gap-7 lg:grid-cols-[1fr_.72fr] lg:items-end">
+              <h1 className="max-w-[16ch] font-display text-4xl font-semibold leading-[1.02] tracking-[-.05em] text-white sm:text-5xl lg:text-6xl">
+                {title}
+              </h1>
+              <p className="max-w-xl text-sm leading-7 text-text-muted sm:text-base">{intro}</p>
+            </div>
           </div>
         </section>
         {children}
@@ -67,16 +64,17 @@ function Shell({
 
 function CTA() {
   return (
-    <section className="border-t border-white/[.06] px-4 py-12 sm:px-5 sm:py-16">
-      <div className="relative mx-auto max-w-5xl overflow-hidden rounded-[34px] border border-white/10 bg-panel px-6 py-14 text-center">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(139,92,246,.22),transparent_52%)]" />
-        <h2 className="relative font-display text-3xl font-bold tracking-[-.035em] text-white">
-          Start creating in one chat
-        </h2>
-        <p className="relative mt-3 text-sm text-text-muted">
-          Website video, AI video, product media, talking scenes, or interior design.
-        </p>
-        <Button className="relative mt-6 px-4 text-xs" asChild><Link href="/#generate">Start creating</Link></Button>
+    <section className="px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
+      <div className="mx-auto grid max-w-7xl gap-7 border-y border-white/[.09] py-9 lg:grid-cols-[1fr_auto] lg:items-end">
+        <div>
+          <h2 className="max-w-[15ch] font-display text-3xl font-semibold tracking-[-.04em] text-white sm:text-4xl">
+            Start with the source you already have.
+          </h2>
+          <p className="mt-3 max-w-xl text-sm leading-7 text-text-muted">
+            Website video, AI video, product media, talking scenes, or interior design all begin in the same creator.
+          </p>
+        </div>
+        <Button asChild><Link href="/#generate">Start creating</Link></Button>
       </div>
     </section>
   );
@@ -130,82 +128,109 @@ const interiorWorkflows = [
 export function FeaturesPage() {
   return (
     <Shell
-      eyebrow="Choose a creation mode"
-      title="What can I create with AiWebVideo?"
+      eyebrow="Creation modes"
+      title="Choose the source you have and the result you need."
       seoTitle="AI Video, Product Media & Interior Design Features"
-      intro="Choose the source you already have and the result you need. Every mode runs in the same creator, with its own references, settings, and credit estimate."
+      intro="Every mode runs in the same creator with its own references, settings, and credit estimate. You do not need to learn a different product for each kind of media."
       description="Compare AiWebVideo creation modes: website video, original AI video, product photos and video, talking scenes, and interior design images or walkthroughs."
       path="/features"
     >
-      <section className="border-b border-white/[.06] bg-black/10" aria-labelledby="mode-directory">
-        <div className="mx-auto max-w-7xl px-4 py-12 sm:px-5 sm:py-16">
-          <h2 id="mode-directory" className="font-display text-2xl font-bold text-white sm:text-3xl">Find the right mode for your source</h2>
-          <p className="mt-3 max-w-3xl text-sm leading-7 text-text-muted">Website URLs supply public page context; real product photos ground product media; room photos and plans ground interior concepts. Describe the result you want before generation.</p>
-          <div id="product-media" className="mt-8 grid scroll-mt-24 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {featureModes.map((mode) => (
-              <article key={mode.href} className="flex flex-col rounded-[24px] border border-white/[.08] bg-panel p-6">
-                <h3 className="font-display text-xl font-semibold text-white"><Link href={mode.href} className="hover:text-mint">{mode.title}</Link></h3>
-                <p className="mt-4 text-[10px] font-semibold uppercase tracking-[.12em] text-mint">You provide</p>
-                <p className="mt-1 text-sm leading-6 text-text-muted">{mode.input}</p>
-                <p className="mt-4 text-[10px] font-semibold uppercase tracking-[.12em] text-violet">You receive</p>
-                <p className="mt-1 text-sm leading-6 text-text-muted">{mode.output}</p>
-                <div className="mt-auto flex flex-wrap gap-4 pt-6 text-xs font-semibold">
-                  <Link href={mode.href} className="text-mint hover:text-white">Learn more <ArrowRight size={12} className="inline" /></Link>
-                  <Link href={mode.create} className="text-violet hover:text-white">Start creating <ArrowRight size={12} className="inline" /></Link>
-                </div>
-              </article>
-            ))}
+      <section className="border-b border-white/[.07] bg-white/[.012]" aria-labelledby="mode-directory">
+        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
+          <div className="grid gap-10 lg:grid-cols-[.55fr_1.45fr] lg:gap-16">
+            <div>
+              <p className="text-sm font-medium text-violet">Choose a mode</p>
+              <h2 id="mode-directory" className="mt-3 max-w-[13ch] font-display text-3xl font-semibold tracking-[-.04em] text-white sm:text-4xl">
+                Match the workflow to your source.
+              </h2>
+              <p className="mt-4 max-w-md text-sm leading-7 text-text-muted">
+                Website URLs provide public page context; product photos ground product media; room photos, plans, and measurements ground interior concepts.
+              </p>
+            </div>
+
+            <div id="product-media" className="scroll-mt-24 border-t border-white/[.09]">
+              {featureModes.map((mode) => (
+                <article key={mode.href} className="grid gap-3 border-b border-white/[.09] py-5 sm:grid-cols-[170px_1fr_auto] sm:items-start sm:gap-6">
+                  <div>
+                    <h3 className="text-[15px] font-semibold text-white">
+                      <Link href={mode.href} className="transition hover:text-violet">{mode.title}</Link>
+                    </h3>
+                    <Link href={mode.create} className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-violet">
+                      Start <ArrowRight size={11} />
+                    </Link>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2 md:gap-6">
+                    <div>
+                      <p className="text-xs font-semibold text-text-dim">You provide</p>
+                      <p className="mt-1 text-sm leading-6 text-text-muted">{mode.input}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-text-dim">You receive</p>
+                      <p className="mt-1 text-sm leading-6 text-text-muted">{mode.output}</p>
+                    </div>
+                  </div>
+                  <Link href={mode.href} aria-label={`Learn more about ${mode.title}`} className="hidden text-text-dim transition hover:text-white sm:block">
+                    <ArrowRight size={15} />
+                  </Link>
+                </article>
+              ))}
+            </div>
           </div>
-          <div className="mt-8 rounded-[24px] border border-violet/25 bg-violet/[.05] p-6">
-            <h3 className="font-display text-lg font-semibold text-white">Interior design and property workflows</h3>
-            <p className="mt-2 text-sm leading-6 text-text-muted">Select the page closest to your goal. A single photo cannot guarantee exact dimensions; include a scaled plan or explicit measurements when proportions matter.</p>
-            <div className="mt-5 flex flex-wrap gap-2">
-              {interiorWorkflows.map(([label, href]) => <Link key={href} href={href} className="rounded-full border border-white/10 px-3 py-2 text-xs text-white hover:border-violet/50">{label}</Link>)}
+
+          <div className="mt-12 grid gap-5 border-y border-white/[.09] py-7 lg:grid-cols-[.5fr_1.5fr] lg:gap-16">
+            <div>
+              <h3 className="text-sm font-semibold text-white">Interior & property workflows</h3>
+              <p className="mt-2 text-sm leading-6 text-text-muted">Use explicit measurements or a scaled plan when proportions matter.</p>
+            </div>
+            <nav className="flex flex-wrap gap-x-5 gap-y-3" aria-label="Interior design workflows">
+              {interiorWorkflows.map(([label, href]) => (
+                <Link key={href} href={href} className="text-sm text-text-muted underline-offset-4 transition hover:text-white hover:underline">
+                  {label}
+                </Link>
+              ))}
+            </nav>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
+          <div className="grid gap-10 lg:grid-cols-[.55fr_1.45fr] lg:gap-16">
+            <div>
+              <p className="text-sm font-medium text-violet">Shared product strengths</p>
+              <h2 className="mt-3 font-display text-3xl font-semibold tracking-[-.04em] text-white">One creator, one project model.</h2>
+            </div>
+            <div className="grid border-t border-white/[.09] md:grid-cols-2">
+              {features.map(([title, body], index) => (
+                <article key={title} className={`border-b border-white/[.09] py-5 md:px-6 ${index % 2 === 0 ? "md:border-r md:pl-0" : "md:pr-0"}`}>
+                  <span className="font-mono text-xs text-text-dim">{String(index + 1).padStart(2, "0")}</span>
+                  <h3 className="mt-3 text-[15px] font-semibold text-white">{title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-text-muted">{body}</p>
+                </article>
+              ))}
             </div>
           </div>
         </div>
       </section>
-      <section>
-        <div className="mx-auto grid max-w-7xl gap-4 px-4 py-12 sm:px-5 sm:py-16 md:grid-cols-2 lg:grid-cols-3">
-          {features.map(([title, body], index) => (
-            <article
-              key={title}
-              className="rounded-[28px] border border-white/[.08] bg-panel p-6 transition hover:-translate-y-1 hover:border-violet/35"
-            >
-              <span className="font-utility text-[10px] text-violet">
-                0{index + 1}
-              </span>
-              <h2 className="mt-6 font-display text-lg font-semibold text-white">
-                {title}
-              </h2>
-              <p className="mt-3 text-sm leading-6 text-text-muted">{body}</p>
-            </article>
-          ))}
-        </div>
-        <div className="mx-auto mb-16 max-w-7xl rounded-[30px] border border-violet/30 bg-signature-soft p-6 sm:flex sm:items-center sm:justify-between sm:gap-6">
-          <div>
-            <p className="font-utility text-[10px] uppercase tracking-[.16em] text-violet">
-              One creator, multiple capabilities
-            </p>
-            <h2 className="mt-2 font-display text-xl font-semibold text-white">
-              Website video, AI video, product media, talking scenes and interior design
-            </h2>
-            <p className="mt-2 max-w-xl text-sm leading-relaxed text-text-muted">
-              Switch modes without leaving the conversation. References, prompts, and results stay together. Review the credit estimate before paid generation.
-            </p>
-          </div>
-          <Button className="mt-4 sm:mt-0" asChild><Link href="/?create=video#generate">Explore AI Studio</Link></Button>
-        </div>
-      </section>
-      <section className="border-t border-white/[.06] px-4 py-12 sm:px-5" aria-label="Choosing a creation mode">
+
+      <section className="border-t border-white/[.07] px-4 py-14 sm:px-6 sm:py-20" aria-label="Choosing a creation mode">
         <div className="mx-auto max-w-5xl">
-          <h2 className="font-display text-2xl font-semibold text-white">Questions about choosing a mode</h2>
-          <div className="mt-5 divide-y divide-white/10 border-y border-white/10">
+          <p className="text-sm font-medium text-violet">Questions</p>
+          <h2 className="mt-3 font-display text-3xl font-semibold tracking-[-.04em] text-white">Choosing the right mode.</h2>
+          <div className="mt-7 border-t border-white/[.09]">
             {[
               ["Which mode makes AI product images?", "Product Photos takes uploaded images of the real item and creates still ecommerce or campaign visuals. Product Video creates moving product footage from those references."],
               ["Can I make an interior design tour from room photos?", "Yes. Choose Interior Design, add authorized photos or plans, describe the style and materials, and choose a walkthrough video. Supply measurements when proportions matter."],
               ["Do I need a website to create an AI video?", "No. AI Video starts from an original idea and optional image references. Website Video starts from a public website URL."],
-            ].map(([question, answer]) => <details key={question} className="py-5"><summary className="cursor-pointer text-sm font-semibold text-white">{question}</summary><p className="mt-3 text-sm leading-7 text-text-muted">{answer}</p></details>)}
+            ].map(([question, answer]) => (
+              <details key={question} className="group border-b border-white/[.09] py-5">
+                <summary className="flex min-h-11 list-none items-center justify-between gap-5 text-[15px] font-semibold text-white">
+                  <span>{question}</span>
+                  <span aria-hidden="true" className="text-xl font-light text-text-dim transition group-open:rotate-45">+</span>
+                </summary>
+                <p className="max-w-3xl pb-1 pr-10 text-sm leading-7 text-text-muted">{answer}</p>
+              </details>
+            ))}
           </div>
         </div>
       </section>

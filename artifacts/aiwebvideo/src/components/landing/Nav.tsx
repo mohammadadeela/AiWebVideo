@@ -5,12 +5,11 @@ import {
   ChevronDown,
   Film,
   Globe2,
+  House,
   Image as ImageIcon,
-  Layers3,
   Menu,
   MessageCircleMore,
   PackageOpen,
-  House,
   ShieldCheck,
   X,
 } from "lucide-react";
@@ -29,53 +28,45 @@ interface Me {
   isAdmin: boolean;
 }
 
-function ArrowRightIcon() {
-  return <span aria-hidden="true" className="shrink-0 text-base leading-none text-text-dim">›</span>;
-}
-
 const productItems = [
-  ["Website to Video", "Website-aware campaign direction", "/?create=website#generate", Globe2],
-  ["AI Video", "Generate from an original idea", "/?create=video#generate", Film],
-  ["Product Photos", "Campaign images from real references", "/?create=photo#generate", ImageIcon],
-  ["Product Video", "Generated product film from references", "/?create=product-video#generate", PackageOpen],
-  ["Talking Scenes", "Dialogue and scenario-driven video", "/?create=scenario#generate", MessageCircleMore],
-  ["Interior Design", "Redesign rooms, homes and spaces", "/?create=interior#generate", House],
+  ["Website Video", "Use a live website as the source", "/?create=website#generate", Globe2],
+  ["AI Video", "Create from a prompt or references", "/?create=video#generate", Film],
+  ["Product Images", "Create campaign images from product photos", "/?create=photo#generate", ImageIcon],
+  ["Product Video", "Turn product references into motion", "/?create=product-video#generate", PackageOpen],
+  ["Talking Scene", "Direct dialogue and scenario video", "/?create=scenario#generate", MessageCircleMore],
+  ["Interior Design", "Redesign spaces or create walkthroughs", "/?create=interior#generate", House],
 ] as const;
 
 export function Nav() {
   const [authChecked, setAuthChecked] = useState(false);
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [productOpen, setProductOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [portalReady, setPortalReady] = useState(false);
   const [me, setMe] = useState<Me | null>(null);
   const [location, navigate] = useLocation();
   const productRef = useRef<HTMLDivElement>(null);
   const mobileTriggerRef = useRef<HTMLButtonElement>(null);
   const mobileCloseRef = useRef<HTMLButtonElement>(null);
-  const [portalReady, setPortalReady] = useState(false);
 
   useEffect(
     () =>
       watchAuthState((user) => {
-        setIsSignedIn(!!user);
+        setIsSignedIn(Boolean(user));
         setAuthChecked(true);
-        if (user) {
-          void fetchMe().then(setMe).catch(() => setMe(null));
-        } else {
-          setMe(null);
-        }
+        if (user) void fetchMe().then(setMe).catch(() => setMe(null));
+        else setMe(null);
       }),
     [],
   );
 
-  useEffect(() => {
-    setPortalReady(true);
-  }, []);
+  useEffect(() => setPortalReady(true), []);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 10);
+    const onScroll = () => setScrolled(window.scrollY > 12);
+    onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
@@ -87,46 +78,15 @@ export function Nav() {
 
   useEffect(() => {
     if (!mobileOpen) return;
-    const previous = document.body.style.overflow;
-    const previousOverscroll = document.body.style.overscrollBehavior;
+    const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    document.body.style.overscrollBehavior = "none";
-
-    const focusTimer = window.setTimeout(() => mobileCloseRef.current?.focus({ preventScroll: true }), 30);
-    const onResize = () => {
-      if (window.innerWidth >= 768) setMobileOpen(false);
-    };
-    window.addEventListener("resize", onResize);
-
+    const focusTimer = window.setTimeout(() => mobileCloseRef.current?.focus({ preventScroll: true }), 20);
     return () => {
       window.clearTimeout(focusTimer);
-      window.removeEventListener("resize", onResize);
-      document.body.style.overflow = previous;
-      document.body.style.overscrollBehavior = previousOverscroll;
+      document.body.style.overflow = previousOverflow;
       window.setTimeout(() => mobileTriggerRef.current?.focus({ preventScroll: true }), 0);
     };
   }, [mobileOpen]);
-
-  function handleCreatorNavigation(event: ReactMouseEvent<HTMLAnchorElement>, href: string) {
-    if (window.location.pathname !== "/") return;
-    const target = new URL(href, window.location.origin);
-    if (target.pathname !== "/") return;
-
-    const requested = target.searchParams.get("create");
-    const intent =
-      requested === "video" || requested === "photo" || requested === "product-video" || requested === "scenario" || requested === "interior" || requested === "website"
-        ? requested
-        : "website";
-
-    event.preventDefault();
-    window.history.pushState({}, "", `${target.pathname}${target.search}${target.hash}`);
-    window.dispatchEvent(new CustomEvent("aiwebvideo:creation-intent", { detail: intent }));
-    setProductOpen(false);
-    setMobileOpen(false);
-    window.requestAnimationFrame(() => {
-      document.getElementById("generate")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-  }
 
   useEffect(() => {
     const onPointerDown = (event: MouseEvent) => {
@@ -146,10 +106,40 @@ export function Nav() {
     };
   }, []);
 
+  function handleCreatorNavigation(event: ReactMouseEvent<HTMLAnchorElement>, href: string) {
+    if (window.location.pathname !== "/") return;
+    const target = new URL(href, window.location.origin);
+    if (target.pathname !== "/") return;
+
+    const requested = target.searchParams.get("create");
+    const intent =
+      requested === "video" ||
+      requested === "photo" ||
+      requested === "product-video" ||
+      requested === "scenario" ||
+      requested === "interior" ||
+      requested === "website"
+        ? requested
+        : "website";
+
+    event.preventDefault();
+    window.history.pushState({}, "", `${target.pathname}${target.search}${target.hash}`);
+    window.dispatchEvent(new CustomEvent("aiwebvideo:creation-intent", { detail: intent }));
+    setProductOpen(false);
+    setMobileOpen(false);
+    window.requestAnimationFrame(() => {
+      document.getElementById("generate")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
   return (
-    <header className={`sticky top-0 z-50 border-b transition-all duration-200 ${scrolled || mobileOpen ? "border-white/[.08] bg-bg/95 shadow-[0_12px_40px_-28px_rgba(0,0,0,.9)] backdrop-blur-xl" : "border-transparent bg-bg/75 backdrop-blur-lg"}`}>
-      <nav className="mx-auto flex max-w-[1500px] items-center justify-between px-3 py-2.5 sm:px-5 sm:py-3.5 lg:px-8" aria-label="Main navigation">
-        <Link href="/" className="rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet" aria-label="AiWebVideo home">
+    <header
+      className={`sticky top-0 z-50 border-b transition-colors duration-200 ${
+        scrolled || mobileOpen ? "border-white/[.08] bg-bg/95 backdrop-blur-xl" : "border-transparent bg-bg/80 backdrop-blur-lg"
+      }`}
+    >
+      <nav className="mx-auto flex h-[68px] max-w-[1500px] items-center justify-between px-4 sm:px-6 lg:px-8" aria-label="Main navigation">
+        <Link href="/" aria-label="AiWebVideo home" className="rounded-md">
           <Wordmark />
         </Link>
 
@@ -158,178 +148,186 @@ export function Nav() {
             <button
               type="button"
               onClick={() => setProductOpen((value) => !value)}
-              className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3.5 text-xs font-medium text-text-muted transition hover:bg-white/[.04] hover:text-white"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-text-muted transition hover:bg-white/[.04] hover:text-white"
               aria-expanded={productOpen}
               aria-haspopup="menu"
             >
-              Create <ChevronDown size={13} className={`transition ${productOpen ? "rotate-180" : ""}`} />
+              Create <ChevronDown size={14} className={productOpen ? "rotate-180 transition" : "transition"} />
             </button>
-            {productOpen && (
-              <div role="menu" aria-label="Product creation modes" className="absolute left-0 top-12 w-[390px] overflow-hidden rounded-2xl border border-white/10 bg-[#151027]/98 p-2 shadow-[0_24px_70px_-28px_rgba(0,0,0,.95)] backdrop-blur-xl">
-                <div className="px-3 pb-2 pt-2">
-                  <p className="font-utility text-[8px] uppercase tracking-[.16em] text-text-dim">Choose what to create</p>
-                </div>
+
+            {productOpen ? (
+              <div
+                role="menu"
+                aria-label="Creation modes"
+                className="absolute left-0 top-12 w-[350px] border border-white/[.1] bg-[#101014] p-2 shadow-[0_24px_70px_-32px_rgba(0,0,0,.95)]"
+              >
                 {productItems.map(([label, helper, href, Icon]) => (
-                  <Link key={label} href={href} onClick={(event) => handleCreatorNavigation(event, href)} role="menuitem" className="group flex items-center gap-3 rounded-xl px-3 py-3 transition hover:bg-white/[.055]">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/[.08] bg-white/[.035] text-violet transition group-hover:border-mint/25 group-hover:text-mint">
-                      <Icon size={16} />
-                    </span>
+                  <Link
+                    key={label}
+                    href={href}
+                    role="menuitem"
+                    onClick={(event) => handleCreatorNavigation(event, href)}
+                    className="group grid grid-cols-[20px_1fr] gap-3 rounded-lg px-3 py-3 transition hover:bg-white/[.045]"
+                  >
+                    <Icon size={17} className="mt-0.5 text-text-dim transition group-hover:text-violet" />
                     <span>
-                      <span className="block text-xs font-semibold text-white">{label}</span>
-                      <span className="mt-0.5 block text-[10px] text-text-dim">{helper}</span>
+                      <span className="block text-sm font-semibold text-white">{label}</span>
+                      <span className="mt-0.5 block text-xs leading-5 text-text-dim">{helper}</span>
                     </span>
                   </Link>
                 ))}
               </div>
-            )}
+            ) : null}
           </div>
-          <Link href="/examples" className="inline-flex min-h-11 items-center rounded-xl px-3.5 text-xs font-medium text-text-muted transition hover:bg-white/[.04] hover:text-white">Examples</Link>
-          <Link href="/features" className="inline-flex min-h-11 items-center rounded-xl px-3.5 text-xs font-medium text-text-muted transition hover:bg-white/[.04] hover:text-white">Features</Link>
-          <Link href="/how-it-works" className="inline-flex min-h-11 items-center rounded-xl px-3.5 text-xs font-medium text-text-muted transition hover:bg-white/[.04] hover:text-white">How it works</Link>
-          <Link href="/pricing" className="inline-flex min-h-11 items-center rounded-xl px-3.5 text-xs font-medium text-text-muted transition hover:bg-white/[.04] hover:text-white">Pricing</Link>
+
+          <Link href="/examples" className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-text-muted transition hover:bg-white/[.04] hover:text-white">
+            Explore
+          </Link>
+          <Link href="/features" className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-text-muted transition hover:bg-white/[.04] hover:text-white">
+            Tools
+          </Link>
+          <Link href="/pricing" className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-text-muted transition hover:bg-white/[.04] hover:text-white">
+            Pricing
+          </Link>
+          <Link href="/guides/turn-website-into-video" className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-text-muted transition hover:bg-white/[.04] hover:text-white">
+            Guides
+          </Link>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-2">
           {!authChecked ? (
-            <div className="hidden h-10 w-[210px] items-center justify-end gap-2 sm:flex" aria-label="Checking account">
-              <span className="h-9 w-20 animate-pulse rounded-xl bg-white/[.045]" />
-              <span className="h-9 w-28 animate-pulse rounded-xl bg-white/[.065]" />
-            </div>
+            <div className="hidden h-10 w-40 animate-pulse bg-white/[.04] sm:block" aria-label="Checking account" />
           ) : isSignedIn ? (
             <>
-              <Link href="/pricing" className="hidden rounded-full border border-white/[.08] bg-white/[.03] px-3 py-2 font-utility text-[9px] text-text-muted transition hover:text-white lg:block">
+              <Link href="/pricing" className="hidden min-h-10 items-center px-2 text-xs font-medium text-text-muted transition hover:text-white lg:inline-flex">
                 {formatCredits(me?.creditsBalance)} credits
               </Link>
-              {me?.isAdmin && (
-                <Link
-                  href="/admin"
-                  className="hidden h-10 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-violet/30 bg-[linear-gradient(135deg,rgba(139,92,246,.18),rgba(236,72,153,.10))] px-3.5 text-[11px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,.07),0_12px_28px_-22px_rgba(139,92,246,.75)] transition hover:-translate-y-0.5 hover:border-violet/45 hover:bg-[linear-gradient(135deg,rgba(139,92,246,.24),rgba(236,72,153,.14))] xl:inline-flex"
-                >
-                  <ShieldCheck size={15} className="shrink-0 text-violet" />
-                  <span>Admin</span>
+              {me?.isAdmin ? (
+                <Link href="/admin" className="hidden min-h-10 items-center gap-2 px-2 text-xs font-semibold text-text-muted transition hover:text-white xl:inline-flex">
+                  <ShieldCheck size={15} /> Admin
                 </Link>
-              )}
-              <Link
-                href="/dashboard"
-                className="hidden h-10 min-w-[112px] items-center justify-center whitespace-nowrap rounded-xl bg-signature px-4 text-xs font-bold text-white shadow-[0_14px_30px_-20px_rgba(236,72,153,.75)] transition hover:-translate-y-0.5 hover:brightness-110 sm:inline-flex"
-              >
+              ) : null}
+              <Link href="/dashboard" className="hidden min-h-10 items-center rounded-lg bg-white px-4 text-sm font-semibold text-black transition hover:bg-white/90 sm:inline-flex">
                 Workspace
               </Link>
-              {me && <UserMenu email={me.email} plan={me.plan} creditsBalance={me.creditsBalance} isAdmin={me.isAdmin} />}
+              {me ? <UserMenu email={me.email} plan={me.plan} creditsBalance={me.creditsBalance} isAdmin={me.isAdmin} /> : null}
             </>
           ) : (
             <>
-              <Button className="hidden sm:inline-flex" variant="ghost" size="sm" onClick={() => setShowAuthModal(true)}>Log in</Button>
-              <Button variant="primary" size="sm" className="px-3 text-xs" asChild><a href="/#generate" className="hidden sm:inline-flex">Start creating</a></Button>
+              <Button className="hidden sm:inline-flex" variant="ghost" size="sm" onClick={() => setShowAuthModal(true)}>
+                Sign in
+              </Button>
+              <a href="/#generate" className="hidden min-h-10 items-center rounded-lg bg-white px-4 text-sm font-semibold text-black transition hover:bg-white/90 sm:inline-flex">
+                Start creating
+              </a>
             </>
           )}
+
           <button
             ref={mobileTriggerRef}
             type="button"
             onClick={() => setMobileOpen((value) => !value)}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[.10] bg-white/[.045] text-white shadow-[0_8px_24px_-18px_rgba(0,0,0,.9)] transition active:scale-95 md:hidden"
+            className="flex h-11 w-11 items-center justify-center rounded-lg border border-white/[.1] text-white transition hover:bg-white/[.04] md:hidden"
             aria-label={mobileOpen ? "Close navigation" : "Open navigation"}
             aria-expanded={mobileOpen}
             aria-controls="mobile-navigation-panel"
           >
-            {mobileOpen ? <X size={17} /> : <Menu size={17} />}
+            {mobileOpen ? <X size={19} /> : <Menu size={19} />}
           </button>
         </div>
       </nav>
 
-      {portalReady && mobileOpen && createPortal(
-        <div className="fixed inset-0 z-[10000] md:hidden" role="dialog" aria-modal="true" aria-label="Mobile navigation">
-          <button
-            type="button"
-            aria-label="Close navigation"
-            onClick={() => setMobileOpen(false)}
-            className="absolute inset-0 bg-[#05030b]/55 backdrop-blur-[2px]"
-          />
-
-          <section
-            id="mobile-navigation-panel"
-            className="absolute left-3 right-3 top-[calc(env(safe-area-inset-top)+4.1rem)] flex max-h-[calc(100dvh-env(safe-area-inset-top)-5rem)] flex-col overflow-hidden rounded-[24px] border border-white/[.11] bg-[#120d25]/[.98] shadow-[0_28px_80px_-30px_rgba(0,0,0,.95)] backdrop-blur-2xl sm:left-auto sm:right-4 sm:w-[380px]"
-          >
-            <div className="flex shrink-0 items-center justify-between border-b border-white/[.07] px-4 py-3">
-              <div className="min-w-0">
-                <p className="text-[13px] font-semibold text-white">Create with AiWebVideo</p>
-                <p className="mt-0.5 text-[9px] text-text-dim">Choose a tool or continue to another page</p>
-              </div>
+      {portalReady && mobileOpen
+        ? createPortal(
+            <div className="fixed inset-0 z-[10000] md:hidden" role="dialog" aria-modal="true" aria-label="Mobile navigation">
               <button
-                ref={mobileCloseRef}
                 type="button"
-                onClick={() => setMobileOpen(false)}
-                className="ml-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[.05] text-white transition active:scale-95"
                 aria-label="Close navigation"
+                onClick={() => setMobileOpen(false)}
+                className="absolute inset-0 bg-black/65"
+              />
+              <section
+                id="mobile-navigation-panel"
+                className="absolute inset-y-0 right-0 flex w-[min(92vw,420px)] flex-col border-l border-white/[.1] bg-[#0d0d10] pt-[env(safe-area-inset-top)] shadow-[-24px_0_70px_-42px_rgba(0,0,0,.95)]"
               >
-                <X size={17} />
-              </button>
-            </div>
-
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <Link
-                href={productItems[0][2]}
-                onClick={(event) => handleCreatorNavigation(event, productItems[0][2])}
-                className="group mb-2.5 flex min-h-[58px] items-center gap-3 rounded-2xl border border-mint/20 bg-[linear-gradient(135deg,rgba(45,212,191,.12),rgba(139,92,246,.08))] px-3 py-2.5 transition active:scale-[.985]"
-              >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-mint/20 bg-mint/10 text-mint"><Globe2 size={15} /></span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[12px] font-semibold text-white">Website to Video</span>
-                  <span className="mt-0.5 block truncate text-[9px] text-text-dim">Paste a URL and turn the site into a campaign</span>
-                </span>
-                <ArrowRightIcon />
-              </Link>
-
-              <div className="grid grid-cols-2 gap-2">
-                {productItems.slice(1).map(([label, , href, Icon]) => (
-                  <Link
-                    key={label}
-                    href={href}
-                    onClick={(event) => handleCreatorNavigation(event, href)}
-                    className="flex min-h-[52px] items-center gap-2.5 rounded-2xl border border-white/[.07] bg-white/[.025] px-3 py-2 transition active:scale-[.985] active:bg-white/[.055]"
+                <div className="flex h-[68px] shrink-0 items-center justify-between border-b border-white/[.08] px-5">
+                  <Wordmark />
+                  <button
+                    ref={mobileCloseRef}
+                    type="button"
+                    onClick={() => setMobileOpen(false)}
+                    className="flex h-11 w-11 items-center justify-center rounded-lg border border-white/[.1] text-white"
+                    aria-label="Close navigation"
                   >
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/[.08] bg-white/[.035] text-violet"><Icon size={14} /></span>
-                    <span className="min-w-0 truncate text-[11px] font-semibold text-white">{label}</span>
-                  </Link>
-                ))}
-              </div>
-
-              <div className="my-3 h-px bg-white/[.07]" />
-              <div className="grid grid-cols-2 gap-2">
-                <Link href="/examples" onClick={() => setMobileOpen(false)} className="flex min-h-10 items-center justify-center rounded-xl border border-white/[.06] bg-white/[.02] px-2 text-center text-[10px] font-medium text-text-muted transition active:bg-white/[.05] active:text-white">Examples</Link>
-                <Link href="/features" onClick={() => setMobileOpen(false)} className="flex min-h-10 items-center justify-center rounded-xl border border-white/[.06] bg-white/[.02] px-2 text-center text-[10px] font-medium text-text-muted transition active:bg-white/[.05] active:text-white">Features</Link>
-                <Link href="/how-it-works" onClick={() => setMobileOpen(false)} className="flex min-h-10 items-center justify-center rounded-xl border border-white/[.06] bg-white/[.02] px-2 text-center text-[10px] font-medium text-text-muted transition active:bg-white/[.05] active:text-white">How it works</Link>
-                <Link href="/pricing" onClick={() => setMobileOpen(false)} className="flex min-h-10 items-center justify-center rounded-xl border border-white/[.06] bg-white/[.02] px-2 text-center text-[10px] font-medium text-text-muted transition active:bg-white/[.05] active:text-white">Pricing</Link>
-              </div>
-            </div>
-
-            <div className="shrink-0 border-t border-white/[.07] bg-black/10 px-3 pb-[max(.75rem,env(safe-area-inset-bottom))] pt-3">
-              {!authChecked ? (
-                <div className="grid grid-cols-2 gap-2" aria-label="Checking account">
-                  <span className="min-h-11 animate-pulse rounded-xl bg-white/[.045]" />
-                  <span className="min-h-11 animate-pulse rounded-xl bg-white/[.065]" />
+                    <X size={19} />
+                  </button>
                 </div>
-              ) : isSignedIn ? (
-                <div className="flex items-center gap-2">
-                  <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="flex min-h-11 flex-1 items-center justify-center rounded-xl bg-signature px-4 text-xs font-bold text-white shadow-[0_14px_28px_-20px_rgba(236,72,153,.72)]">Workspace</Link>
-                  <Link href="/pricing" onClick={() => setMobileOpen(false)} className="flex min-h-11 min-w-[96px] items-center justify-center rounded-xl border border-white/[.08] bg-white/[.025] px-3 font-utility text-[9px] font-semibold text-mint">{formatCredits(me?.creditsBalance)} credits</Link>
-                  {me?.isAdmin && (
-                    <Link href="/admin" onClick={() => setMobileOpen(false)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-violet/25 bg-violet/10 text-violet" aria-label="Admin"><ShieldCheck size={15} /></Link>
+
+                <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+                  <p className="mb-2 text-sm font-semibold text-white">Create</p>
+                  <div className="border-t border-white/[.08]">
+                    {productItems.map(([label, helper, href, Icon]) => (
+                      <Link
+                        key={label}
+                        href={href}
+                        onClick={(event) => handleCreatorNavigation(event, href)}
+                        className="grid min-h-[64px] grid-cols-[22px_1fr] items-center gap-3 border-b border-white/[.08] py-3"
+                      >
+                        <Icon size={17} className="text-text-dim" />
+                        <span>
+                          <span className="block text-sm font-semibold text-white">{label}</span>
+                          <span className="mt-0.5 block text-xs text-text-dim">{helper}</span>
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+
+                  <nav aria-label="More navigation" className="mt-7 border-t border-white/[.08]">
+                    {[
+                      ["Explore", "/examples"],
+                      ["Tools", "/features"],
+                      ["Pricing", "/pricing"],
+                      ["Guides", "/guides/turn-website-into-video"],
+                      ["How it works", "/how-it-works"],
+                    ].map(([label, href]) => (
+                      <Link key={href} href={href} onClick={() => setMobileOpen(false)} className="flex min-h-12 items-center border-b border-white/[.08] text-sm font-medium text-text-muted">
+                        {label}
+                      </Link>
+                    ))}
+                  </nav>
+                </div>
+
+                <div className="shrink-0 border-t border-white/[.08] p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+                  {!authChecked ? (
+                    <div className="h-11 animate-pulse bg-white/[.04]" />
+                  ) : isSignedIn ? (
+                    <div className="space-y-2">
+                      <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="flex min-h-12 items-center justify-center rounded-lg bg-white px-4 text-sm font-semibold text-black">
+                        Open workspace
+                      </Link>
+                      <div className="flex items-center justify-between text-sm text-text-muted">
+                        <Link href="/pricing" onClick={() => setMobileOpen(false)}>{formatCredits(me?.creditsBalance)} credits</Link>
+                        {me?.isAdmin ? <Link href="/admin" onClick={() => setMobileOpen(false)}>Admin</Link> : null}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button variant="secondary" size="md" onClick={() => { setMobileOpen(false); setShowAuthModal(true); }}>
+                        Sign in
+                      </Button>
+                      <a href="/#generate" onClick={() => setMobileOpen(false)} className="flex min-h-11 items-center justify-center rounded-lg bg-white px-4 text-sm font-semibold text-black">
+                        Start creating
+                      </a>
+                    </div>
                   )}
                 </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-2">
-                  <Button variant="secondary" size="md" onClick={() => { setMobileOpen(false); setShowAuthModal(true); }}>Log in</Button>
-                  <Button className="w-full" variant="primary" size="md" asChild><a href="/#generate" onClick={() => setMobileOpen(false)}>Start creating</a></Button>
-                </div>
-              )}
-            </div>
-          </section>
-        </div>,
-        document.body,
-      )}
+              </section>
+            </div>,
+            document.body,
+          )
+        : null}
 
-      {showAuthModal && (
+      {showAuthModal ? (
         <AuthModal
           onClose={() => setShowAuthModal(false)}
           onSignedIn={() => {
@@ -337,7 +335,7 @@ export function Nav() {
             navigate(resolveDashboardDestination());
           }}
         />
-      )}
+      ) : null}
     </header>
   );
 }
