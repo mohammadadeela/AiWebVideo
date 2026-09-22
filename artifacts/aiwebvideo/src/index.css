@@ -366,6 +366,18 @@ button[aria-disabled="true"],
   line-height: 1rem !important;
 }
 
+.rounded-3xl {
+  border-radius: 16px !important;
+}
+
+.rounded-2xl {
+  border-radius: 14px !important;
+}
+
+[class*="shadow-[0_0_"] {
+  box-shadow: none !important;
+}
+
 @media (max-width: 767px) {
   html {
     -webkit-text-size-adjust: 100%;
