@@ -20,7 +20,7 @@ const LANDING_VIDEO_LIMIT = 30;
 const tabs: Array<{ id: Tab; label: string; icon: typeof LayoutDashboard }> = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'reports', label: 'Money reports', icon: BarChart3 },
-  { id: 'landing', label: 'Landing videos', icon: GalleryVerticalEnd },
+  { id: 'landing', label: 'Homepage videos', icon: GalleryVerticalEnd },
   { id: 'users', label: 'Users', icon: Users },
   { id: 'jobs', label: 'Productions', icon: FileVideo },
   { id: 'providers', label: 'AI & controls', icon: SlidersHorizontal },
@@ -423,8 +423,8 @@ export function AdminPage() {
   async function saveLanding() {
     if (!marketing) return;
     setBusy(true); setMessage(null);
-    try { const saved = await saveMarketingSettings(marketing); setMarketing(saved); setDirty(false); setMessage('Landing videos and text are live.'); }
-    catch (error) { setMessage(error instanceof Error ? error.message : 'Landing content could not be saved.'); }
+    try { const saved = await saveMarketingSettings(marketing); setMarketing(saved); setDirty(false); setMessage('Homepage videos are live.'); }
+    catch (error) { setMessage(error instanceof Error ? error.message : 'Homepage video settings could not be saved.'); }
     finally { setBusy(false); }
   }
 
@@ -600,9 +600,9 @@ export function AdminPage() {
         <div className="rounded-3xl border border-violet/25 bg-gradient-to-br from-violet/10 to-gold/5 p-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[.16em] text-violet">Live preview controls</p>
-              <h2 className="mt-2 font-display text-2xl font-bold text-text-primary">Show visitors what customers create</h2>
-              <p className="mt-2 max-w-2xl text-sm text-text-muted">Upload several videos at once or paste YouTube, Vimeo, or direct video URLs. The first video is featured and every additional saved video appears in the landing-page gallery.</p>
+              <p className="text-xs font-semibold uppercase tracking-[.16em] text-violet">Homepage video library</p>
+              <h2 className="mt-2 font-display text-2xl font-bold text-text-primary">Choose the videos shown on the homepage</h2>
+              <p className="mt-2 max-w-2xl text-sm text-text-muted">Upload videos directly from your computer or paste YouTube, Vimeo, or direct video URLs. The first saved video is the large featured video; the rest appear in the homepage gallery.</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <label className={`premium-button inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-violet/30 bg-violet/10 px-4 text-sm font-semibold text-violet transition hover:bg-violet/15 ${busy ? 'pointer-events-none opacity-50' : ''}`}>
