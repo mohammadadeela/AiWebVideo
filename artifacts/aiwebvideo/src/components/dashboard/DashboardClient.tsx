@@ -231,7 +231,7 @@ export function DashboardClient() {
   if (!isSignedIn)
     return (
       <main className="flex min-h-screen items-center justify-center px-5">
-        <div className="max-w-md rounded-3xl border border-border bg-panel p-8 text-center">
+        <div className="max-w-md rounded-2xl border border-border bg-panel p-8 text-center">
           <img src="/logo.svg" alt="" className="mx-auto h-12 w-12" />
           <h1 className="mt-4 font-display text-xl font-bold text-text-primary">Sign in to open your workspace</h1>
           <p className="mt-2 text-sm text-text-muted">
@@ -266,7 +266,7 @@ export function DashboardClient() {
       <aside
         id="workspace-project-menu"
         aria-label="Workspace projects"
-        className={`fixed bottom-2.5 left-2.5 top-[4.15rem] z-40 flex w-[min(82vw,292px)] max-w-[calc(100vw-3.25rem)] flex-col overflow-hidden rounded-[22px] border border-white/[.10] bg-[#100c20]/[.99] p-2.5 shadow-[0_28px_80px_-34px_rgba(0,0,0,.98)] backdrop-blur-2xl transition-[transform,opacity] duration-200 sm:left-3 sm:w-[300px] sm:p-3 lg:sticky lg:bottom-auto lg:left-auto lg:top-0 lg:h-screen lg:max-w-none lg:rounded-none lg:border-y-0 lg:border-l-0 lg:border-r lg:bg-[#100c20] lg:shadow-none lg:backdrop-blur-none ${sidebarOpen ? "pointer-events-auto translate-x-0 opacity-100" : "pointer-events-none -translate-x-[115%] opacity-0 lg:pointer-events-auto lg:translate-x-0 lg:opacity-100"} ${sidebarCollapsed ? "lg:w-0 lg:overflow-hidden lg:border-0 lg:p-0" : "lg:w-[286px]"}`}
+        className={`fixed bottom-0 left-0 top-[3.5rem] z-40 flex w-[min(88vw,300px)] max-w-[calc(100vw-2rem)] flex-col overflow-hidden border-r border-white/[.09] bg-[#0d0d10] p-3 shadow-[24px_0_70px_-48px_rgba(0,0,0,.95)] transition-[transform,opacity] duration-200 sm:top-16 lg:sticky lg:bottom-auto lg:left-auto lg:top-0 lg:h-screen lg:max-w-none lg:shadow-none ${sidebarOpen ? "pointer-events-auto translate-x-0 opacity-100" : "pointer-events-none -translate-x-[105%] opacity-0 lg:pointer-events-auto lg:translate-x-0 lg:opacity-100"} ${sidebarCollapsed ? "lg:w-0 lg:overflow-hidden lg:border-0 lg:p-0" : "lg:w-[286px]"}`}
       >
         <div className="flex items-center justify-between px-2 py-2">
           <Link href="/">
@@ -278,7 +278,7 @@ export function DashboardClient() {
               if (window.matchMedia("(min-width: 1024px)").matches) setSidebarCollapsed(true);
               else setSidebarOpen(false);
             }}
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/[.06] bg-white/[.025] text-text-dim transition hover:bg-white/5 hover:text-text-primary active:scale-95 lg:h-10 lg:w-10 lg:border-0 lg:bg-transparent"
+            className="flex h-10 w-10 items-center justify-center rounded-lg text-text-dim transition hover:bg-white/[.045] hover:text-text-primary active:scale-95"
             aria-label="Close project menu"
           >
             <PanelLeftClose size={17} />
@@ -287,21 +287,32 @@ export function DashboardClient() {
         <button
           type="button"
           onClick={startNew}
-          className="premium-button mt-2.5 flex w-full items-center gap-2.5 rounded-xl border border-violet/30 bg-violet/10 px-3 py-2.5 text-left text-[12px] font-semibold text-text-primary transition hover:bg-violet/15 active:scale-[.99] sm:mt-3 sm:py-3 sm:text-sm"
+          className="premium-button mt-3 flex min-h-11 w-full items-center gap-2.5 rounded-lg bg-white px-3 py-2.5 text-left text-sm font-semibold text-black transition hover:bg-white/90 active:scale-[.99]"
         >
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-signature text-sm text-white">
+          <span className="flex h-7 w-7 items-center justify-center rounded-md border border-black/10 bg-black/[.06] text-sm text-black">
             ＋
           </span>
           New creation
         </button>
-        <div className="relative mt-3">
+
+        <nav className="mt-3 grid grid-cols-2 border-y border-white/[.08] py-2" aria-label="Workspace destinations">
+          <Link href="/examples" className="flex min-h-10 items-center px-2 text-sm font-medium text-text-muted transition hover:text-white">
+            Explore
+          </Link>
+          <Link href="/studio" className="flex min-h-10 items-center px-2 text-sm font-medium text-text-muted transition hover:text-white">
+            Editor
+          </Link>
+        </nav>
+
+        <p className="mt-4 px-2 text-xs font-semibold text-text-muted">Projects</p>
+        <div className="relative mt-2">
           <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-dim" />
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             type="search"
             placeholder="Search projects"
-            className="w-full rounded-xl border border-border bg-panel/70 py-2.5 pl-9 pr-9 text-base text-text-primary outline-none placeholder:text-text-dim focus:border-violet/50 sm:text-xs"
+            className="w-full rounded-lg border border-border bg-black/20 py-2.5 pl-9 pr-9 text-base text-text-primary outline-none placeholder:text-text-dim focus:border-violet/60 sm:text-sm"
           />
           {query && (
             <button
@@ -316,10 +327,10 @@ export function DashboardClient() {
         </div>
         <div className="chat-scroll mt-4 flex-1 overflow-y-auto">
           {runningJobs.length > 0 && (
-            <div className="sticky top-0 z-10 mx-1 mb-3 space-y-1.5 rounded-xl border border-violet/25 bg-[#100c20] p-2 shadow-lg shadow-black/20">
+            <div className="sticky top-0 z-10 mb-3 space-y-1.5 border-y border-white/[.09] bg-[#0d0d10] py-2">
               <div className="flex items-center gap-2 px-1 pt-0.5">
                 <span className="h-2 w-2 animate-pulse rounded-full bg-mint" />
-                <p className="text-[11px] font-semibold text-text-primary">
+                <p className="text-xs font-semibold text-text-primary">
                   {runningJobs.length} generation
                   {runningJobs.length === 1 ? "" : "s"} running
                 </p>
@@ -356,14 +367,14 @@ export function DashboardClient() {
               ))}
             </div>
           )}
-          <p className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-[.16em] text-text-dim">
+          <p className="px-2 pb-2 text-xs font-semibold text-text-muted">
             Recent projects
           </p>
           <div className="space-y-1">
             {filteredJobs.map((item) => (
               <div
                 key={item.id}
-                className={`group relative rounded-xl transition-colors ${(selectedJobId ?? composerJobId) === item.id ? "bg-white/10" : "hover:bg-white/5"}`}
+                className={`group relative rounded-lg transition-colors ${(selectedJobId ?? composerJobId) === item.id ? "bg-white/[.07]" : "hover:bg-white/[.035]"}`}
               >
                 <a
                   href={`/dashboard?job=${encodeURIComponent(item.id)}`}
@@ -473,7 +484,7 @@ export function DashboardClient() {
       </aside>
 
       <div className="min-w-0 flex-1">
-        <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-border bg-bg/95 px-2.5 backdrop-blur-xl sm:h-16 sm:px-6">
+        <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-white/[.08] bg-bg/95 px-3 backdrop-blur-xl sm:h-16 sm:px-6">
           <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
             <button
               type="button"
@@ -481,7 +492,7 @@ export function DashboardClient() {
                 setSidebarOpen(true);
                 setSidebarCollapsed(false);
               }}
-              className={`flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-panel/60 text-text-muted shadow-[0_8px_22px_-18px_rgba(0,0,0,.9)] transition hover:text-text-primary active:scale-95 sm:h-10 sm:w-10 ${sidebarCollapsed ? "" : "lg:hidden"}`}
+              className={`flex h-10 w-10 items-center justify-center rounded-lg border border-border text-text-muted transition hover:bg-white/[.04] hover:text-text-primary active:scale-95 ${sidebarCollapsed ? "" : "lg:hidden"}`}
               aria-label="Open projects menu"
               aria-expanded={sidebarOpen}
               aria-controls="workspace-project-menu"
@@ -492,14 +503,14 @@ export function DashboardClient() {
               <p className="text-sm font-semibold text-text-primary">
                 {selectedJobId || composerJobId ? "Creative chat" : "New creation"}
               </p>
-              <p className="hidden text-[10px] text-text-dim sm:block">AI video, product media and website campaigns</p>
+              <p className="hidden text-xs text-text-dim sm:block">Create, continue, and manage production.</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
             {me?.isAdmin && (
               <Link
                 href="/admin"
-                className="hidden items-center gap-2 rounded-xl border border-violet/25 bg-violet/10 px-3 py-2 text-xs font-semibold text-violet transition hover:bg-violet/15 md:flex"
+                className="hidden min-h-10 items-center gap-2 rounded-lg px-3 text-xs font-semibold text-text-muted transition hover:bg-white/[.04] hover:text-white md:flex"
               >
                 <ShieldCheck size={14} />
                 Admin
@@ -507,7 +518,7 @@ export function DashboardClient() {
             )}
             <Link
               href={me && me.creditsBalance <= 0 ? "/pricing#buy-credits" : "/pricing"}
-              className={`hidden rounded-full border px-3 py-1.5 text-xs sm:block ${me && me.creditsBalance <= 0 ? "border-violet/40 bg-violet/10 font-semibold text-violet hover:bg-violet/15" : "border-border bg-panel text-text-muted hover:text-text-primary"}`}
+              className={`hidden rounded-lg border px-3 py-2 text-xs sm:block ${me && me.creditsBalance <= 0 ? "border-violet/40 bg-violet/10 font-semibold text-violet hover:bg-violet/15" : "border-border bg-transparent text-text-muted hover:bg-white/[.04] hover:text-text-primary"}`}
             >
               {me && me.creditsBalance <= 0 ? "Recharge credits" : `${formatCredits(me?.creditsBalance)} credits`}
             </Link>
