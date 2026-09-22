@@ -1,4 +1,3 @@
-import { Sparkles } from "lucide-react";
 import { ChatWidget } from "@/components/chat/ChatWidget";
 
 export function Hero() {
@@ -7,13 +6,13 @@ export function Hero() {
       <div className="pointer-events-none absolute left-1/2 top-0 h-[420px] w-[980px] -translate-x-1/2 rounded-full bg-violet/[.09] blur-[120px]" />
       <div className="relative mx-auto max-w-7xl px-4 pb-10 pt-7 sm:px-5 sm:pb-14 sm:pt-11 lg:px-8 lg:pb-16">
         <div className="mb-6 max-w-5xl sm:mb-7">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[.035] px-3 py-1.5 font-utility text-[9px] uppercase tracking-[.16em] text-mint backdrop-blur">
-            <Sparkles size={12} /> Website · Product · Idea · Space
-          </div>
-          <h1 className="mt-10 max-w-5xl font-display text-[clamp(2.35rem,11vw,4.8rem)] font-bold leading-[.96] tracking-[-.055em] text-white">
-            Make videos, product images,
-            <span className="block bg-signature-text">and interior design.</span>
+          <h1 className="max-w-5xl font-display text-[clamp(2.7rem,11vw,5.2rem)] font-bold leading-[.94] tracking-[-.06em] text-white">
+            Bring your ideas
+            <span className="block bg-signature-text">to life.</span>
           </h1>
+          <p className="mt-5 max-w-2xl text-sm leading-6 text-text-muted sm:text-base sm:leading-7">
+            Start with a website, product, image, or space.
+          </p>
         </div>
 
         <div className="relative w-full">
