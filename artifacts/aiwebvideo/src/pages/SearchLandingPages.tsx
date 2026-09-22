@@ -1,4 +1,4 @@
-import { ArrowRight, CheckCircle2, Film, Globe2, Layers3, Link2, Megaphone, PackageOpen, ScanSearch, Sparkles } from "lucide-react";
+import { ArrowRight, CheckCircle2, Film, Globe2, House, Image as ImageIcon, Layers3, Link2, Megaphone, MessageCircleMore, PackageOpen, ScanSearch, Sparkles } from "lucide-react";
 import { Link } from "wouter";
 import { Nav } from "@/components/landing/Nav";
 import { Footer } from "@/components/landing/Footer";
@@ -225,7 +225,7 @@ const pages: Record<string, SeoLanding> = {
     benefits: [["Natural-language control", "Describe the outcome instead of learning a complex timeline or prompt syntax."], ["Reference-aware", "Optional images can anchor the visual direction when the result needs a specific subject or look."], ["Multiple formats", "Create landscape, portrait or square media for different destinations."], ["Built for complete videos", "The workflow is designed around one coherent final production rather than unrelated clips."]],
     useCases: [["Social campaigns", "Create original visual concepts for vertical and square social content."], ["Brand concepts", "Explore cinematic concepts, product stories and campaign directions before production."], ["Explainer visuals", "Turn a concept or scenario into visual storytelling without recording a traditional shoot."], ["Creative testing", "Generate different visual directions around the same campaign idea."]],
     faq: [["What is an AI video generator?", "It is a tool that uses an instruction and optional references to generate video content. AiWebVideo adds creative planning so the request becomes a coherent production."], ["Can I use an image as a reference?", "Yes. Optional reference images can help anchor subjects, products, identity or visual direction."], ["Can I choose portrait video?", "Yes. The creator supports common landscape, portrait and square formats."], ["Can I make a product video instead?", "Yes. Use the dedicated Product Video page when the real product should remain the central reference."]],
-    related: [["Product Video Generator", "/product-video-generator", "Create a reference-grounded product film."], ["Product Photo Generator", "/product-photo-generator", "Create campaign images from real product references."], ["Talking Video Generator", "/talking-video-generator", "Create dialogue and scenario-driven video."]],
+    related: [["Product Video Generator", "/product-video-generator", "Create a reference-grounded product film."], ["Product Photo Generator", "/product-photo-generator", "Create campaign images from real product references."], ["Talking Video Generator", "/talking-video-generator", "Create dialogue and scenario-driven video."], ["AI video prompt guide", "/guides/create-ai-video-from-prompt", "Plan a clearer video brief before generating."]],
   },
   productPhoto: {
     path: "/product-photo-generator",
@@ -243,7 +243,7 @@ const pages: Record<string, SeoLanding> = {
     benefits: [["Reference-first", "Start from the actual product rather than a generic text-only object."], ["More campaign variations", "Explore multiple scenes and art directions from the same source product."], ["Useful across channels", "Create visuals for ecommerce, social, ads and promotional campaigns."], ["Creative consistency", "Keep the product and visual language central while changing the environment."]],
     useCases: [["Ecommerce hero images", "Create new merchandising concepts around the same real product."], ["Lifestyle campaigns", "Place the product in a directed environment that matches the campaign."], ["Seasonal promotions", "Create visual concepts for launches, holidays and promotional periods."], ["Social content", "Generate fresh product compositions for recurring social campaigns."]],
     faq: [["Do I need to upload a product image?", "Yes. Product-photo generation is designed around supplied references when the exact product should remain central."], ["Can I request a specific background?", "Yes. Describe the environment, surface, lighting, composition and campaign mood you want."], ["Can I make a product video from the same product?", "Yes. Product Video is a separate mode designed for reference-grounded motion."], ["Are these just background replacements?", "No. The workflow can create a new campaign composition around the referenced product, subject to the capabilities of the underlying image model."]],
-    related: [["Product Video Generator", "/product-video-generator", "Turn the real product into a moving commercial."], ["AI Video Generator", "/ai-video-generator", "Create original AI video from an idea."], ["Product Page to Video", "/product-page-to-video", "Start a product campaign from a public product page."]],
+    related: [["Product Video Generator", "/product-video-generator", "Turn the real product into a moving commercial."], ["AI Video Generator", "/ai-video-generator", "Create original AI video from an idea."], ["Product Page to Video", "/product-page-to-video", "Start a product campaign from a public product page."], ["Product media guide", "/guides/product-photos-and-videos-from-images", "Prepare reference images and review output fidelity."]],
   },
   productVideo: {
     path: "/product-video-generator",
@@ -261,7 +261,7 @@ const pages: Record<string, SeoLanding> = {
     benefits: [["Product-faithful direction", "Real references are treated as the visual anchor for the production."], ["Commercial motion", "Use camera movement, hero reveals, macro details and environments to make the product feel alive."], ["Multiple campaign angles", "Create launch, benefit, lifestyle and promotional variants from the same product."], ["Flexible formats", "Choose the format that matches your destination."]],
     useCases: [["Product launch", "Introduce a new product with a concise commercial film."], ["Paid social", "Create vertical-first product creative for social advertising."], ["Ecommerce promotion", "Show the product through motion and detail rather than a static listing image."], ["Lifestyle campaign", "Place the product in a directed environment while keeping it central."]],
     faq: [["Does it use my real product image?", "Yes. Product Video is designed around supplied product references so the real item remains the primary visual anchor."], ["Can I control the video style?", "Yes. Describe the camera, environment, mood, pacing, audience and campaign goal in the brief."], ["Can I make product photos too?", "Yes. Use Product Photos when you need still campaign imagery."], ["Can I start from a product page instead?", "Yes. Product Page to Video is the URL-based workflow for public ecommerce pages."]],
-    related: [["Product Photo Generator", "/product-photo-generator", "Create still campaign images from the same kind of reference."], ["Product Page to Video", "/product-page-to-video", "Turn a public product page into campaign video."], ["AI Video Generator", "/ai-video-generator", "Create original video from a broader creative idea."]],
+    related: [["Product Photo Generator", "/product-photo-generator", "Create still campaign images from the same kind of reference."], ["Product Page to Video", "/product-page-to-video", "Turn a public product page into campaign video."], ["AI Video Generator", "/ai-video-generator", "Create original video from a broader creative idea."], ["Product media guide", "/guides/product-photos-and-videos-from-images", "Prepare references and check product fidelity."]],
   },
   talkingVideo: {
     path: "/talking-video-generator",
@@ -279,7 +279,7 @@ const pages: Record<string, SeoLanding> = {
     benefits: [["Dialogue-first", "Designed around conversations, testimonials, scripted scenes and narrated situations."], ["Performance-aware", "Keep identity, eyelines, gestures, reactions and camera blocking connected."], ["Useful for marketing", "Create testimonial-style concepts, explainers, announcements and story-driven campaigns."], ["Natural-language control", "Describe the scene without learning a conventional video production interface."]],
     useCases: [["Testimonials", "Create a scenario around a customer or spokesperson-style story."], ["Product conversations", "Use dialogue to introduce a product, feature or use case."], ["Story scenes", "Create cinematic conversations and narrative moments."], ["Explainer scenarios", "Show a problem and solution through a directed interaction."]],
     faq: [["Can I provide exact dialogue?", "Yes. When exact wording is supplied, the production direction is designed to keep the spoken content faithful."], ["Can I add character references?", "Yes. Reference images can help anchor identity and visual direction where supported."], ["Can I make a normal AI video instead?", "Yes. Use the AI Video Generator for non-dialogue original concepts."], ["Does the result include audio?", "The scenario workflow supports scene audio according to the selected production settings and provider capabilities."]],
-    related: [["AI Video Generator", "/ai-video-generator", "Create original non-dialogue AI video."], ["Product Video Generator", "/product-video-generator", "Create a product-focused commercial."], ["Website Video Generator", "/website-video-generator", "Create a campaign from a real website."]],
+    related: [["AI Video Generator", "/ai-video-generator", "Create original non-dialogue AI video."], ["Product Video Generator", "/product-video-generator", "Create a product-focused commercial."], ["Website Video Generator", "/website-video-generator", "Create a campaign from a real website."], ["AI video prompt guide", "/guides/create-ai-video-from-prompt", "Plan action, dialogue, camera, and audio."]],
   },
   interiorDesign: {
     path: "/ai-interior-design-generator",
@@ -297,7 +297,7 @@ const pages: Record<string, SeoLanding> = {
     benefits: [["Reference-first design", "Use real photos and plans rather than starting from an unrelated generic room."], ["Multiple outputs", "Create still interior concepts or a presentation-style walkthrough video."], ["Natural-language design", "Describe the desired look and function in normal language."], ["Architecture-aware guardrails", "The workflow is designed to preserve important existing geometry unless you explicitly ask for a change."]],
     useCases: [["Real estate presentation", "Show a potential furnishing or renovation direction for a property."], ["Home redesign", "Explore furniture, materials, colors and lighting for an existing room."], ["Retail and shops", "Visualize a store interior, display direction or customer experience."], ["Architectural concept", "Create visual concept material from plans, sketches and reference images."]],
     faq: [["Can I upload a floor plan?", "Yes. Plans and sketches can be used as references, and explicit measurements should be supplied when accurate proportions matter."], ["Can it make a walkthrough video?", "Yes. Interior Design supports design-image and walkthrough-video outputs."], ["Will a normal room photo give exact dimensions?", "No. A photo alone cannot guarantee exact measurements. Use a scaled plan or explicit dimensions when geometry must be reliable."], ["Can I use it for a real estate property?", "Yes. Real estate presentation is one practical use case for concept images and walkthrough-style media, but generated visuals should not be presented as construction-ready drawings unless separately verified by a qualified professional."]],
-    related: [["Interior Design Walkthrough", "/interior-design-walkthrough-video", "Turn a design concept into a presentation walkthrough."], ["Real Estate Walkthrough", "/real-estate-walkthrough-video", "Create a property-focused presentation video."], ["3D House Walkthrough", "/3d-house-walkthrough", "Visualize a house concept in a 3D-style presentation."], ["AI Architectural Visualization", "/ai-architectural-visualization", "Create architecture-focused concept visuals."], ["Floor Plan to 3D", "/floor-plan-to-3d", "Use a floor plan as the starting reference."], ["Room Redesign AI", "/room-redesign-ai", "Redesign a room from a real photo."]],
+    related: [["Interior Design Walkthrough", "/interior-design-walkthrough-video", "Turn a design concept into a presentation walkthrough."], ["Real Estate Walkthrough", "/real-estate-walkthrough-video", "Create a property-focused presentation video."], ["3D House Walkthrough", "/3d-house-walkthrough", "Visualize a house concept in a 3D-style presentation."], ["AI Architectural Visualization", "/ai-architectural-visualization", "Create architecture-focused concept visuals."], ["Floor Plan to 3D", "/floor-plan-to-3d", "Use a floor plan as the starting reference."], ["Room Redesign AI", "/room-redesign-ai", "Redesign a room from a real photo."], ["Interior design guide", "/guides/interior-design-from-photos-and-plans", "Prepare photos, measurements, and a design brief."]],
   },
   interiorDesignWalkthrough: {
     path: "/interior-design-walkthrough-video",
@@ -536,8 +536,8 @@ function SearchLandingPage({ page }: { page: SeoLanding }) {
           <div className="relative mx-auto max-w-5xl overflow-hidden rounded-[34px] border border-white/10 bg-panel px-6 py-14 text-center">
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(139,92,246,.22),transparent_52%)]" />
             <Link2 size={20} className="relative mx-auto text-mint" />
-            <h2 className="relative mt-4 font-display text-3xl font-bold tracking-[-.035em] text-white">Your next video can start with one link</h2>
-            <p className="relative mx-auto mt-3 max-w-xl text-sm leading-6 text-text-muted">Paste the public source, describe the campaign, and keep the production in one creative workspace.</p>
+            <h2 className="relative mt-4 font-display text-3xl font-bold tracking-[-.035em] text-white">Start with your source and a clear idea</h2>
+            <p className="relative mx-auto mt-3 max-w-xl text-sm leading-6 text-text-muted">Open the creator, add your prompt or references, and review the credit estimate before generating in the same project workspace.</p>
             <Button className="relative mt-6" asChild><Link href={page.createHref}>{page.primaryLabel} <ArrowRight size={14} /></Link></Button>
           </div>
         </section>
@@ -590,16 +590,18 @@ export function FloorPlanTo3dPage() { return <SearchLandingPage page={pages.floo
 export function RoomRedesignAiPage() { return <SearchLandingPage page={pages.roomRedesign} />; }
 
 const exampleCards = [
-  ["SaaS launch", "Use the product website to ground a concise feature or launch story.", ScanSearch],
-  ["Product campaign", "Use an ecommerce page or real product references to direct product-focused media.", PackageOpen],
-  ["Business promotion", "Turn service positioning, offers and calls to action into a short campaign.", Megaphone],
-  ["Original AI film", "Start from an idea when there is no website source to use.", Film],
+  ["Website or SaaS video", "Ground a campaign in a public site, product positioning, and one clear goal.", ScanSearch, "/website-video-generator"],
+  ["Original AI film", "Start from an idea and optional image references when there is no website source.", Film, "/ai-video-generator"],
+  ["Product photos", "Use real product images for still campaign and ecommerce concepts.", ImageIcon, "/product-photo-generator"],
+  ["Product video", "Use real product images to direct camera movement and a moving commercial.", PackageOpen, "/product-video-generator"],
+  ["Talking scene", "Describe people, dialogue, setting, and performance for a scenario video.", MessageCircleMore, "/talking-video-generator"],
+  ["Interior design", "Use room photos, plans, and measured dimensions for images or a tour.", House, "/ai-interior-design-generator"],
 ] as const;
 
 export function ExamplesPage() {
   useSeo({
-    title: "AI Website Video Examples and Use Cases",
-    description: "Explore AiWebVideo campaign examples and practical use cases for website-to-video, SaaS launches, ecommerce products, local businesses and original AI video.",
+    title: "AI Video, Product Media & Interior Design Examples",
+    description: "Explore available AiWebVideo campaign videos and practical starting points for website video, AI video, product photos and video, talking scenes, and interior design.",
     path: "/examples",
   });
 
@@ -610,18 +612,19 @@ export function ExamplesPage() {
         <section className="border-b border-white/[.06]">
           <div className="mx-auto max-w-5xl px-5 py-16 text-center sm:py-20">
             <p className="font-utility text-[10px] uppercase tracking-[.22em] text-mint">Examples & use cases</p>
-            <h1 className="mt-5 font-display text-4xl font-bold tracking-[-.045em] text-white sm:text-6xl">See what a website can become</h1>
-            <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-text-muted sm:text-base">Campaign films configured by the site owner load below. The use-case cards explain strong starting points without pretending that a generated example belongs to a customer unless it actually does.</p>
+            <h1 className="mt-5 font-display text-4xl font-bold tracking-[-.045em] text-white sm:text-6xl">See what you can create from a website, product, idea, or space</h1>
+            <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-text-muted sm:text-base">Watch campaign films when available and explore distinct starting points for each creation mode. Use-case descriptions explain possible workflows; they are not claimed customer results.</p>
           </div>
         </section>
         <VideoShowcase />
         <section className="border-b border-white/[.06] bg-black/10">
-          <div className="mx-auto grid max-w-6xl gap-4 px-5 py-16 md:grid-cols-2 lg:grid-cols-4">
-            {exampleCards.map(([title, body, Icon]) => (
+          <div className="mx-auto grid max-w-6xl gap-4 px-5 py-16 md:grid-cols-2 lg:grid-cols-3">
+            {exampleCards.map(([title, body, Icon, href]) => (
               <article key={title} className="rounded-[24px] border border-white/[.08] bg-panel p-5">
                 <Icon size={18} className="text-violet" />
                 <h2 className="mt-5 font-display text-base font-semibold text-white">{title}</h2>
                 <p className="mt-2 text-xs leading-6 text-text-muted">{body}</p>
+                <Link href={href} className="mt-5 inline-flex items-center gap-1 text-xs font-semibold text-mint hover:text-white">Explore this mode <ArrowRight size={12} /></Link>
               </article>
             ))}
           </div>
@@ -631,6 +634,9 @@ export function ExamplesPage() {
             <Link href="/url-to-video" className="rounded-[22px] border border-white/[.08] bg-white/[.025] p-5"><h2 className="font-display text-base font-semibold text-white">URL to video</h2><p className="mt-2 text-xs leading-6 text-text-muted">Turn a public webpage into campaign video.</p></Link>
             <Link href="/saas-demo-video-generator" className="rounded-[22px] border border-white/[.08] bg-white/[.025] p-5"><h2 className="font-display text-base font-semibold text-white">SaaS product video</h2><p className="mt-2 text-xs leading-6 text-text-muted">Create launch and feature stories from a SaaS website.</p></Link>
             <Link href="/product-page-to-video" className="rounded-[22px] border border-white/[.08] bg-white/[.025] p-5"><h2 className="font-display text-base font-semibold text-white">Product page to video</h2><p className="mt-2 text-xs leading-6 text-text-muted">Create product campaigns from ecommerce context.</p></Link>
+            <Link href="/interior-design-walkthrough-video" className="rounded-[22px] border border-white/[.08] bg-white/[.025] p-5"><h2 className="font-display text-base font-semibold text-white">Interior design walkthrough</h2><p className="mt-2 text-xs leading-6 text-text-muted">Make a presentation tour from real space references.</p></Link>
+            <Link href="/floor-plan-to-3d" className="rounded-[22px] border border-white/[.08] bg-white/[.025] p-5"><h2 className="font-display text-base font-semibold text-white">Floor plan to 3D-style concept</h2><p className="mt-2 text-xs leading-6 text-text-muted">Explore design concepts from a measured plan or sketch.</p></Link>
+            <Link href="/features" className="rounded-[22px] border border-white/[.08] bg-white/[.025] p-5"><h2 className="font-display text-base font-semibold text-white">Compare every mode</h2><p className="mt-2 text-xs leading-6 text-text-muted">Choose the workflow that matches your input and desired output.</p></Link>
           </div>
         </section>
       </main>

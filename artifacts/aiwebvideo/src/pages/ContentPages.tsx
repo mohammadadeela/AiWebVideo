@@ -5,6 +5,7 @@ import {
   Download,
   Film,
   Globe2,
+  House,
   Image as ImageIcon,
   Layers3,
   MessageCircleMore,
@@ -73,7 +74,7 @@ function CTA() {
           Start creating in one chat
         </h2>
         <p className="relative mt-3 text-sm text-text-muted">
-          Website video, AI video, product media, or a talking scene.
+          Website video, AI video, product media, talking scenes, or interior design.
         </p>
         <Button className="relative mt-6 px-4 text-xs" asChild><Link href="/#generate">Start creating</Link></Button>
       </div>
@@ -108,16 +109,62 @@ const features = [
   ],
 ];
 
+const featureModes = [
+  { title: "Website Video", input: "Public website or product-page URL, campaign goal and audience", output: "An AI-directed marketing video grounded in visible website context", href: "/website-video-generator", create: "/?create=website#generate" },
+  { title: "AI Video", input: "Original prompt and optional image references", output: "A generated video with a directed story, style and format", href: "/ai-video-generator", create: "/?create=video#generate" },
+  { title: "Product Photos", input: "Photos of the real product and an image brief", output: "Still ecommerce, studio or lifestyle campaign images", href: "/product-photo-generator", create: "/?create=photo#generate" },
+  { title: "Product Video", input: "Photos of the real product and a motion brief", output: "A product-focused video with camera and environment direction", href: "/product-video-generator", create: "/?create=product-video#generate" },
+  { title: "Talking Video", input: "Characters, dialogue, setting and performance direction", output: "A talking or scenario-driven AI video", href: "/talking-video-generator", create: "/?create=scenario#generate" },
+  { title: "Interior Design", input: "Room or property photos, plans or sketches; measurements when needed", output: "Design concept images or a presentation walkthrough video", href: "/ai-interior-design-generator", create: "/?create=interior#generate" },
+] as const;
+
+const interiorWorkflows = [
+  ["Interior design walkthrough", "/interior-design-walkthrough-video"],
+  ["Real estate walkthrough", "/real-estate-walkthrough-video"],
+  ["3D-style house walkthrough", "/3d-house-walkthrough"],
+  ["Architectural visualization", "/ai-architectural-visualization"],
+  ["Floor plan to 3D-style concepts", "/floor-plan-to-3d"],
+  ["Room redesign from a photo", "/room-redesign-ai"],
+] as const;
+
 export function FeaturesPage() {
   return (
     <Shell
-      eyebrow="Product"
-      title="A creative director, not a control panel"
-      seoTitle="Website-to-Video AI Features"
-      intro="AiWebVideo removes production decisions from the critical path while keeping professional control close by."
-      description="Explore AiWebVideo's website intelligence, fully AI-generated video, live progress, smart formats, image studio, and professional delivery."
+      eyebrow="Choose a creation mode"
+      title="What can I create with AiWebVideo?"
+      seoTitle="AI Video, Product Media & Interior Design Features"
+      intro="Choose the source you already have and the result you need. Every mode runs in the same creator, with its own references, settings, and credit estimate."
+      description="Compare AiWebVideo creation modes: website video, original AI video, product photos and video, talking scenes, and interior design images or walkthroughs."
       path="/features"
     >
+      <section className="border-b border-white/[.06] bg-black/10" aria-labelledby="mode-directory">
+        <div className="mx-auto max-w-7xl px-4 py-12 sm:px-5 sm:py-16">
+          <h2 id="mode-directory" className="font-display text-2xl font-bold text-white sm:text-3xl">Find the right mode for your source</h2>
+          <p className="mt-3 max-w-3xl text-sm leading-7 text-text-muted">Website URLs supply public page context; real product photos ground product media; room photos and plans ground interior concepts. Describe the result you want before generation.</p>
+          <div id="product-media" className="mt-8 grid scroll-mt-24 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {featureModes.map((mode) => (
+              <article key={mode.href} className="flex flex-col rounded-[24px] border border-white/[.08] bg-panel p-6">
+                <h3 className="font-display text-xl font-semibold text-white"><Link href={mode.href} className="hover:text-mint">{mode.title}</Link></h3>
+                <p className="mt-4 text-[10px] font-semibold uppercase tracking-[.12em] text-mint">You provide</p>
+                <p className="mt-1 text-sm leading-6 text-text-muted">{mode.input}</p>
+                <p className="mt-4 text-[10px] font-semibold uppercase tracking-[.12em] text-violet">You receive</p>
+                <p className="mt-1 text-sm leading-6 text-text-muted">{mode.output}</p>
+                <div className="mt-auto flex flex-wrap gap-4 pt-6 text-xs font-semibold">
+                  <Link href={mode.href} className="text-mint hover:text-white">Learn more <ArrowRight size={12} className="inline" /></Link>
+                  <Link href={mode.create} className="text-violet hover:text-white">Start creating <ArrowRight size={12} className="inline" /></Link>
+                </div>
+              </article>
+            ))}
+          </div>
+          <div className="mt-8 rounded-[24px] border border-violet/25 bg-violet/[.05] p-6">
+            <h3 className="font-display text-lg font-semibold text-white">Interior design and property workflows</h3>
+            <p className="mt-2 text-sm leading-6 text-text-muted">Select the page closest to your goal. A single photo cannot guarantee exact dimensions; include a scaled plan or explicit measurements when proportions matter.</p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              {interiorWorkflows.map(([label, href]) => <Link key={href} href={href} className="rounded-full border border-white/10 px-3 py-2 text-xs text-white hover:border-violet/50">{label}</Link>)}
+            </div>
+          </div>
+        </div>
+      </section>
       <section>
         <div className="mx-auto grid max-w-7xl gap-4 px-4 py-12 sm:px-5 sm:py-16 md:grid-cols-2 lg:grid-cols-3">
           {features.map(([title, body], index) => (
@@ -141,13 +188,25 @@ export function FeaturesPage() {
               One creator, multiple capabilities
             </p>
             <h2 className="mt-2 font-display text-xl font-semibold text-white">
-              Website video, AI video, product media and talking scenes
+              Website video, AI video, product media, talking scenes and interior design
             </h2>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-text-muted">
-              Switch modes without leaving the conversation. References, prompts, and results stay together.
+              Switch modes without leaving the conversation. References, prompts, and results stay together. Review the credit estimate before paid generation.
             </p>
           </div>
           <Button className="mt-4 sm:mt-0" asChild><Link href="/?create=video#generate">Explore AI Studio</Link></Button>
+        </div>
+      </section>
+      <section className="border-t border-white/[.06] px-4 py-12 sm:px-5" aria-label="Choosing a creation mode">
+        <div className="mx-auto max-w-5xl">
+          <h2 className="font-display text-2xl font-semibold text-white">Questions about choosing a mode</h2>
+          <div className="mt-5 divide-y divide-white/10 border-y border-white/10">
+            {[
+              ["Which mode makes AI product images?", "Product Photos takes uploaded images of the real item and creates still ecommerce or campaign visuals. Product Video creates moving product footage from those references."],
+              ["Can I make an interior design tour from room photos?", "Yes. Choose Interior Design, add authorized photos or plans, describe the style and materials, and choose a walkthrough video. Supply measurements when proportions matter."],
+              ["Do I need a website to create an AI video?", "No. AI Video starts from an original idea and optional image references. Website Video starts from a public website URL."],
+            ].map(([question, answer]) => <details key={question} className="py-5"><summary className="cursor-pointer text-sm font-semibold text-white">{question}</summary><p className="mt-3 text-sm leading-7 text-text-muted">{answer}</p></details>)}
+          </div>
         </div>
       </section>
     </Shell>
@@ -155,8 +214,8 @@ export function FeaturesPage() {
 }
 
 const sharedWorkflow = [
-  ["Choose what you are creating", "Start with Website Video, AI Video, Product Photos, Product Video, or Talking Scene."],
-  ["Give AI the source", "Paste a public website, write the creative direction, or attach product/reference images depending on the mode."],
+  ["Choose what you are creating", "Start with Website Video, AI Video, Product Photos, Product Video, Talking Scene, or Interior Design."],
+  ["Give AI the source", "Paste a public website, write the creative direction, or attach product, room, or plan references depending on the mode."],
   ["Keep defaults or adjust settings", "Smart settings handle the common choices. Open them only when you want to change duration, format, quality, or audio."],
   ["Credits are verified before paid AI starts", "Website screenshots can be captured for free. Before AI planning, video, image, or voice providers are used, the server verifies and reserves the exact production credits."],
   ["Generate in the same conversation", "After the credit gate passes, the project continues in Workspace, where the source, prompt, references, settings, and generation state stay together."],
@@ -229,6 +288,19 @@ const creationFlows = [
     result: "A generated talking or scenario-based video for explainers, testimonials, founders, or conversational scenes.",
     href: "/?create=scenario#generate",
   },
+  {
+    id: "interior",
+    icon: House,
+    eyebrow: "Space → Images or Walkthrough",
+    title: "Interior Design",
+    accent: "text-violet",
+    border: "border-violet/25",
+    glow: "bg-violet/[.06]",
+    input: "Attach room or property photos, plans, or sketches. Describe the design and supply explicit measurements when geometry matters.",
+    process: "The space references guide materials, lighting, furniture, and the requested changes. Choose still concept images or a presentation walkthrough.",
+    result: "AI interior design concept images or a walkthrough video based on the supplied space; generated concepts are not construction documents.",
+    href: "/?create=interior#generate",
+  },
 ] as const;
 
 const websiteStyles = [
@@ -252,10 +324,10 @@ export function HowItWorksPage() {
   return (
     <Shell
       eyebrow="How it works"
-      title="One creator. Five ways to start."
-      seoTitle="How AiWebVideo Works — Website Video, AI Video, Product Media & Talking Scenes"
-      intro="Start with a website, an idea, a product, or a scene. AiWebVideo keeps the source, direction, settings, generation progress, and final result together in one workflow."
-      description="Learn how every AiWebVideo feature works, including Website Video, AI Video, Product Photos, Product Video, Talking Scene, smart settings, references, live progress, and Workspace."
+      title="One creator. Six ways to start."
+      seoTitle="How AI Video, Product Images & Interior Design Work"
+      intro="Start with a website, an idea, a product, dialogue, or a real space. AiWebVideo keeps the source, direction, settings, generation progress, and final result together in one workflow."
+      description="See the input, AI workflow, and output for website video, original AI video, product images and video, talking scenes, and interior design tours."
       path="/how-it-works"
     >
       <section className="border-b border-white/[.06]">
@@ -399,10 +471,10 @@ export function AboutPage() {
   return (
     <Shell
       eyebrow="Company"
-      title="The website already has the story"
-      seoTitle="Website-to-Video AI Company"
-      intro="AiWebVideo exists to turn that story into original, brand-aware film without asking businesses to become video editors."
-      description="Learn about AiWebVideo's website-first approach to AI-directed video and image production."
+      title="Create from the sources you already have"
+      seoTitle="About AiWebVideo — AI Video, Product Media & Interior Design"
+      intro="AiWebVideo turns public websites, original ideas, real product images, and space references into directed video, images, and interior concepts."
+      description="Learn about AiWebVideo's approach to website video, AI video, product photos and video, talking scenes, and interior design."
       path="/about"
     >
       <section>
@@ -443,7 +515,7 @@ const faqGroups = [
     items: [
       [
         "What is the main product?",
-        "Website-to-video. Paste a public website and describe the promotion. AiWebVideo reads the useful pages, directs the story and generates the final video.",
+        "AiWebVideo makes website videos, original AI videos, product photos and videos, talking scenes, and interior design images or walkthroughs. Choose the mode that matches your source and desired output.",
       ],
       [
         "Do I need to choose every setting?",
@@ -495,6 +567,13 @@ const faqGroups = [
     ],
   },
   {
+    title: "Interior design",
+    items: [
+      ["Can I create interior design images or a video tour?", "Yes. Interior Design accepts room and property photos, floor plans, and sketches. Choose still design concepts or a presentation walkthrough."],
+      ["Does a room photo provide exact measurements?", "No. Include explicit dimensions or a scaled plan when proportions matter. Generated concepts are not a substitute for verified construction documents."],
+    ],
+  },
+  {
     title: "Credits & billing",
     items: [
       [
@@ -531,9 +610,9 @@ export function FaqPage() {
     <Shell
       eyebrow="Help"
       title="Frequently asked questions"
-      seoTitle="AI Website Video Generator FAQ"
-      intro="Straight answers about creating, generation, product references, credits, and saved projects."
-      description="Answers to common questions about AiWebVideo: website videos, product content, generation, credits, billing, files, and accounts."
+      seoTitle="AI Video, Product Media & Interior Design FAQ"
+      intro="Straight answers about website and AI video, product references, interior design, credits, and saved projects."
+      description="Answers to common questions about AiWebVideo's website video, product images and videos, interior design, generation, credits, billing, and accounts."
       path="/faq"
     >
       <section>

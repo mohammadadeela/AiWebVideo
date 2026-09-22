@@ -5,6 +5,7 @@ import {
   Clapperboard,
   Film,
   Globe2,
+  House,
   Image as ImageIcon,
   Layers3,
   MessageCircleMore,
@@ -95,6 +96,14 @@ const capabilities: Array<{
     icon: MessageCircleMore,
     accent: "text-mint",
   },
+  {
+    intent: "interior",
+    label: "Space → Design",
+    title: "Interior images and walkthroughs",
+    body: "Use real room photos, plans, and measurements as references.",
+    icon: House,
+    accent: "text-violet",
+  },
 ];
 
 const useCases = [
@@ -115,15 +124,17 @@ const qualityLayers = [
 
 const landingFaqs: ReadonlyArray<readonly [string, string]> = [
   ["Can I start without signing in?", "Yes. Start on the public site; sign in only when the workflow needs an account."],
+  ["Can I create product photos and videos?", "Yes. Upload photos of the real product and choose still Product Photos or moving Product Video."],
+  ["Can I redesign a room or generate a property tour?", "Yes. Interior Design accepts photos and plans for concept images or a walkthrough. Add measurements when proportions matter."],
   ["Do video and photo generation open separate apps?", "No. Every mode stays in the same creator and project conversation."],
   ["What happens during a long generation?", "The chat stays in history with live status and can be reopened while it runs."],
 ];
 
 export function HomePage() {
   useSeo({
-    title: "AI Website Video Generator — Turn Any Website Into Video",
+    title: "AI Video, Product Images & Interior Design",
     description:
-      "Turn a website URL into a brand-aware AI marketing video. AiWebVideo reads the site, plans the campaign, generates the film, and keeps the work in one creative workspace.",
+      "Create website videos, original AI videos, product photos and videos, talking scenes, and interior design images or walkthroughs from your own sources.",
     path: "/",
     faq: landingFaqs,
   });
@@ -168,7 +179,7 @@ export function HomePage() {
               <p className="mt-5 max-w-2xl text-sm leading-7 text-text-muted sm:text-base">Choose the source you already have. AiWebVideo keeps the creation inside one project conversation.</p>
             </div>
 
-            <div className="mt-12 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+            <div className="mt-12 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {capabilities.map(({ intent, label, title, body, icon: Icon, accent }) => (
                 <button
                   key={intent}

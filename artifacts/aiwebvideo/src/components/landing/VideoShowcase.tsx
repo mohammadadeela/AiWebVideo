@@ -111,7 +111,7 @@ function PlaceholderFilm() {
           <Play size={22} className="ml-0.5" />
         </span>
         <p className="font-display text-2xl font-bold text-white sm:text-3xl">Your campaign belongs here.</p>
-        <p className="mt-3 max-w-sm text-xs leading-5 text-text-dim">Start with a website, idea, or product. Finish in one creative chat.</p>
+        <p className="mt-3 max-w-sm text-xs leading-5 text-text-dim">Start with a website, idea, product, or space. Finish in one creative chat.</p>
       </div>
     </div>
   );

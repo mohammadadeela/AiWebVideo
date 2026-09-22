@@ -184,6 +184,7 @@ export function Nav() {
             )}
           </div>
           <Link href="/examples" className="inline-flex min-h-11 items-center rounded-xl px-3.5 text-xs font-medium text-text-muted transition hover:bg-white/[.04] hover:text-white">Examples</Link>
+          <Link href="/features" className="inline-flex min-h-11 items-center rounded-xl px-3.5 text-xs font-medium text-text-muted transition hover:bg-white/[.04] hover:text-white">Features</Link>
           <Link href="/how-it-works" className="inline-flex min-h-11 items-center rounded-xl px-3.5 text-xs font-medium text-text-muted transition hover:bg-white/[.04] hover:text-white">How it works</Link>
           <Link href="/pricing" className="inline-flex min-h-11 items-center rounded-xl px-3.5 text-xs font-medium text-text-muted transition hover:bg-white/[.04] hover:text-white">Pricing</Link>
         </div>
@@ -294,8 +295,9 @@ export function Nav() {
               </div>
 
               <div className="my-3 h-px bg-white/[.07]" />
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <Link href="/examples" onClick={() => setMobileOpen(false)} className="flex min-h-10 items-center justify-center rounded-xl border border-white/[.06] bg-white/[.02] px-2 text-center text-[10px] font-medium text-text-muted transition active:bg-white/[.05] active:text-white">Examples</Link>
+                <Link href="/features" onClick={() => setMobileOpen(false)} className="flex min-h-10 items-center justify-center rounded-xl border border-white/[.06] bg-white/[.02] px-2 text-center text-[10px] font-medium text-text-muted transition active:bg-white/[.05] active:text-white">Features</Link>
                 <Link href="/how-it-works" onClick={() => setMobileOpen(false)} className="flex min-h-10 items-center justify-center rounded-xl border border-white/[.06] bg-white/[.02] px-2 text-center text-[10px] font-medium text-text-muted transition active:bg-white/[.05] active:text-white">How it works</Link>
                 <Link href="/pricing" onClick={() => setMobileOpen(false)} className="flex min-h-10 items-center justify-center rounded-xl border border-white/[.06] bg-white/[.02] px-2 text-center text-[10px] font-medium text-text-muted transition active:bg-white/[.05] active:text-white">Pricing</Link>
               </div>

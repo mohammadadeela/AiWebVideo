@@ -11,12 +11,12 @@ export function Footer() {
       {location === "/profile" && <SavedCardsPanel />}
       <footer className="border-t border-white/[.06] bg-black/15">
         <div className="mx-auto max-w-7xl px-5 pb-8 pt-16">
-          <div className="mb-14 grid grid-cols-2 gap-10 sm:grid-cols-4 lg:grid-cols-[1.6fr_1fr_1fr_1fr]">
+          <div className="mb-14 grid grid-cols-2 gap-10 sm:grid-cols-3 lg:grid-cols-[1.6fr_1fr_1fr_1fr_1fr]">
             <div className="col-span-2 sm:col-span-1">
               <Wordmark />
               <p className="mt-4 max-w-[260px] text-xs leading-6 text-text-dim">
-                AI-directed marketing production from websites, ideas and real
-                product references—all inside one creative workspace.
+                Create AI video, product photos and videos, and interior design
+                media from websites, ideas and your own references.
               </p>
             </div>
             <div>
@@ -56,6 +56,8 @@ export function Footer() {
                     Product video
                   </a>
                 </li>
+                <li><a href="/?create=scenario#generate" className="transition-colors hover:text-white">Talking video</a></li>
+                <li><a href="/?create=interior#generate" className="transition-colors hover:text-white">Interior design</a></li>
                 <li>
                   <Link
                     href="/dashboard"
@@ -67,12 +69,24 @@ export function Footer() {
               </ul>
             </div>
             <div>
+              <p className="mb-4 font-utility text-[9px] uppercase tracking-[.18em] text-text-dim">Features</p>
+              <ul className="space-y-3 text-xs text-text-muted">
+                <li><Link href="/website-video-generator" className="transition-colors hover:text-white">Website video</Link></li>
+                <li><Link href="/ai-video-generator" className="transition-colors hover:text-white">AI video generator</Link></li>
+                <li><Link href="/product-photo-generator" className="transition-colors hover:text-white">Product photo generator</Link></li>
+                <li><Link href="/product-video-generator" className="transition-colors hover:text-white">Product video generator</Link></li>
+                <li><Link href="/talking-video-generator" className="transition-colors hover:text-white">Talking video generator</Link></li>
+                <li><Link href="/ai-interior-design-generator" className="transition-colors hover:text-white">Interior design generator</Link></li>
+                <li><Link href="/interior-design-walkthrough-video" className="transition-colors hover:text-white">Interior walkthrough</Link></li>
+                <li><Link href="/features" className="transition-colors hover:text-white">All creation modes</Link></li>
+              </ul>
+            </div>
+            <div>
               <p className="mb-4 font-utility text-[9px] uppercase tracking-[.18em] text-text-dim">
                 Learn
               </p>
               <ul className="space-y-3 text-xs text-text-muted">
                 <li><Link href="/url-to-video" className="transition-colors hover:text-white">URL to video</Link></li>
-                <li><Link href="/website-video-generator" className="transition-colors hover:text-white">Website video generator</Link></li>
                 <li><Link href="/saas-demo-video-generator" className="transition-colors hover:text-white">SaaS demo video</Link></li>
                 <li><Link href="/product-page-to-video" className="transition-colors hover:text-white">Product page to video</Link></li>
                 <li><Link href="/examples" className="transition-colors hover:text-white">Examples</Link></li>
@@ -109,6 +123,9 @@ export function Footer() {
                   </Link>
                 </li>
                 <li><Link href="/guides/turn-website-into-video" className="transition-colors hover:text-white">Website video guide</Link></li>
+                <li><Link href="/guides/create-ai-video-from-prompt" className="transition-colors hover:text-white">AI video prompt guide</Link></li>
+                <li><Link href="/guides/product-photos-and-videos-from-images" className="transition-colors hover:text-white">Product media guide</Link></li>
+                <li><Link href="/guides/interior-design-from-photos-and-plans" className="transition-colors hover:text-white">Interior design guide</Link></li>
               </ul>
             </div>
             <div>

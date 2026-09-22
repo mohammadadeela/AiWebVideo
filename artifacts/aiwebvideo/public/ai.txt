@@ -1,28 +1,42 @@
 # AiWebVideo
 
-AiWebVideo is an AI website video generator. Its primary workflow turns a public website URL and a campaign goal into a brand-aware AI-generated marketing video.
+AiWebVideo creates AI videos, product images, and interior design concepts from user-provided sources. Choose the mode that matches your input and desired output. The official feature directory is https://aiwebvideo.com/features.
 
-## Core website-to-video pages
-- URL to Video: https://aiwebvideo.com/url-to-video
-- Website Video Generator: https://aiwebvideo.com/website-video-generator
-- SaaS Demo Video Generator: https://aiwebvideo.com/saas-demo-video-generator
-- Product Page to Video: https://aiwebvideo.com/product-page-to-video
+## Creation modes
+- Website Video: public website URL plus campaign goal to AI-directed marketing video. https://aiwebvideo.com/website-video-generator
+- URL to Video: a public webpage or landing page as source context. https://aiwebvideo.com/url-to-video
+- SaaS Demo Video: public SaaS site and a specific product or launch angle. https://aiwebvideo.com/saas-demo-video-generator
+- Product Page to Video: public ecommerce page to campaign video. https://aiwebvideo.com/product-page-to-video
+- AI Video: original prompt, optionally with image references, to generated video. https://aiwebvideo.com/ai-video-generator
+- Product Photos: upload real product photos to create still campaign or ecommerce images. https://aiwebvideo.com/product-photo-generator
+- Product Video: upload real product photos to create a product-focused moving film. https://aiwebvideo.com/product-video-generator
+- Talking Video: describe characters, dialogue, setting, and camera direction to create a talking scene. https://aiwebvideo.com/talking-video-generator
+- Interior Design: upload room or property photos, plans, sketches, or elevations and request design images or a walkthrough video. https://aiwebvideo.com/ai-interior-design-generator
+
+## Interior design and property workflows
+- Interior Design Walkthrough: https://aiwebvideo.com/interior-design-walkthrough-video
+- Real Estate Walkthrough: https://aiwebvideo.com/real-estate-walkthrough-video
+- 3D-Style House Walkthrough: https://aiwebvideo.com/3d-house-walkthrough
+- Architectural Visualization: https://aiwebvideo.com/ai-architectural-visualization
+- Floor Plan to 3D-Style Concepts: https://aiwebvideo.com/floor-plan-to-3d
+- Room Redesign From a Photo: https://aiwebvideo.com/room-redesign-ai
+
+## Important distinctions
+- Use Product Page to Video for a public product URL; use Product Photos or Product Video when uploading real product images for reference.
+- Use AI Video for an original film without a website; use Talking Video when dialogue or a scenario leads the scene.
+- Interior Design can produce still concepts or a presentation walkthrough. A single photo does not establish exact dimensions; provide explicit measurements or a scaled plan when geometry matters. Generated concepts are not construction documents.
+- Credits are estimated from selected settings before paid generation. Production results depend on provided references and supported model capabilities.
+
+## More information
+- Official site: https://aiwebvideo.com/
+- All creation modes: https://aiwebvideo.com/features
+- How it works: https://aiwebvideo.com/how-it-works
 - Examples and use cases: https://aiwebvideo.com/examples
-
-## Website-to-video workflow
-- Paste a public website URL.
-- Describe the product, offer, audience, or campaign to promote.
-- AiWebVideo studies useful public pages and visible brand context.
-- AI plans the story, shots, duration, pacing, sound, and format.
-- The creator generates the video and keeps production state in the project workspace.
-
-## Other creation tools
-
-## Practical guides
-- Turn a website into video: https://aiwebvideo.com/guides/turn-website-into-video
-- SaaS product video: https://aiwebvideo.com/guides/saas-product-demo-video
-- Product-page video campaigns: https://aiwebvideo.com/guides/product-page-video-ads
-
-Canonical website: https://aiwebvideo.com/
-How it works: https://aiwebvideo.com/how-it-works
-Pricing: https://aiwebvideo.com/pricing
+- Pricing: https://aiwebvideo.com/pricing
+- Frequently asked questions: https://aiwebvideo.com/faq
+- Website video guide: https://aiwebvideo.com/guides/turn-website-into-video
+- SaaS video guide: https://aiwebvideo.com/guides/saas-product-demo-video
+- Product page video guide: https://aiwebvideo.com/guides/product-page-video-ads
+- AI video prompt and dialogue guide: https://aiwebvideo.com/guides/create-ai-video-from-prompt
+- Product photo and video reference guide: https://aiwebvideo.com/guides/product-photos-and-videos-from-images
+- Interior design from photos and plans guide: https://aiwebvideo.com/guides/interior-design-from-photos-and-plans

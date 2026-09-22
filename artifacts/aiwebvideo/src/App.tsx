@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Route, Switch, Router as WouterRouter } from 'wouter';
+import { Redirect, Route, Switch, Router as WouterRouter } from 'wouter';
 import { AppErrorBoundary } from '@/components/system/AppErrorBoundary';
 import { useReturnToOpener } from '@/hooks/use-return-to-opener';
 
@@ -8,6 +8,8 @@ const DashboardPage = lazy(() => import('@/pages/DashboardPage').then((module) =
 const PricingPage = lazy(() => import('@/pages/PricingPage').then((module) => ({ default: module.PricingPage })));
 const ProfilePage = lazy(() => import('@/pages/ProfilePage').then((module) => ({ default: module.ProfilePage })));
 const AdminPage = lazy(() => import('@/pages/AdminPage').then((module) => ({ default: module.AdminPage })));
+const StudioIndexPage = lazy(() => import('@/pages/StudioIndexPage').then((module) => ({ default: module.StudioIndexPage })));
+const StudioDirectEditorPage = lazy(() => import('@/pages/StudioDirectEditorPage').then((module) => ({ default: module.StudioDirectEditorPage })));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then((module) => ({ default: module.NotFoundPage })));
 const contentPages = () => import('@/pages/ContentPages');
 const AboutPage = lazy(() => contentPages().then((module) => ({ default: module.AboutPage })));
@@ -37,6 +39,9 @@ const guidePages = () => import('@/pages/GuidesPage');
 const WebsiteToVideoGuidePage = lazy(() => guidePages().then((module) => ({ default: module.WebsiteToVideoGuidePage })));
 const SaasProductVideoGuidePage = lazy(() => guidePages().then((module) => ({ default: module.SaasProductVideoGuidePage })));
 const ProductPageVideoGuidePage = lazy(() => guidePages().then((module) => ({ default: module.ProductPageVideoGuidePage })));
+const PromptVideoGuidePage = lazy(() => guidePages().then((module) => ({ default: module.PromptVideoGuidePage })));
+const ProductReferencesGuidePage = lazy(() => guidePages().then((module) => ({ default: module.ProductReferencesGuidePage })));
+const InteriorDesignGuidePage = lazy(() => guidePages().then((module) => ({ default: module.InteriorDesignGuidePage })));
 
 function PageLoader() {
   return (
@@ -61,6 +66,12 @@ function Router() {
       <Route path="/admin/reports" component={AdminPage} />
       <Route path="/admin/:section" component={AdminPage} />
       <Route path="/admin" component={AdminPage} />
+      <Route path="/studio/project/:projectId" component={StudioDirectEditorPage} />
+      <Route path="/studio" component={StudioIndexPage} />
+      <Route path="/studio/idea"><Redirect to="/ai-video-generator" /></Route>
+      <Route path="/studio/product"><Redirect to="/product-photo-generator" /></Route>
+      <Route path="/studio/scenario"><Redirect to="/talking-video-generator" /></Route>
+      <Route path="/studio/interior"><Redirect to="/ai-interior-design-generator" /></Route>
       <Route path="/url-to-video" component={UrlToVideoPage} />
       <Route path="/website-video-generator" component={WebsiteVideoGeneratorPage} />
       <Route path="/saas-demo-video-generator" component={SaasDemoVideoGeneratorPage} />
@@ -80,6 +91,9 @@ function Router() {
       <Route path="/guides/turn-website-into-video" component={WebsiteToVideoGuidePage} />
       <Route path="/guides/saas-product-demo-video" component={SaasProductVideoGuidePage} />
       <Route path="/guides/product-page-video-ads" component={ProductPageVideoGuidePage} />
+      <Route path="/guides/create-ai-video-from-prompt" component={PromptVideoGuidePage} />
+      <Route path="/guides/product-photos-and-videos-from-images" component={ProductReferencesGuidePage} />
+      <Route path="/guides/interior-design-from-photos-and-plans" component={InteriorDesignGuidePage} />
       <Route path="/features" component={FeaturesPage} />
       <Route path="/how-it-works" component={HowItWorksPage} />
       <Route path="/about" component={AboutPage} />

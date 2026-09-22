@@ -5,6 +5,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import router from './routes/index.js';
 import { logger } from './lib/logger.js';
+import { getMarketingSettings } from './lib/marketing.js';
 import {
   buildAiSummary,
   buildRobotsTxt,
@@ -105,21 +106,38 @@ app.get(['/llms.txt', '/ai.txt'], (_req, res) => {
   res.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400').type('text/plain').send(buildAiSummary(publicUrl));
 });
 
+// These legacy creation-mode URLs were listed in the sitemap but have no
+// matching client-side pages. Preserve /studio for the private project editor.
+const legacyStudioPages: Record<string, string> = {
+  '/studio/idea': '/ai-video-generator',
+  '/studio/product': '/product-photo-generator',
+  '/studio/scenario': '/talking-video-generator',
+  '/studio/interior': '/ai-interior-design-generator',
+};
+app.get(['/studio/idea', '/studio/product', '/studio/scenario', '/studio/interior'], (req, res) => {
+  res.redirect(308, legacyStudioPages[req.path]);
+});
+
 // Serve the production Vite build from the same process and origin as the API.
 const staticDir = process.env.STATIC_DIR ?? path.resolve(process.cwd(), 'artifacts/aiwebvideo/dist/public');
 if (fs.existsSync(staticDir)) {
   app.use('/assets', express.static(path.join(staticDir, 'assets'), { index: false, maxAge: '1y', immutable: true }));
   app.use(express.static(staticDir, { index: false, maxAge: '1h' }));
   const indexHtml = fs.readFileSync(path.join(staticDir, 'index.html'), 'utf8');
-  app.get('/{*path}', (req, res, next) => {
+  app.get('/{*path}', async (req, res, next) => {
     if (req.path.startsWith('/api/')) return next();
     const page = getSeoPage(req.path);
     const status = isKnownPage(req.path) ? 200 : 404;
+    // Only media explicitly selected for the public showcase is placed in
+    // initial HTML. Private customer assets stay behind signed asset URLs.
+    const examples = page.path === '/examples'
+      ? ((await getMarketingSettings().catch(() => null))?.videos.showcase.filter((video) => Boolean(video.url)) ?? [])
+      : [];
     res
       .status(status)
       .set('Cache-Control', 'public, max-age=0, must-revalidate')
       .type('html')
-      .send(renderSeoDocument(indexHtml, page, publicUrl));
+      .send(renderSeoDocument(indexHtml, page, publicUrl, examples));
   });
 }
 

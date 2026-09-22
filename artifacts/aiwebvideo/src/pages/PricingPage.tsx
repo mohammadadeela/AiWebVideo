@@ -11,9 +11,9 @@ export function PricingPage() {
   const [now, setNow] = useState(() => Date.now());
 
   useSeo({
-    title: "AI Website Video Generator Pricing",
+    title: "AI Video, Product Media & Interior Design Pricing",
     description:
-      "Credit-based pricing for AI website-to-video production, with one-time credit top-ups, monthly plans, automatic refunds, and clear 1080p and 4K usage.",
+      "See credit-based pricing for website and AI videos, product images and videos, talking scenes, and interior design images or tours.",
     path: "/pricing",
   });
 

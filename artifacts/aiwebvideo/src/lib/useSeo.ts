@@ -61,7 +61,12 @@ function setStructuredData(options: { title: string; description: string; path: 
       applicationCategory: 'MultimediaApplication',
       operatingSystem: 'Web',
       url: `${BASE_URL}/`,
-      description: 'AI website video generator that turns public website context and a campaign goal into AI-directed marketing video.',
+      description: 'Create website videos, original AI videos, product photos and videos, talking scenes, and interior design images or walkthroughs from your own sources.',
+      featureList: [
+        'Website video from a public URL', 'AI video from a prompt and optional references',
+        'AI product images from real product photos', 'AI product videos from real product photos',
+        'Talking and scenario-driven AI video', 'Interior design images and walkthrough videos from photos or plans',
+      ],
       publisher: { '@id': `${BASE_URL}/#organization` },
     },
     {
