@@ -102,9 +102,9 @@ function EmptyShowcase() {
   );
 }
 
-function SupportingCreation({ video, autoPlay }: { video: MarketingVideo; autoPlay: boolean }) {
+function SupportingCreation({ video, autoPlay, expanded = false }: { video: MarketingVideo; autoPlay: boolean; expanded?: boolean }) {
   return (
-    <article className="group min-w-0 snap-start">
+    <article className={expanded ? "group min-w-0" : "group min-w-[72%] snap-start sm:min-w-[42%] lg:min-w-0"}>
       <div className="relative aspect-[4/5] overflow-hidden rounded-[14px] border border-white/[.09] bg-black">
         <CampaignMedia video={video} autoPlay={autoPlay} />
         <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent px-4 pb-4 pt-14">
@@ -155,7 +155,7 @@ export function VideoShowcase({ expanded = false }: { expanded?: boolean } = {})
           </a>
         </div>
 
-        <div className="mt-9 grid gap-4 lg:grid-cols-[1.45fr_.75fr] lg:gap-5">
+        <div className={expanded ? "mt-9 space-y-5" : "mt-9 grid gap-4 lg:grid-cols-[1.45fr_.75fr] lg:gap-5"}>
           <div>
             <div className="aspect-video overflow-hidden rounded-[16px] border border-white/[.1] bg-black">
               {featured ? <CampaignMedia video={featured} eager autoPlay /> : <EmptyShowcase />}
@@ -173,7 +173,7 @@ export function VideoShowcase({ expanded = false }: { expanded?: boolean } = {})
           <div className={expanded ? "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3" : "flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:grid lg:grid-cols-2 lg:overflow-visible lg:pb-0"}>
             {supporting.length ? (
               supporting.map((video, index) => (
-                <SupportingCreation key={video.id} video={video} autoPlay={!expanded && index === 0} />
+                <SupportingCreation key={video.id} video={video} autoPlay={!expanded && index === 0} expanded={expanded} />
               ))
             ) : (
               <div className="flex min-h-[220px] min-w-[72%] snap-start items-end rounded-[14px] border border-white/[.09] bg-[#0c0c0f] p-4 sm:min-w-[42%] lg:min-w-0">
