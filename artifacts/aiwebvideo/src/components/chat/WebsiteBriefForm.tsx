@@ -184,7 +184,7 @@ function MasterIdeas({
             }`}
           >
             <span className="flex items-center justify-between gap-2">
-              <span className="truncate rounded-full border border-violet/20 bg-violet/[.07] px-2 py-0.5 font-utility text-[7px] uppercase tracking-[.1em] text-violet">
+              <span className="truncate text-[11px] font-medium text-text-dim">
                 {idea.category}
               </span>
               {selected ? <Check size={12} className="shrink-0 text-mint" /> : <ArrowRight size={11} className="shrink-0 text-white/25 transition group-hover:text-violet" />}
@@ -470,7 +470,7 @@ export function WebsiteBriefForm({
   return (
     <div
       ref={composerRootRef}
-      className={`creator-composer relative overflow-hidden ${compactLayout ? "rounded-[22px]" : "rounded-[28px]"} border bg-[#151027]/95 shadow-[0_28px_90px_-48px_rgba(139,92,246,.72)] backdrop-blur-2xl transition ${dragging ? "border-mint/60 ring-2 ring-mint/15" : "border-white/10"}`}
+      className={`creator-composer relative overflow-hidden ${compactLayout ? "rounded-[14px]" : "rounded-[16px]"} border bg-[#111116]/98 shadow-[0_22px_70px_-48px_rgba(0,0,0,.95)] backdrop-blur-xl transition ${dragging ? "border-mint/60 ring-2 ring-mint/15" : "border-white/10"}`}
       onPaste={(event) => {
         if (disabled) return;
         const pasted = Array.from(event.clipboardData.files ?? []).filter((file) => file.type.startsWith("image/"));
