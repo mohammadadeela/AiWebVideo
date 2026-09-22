@@ -206,7 +206,7 @@ export function VideoShowcase() {
               See it <span className="bg-signature-text">in motion.</span>
             </h2>
             <p className="mt-3 max-w-md text-[13px] leading-6 text-text-muted sm:text-sm">
-              Videos selected and uploaded from the admin dashboard.
+              A closer look at what you can create with AiWebVideo.
             </p>
           </div>
 
