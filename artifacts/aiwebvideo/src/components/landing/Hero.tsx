@@ -1,29 +1,28 @@
-import { ArrowRight } from "lucide-react";
+import { Globe2 } from "lucide-react";
 import { ChatWidget } from "@/components/chat/ChatWidget";
 
 export function Hero() {
   return (
-    <section id="generate" className="border-b border-white/[.07]">
-      <div className="mx-auto max-w-7xl px-4 pb-12 pt-12 sm:px-6 sm:pb-16 sm:pt-16 lg:px-8 lg:pb-20 lg:pt-20">
-        <div className="max-w-5xl">
-          <p className="mb-4 text-sm font-medium text-text-muted">Website → Video</p>
-          <h1 className="max-w-[18ch] font-display text-[clamp(2.65rem,7.5vw,5.4rem)] font-semibold leading-[.96] tracking-[-.055em] text-white">
-            Turn your website into a video.
+    <section id="generate" className="relative scroll-mt-20 overflow-hidden border-b border-white/[.06] bg-black/10">
+      <div className="pointer-events-none absolute left-1/2 top-0 h-[420px] w-[980px] -translate-x-1/2 rounded-full bg-violet/[.09] blur-[120px]" />
+      <div className="relative mx-auto max-w-7xl px-4 pb-10 pt-7 sm:px-5 sm:pb-14 sm:pt-11 lg:px-8 lg:pb-16">
+        <div className="mb-6 max-w-5xl sm:mb-7">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[.035] px-3 py-1.5 font-utility text-[9px] uppercase tracking-[.16em] text-mint backdrop-blur">
+            <Globe2 size={12} /> Website → Video
+          </div>
+          <h1 className="mt-10 max-w-5xl font-display text-[clamp(2.35rem,11vw,4.8rem)] font-bold leading-[.96] tracking-[-.055em] text-white">
+            Turn your website
+            <span className="block bg-signature-text">into a video.</span>
           </h1>
-          <p className="mt-6 max-w-2xl text-base leading-7 text-text-muted sm:text-lg sm:leading-8">
-            Turn a website URL into a brand-aware AI marketing video. AiWebVideo reads the site, plans the campaign, generates the film, and keeps the work in one creative workspace.
-          </p>
         </div>
 
-        <div className="mt-9 sm:mt-11">
-          <ChatWidget compactLanding className="w-full" />
-        </div>
-
-        <div className="mt-4 flex flex-col gap-3 text-sm text-text-dim sm:flex-row sm:items-center sm:justify-between">
-          <p>Website analysis &amp; screenshots are free. Pay only when you choose AI generation.</p>
-          <a href="/examples" className="inline-flex min-h-11 shrink-0 items-center gap-2 font-medium text-white transition hover:text-violet">
-            Explore creations <ArrowRight size={15} />
-          </a>
+        <div className="relative w-full">
+          <div className="pointer-events-none absolute -inset-x-6 -inset-y-4 rounded-[44px] bg-gradient-to-r from-violet/[.08] via-pink/[.06] to-gold/[.04] blur-3xl" />
+          <ChatWidget compactLanding className="relative w-full" />
+          <div className="relative mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-[10px] font-medium text-text-dim sm:text-[11px]">
+            <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-mint" />Website analysis & screenshots are free</span>
+            <span>Pay only when you choose AI generation</span>
+          </div>
         </div>
       </div>
     </section>

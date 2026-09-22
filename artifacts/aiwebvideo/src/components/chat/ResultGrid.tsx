@@ -92,7 +92,7 @@ export function ResultGrid({ assets, onUnlock, sourceKind = "website", onGenerat
   return (
     <div className="w-full max-w-4xl space-y-4 animate-fade-in-up">
       {activeVideo && (
-        <div className="overflow-hidden rounded-[22px] border border-white/10 bg-[#0d0d10] shadow-[0_28px_70px_-38px_rgba(139,92,246,.7)]">
+        <div className="overflow-hidden rounded-[22px] border border-white/10 bg-[#0c0917] shadow-[0_28px_70px_-38px_rgba(139,92,246,.7)]">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[.07] px-4 py-3.5">
             <div className="flex items-center gap-2.5">
               <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-mint/10 text-mint"><CheckCircle2 size={16} /></span>
@@ -118,14 +118,14 @@ export function ResultGrid({ assets, onUnlock, sourceKind = "website", onGenerat
       {photos.length > 0 && <GeneratedPhotoPicker photos={photos} selectedGeneratedPhotoIds={selectedGeneratedPhotoIds} onSelectionChange={(next) => { onGeneratedPhotoSelectionChange?.(next); }} />}
 
       {photos.length > 0 && (
-        <div className="overflow-hidden rounded-[22px] border border-white/[.09] bg-[#0d0d10] p-4 shadow-[0_24px_64px_-48px_rgba(0,0,0,.95)] sm:p-5">
+        <div className="overflow-hidden rounded-[22px] border border-white/[.09] bg-[#0c0917] p-4 shadow-[0_28px_70px_-42px_rgba(139,92,246,.75)] sm:p-5">
           <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
             <div><p className="text-sm font-semibold text-white">{photos.length === 4 ? "Your 4 generated photos are ready" : "Your generated photos are ready"}</p><p className="mt-1 text-[10px] text-text-dim">Open any image full size, download directly.</p></div>
             <div className="flex items-center gap-2"><span className="rounded-full border border-mint/15 bg-mint/[.07] px-2.5 py-1 text-[9px] font-semibold text-mint">{photos.length} photos</span></div>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {photos.slice(0, 8).map((photo, index) => (
-              <div key={photo.id} className={`group relative ${photo.aspectRatio === "9:16" ? "aspect-[9/16]" : photo.aspectRatio === "16:9" ? "aspect-video" : "aspect-square"} min-h-64 overflow-hidden rounded-[20px] border border-white/[.1] bg-[linear-gradient(145deg,#17171d,#0b0b0e)]`}>
+              <div key={photo.id} className={`group relative ${photo.aspectRatio === "9:16" ? "aspect-[9/16]" : photo.aspectRatio === "16:9" ? "aspect-video" : "aspect-square"} min-h-64 overflow-hidden rounded-[20px] border border-white/[.1] bg-[linear-gradient(145deg,#171229,#0b0912)]`}>
                 <button type="button" onClick={() => photo.downloadable ? setActivePhoto(photo) : onUnlock()} className="absolute inset-0 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet">
                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_35%_25%,rgba(139,92,246,.22),transparent_36%)]" />
                   <div className="generation-soft-flash pointer-events-none absolute inset-0" />

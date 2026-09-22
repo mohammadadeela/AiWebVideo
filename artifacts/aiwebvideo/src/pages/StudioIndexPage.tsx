@@ -185,15 +185,15 @@ export function StudioIndexPage() {
         }}
       />
 
-      <section className="border-b border-white/[.08] px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
+      <section className="border-b border-white/8 bg-[radial-gradient(circle_at_32%_0%,rgba(116,78,205,.18),transparent_44%)] px-4 py-8 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
-              <p className="text-sm font-medium text-violet">Editor</p>
-              <h1 className="mt-3 max-w-[18ch] font-display text-3xl font-semibold tracking-[-.04em] text-white sm:text-4xl lg:text-5xl">Edit your video or image, not just generate it.</h1>
+              <div className="inline-flex items-center gap-2 rounded-full border border-violet/25 bg-violet/[.08] px-3 py-1 text-xs font-medium text-violet"><Layers3 size={13} />AI Video & Image Editor</div>
+              <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">Edit your video or image, not just generate it.</h1>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-text-muted">Upload your own media or open a finished AiWebVideo generation. Use a real timeline, layers, text, audio, captions, precise transforms and natural-language AI Edit.</p>
-              <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-xs text-text-dim">
-                {EDITOR_FEATURES.map(([, label]) => <span key={label}>{label}</span>)}
+              <div className="mt-4 flex flex-wrap gap-2">
+                {EDITOR_FEATURES.map(([Icon, label]) => <span key={label} className="inline-flex items-center gap-1.5 rounded-full border border-white/[.08] bg-white/[.035] px-2.5 py-1 text-[10px] text-white/70"><Icon size={11} className="text-violet" />{label}</span>)}
               </div>
             </div>
             <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-text-muted hover:text-white">Back to Workspace <ArrowRight size={14} /></Link>
@@ -204,12 +204,12 @@ export function StudioIndexPage() {
               type="button"
               onClick={() => uploadRef.current?.click()}
               disabled={Boolean(creating)}
-              className="group rounded-2xl border border-white/[.12] bg-white/[.045] p-5 text-left transition hover:border-white/[.2] hover:bg-white/[.065] disabled:opacity-50"
+              className="group rounded-2xl border border-violet/35 bg-[linear-gradient(135deg,rgba(139,92,246,.16),rgba(139,92,246,.05))] p-5 text-left transition hover:border-violet/60 hover:bg-violet/[.12] disabled:opacity-50"
             >
-              <span className="grid size-11 place-items-center rounded-xl border border-white/[.1] bg-white/[.06] text-white">{creating === 'upload' ? <Loader2 className="animate-spin" size={20} /> : <Upload size={20} />}</span>
+              <span className="grid size-11 place-items-center rounded-xl bg-violet text-white">{creating === 'upload' ? <Loader2 className="animate-spin" size={20} /> : <Upload size={20} />}</span>
               <h2 className="mt-4 text-lg font-semibold text-white">Upload & edit now</h2>
               <p className="mt-1 max-w-md text-xs leading-5 text-text-muted">Choose a video or image. It opens directly on the editor timeline — no extra “add to timeline” step.</p>
-              <span className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-white">Open editor <ArrowRight size={12} /></span>
+              <span className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-violet">Open editor <ArrowRight size={12} /></span>
             </button>
 
             <button type="button" onClick={() => void create('video','9:16')} disabled={Boolean(creating)} className="rounded-2xl border border-white/10 bg-white/[.035] p-5 text-left transition hover:border-violet/35 hover:bg-violet/[.06] disabled:opacity-50">
@@ -282,8 +282,8 @@ export function StudioIndexPage() {
           </div>
         </section>
 
-        <section className="border-y border-white/[.09] py-5">
-          <div className="flex items-start gap-3"><span className="mt-0.5 shrink-0 text-violet"><Sparkles size={16} /></span><div><h2 className="text-sm font-semibold text-white">AI Edit is inside every editor project</h2><p className="mt-1 text-xs leading-5 text-text-muted">Example: “put this photo on the left at 13 seconds for 4 seconds”, “make it smaller”, “add this text”, or use paid generative image operations when needed. Manual timeline edits do not consume AI credits.</p></div></div>
+        <section className="rounded-2xl border border-violet/20 bg-violet/[.045] p-4 sm:p-5">
+          <div className="flex items-start gap-3"><span className="grid size-9 shrink-0 place-items-center rounded-xl bg-violet/15 text-violet"><Sparkles size={16} /></span><div><h2 className="text-sm font-semibold text-white">AI Edit is inside every editor project</h2><p className="mt-1 text-xs leading-5 text-text-muted">Example: “put this photo on the left at 13 seconds for 4 seconds”, “make it smaller”, “add this text”, or use paid generative image operations when needed. Manual timeline edits do not consume AI credits.</p></div></div>
         </section>
       </div>
     </main>

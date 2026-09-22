@@ -349,8 +349,8 @@ export function AuthModal({ onClose, onSignedIn }: { onClose: () => void; onSign
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true">
-      <div className="chat-scroll max-h-[94dvh] w-full max-w-sm overflow-y-auto rounded-t-2xl border border-border bg-[#0d0d10] p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] animate-fade-in-up sm:max-h-[calc(100dvh-2rem)] sm:rounded-2xl sm:p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2 backdrop-blur-sm sm:p-4" role="dialog" aria-modal="true">
+      <div className="chat-scroll max-h-[calc(100dvh-1rem)] w-full max-w-sm overflow-y-auto rounded-2xl border border-border bg-panel p-4 animate-fade-in-up sm:max-h-[calc(100dvh-2rem)] sm:p-6">
         <div className="mb-5 flex items-center justify-between">
           <Wordmark />
           <button
@@ -362,8 +362,8 @@ export function AuthModal({ onClose, onSignedIn }: { onClose: () => void; onSign
           </button>
         </div>
 
-        <h2 className="mb-1 font-display text-xl font-semibold tracking-[-.025em] text-text-primary">
-          {mode === 'signin' ? 'Sign in to continue'
+        <h2 className="mb-1 font-display text-lg font-bold text-text-primary">
+          {mode === 'signin' ? 'Sign in to unlock'
             : mode === 'signup' ? 'Create your account'
               : mode === 'verify' ? 'Check your email'
                 : mode === 'forgot' ? 'Forgot your password?'

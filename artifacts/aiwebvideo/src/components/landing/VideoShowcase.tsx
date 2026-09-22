@@ -1,65 +1,72 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, Play } from "lucide-react";
+import { ChevronLeft, ChevronRight, Play } from "lucide-react";
 import { fetchMarketingSettings, type MarketingVideo } from "@/lib/api-client";
 import { resolveVideoEmbed } from "@/lib/videoEmbed";
 
-function CampaignMedia({
-  video,
-  eager = false,
-  autoPlay = false,
-}: {
-  video: MarketingVideo;
-  eager?: boolean;
-  autoPlay?: boolean;
-}) {
+function CampaignMedia({ video, eager = false }: { video: MarketingVideo; eager?: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const visibleRef = useRef(true);
   const embed = resolveVideoEmbed(video.url ?? "");
 
   useEffect(() => {
-    if (!autoPlay || embed.kind !== "file" || !videoRef.current) return;
+    if (embed.kind !== "file" || !videoRef.current) return;
     const player = videoRef.current;
+    let disposed = false;
+    const timers: number[] = [];
     const resume = () => {
-      if (!visibleRef.current || document.visibilityState === "hidden") return;
+      if (disposed || !visibleRef.current || document.visibilityState === "hidden") return;
       player.defaultMuted = true;
       player.muted = true;
       player.playsInline = true;
       void player.play().catch(() => {});
     };
-    const observer =
-      typeof IntersectionObserver === "undefined"
-        ? null
-        : new IntersectionObserver(
-            ([entry]) => {
-              visibleRef.current = Boolean(entry?.isIntersecting);
-              if (visibleRef.current) resume();
-              else player.pause();
-            },
-            { rootMargin: "120px", threshold: 0.05 },
-          );
+    const retry = (delay: number) => {
+      timers.push(window.setTimeout(resume, delay));
+    };
+    const resumeWhenVisible = () => {
+      if (document.visibilityState === "visible") resume();
+    };
+    const observer = typeof IntersectionObserver === "undefined"
+      ? null
+      : new IntersectionObserver(([entry]) => {
+          visibleRef.current = Boolean(entry?.isIntersecting);
+          if (visibleRef.current) resume();
+          else player.pause();
+        }, { rootMargin: "160px", threshold: 0.01 });
 
     observer?.observe(player);
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") resume();
-      else player.pause();
-    };
-
     player.addEventListener("canplay", resume);
-    document.addEventListener("visibilitychange", onVisibility);
-    resume();
+    player.addEventListener("loadeddata", resume);
+    player.addEventListener("pause", resume);
+    player.addEventListener("stalled", resume);
+    document.addEventListener("visibilitychange", resumeWhenVisible);
+    window.addEventListener("pageshow", resume);
+    window.addEventListener("focus", resume);
+    window.addEventListener("online", resume);
+    document.addEventListener("pointerdown", resume, { passive: true });
+    [0, 250, 1_000, 3_000, 8_000].forEach(retry);
 
     return () => {
+      disposed = true;
+      timers.forEach((timer) => window.clearTimeout(timer));
       observer?.disconnect();
       player.removeEventListener("canplay", resume);
-      document.removeEventListener("visibilitychange", onVisibility);
+      player.removeEventListener("loadeddata", resume);
+      player.removeEventListener("pause", resume);
+      player.removeEventListener("stalled", resume);
+      document.removeEventListener("visibilitychange", resumeWhenVisible);
+      window.removeEventListener("pageshow", resume);
+      window.removeEventListener("focus", resume);
+      window.removeEventListener("online", resume);
+      document.removeEventListener("pointerdown", resume);
     };
-  }, [autoPlay, embed.kind, embed.src]);
+  }, [embed.kind, embed.src]);
 
   if (embed.kind !== "file") {
     return (
       <iframe
         src={embed.src}
-        title={video.caption || "AiWebVideo creation"}
+        title={video.caption || "AiWebVideo campaign film"}
         className="pointer-events-none h-full w-full border-0"
         loading={eager ? "eager" : "lazy"}
         allow="autoplay; encrypted-media"
@@ -74,52 +81,61 @@ function CampaignMedia({
       src={embed.src}
       poster={video.posterUrl ?? undefined}
       muted
-      loop={autoPlay}
+      loop
       playsInline
-      autoPlay={autoPlay}
-      preload={eager ? "auto" : "metadata"}
+      autoPlay
+      preload="auto"
       controls={false}
       disablePictureInPicture
       controlsList="nodownload nofullscreen noremoteplayback"
       tabIndex={-1}
-      aria-label={video.caption || "AiWebVideo creation"}
-      className="h-full w-full object-cover"
+      aria-label={video.caption || "AiWebVideo campaign film"}
+      className="pointer-events-none h-full w-full object-cover"
+      onCanPlay={() => {
+        const player = videoRef.current;
+        if (!player) return;
+        player.muted = true;
+        void player.play().catch(() => {});
+      }}
     />
   );
 }
 
-function EmptyShowcase() {
+function PlaceholderFilm() {
   return (
-    <div className="flex aspect-video h-full w-full items-center justify-center bg-[#0c0c0f] px-6 text-center">
-      <div>
-        <Play size={24} className="mx-auto text-text-dim" />
-        <p className="mt-4 text-base font-semibold text-white">Showcase media is managed from Admin.</p>
-        <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-text-muted">
-          Add or enable real AiWebVideo creations to feature them here.
-        </p>
+    <div className="generation-grid relative h-full w-full overflow-hidden bg-[#0b0815]">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_32%,rgba(139,92,246,.35),transparent_42%),radial-gradient(circle_at_70%_76%,rgba(236,72,153,.16),transparent_36%)]" />
+      <div className="generation-scan absolute inset-x-0 top-1/2 h-px bg-gradient-to-r from-transparent via-mint to-transparent" />
+      <div className="absolute inset-0 flex flex-col items-center justify-center px-8 text-center">
+        <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/15 bg-white/[.07] text-mint shadow-[0_0_60px_rgba(45,212,191,.2)]">
+          <Play size={22} className="ml-0.5" />
+        </span>
+        <p className="font-display text-2xl font-bold text-white sm:text-3xl">Your campaign belongs here.</p>
+        <p className="mt-3 max-w-sm text-xs leading-5 text-text-dim">Start with a website, idea, product, or space. Finish in one creative chat.</p>
       </div>
     </div>
   );
 }
 
-function SupportingCreation({ video, autoPlay, expanded = false }: { video: MarketingVideo; autoPlay: boolean; expanded?: boolean }) {
+function SupportingFilm({ video, index }: { video: MarketingVideo; index: number }) {
   return (
-    <article className={expanded ? "group min-w-0" : "group min-w-[72%] snap-start sm:min-w-[42%] lg:min-w-0"}>
-      <div className="relative aspect-[4/5] overflow-hidden rounded-[14px] border border-white/[.09] bg-black">
-        <CampaignMedia video={video} autoPlay={autoPlay} />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent px-4 pb-4 pt-14">
-          {video.eyebrow ? <p className="text-xs text-white/60">{video.eyebrow}</p> : null}
-          <p className="mt-1 line-clamp-2 text-sm font-medium leading-5 text-white">
-            {video.caption || video.overlayText || "AiWebVideo creation"}
-          </p>
-        </div>
+    <article className="relative h-full overflow-hidden rounded-[20px] border border-white/10 bg-[#0d0919] transition duration-300 hover:-translate-y-1 hover:border-violet/40">
+      <div className="relative aspect-[9/16] overflow-hidden bg-black">
+        <CampaignMedia video={video} />
+      </div>
+      <div className="p-3">
+        <p className="font-utility text-[8px] uppercase tracking-[.16em] text-violet">{video.eyebrow || `Campaign ${index + 1}`}</p>
+        <p className="mt-1 line-clamp-2 text-xs font-semibold leading-5 text-white">{video.caption || "AI-directed campaign film"}</p>
       </div>
     </article>
   );
 }
 
-export function VideoShowcase({ expanded = false }: { expanded?: boolean } = {}) {
+export function VideoShowcase() {
   const [settings, setSettings] = useState<Awaited<ReturnType<typeof fetchMarketingSettings>> | null>(null);
+  const [activeSlide, setActiveSlide] = useState(0);
+  const sliderRef = useRef<HTMLDivElement>(null);
+  const scrollFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -135,51 +151,115 @@ export function VideoShowcase({ expanded = false }: { expanded?: boolean } = {})
 
   const videos = settings?.videos.showcase.filter((video) => video.url) ?? [];
   const featured = videos[0];
-  const supporting = expanded ? videos.slice(1, 13) : videos.slice(1, 5);
+  const supporting = videos.slice(1);
+
+  useEffect(() => {
+    setActiveSlide((current) => Math.min(current, Math.max(0, supporting.length - 1)));
+  }, [supporting.length]);
+
+  useEffect(() => () => {
+    if (scrollFrameRef.current !== null) window.cancelAnimationFrame(scrollFrameRef.current);
+  }, []);
+
+  function supportingSlides() {
+    return Array.from(sliderRef.current?.children ?? []).filter(
+      (child): child is HTMLElement => child instanceof HTMLElement && child.dataset.videoSlide === "true",
+    );
+  }
+
+  function syncActiveSlide() {
+    if (scrollFrameRef.current !== null) window.cancelAnimationFrame(scrollFrameRef.current);
+    scrollFrameRef.current = window.requestAnimationFrame(() => {
+      scrollFrameRef.current = null;
+      const slider = sliderRef.current;
+      const slides = supportingSlides();
+      if (!slider || !slides.length) return;
+      const viewportCenter = slider.scrollLeft + slider.clientWidth / 2;
+      let closestIndex = 0;
+      slides.forEach((slide, index) => {
+        const currentDistance = Math.abs(slides[closestIndex].offsetLeft + slides[closestIndex].offsetWidth / 2 - viewportCenter);
+        const nextDistance = Math.abs(slide.offsetLeft + slide.offsetWidth / 2 - viewportCenter);
+        if (nextDistance < currentDistance) closestIndex = index;
+      });
+      setActiveSlide(closestIndex);
+    });
+  }
+
+  function scrollToSlide(index: number) {
+    const slider = sliderRef.current;
+    if (!slider || !supporting.length) return;
+    const nextIndex = Math.max(0, Math.min(supporting.length - 1, index));
+    const slide = supportingSlides()[nextIndex];
+    if (!slide) return;
+    slider.scrollTo({ left: Math.max(0, slide.offsetLeft - (slider.clientWidth - slide.offsetWidth) / 2), behavior: "smooth" });
+    setActiveSlide(nextIndex);
+  }
 
   return (
-    <section id="campaign-films" className="border-b border-white/[.07] bg-white/[.012]">
-      <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
-        <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-          <div className="max-w-2xl">
-            <p className="text-sm font-medium text-violet">Selected work</p>
-            <h2 className="mt-3 font-display text-3xl font-semibold tracking-[-.04em] text-white sm:text-4xl lg:text-5xl">
-              See the output before you create.
+    <section id="campaign-films" className="relative overflow-hidden border-b border-white/[.06]">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_0%,rgba(139,92,246,.2),transparent_34%),radial-gradient(circle_at_88%_32%,rgba(236,72,153,.12),transparent_32%)]" />
+      <div className="hero-mesh pointer-events-none absolute inset-0 opacity-70" />
+      <div className="relative mx-auto w-full max-w-7xl px-4 py-7 sm:px-5 sm:py-10 lg:px-8 lg:py-12">
+        <div className="grid w-full min-w-0 grid-cols-1 gap-6 lg:grid-cols-[.62fr_1.38fr] lg:items-center lg:gap-8">
+          <div className="min-w-0 max-w-xl">
+            <h2 className="max-w-[15ch] [text-wrap:balance] font-display text-[clamp(2.1rem,10vw,3.35rem)] font-bold leading-[.98] tracking-[-.045em] text-white sm:max-w-none">
+              See it <span className="bg-signature-text">in motion.</span>
             </h2>
-            <p className="mt-4 max-w-xl text-sm leading-7 text-text-muted sm:text-base">
-              A small selection from the media configured for AiWebVideo. Explore holds the larger library.
+            <p className="mt-3 max-w-md text-[13px] leading-6 text-text-muted sm:text-sm">
+              A closer look at what you can create with AiWebVideo.
             </p>
           </div>
-          <a href="/examples" className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-white transition hover:text-violet">
-            Explore all creations <ArrowRight size={15} />
-          </a>
-        </div>
 
-        <div className={expanded ? "mt-9 space-y-5" : "mt-9 grid gap-4 lg:grid-cols-[1.45fr_.75fr] lg:gap-5"}>
-          <div>
-            <div className="aspect-video overflow-hidden rounded-[16px] border border-white/[.1] bg-black">
-              {featured ? <CampaignMedia video={featured} eager autoPlay /> : <EmptyShowcase />}
+          <div className="relative w-full min-w-0 max-w-full">
+            <div className="pointer-events-none absolute -inset-8 rounded-[48px] bg-gradient-to-br from-violet/10 via-pink/[.08] to-mint/5 blur-3xl" />
+            <div className="relative">
+              <div className="relative aspect-video w-full min-w-0 overflow-hidden rounded-[20px] border border-white/12 bg-black shadow-[0_34px_100px_-48px_rgba(139,92,246,.85)] sm:rounded-[24px]">
+                {featured ? <CampaignMedia video={featured} eager /> : <PlaceholderFilm />}
+              </div>
+              {featured && (
+                <div className="mt-3 px-1">
+                  <p className="font-utility text-[8px] uppercase tracking-[.16em] text-mint">{featured.eyebrow || "Featured campaign"}</p>
+                  <p className="mt-1 text-sm font-semibold leading-5 text-white">{featured.caption || featured.overlayText || "AI-directed campaign film"}</p>
+                </div>
+              )}
+              <div ref={sliderRef} onScroll={syncActiveSlide} role="region" aria-roledescription="carousel" aria-label="Portrait campaign video slider" className="landing-video-slider chat-scroll mt-4 flex w-full max-w-full snap-x snap-mandatory gap-3 overflow-x-auto pb-2 scroll-smooth overscroll-x-contain touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-1 sm:w-auto sm:snap-none sm:px-1">
+                {supporting.length ? (
+                  supporting.map((video, index) => (
+                    <div
+                      key={video.id}
+                      data-video-slide="true"
+                      role="group"
+                      aria-label={`Campaign video ${index + 1} of ${supporting.length}`}
+                      className="min-w-[calc((100%_-_0.75rem)/2)] basis-[calc((100%_-_0.75rem)/2)] shrink-0 snap-start sm:min-w-[145px] sm:basis-[calc((100%_-_0.75rem)/2)] lg:min-w-0 lg:basis-[calc((100%_-_2.25rem)/4)]"
+                    >
+                      <SupportingFilm video={video} index={index + 1} />
+                    </div>
+                  ))
+                ) : (
+                  <div className="flex min-h-[240px] min-w-[145px] basis-[44%] shrink-0 flex-col justify-end rounded-[20px] border border-dashed border-white/15 bg-white/[.025] p-4 sm:basis-[calc((100%_-_0.75rem)/2)] lg:min-w-0 lg:basis-[calc((100%_-_2.25rem)/4)]">
+                    <p className="font-utility text-[8px] uppercase tracking-[.18em] text-mint">Generated for the brand</p>
+                    <p className="mt-2 text-xs leading-5 text-text-muted">Campaign examples load here from the existing marketing-video settings.</p>
+                  </div>
+                )}
+              </div>
+              {supporting.length > 1 && (
+                <div className="mt-2 flex items-center justify-between gap-3 px-1 sm:hidden">
+                  <button type="button" onClick={() => scrollToSlide(activeSlide - 1)} disabled={activeSlide === 0} aria-label="Previous campaign video" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[.045] text-white transition active:scale-95 disabled:opacity-30">
+                    <ChevronLeft size={17} />
+                  </button>
+                  <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5" aria-label={`Video ${activeSlide + 1} of ${supporting.length}`}>
+                    {supporting.map((video, index) => (
+                      <button key={video.id} type="button" onClick={() => scrollToSlide(index)} aria-label={`Show campaign video ${index + 1}`} aria-current={activeSlide === index ? "true" : undefined} className="flex h-8 min-w-6 items-center justify-center">
+                        <span className={`block h-1.5 rounded-full transition-all ${activeSlide === index ? "w-6 bg-mint" : "w-1.5 bg-white/20"}`} />
+                      </button>
+                    ))}
+                  </div>
+                  <button type="button" onClick={() => scrollToSlide(activeSlide + 1)} disabled={activeSlide === supporting.length - 1} aria-label="Next campaign video" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[.045] text-white transition active:scale-95 disabled:opacity-30">
+                    <ChevronRight size={17} />
+                  </button>
+                </div>
+              )}
             </div>
-            {featured ? (
-              <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
-                <p className="text-sm font-semibold text-white">
-                  {featured.caption || featured.overlayText || "Featured creation"}
-                </p>
-                {featured.eyebrow ? <p className="text-xs text-text-dim">{featured.eyebrow}</p> : null}
-              </div>
-            ) : null}
-          </div>
-
-          <div className={expanded ? "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3" : "flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:grid lg:grid-cols-2 lg:overflow-visible lg:pb-0"}>
-            {supporting.length ? (
-              supporting.map((video, index) => (
-                <SupportingCreation key={video.id} video={video} autoPlay={!expanded && index === 0} expanded={expanded} />
-              ))
-            ) : (
-              <div className="flex min-h-[220px] min-w-[72%] snap-start items-end rounded-[14px] border border-white/[.09] bg-[#0c0c0f] p-4 sm:min-w-[42%] lg:min-w-0">
-                <p className="text-sm leading-6 text-text-muted">More real creations can be added from the existing marketing-media settings.</p>
-              </div>
-            )}
           </div>
         </div>
       </div>
