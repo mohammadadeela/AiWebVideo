@@ -1,4 +1,4 @@
-import { ArrowRight, CheckCircle2, Film, Globe2, House, Image as ImageIcon, Layers3, Link2, Megaphone, MessageCircleMore, PackageOpen, ScanSearch, Sparkles } from "lucide-react";
+import { ArrowRight, Film, Globe2, House, Image as ImageIcon, MessageCircleMore, PackageOpen, ScanSearch } from "lucide-react";
 import { Link } from "wouter";
 import { Nav } from "@/components/landing/Nav";
 import { Footer } from "@/components/landing/Footer";
@@ -416,129 +416,137 @@ function SearchLandingPage({ page }: { page: SeoLanding }) {
     <>
       <Nav />
       <main>
-        <section className="relative overflow-hidden border-b border-white/[.06]">
-          <div className="hero-mesh pointer-events-none absolute inset-0" />
-          <div className="pointer-events-none absolute left-1/2 top-[-180px] h-[520px] w-[760px] -translate-x-1/2 rounded-full bg-violet/[.12] blur-[150px]" />
-          <div className="relative mx-auto max-w-6xl px-5 py-16 sm:py-24">
-            <div className="mx-auto max-w-4xl text-center">
-              <div className="inline-flex items-center gap-2 rounded-full border border-mint/20 bg-mint/[.06] px-3 py-2 font-utility text-[9px] uppercase tracking-[.18em] text-mint">
-                <Sparkles size={12} /> {page.eyebrow}
+        <section className="border-b border-white/[.07]">
+          <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+            <p className="text-sm font-medium text-violet">{page.eyebrow}</p>
+            <div className="mt-3 grid gap-7 lg:grid-cols-[1fr_.72fr] lg:items-end">
+              <div>
+                <h1 className="max-w-[16ch] font-display text-4xl font-semibold leading-[1.02] tracking-[-.05em] text-white sm:text-5xl lg:text-6xl">
+                  {page.title}
+                </h1>
+                <div className="mt-7 flex flex-wrap gap-3">
+                  <Button asChild><Link href={page.createHref}>{page.primaryLabel} <ArrowRight size={14} /></Link></Button>
+                  <Button variant="secondary" asChild><Link href="/examples">Explore examples</Link></Button>
+                </div>
               </div>
-              <h1 className="mt-6 font-display text-4xl font-bold leading-[1.02] tracking-[-.05em] text-white sm:text-6xl lg:text-7xl">
-                {page.title}
-              </h1>
-              <p className="mx-auto mt-6 max-w-3xl text-sm leading-7 text-text-muted sm:text-lg sm:leading-8">
-                {page.intro}
-              </p>
-              <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-                <Button asChild><Link href={page.createHref}>{page.primaryLabel} <ArrowRight size={14} /></Link></Button>
-                <Button variant="secondary" asChild><Link href="/examples">See examples</Link></Button>
-              </div>
-              <div className="mt-8 flex flex-wrap justify-center gap-2">
-                {page.highlights.map((item) => (
-                  <span key={item} className="inline-flex items-center gap-1.5 rounded-full border border-white/[.08] bg-white/[.025] px-3 py-2 text-[10px] font-medium text-text-muted">
-                    <CheckCircle2 size={12} className="text-mint" /> {item}
-                  </span>
-                ))}
+              <div>
+                <p className="max-w-xl text-sm leading-7 text-text-muted sm:text-base">{page.intro}</p>
+                <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-xs text-text-dim">
+                  {page.highlights.map((item) => <span key={item}>{item}</span>)}
+                </div>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="border-b border-white/[.06] bg-black/10">
-          <div className="mx-auto grid max-w-6xl gap-8 px-5 py-16 lg:grid-cols-[.9fr_1.1fr] lg:items-center lg:py-20">
+        <section className="border-b border-white/[.07] bg-white/[.012]">
+          <div className="mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:px-6 sm:py-20 lg:grid-cols-[.72fr_1.28fr] lg:gap-20 lg:px-8">
             <div>
-              <p className="font-utility text-[9px] uppercase tracking-[.18em] text-violet">Why it works</p>
-              <h2 className="mt-3 font-display text-3xl font-bold tracking-[-.035em] text-white sm:text-4xl">{page.problemTitle}</h2>
-              <p className="mt-5 text-sm leading-7 text-text-muted sm:text-base">{page.problemBody}</p>
+              <p className="text-sm font-medium text-violet">Why this workflow</p>
+              <h2 className="mt-3 max-w-[15ch] font-display text-3xl font-semibold tracking-[-.04em] text-white sm:text-4xl">
+                {page.problemTitle}
+              </h2>
+              <p className="mt-5 max-w-xl text-sm leading-7 text-text-muted sm:text-base">{page.problemBody}</p>
             </div>
-            <div className="rounded-[30px] border border-white/[.08] bg-panel/80 p-5 sm:p-7">
-              <div className="grid gap-3 sm:grid-cols-2">
-                {page.benefits.map(([title, body], index) => (
-                  <article key={title} className="rounded-2xl border border-white/[.07] bg-black/15 p-4">
-                    <span className="font-utility text-[9px] text-violet">0{index + 1}</span>
-                    <h3 className="mt-3 font-display text-base font-semibold text-white">{title}</h3>
-                    <p className="mt-2 text-xs leading-6 text-text-muted">{body}</p>
-                  </article>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
 
-        <section className="border-b border-white/[.06]">
-          <div className="mx-auto max-w-5xl px-5 py-16 lg:py-20">
-            <div className="text-center">
-              <p className="font-utility text-[9px] uppercase tracking-[.18em] text-mint">How it works</p>
-              <h2 className="mt-3 font-display text-3xl font-bold tracking-[-.035em] text-white sm:text-4xl">From source to finished campaign</h2>
-            </div>
-            <div className="mt-10 space-y-3">
-              {page.workflow.map(([title, body], index) => (
-                <article key={title} className="grid gap-4 rounded-[24px] border border-white/[.08] bg-white/[.02] p-5 sm:grid-cols-[54px_1fr] sm:p-6">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-violet/25 bg-violet/[.08] font-utility text-xs font-semibold text-violet">{String(index + 1).padStart(2, "0")}</span>
-                  <div>
-                    <h3 className="font-display text-lg font-semibold text-white">{title}</h3>
-                    <p className="mt-2 text-sm leading-6 text-text-muted">{body}</p>
-                  </div>
+            <div className="border-t border-white/[.09]">
+              {page.benefits.map(([title, body], index) => (
+                <article key={title} className="grid gap-3 border-b border-white/[.09] py-5 sm:grid-cols-[44px_180px_1fr] sm:items-start">
+                  <span className="font-mono text-xs text-text-dim">{String(index + 1).padStart(2, "0")}</span>
+                  <h3 className="text-[15px] font-semibold text-white">{title}</h3>
+                  <p className="text-sm leading-6 text-text-muted">{body}</p>
                 </article>
               ))}
             </div>
           </div>
         </section>
 
-        <section className="border-b border-white/[.06] bg-black/10">
-          <div className="mx-auto max-w-6xl px-5 py-16 lg:py-20">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              {page.useCases.map(([title, body], index) => {
-                const Icon = [Globe2, Film, Megaphone, Layers3][index % 4];
-                return (
-                  <article key={title} className="rounded-[24px] border border-white/[.08] bg-panel p-5">
-                    <Icon size={18} className="text-mint" />
-                    <h3 className="mt-5 font-display text-base font-semibold text-white">{title}</h3>
-                    <p className="mt-2 text-xs leading-6 text-text-muted">{body}</p>
-                  </article>
-                );
-              })}
+        <section className="border-b border-white/[.07]">
+          <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
+            <p className="text-sm font-medium text-violet">How it works</p>
+            <h2 className="mt-3 font-display text-3xl font-semibold tracking-[-.04em] text-white sm:text-4xl">From source to finished creation.</h2>
+            <div className="mt-9 border-t border-white/[.09]">
+              {page.workflow.map(([title, body], index) => (
+                <article key={title} className="grid gap-3 border-b border-white/[.09] py-5 sm:grid-cols-[52px_210px_1fr] sm:items-start">
+                  <span className="font-mono text-xs text-text-dim">{String(index + 1).padStart(2, "0")}</span>
+                  <h3 className="text-[15px] font-semibold text-white">{title}</h3>
+                  <p className="text-sm leading-6 text-text-muted">{body}</p>
+                </article>
+              ))}
             </div>
           </div>
         </section>
 
-        <section className="border-b border-white/[.06]">
-          <div className="mx-auto max-w-4xl px-5 py-16 lg:py-20">
-            <p className="font-utility text-[9px] uppercase tracking-[.18em] text-violet">FAQ</p>
-            <h2 className="mt-3 font-display text-3xl font-bold tracking-[-.035em] text-white">Questions people ask before generating</h2>
-            <div className="mt-8 divide-y divide-white/[.08] border-y border-white/[.08]">
+        <section className="border-b border-white/[.07] bg-white/[.012]">
+          <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
+            <div className="grid gap-10 lg:grid-cols-[.55fr_1.45fr] lg:gap-16">
+              <div>
+                <p className="text-sm font-medium text-violet">Use cases</p>
+                <h2 className="mt-3 font-display text-3xl font-semibold tracking-[-.04em] text-white">Where this fits.</h2>
+              </div>
+              <div className="grid border-t border-white/[.09] md:grid-cols-2">
+                {page.useCases.map(([title, body], index) => (
+                  <article key={title} className={`border-b border-white/[.09] py-5 md:px-6 ${index % 2 === 0 ? "md:border-r md:pl-0" : "md:pr-0"}`}>
+                    <h3 className="text-[15px] font-semibold text-white">{title}</h3>
+                    <p className="mt-2 text-sm leading-6 text-text-muted">{body}</p>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="border-b border-white/[.07]">
+          <div className="mx-auto max-w-5xl px-4 py-14 sm:px-6 sm:py-20">
+            <p className="text-sm font-medium text-violet">FAQ</p>
+            <h2 className="mt-3 font-display text-3xl font-semibold tracking-[-.04em] text-white sm:text-4xl">Questions before you create.</h2>
+            <div className="mt-8 border-t border-white/[.09]">
               {page.faq.map(([question, answer]) => (
-                <details key={question} className="group py-5">
-                  <summary className="cursor-pointer list-none pr-8 font-display text-sm font-semibold text-white sm:text-base">{question}<span className="float-right text-violet transition group-open:rotate-45">+</span></summary>
-                  <p className="mt-3 max-w-3xl text-sm leading-7 text-text-muted">{answer}</p>
+                <details key={question} className="group border-b border-white/[.09] py-5">
+                  <summary className="flex min-h-11 list-none items-center justify-between gap-5 text-[15px] font-semibold text-white">
+                    <span>{question}</span>
+                    <span aria-hidden="true" className="text-xl font-light text-text-dim transition group-open:rotate-45">+</span>
+                  </summary>
+                  <p className="max-w-3xl pb-1 pr-10 text-sm leading-7 text-text-muted">{answer}</p>
                 </details>
               ))}
             </div>
           </div>
         </section>
 
-        <section className="border-b border-white/[.06] bg-black/10">
-          <div className="mx-auto max-w-6xl px-5 py-16">
-            <div className="grid gap-3 md:grid-cols-3">
-              {page.related.map(([title, href, body]) => (
-                <Link key={href} href={href} className="group rounded-[22px] border border-white/[.08] bg-white/[.025] p-5 transition hover:-translate-y-1 hover:border-violet/30">
-                  <h3 className="font-display text-base font-semibold text-white">{title}</h3>
-                  <p className="mt-2 text-xs leading-6 text-text-muted">{body}</p>
-                  <span className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-violet">Explore <ArrowRight size={12} className="transition group-hover:translate-x-1" /></span>
-                </Link>
-              ))}
+        <section className="border-b border-white/[.07] bg-white/[.012]">
+          <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+            <div className="grid gap-5 lg:grid-cols-[.45fr_1.55fr] lg:gap-16">
+              <div>
+                <p className="text-sm font-semibold text-white">Related workflows</p>
+                <p className="mt-2 text-sm leading-6 text-text-muted">Continue with a source or output closer to what you need.</p>
+              </div>
+              <div className="border-t border-white/[.09]">
+                {page.related.map(([title, href, body]) => (
+                  <Link key={href} href={href} className="group grid gap-2 border-b border-white/[.09] py-4 sm:grid-cols-[210px_1fr_auto] sm:items-center">
+                    <h3 className="text-sm font-semibold text-white">{title}</h3>
+                    <p className="text-sm leading-6 text-text-muted">{body}</p>
+                    <ArrowRight size={14} className="text-text-dim transition group-hover:translate-x-1 group-hover:text-white" />
+                  </Link>
+                ))}
+              </div>
             </div>
           </div>
         </section>
 
-        <section className="px-5 py-16">
-          <div className="relative mx-auto max-w-5xl overflow-hidden rounded-[34px] border border-white/10 bg-panel px-6 py-14 text-center">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(139,92,246,.22),transparent_52%)]" />
-            <Link2 size={20} className="relative mx-auto text-mint" />
-            <h2 className="relative mt-4 font-display text-3xl font-bold tracking-[-.035em] text-white">Start with your source and a clear idea</h2>
-            <p className="relative mx-auto mt-3 max-w-xl text-sm leading-6 text-text-muted">Open the creator, add your prompt or references, and review the credit estimate before generating in the same project workspace.</p>
-            <Button className="relative mt-6" asChild><Link href={page.createHref}>{page.primaryLabel} <ArrowRight size={14} /></Link></Button>
+        <section>
+          <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
+            <div className="grid gap-7 border-y border-white/[.09] py-9 lg:grid-cols-[1fr_auto] lg:items-end">
+              <div>
+                <h2 className="max-w-[16ch] font-display text-3xl font-semibold tracking-[-.04em] text-white sm:text-4xl">
+                  Start with your source and a clear direction.
+                </h2>
+                <p className="mt-3 max-w-xl text-sm leading-7 text-text-muted">
+                  Open the creator, add your prompt or references, and review the credit estimate before generating in the same project workspace.
+                </p>
+              </div>
+              <Button asChild><Link href={page.createHref}>{page.primaryLabel} <ArrowRight size={14} /></Link></Button>
+            </div>
           </div>
         </section>
       </main>
