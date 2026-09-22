@@ -202,14 +202,11 @@ export function VideoShowcase() {
       <div className="relative mx-auto w-full max-w-7xl px-4 py-7 sm:px-5 sm:py-10 lg:px-8 lg:py-12">
         <div className="grid w-full min-w-0 grid-cols-1 gap-6 lg:grid-cols-[.62fr_1.38fr] lg:items-center lg:gap-8">
           <div className="min-w-0 max-w-xl">
-            <div className="inline-flex items-center rounded-full border border-white/10 bg-white/[.035] px-3 py-1.5 font-utility text-[8px] uppercase tracking-[.16em] text-mint backdrop-blur">
-              Examples
-            </div>
-            <h2 className="mt-3 max-w-[15ch] [text-wrap:balance] font-display text-[clamp(2.1rem,10vw,3.35rem)] font-bold leading-[.98] tracking-[-.045em] text-white sm:mt-4 sm:max-w-none">
-              See what it can <span className="bg-signature-text">create.</span>
+            <h2 className="max-w-[15ch] [text-wrap:balance] font-display text-[clamp(2.1rem,10vw,3.35rem)] font-bold leading-[.98] tracking-[-.045em] text-white sm:max-w-none">
+              See it <span className="bg-signature-text">in motion.</span>
             </h2>
             <p className="mt-3 max-w-md text-[13px] leading-6 text-text-muted sm:text-sm">
-              Real campaign videos created with AiWebVideo.
+              Videos selected and uploaded from the admin dashboard.
             </p>
           </div>
 
@@ -263,9 +260,6 @@ export function VideoShowcase() {
                 </div>
               )}
             </div>
-            <p className="relative mt-2.5 text-right font-utility text-[8px] uppercase tracking-[.14em] text-text-dim">
-              AI-directed production
-            </p>
           </div>
         </div>
       </div>
