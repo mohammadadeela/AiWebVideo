@@ -104,7 +104,7 @@ function EmptyShowcase() {
 
 function SupportingCreation({ video, autoPlay }: { video: MarketingVideo; autoPlay: boolean }) {
   return (
-    <article className="group min-w-[72%] snap-start sm:min-w-[42%] lg:min-w-0">
+    <article className="group min-w-0 snap-start">
       <div className="relative aspect-[4/5] overflow-hidden rounded-[14px] border border-white/[.09] bg-black">
         <CampaignMedia video={video} autoPlay={autoPlay} />
         <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent px-4 pb-4 pt-14">
@@ -118,7 +118,7 @@ function SupportingCreation({ video, autoPlay }: { video: MarketingVideo; autoPl
   );
 }
 
-export function VideoShowcase() {
+export function VideoShowcase({ expanded = false }: { expanded?: boolean } = {}) {
   const [settings, setSettings] = useState<Awaited<ReturnType<typeof fetchMarketingSettings>> | null>(null);
 
   useEffect(() => {
@@ -135,7 +135,7 @@ export function VideoShowcase() {
 
   const videos = settings?.videos.showcase.filter((video) => video.url) ?? [];
   const featured = videos[0];
-  const supporting = videos.slice(1, 5);
+  const supporting = expanded ? videos.slice(1, 13) : videos.slice(1, 5);
 
   return (
     <section id="campaign-films" className="border-b border-white/[.07] bg-white/[.012]">
@@ -170,10 +170,10 @@ export function VideoShowcase() {
             ) : null}
           </div>
 
-          <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:grid lg:grid-cols-2 lg:overflow-visible lg:pb-0">
+          <div className={expanded ? "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3" : "flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:grid lg:grid-cols-2 lg:overflow-visible lg:pb-0"}>
             {supporting.length ? (
               supporting.map((video, index) => (
-                <SupportingCreation key={video.id} video={video} autoPlay={index === 0} />
+                <SupportingCreation key={video.id} video={video} autoPlay={!expanded && index === 0} />
               ))
             ) : (
               <div className="flex min-h-[220px] min-w-[72%] snap-start items-end rounded-[14px] border border-white/[.09] bg-[#0c0c0f] p-4 sm:min-w-[42%] lg:min-w-0">
