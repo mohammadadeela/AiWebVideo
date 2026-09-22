@@ -32,7 +32,7 @@ export function Footer() {
 
   return (
     <>
-      {location === "/profile" ? <SavedCardsPanel /> : null}
+      {location === "/profile" && <SavedCardsPanel />}
       <footer className="border-t border-white/[.08] bg-[#08080a]">
         <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
           <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
