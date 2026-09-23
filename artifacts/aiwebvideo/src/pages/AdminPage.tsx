@@ -50,7 +50,7 @@ function statusClass(value: unknown) {
 
 function VideoCostMatrix({ rows }: { rows: Row[] }) {
   return <section className="rounded-3xl border border-border bg-panel p-5">
-    <div><h2 className="font-semibold text-text-primary">Every customer video length · provider cost and exact credits</h2><p className="text-xs text-text-dim">Every whole-second duration from 8 seconds to 2 minutes 24 seconds. Customer credits are fixed product pricing and stay consistent with Smart Settings and the server quote.</p></div>
+    <div><h2 className="font-semibold text-text-primary">Every customer video length · provider cost and exact credits</h2><p className="text-xs text-text-dim">Every whole-second duration from 8 to 60 seconds. Customer credits stay consistent with the creator and server quote.</p></div>
     <div className="mt-4 max-h-[520px] overflow-auto rounded-2xl border border-border">
       <table className="w-full min-w-[1060px] text-left text-xs">
         <thead className="sticky top-0 z-10 bg-panel-alt text-text-dim"><tr><th className="p-3">Length</th><th>Continuous ops</th><th>Fast 1080p</th><th>Fast 4K</th><th>Standard 1080p</th><th>Standard 4K</th><th>Customer 1080p</th><th>Customer 4K</th><th className="pr-3">Extras</th></tr></thead>
@@ -601,7 +601,7 @@ export function AdminPage() {
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[.16em] text-violet">Homepage video library</p>
-              <h2 className="mt-2 font-display text-2xl font-bold text-text-primary">Choose the videos shown on the homepage</h2>
+              <h2 className="mt-2 font-display text-2xl font-bold text-text-primary">Publish videos and creative presets</h2>
               <p className="mt-2 max-w-2xl text-sm text-text-muted">Upload videos directly from your computer or paste YouTube, Vimeo, or direct video URLs. The first saved video is the large featured video; the rest appear in the homepage gallery.</p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -681,6 +681,16 @@ export function AdminPage() {
               <label className="block text-xs text-text-muted">Small label<input value={video.eyebrow ?? ''} placeholder="Made by a customer" onChange={(event) => { setMarketing({ ...marketing, videos: { showcase: marketing.videos.showcase.map((item, i) => i === index ? { ...item, eyebrow: event.target.value || null } : item) } }); setDirty(true); }} className="mt-1.5 w-full rounded-xl border border-border bg-bg px-3 py-2.5 text-xs" /></label>
               <label className="block text-xs text-text-muted">Caption<input value={video.caption ?? ''} placeholder="Fashion store launch video" onChange={(event) => { setMarketing({ ...marketing, videos: { showcase: marketing.videos.showcase.map((item, i) => i === index ? { ...item, caption: event.target.value || null } : item) } }); setDirty(true); }} className="mt-1.5 w-full rounded-xl border border-border bg-bg px-3 py-2.5 text-xs" /></label>
               <label className="block text-xs text-text-muted">Text over the video<textarea rows={2} value={video.overlayText ?? ''} placeholder="Created from a real website in minutes" onChange={(event) => { setMarketing({ ...marketing, videos: { showcase: marketing.videos.showcase.map((item, i) => i === index ? { ...item, overlayText: event.target.value || null } : item) } }); setDirty(true); }} className="mt-1.5 w-full resize-none rounded-xl border border-border bg-bg px-3 py-2.5 text-xs" /></label>
+              <div className="border-t border-white/10 pt-3">
+                <label className="block text-xs font-semibold text-white">Make this video a workspace preset
+                  <select value={video.templateMode ?? ''} onChange={(event) => { const value = event.currentTarget.value as NonNullable<typeof video.templateMode> | ''; setMarketing({ ...marketing, videos: { showcase: marketing.videos.showcase.map((item, i) => i === index ? { ...item, templateMode: value || null } : item) } }); setDirty(true); }} className="mt-2 w-full rounded-xl border border-border bg-bg px-3 py-2.5 text-xs text-white">
+                    <option value="">Showcase only</option><option value="photo">Product image</option><option value="product-video">Product video</option><option value="scenario">Talking person / portrait</option><option value="video">AI video</option><option value="interior">Interior</option>
+                  </select>
+                </label>
+                {video.templateMode && <label className="mt-3 block text-xs text-text-muted">Starting prompt for this preset
+                  <textarea rows={3} maxLength={2000} value={video.templatePrompt ?? ''} placeholder="Describe the scene; the user can edit this and add their own references." onChange={(event) => { const value = event.currentTarget.value; setMarketing({ ...marketing, videos: { showcase: marketing.videos.showcase.map((item, i) => i === index ? { ...item, templatePrompt: value || null } : item) } }); setDirty(true); }} className="mt-1.5 w-full resize-none rounded-xl border border-border bg-bg px-3 py-2.5 text-xs" />
+                </label>}
+              </div>
             </div>
           </article>)}
         </div>

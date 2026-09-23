@@ -220,7 +220,7 @@ export function Nav() {
           ) : (
             <>
               <Button className="hidden sm:inline-flex" variant="ghost" size="sm" onClick={() => setShowAuthModal(true)}>Log in</Button>
-              <Button variant="primary" size="sm" className="px-3 text-xs" asChild><a href="/#generate" className="hidden sm:inline-flex">Start creating</a></Button>
+              <Button variant="primary" size="sm" className="px-3 text-xs" asChild><a href="/dashboard" className="hidden sm:inline-flex">Open workspace</a></Button>
             </>
           )}
           <button
@@ -320,7 +320,7 @@ export function Nav() {
               ) : (
                 <div className="grid grid-cols-2 gap-2">
                   <Button variant="secondary" size="md" onClick={() => { setMobileOpen(false); setShowAuthModal(true); }}>Log in</Button>
-                  <Button className="w-full" variant="primary" size="md" asChild><a href="/#generate" onClick={() => setMobileOpen(false)}>Start creating</a></Button>
+                  <Button className="w-full" variant="primary" size="md" asChild><a href="/dashboard" onClick={() => setMobileOpen(false)}>Workspace</a></Button>
                 </div>
               )}
             </div>

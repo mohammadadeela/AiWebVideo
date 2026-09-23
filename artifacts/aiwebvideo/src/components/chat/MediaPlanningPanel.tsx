@@ -200,7 +200,7 @@ export function MediaPlanningPanel({
     else if (selectedIds.length < 30) onSelectionChange([...selectedIds, id]);
   }
 
-  const presets = [8, 32, 64, recommendedSeconds].filter((seconds, index, all) => all.indexOf(seconds) === index);
+  const presets = [8, 16, 32, 60, recommendedSeconds].filter((seconds, index, all) => all.indexOf(seconds) === index);
 
   return <div className="space-y-3 rounded-2xl border border-violet/25 bg-gradient-to-br from-violet/10 to-transparent p-3.5">
     <div className="flex flex-wrap items-start justify-between gap-2">
@@ -249,7 +249,7 @@ export function MediaPlanningPanel({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-[11px] font-semibold text-white">Custom duration</p>
-          <p className="mt-0.5 text-[9px] text-text-dim">Type any whole second from 8 to 144</p>
+          <p className="mt-0.5 text-xs text-text-muted">Type any whole second from 8 to 60</p>
         </div>
         <span className="rounded-full border border-mint/20 bg-mint/10 px-2.5 py-1 font-utility text-[9px] text-mint">{formatDuration(previewSeconds)}</span>
       </div>

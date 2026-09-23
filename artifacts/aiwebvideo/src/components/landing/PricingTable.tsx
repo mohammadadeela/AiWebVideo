@@ -126,15 +126,6 @@ const ONE_TIME_PACKS = [
     note: "A complete marketing video with room for a full story",
     popular: true,
   },
-  {
-    id: "single144" as const,
-    name: "Extended Video",
-    length: "144 seconds",
-    price: "$149.99",
-    amountUsd: 149.99,
-    credits: 582,
-    note: "A longer presentation, tutorial, or detailed brand story",
-  },
 ];
 
 const CREDIT_PACKS = [
@@ -157,15 +148,11 @@ const CREDIT_COSTS = [
     credits: "640 silent · 670 with narration",
   },
   {
-    item: "Full video · 64s · 1080p",
-    credits: "1,280 silent · 1,310 with narration",
+    item: "Full video · 60s · 1080p",
+    credits: "1,200 silent · 1,230 with narration",
   },
   {
-    item: "Extended video · 144s · 1080p",
-    credits: "2,880 silent · 2,910 with narration",
-  },
-  {
-    item: "Custom continuous video · 8s to 2m 24s",
+    item: "Custom continuous video · 8s to 60s",
     credits: "Exact whole-second duration · quote before generation",
   },
   { item: "4K AI video", credits: "30 per generated second · narration +30" },

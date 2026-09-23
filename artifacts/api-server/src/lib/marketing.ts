@@ -7,6 +7,8 @@ export interface MarketingVideo {
   caption: string | null;
   overlayText: string | null;
   eyebrow: string | null;
+  templateMode?: 'video' | 'photo' | 'product-video' | 'scenario' | 'interior' | null;
+  templatePrompt?: string | null;
 }
 
 export interface MarketingSettings {

@@ -68,7 +68,7 @@ export function normalizeJobWorkflow(value: unknown): JobWorkflowState | null {
   const seconds =
     typeof raw.durationSeconds === "number" &&
     Number.isFinite(raw.durationSeconds)
-      ? Math.max(8, Math.min(144, Math.round(raw.durationSeconds)))
+      ? Math.max(8, Math.min(60, Math.round(raw.durationSeconds)))
       : 8;
   const selectedCaptureIds = Array.isArray(raw.selectedCaptureIds)
     ? raw.selectedCaptureIds
@@ -113,7 +113,7 @@ export function normalizeJobWorkflow(value: unknown): JobWorkflowState | null {
             Number.isFinite(raw.requestedDurationSeconds)
           ? Math.max(
               8,
-              Math.min(144, Math.round(raw.requestedDurationSeconds)),
+              Math.min(60, Math.round(raw.requestedDurationSeconds)),
             )
           : undefined,
   };

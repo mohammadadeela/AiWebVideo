@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { ChatWidget } from "@/components/chat/ChatWidget";
+import { CreativePresets } from "@/components/landing/CreativePresets";
 import type { CreationIntent } from "@/components/chat/WebsiteBriefForm";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { Button } from "@/components/ui/app-button";
@@ -115,6 +116,7 @@ export function DashboardClient() {
         setIsSignedIn(!!user);
         setAuthChecked(true);
         if (user) void refresh();
+        else { setMe(null); setJobs([]); setError(null); }
       }),
     [refresh],
   );
@@ -189,7 +191,7 @@ export function DashboardClient() {
     setComposerJobId(jobId);
     setActiveJobId(jobId);
     navigate(`/dashboard?job=${encodeURIComponent(jobId)}`, { replace: true });
-    window.setTimeout(() => void refresh(), 500);
+    if (isSignedIn) window.setTimeout(() => void refresh(), 500);
   }
 
   async function togglePin(item: UserJobSummary) {
@@ -228,33 +230,8 @@ export function DashboardClient() {
       </div>
     );
 
-  if (!isSignedIn)
-    return (
-      <main className="flex min-h-screen items-center justify-center px-5">
-        <div className="max-w-md rounded-3xl border border-border bg-panel p-8 text-center">
-          <img src="/logo.svg" alt="" className="mx-auto h-12 w-12" />
-          <h1 className="mt-4 font-display text-xl font-bold text-text-primary">Sign in to open your workspace</h1>
-          <p className="mt-2 text-sm text-text-muted">
-            Your projects, files, credits, and billing stay connected to your account.
-          </p>
-          <Button className="mt-6" onClick={() => setShowAuthModal(true)}>
-            Sign in to workspace
-          </Button>
-        </div>
-        {showAuthModal && (
-          <AuthModal
-            onClose={() => setShowAuthModal(false)}
-            onSignedIn={() => {
-              setShowAuthModal(false);
-              void refresh();
-            }}
-          />
-        )}
-      </main>
-    );
-
   return (
-    <div className="min-h-screen bg-bg lg:flex">
+    <div className="min-h-screen bg-[#171719] lg:flex">
       {sidebarOpen && (
         <button
           type="button"
@@ -266,7 +243,7 @@ export function DashboardClient() {
       <aside
         id="workspace-project-menu"
         aria-label="Workspace projects"
-        className={`fixed bottom-2.5 left-2.5 top-[4.15rem] z-40 flex w-[min(82vw,292px)] max-w-[calc(100vw-3.25rem)] flex-col overflow-hidden rounded-[22px] border border-white/[.10] bg-[#100c20]/[.99] p-2.5 shadow-[0_28px_80px_-34px_rgba(0,0,0,.98)] backdrop-blur-2xl transition-[transform,opacity] duration-200 sm:left-3 sm:w-[300px] sm:p-3 lg:sticky lg:bottom-auto lg:left-auto lg:top-0 lg:h-screen lg:max-w-none lg:rounded-none lg:border-y-0 lg:border-l-0 lg:border-r lg:bg-[#100c20] lg:shadow-none lg:backdrop-blur-none ${sidebarOpen ? "pointer-events-auto translate-x-0 opacity-100" : "pointer-events-none -translate-x-[115%] opacity-0 lg:pointer-events-auto lg:translate-x-0 lg:opacity-100"} ${sidebarCollapsed ? "lg:w-0 lg:overflow-hidden lg:border-0 lg:p-0" : "lg:w-[286px]"}`}
+        className={`fixed bottom-2.5 left-2.5 top-[4.15rem] z-40 flex w-[min(82vw,292px)] max-w-[calc(100vw-3.25rem)] flex-col overflow-hidden rounded-[22px] border border-white/[.10] bg-[#18181b]/[.99] p-2.5 shadow-[0_28px_80px_-34px_rgba(0,0,0,.98)] backdrop-blur-2xl transition-[transform,opacity] duration-200 sm:left-3 sm:w-[300px] sm:p-3 lg:sticky lg:bottom-auto lg:left-auto lg:top-0 lg:h-screen lg:max-w-none lg:rounded-none lg:border-y-0 lg:border-l-0 lg:border-r lg:bg-[#18181b] lg:shadow-none lg:backdrop-blur-none ${sidebarOpen ? "pointer-events-auto translate-x-0 opacity-100" : "pointer-events-none -translate-x-[115%] opacity-0 lg:pointer-events-auto lg:translate-x-0 lg:opacity-100"} ${sidebarCollapsed ? "lg:w-0 lg:overflow-hidden lg:border-0 lg:p-0" : "lg:w-[286px]"}`}
       >
         <div className="flex items-center justify-between px-2 py-2">
           <Link href="/">
@@ -473,7 +450,7 @@ export function DashboardClient() {
       </aside>
 
       <div className="min-w-0 flex-1">
-        <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-border bg-bg/95 px-2.5 backdrop-blur-xl sm:h-16 sm:px-6">
+        <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-white/10 bg-[#171719]/95 px-2.5 backdrop-blur-xl sm:h-16 sm:px-6">
           <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
             <button
               type="button"
@@ -492,7 +469,6 @@ export function DashboardClient() {
               <p className="text-sm font-semibold text-text-primary">
                 {selectedJobId || composerJobId ? "Creative chat" : "New creation"}
               </p>
-              <p className="hidden text-[10px] text-text-dim sm:block">AI video, product media and website campaigns</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -512,11 +488,12 @@ export function DashboardClient() {
               {me && me.creditsBalance <= 0 ? "Recharge credits" : `${formatCredits(me?.creditsBalance)} credits`}
             </Link>
             {me && <UserMenu email={me.email} plan={me.plan} creditsBalance={me.creditsBalance} isAdmin={me.isAdmin} />}
+            {!isSignedIn && <Button onClick={() => setShowAuthModal(true)}>Sign in</Button>}
           </div>
         </header>
 
         <main
-          className={`flex h-[calc(100dvh-3.5rem)] flex-col sm:h-[calc(100dvh-4rem)] ${selectedJobId || composerJobId ? "overflow-hidden" : "overflow-y-auto p-2.5 sm:p-5 lg:p-6"}`}
+          className={`flex h-[calc(100dvh-3.5rem)] flex-col sm:h-[calc(100dvh-4rem)] ${selectedJobId || composerJobId ? "overflow-hidden" : "overflow-y-auto bg-[radial-gradient(#ffffff12_1px,transparent_1px)] bg-[size:28px_28px] p-2.5 sm:p-5 lg:p-6"}`}
         >
           {error && (
             <div className="mx-auto mb-4 w-full max-w-4xl shrink-0 rounded-xl border border-pink/20 bg-pink/5 px-4 py-3 text-xs text-text-muted">
@@ -546,9 +523,6 @@ export function DashboardClient() {
                 <div className="mb-3 flex items-center justify-between gap-3 px-1">
                   <div>
                     <p className="font-display text-base font-semibold text-white sm:text-xl">Create</p>
-                    <p className="mt-0.5 hidden text-[11px] text-text-dim sm:block">
-                      Start with the website URL or choose another creation mode below.
-                    </p>
                   </div>
                 </div>
               )}
@@ -565,10 +539,20 @@ export function DashboardClient() {
                   onJobCreated={registerComposerJob}
                 />
               </div>
+              {!composerJobId && <CreativePresets inWorkspace />}
             </div>
           )}
         </main>
       </div>
+      {showAuthModal && (
+        <AuthModal
+          onClose={() => setShowAuthModal(false)}
+          onSignedIn={() => {
+            setShowAuthModal(false);
+            void refresh();
+          }}
+        />
+      )}
     </div>
   );
 }

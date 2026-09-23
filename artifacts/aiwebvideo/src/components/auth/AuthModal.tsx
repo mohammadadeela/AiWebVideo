@@ -61,6 +61,8 @@ function firebaseErrorMessage(err: unknown): string {
     'auth/unauthorized-domain': "This site's domain is not authorized for sign-in yet. An admin needs to add it under Firebase Console -> Authentication -> Settings -> Authorized domains.",
     'auth/operation-not-allowed': 'This sign-in method is not turned on yet. An admin needs to enable it under Firebase Console -> Authentication -> Sign-in method.',
     'auth/popup-blocked': 'Your browser blocked the sign-in popup. Please allow popups for this site and try again.',
+    'auth/web-storage-unsupported': 'Your browser is blocking sign-in storage. Enable cookies for this site, or use email sign-in.',
+    'auth/invalid-continue-uri': 'The sign-in return address is not configured correctly. Please contact support.',
     'auth/popup-closed-by-user': 'The sign-in window was closed before finishing. Please try again.',
     'auth/cancelled-popup-request': 'The sign-in window was closed before finishing. Please try again.',
     'auth/network-request-failed': 'We could not reach the sign-in service. Please check your connection and try again.',
@@ -220,6 +222,8 @@ export function AuthModal({ onClose, onSignedIn }: { onClose: () => void; onSign
         setError('An account already uses this email. Choose Sign in instead.');
       } else if (err instanceof ApiError && err.code === 'INVALID_CREDENTIALS') {
         setError('That email or password is incorrect. Please check both and try again.');
+      } else if (err instanceof ApiError && err.code === 'EMAIL_DELIVERY_FAILED') {
+        setError('We could not send your verification code right now. Please try again later or use Google sign-in.');
       } else if (err instanceof ApiError) {
         setError(err.message);
       } else {

@@ -11,7 +11,7 @@ import * as path from 'node:path';
 import { ASSETS_DIR } from '../lib/capture.js';
 import { clearMarketingSettingsCache, getMarketingSettings, MAX_MARKETING_VIDEOS } from '../lib/marketing.js';
 import { GEMINI_COST_CATALOG } from '../lib/costs.js';
-import { CREDIT_COSTS, MAX_VIDEO_SECONDS, MIN_VIDEO_SECONDS, videoCreditQuote } from '../lib/credits.js';
+import { CREDIT_COSTS, MAX_VIDEO_SECONDS, MAX_CREATOR_VIDEO_SECONDS, MIN_VIDEO_SECONDS, videoCreditQuote } from '../lib/credits.js';
 import { getPayPalReadiness, PRODUCTS } from './paypal.js';
 import { getProviderQueueSnapshot } from '../lib/provider-queue.js';
 import { isR2Configured, uploadBufferToR2 } from '../lib/r2-storage.js';
@@ -52,7 +52,7 @@ router.get('/overview', async (req, res) => {
       query(`SELECT provider,model,operation,unit,COALESCE(SUM(quantity),0)::float quantity,COALESCE(SUM(total_cost_usd),0)::float cost,COUNT(*)::int events FROM generation_cost_events WHERE created_at >= date_trunc('month',NOW()) GROUP BY provider,model,operation,unit ORDER BY cost DESC`),
       query(`SELECT c.id,c.job_id,c.provider,c.model,c.operation,c.quantity,c.unit,c.unit_cost_usd,c.total_cost_usd,c.created_at,j.title FROM generation_cost_events c LEFT JOIN jobs j ON j.id=c.job_id ORDER BY c.created_at DESC LIMIT 30`),
     ]);
-    const videoCostMatrix = Array.from({ length: MAX_VIDEO_SECONDS - MIN_VIDEO_SECONDS + 1 }, (_, index) => {
+    const videoCostMatrix = Array.from({ length: MAX_CREATOR_VIDEO_SECONDS - MIN_VIDEO_SECONDS + 1 }, (_, index) => {
       const seconds = MIN_VIDEO_SECONDS + index;
       const continuousOperations = seconds <= 8 ? 1 : 1 + Math.ceil((seconds - 8) / 7);
       return {
@@ -355,6 +355,8 @@ router.put('/marketing', async (req, res) => {
       caption: nullableText,
       overlayText: nullableText,
       eyebrow: z.string().trim().max(60).nullable(),
+      templateMode: z.enum(['video', 'photo', 'product-video', 'scenario', 'interior']).nullable().optional(),
+      templatePrompt: z.string().trim().max(2000).nullable().optional(),
     });
     const body = z.object({
       heading: z.string().trim().min(1).max(100),

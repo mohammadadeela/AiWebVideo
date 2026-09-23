@@ -118,7 +118,7 @@ export interface Storyboard {
 export const DURATION_OPTIONS = [
   { label: "Quick — 8s", seconds: 8 },
   { label: "Standard — 32s", seconds: 32 },
-  { label: "Full — 64s", seconds: 64 },
+  { label: "Full — 60s", seconds: 60 },
 ] as const;
 
 export const FORMAT_OPTIONS = [
