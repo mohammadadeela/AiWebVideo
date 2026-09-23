@@ -1,8 +1,10 @@
-import { ArrowRight, CheckCircle2, Film, Globe2, House, Image as ImageIcon, Layers3, Link2, Megaphone, MessageCircleMore, PackageOpen, ScanSearch, Sparkles } from "lucide-react";
+import { ArrowRight, Film, Globe2, House, Image as ImageIcon, Layers3, Link2, Megaphone, MessageCircleMore, PackageOpen, ScanSearch } from "lucide-react";
 import { Link } from "wouter";
 import { Nav } from "@/components/landing/Nav";
 import { Footer } from "@/components/landing/Footer";
 import { VideoShowcase } from "@/components/landing/VideoShowcase";
+import { MoreCreationModes } from "@/components/landing/CreationModes";
+import type { CreationIntent } from "@/components/chat/WebsiteBriefForm";
 import { Button } from "@/components/ui/app-button";
 import { useSeo } from "@/lib/useSeo";
 
@@ -411,6 +413,7 @@ const pages: Record<string, SeoLanding> = {
 
 function SearchLandingPage({ page }: { page: SeoLanding }) {
   useSeo({ title: page.seoTitle, description: page.description, path: page.path, faq: page.faq });
+  const currentIntent = new URL(page.createHref, "https://aiwebvideo.com").searchParams.get("create") as CreationIntent;
 
   return (
     <>
@@ -419,31 +422,25 @@ function SearchLandingPage({ page }: { page: SeoLanding }) {
         <section className="relative overflow-hidden border-b border-white/[.06]">
           <div className="hero-mesh pointer-events-none absolute inset-0" />
           <div className="pointer-events-none absolute left-1/2 top-[-180px] h-[520px] w-[760px] -translate-x-1/2 rounded-full bg-violet/[.12] blur-[150px]" />
-          <div className="relative mx-auto max-w-6xl px-5 py-16 sm:py-24">
+          <div className="relative mx-auto max-w-6xl px-5 py-14 sm:py-20">
             <div className="mx-auto max-w-4xl text-center">
-              <div className="inline-flex items-center gap-2 rounded-full border border-mint/20 bg-mint/[.06] px-3 py-2 font-utility text-[9px] uppercase tracking-[.18em] text-mint">
-                <Sparkles size={12} /> {page.eyebrow}
-              </div>
-              <h1 className="mt-6 font-display text-4xl font-bold leading-[1.02] tracking-[-.05em] text-white sm:text-6xl lg:text-7xl">
+              <p className="font-utility text-[10px] uppercase tracking-[.18em] text-mint">{page.eyebrow}</p>
+              <h1 className="mt-5 font-display text-4xl font-bold leading-[1.02] tracking-[-.05em] text-white sm:text-5xl lg:text-6xl">
                 {page.title}
               </h1>
-              <p className="mx-auto mt-6 max-w-3xl text-sm leading-7 text-text-muted sm:text-lg sm:leading-8">
+              <p className="mx-auto mt-5 max-w-3xl text-sm leading-7 text-text-muted sm:text-base sm:leading-8">
                 {page.intro}
               </p>
-              <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+              <div className="mt-7 flex flex-wrap justify-center gap-3">
                 <Button asChild><Link href={page.createHref}>{page.primaryLabel} <ArrowRight size={14} /></Link></Button>
                 <Button variant="secondary" asChild><Link href="/examples">See examples</Link></Button>
               </div>
-              <div className="mt-8 flex flex-wrap justify-center gap-2">
-                {page.highlights.map((item) => (
-                  <span key={item} className="inline-flex items-center gap-1.5 rounded-full border border-white/[.08] bg-white/[.025] px-3 py-2 text-[10px] font-medium text-text-muted">
-                    <CheckCircle2 size={12} className="text-mint" /> {item}
-                  </span>
-                ))}
-              </div>
+              <p className="mt-5 text-xs text-text-dim">See the credit estimate before paid generation.</p>
             </div>
           </div>
         </section>
+
+        <MoreCreationModes currentIntent={currentIntent} />
 
         <section className="border-b border-white/[.06] bg-black/10">
           <div className="mx-auto grid max-w-6xl gap-8 px-5 py-16 lg:grid-cols-[.9fr_1.1fr] lg:items-center lg:py-20">

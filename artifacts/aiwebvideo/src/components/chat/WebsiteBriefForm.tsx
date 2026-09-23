@@ -246,6 +246,9 @@ export function WebsiteBriefForm({
 
   function applyIntent(intent: CreationIntent, userInitiated = false) {
     if (userInitiated && onIntentRequest?.(intent) === false) return;
+    if (userInitiated && window.location.pathname === "/") {
+      window.history.replaceState({}, "", `/?create=${intent}#generate`);
+    }
     const previousIntent = activeModeRef.current;
     activeModeRef.current = intent;
     setActiveMode(intent);

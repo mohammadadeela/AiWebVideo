@@ -15,8 +15,8 @@ export function Footer() {
             <div className="col-span-2 sm:col-span-1">
               <Wordmark />
               <p className="mt-4 max-w-[260px] text-xs leading-6 text-text-dim">
-                AI-directed marketing production from websites, ideas and real
-                product references—all inside one creative workspace.
+                Videos, product imagery, and interior design from your own ideas
+                and references. One creative workspace.
               </p>
             </div>
             <div>
