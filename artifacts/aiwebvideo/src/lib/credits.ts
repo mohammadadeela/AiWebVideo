@@ -23,7 +23,7 @@ export function formatDisplayCredits(value: number | null | undefined): string {
 }
 
 export const MIN_VIDEO_SECONDS = 8;
-export const MAX_VIDEO_SECONDS = 144;
+export const MAX_VIDEO_SECONDS = 60;
 export const VIDEO_SCENE_SECONDS = 8;
 
 export function normalizedGeneratedSeconds(durationSeconds = MIN_VIDEO_SECONDS) {

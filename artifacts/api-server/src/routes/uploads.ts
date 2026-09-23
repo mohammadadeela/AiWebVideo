@@ -6,7 +6,7 @@ import { addJobMessage, createUploadJob, getJob, updateJob } from '../lib/querie
 import { requireAuth, tryAuth } from '../lib/auth.js';
 import { AppError, sendError } from '../lib/errors.js';
 import { saveImageFile } from '../lib/capture.js';
-import { MAX_VIDEO_SECONDS, MIN_VIDEO_SECONDS, videoCreditCost } from '../lib/credits.js';
+import { MAX_CREATOR_VIDEO_SECONDS, MIN_VIDEO_SECONDS, videoCreditCost } from '../lib/credits.js';
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_PHOTOS, normalizeUploadToJpeg, sanitizeUploadTitle, uploadPhotoLabel } from '../lib/uploads.js';
 
 const router = Router();
@@ -86,7 +86,7 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
     const requestedDuration = Number(req.body?.durationSeconds ?? MIN_VIDEO_SECONDS);
     const studioDuration = Number.isInteger(requestedDuration)
       && requestedDuration >= MIN_VIDEO_SECONDS
-      && requestedDuration <= MAX_VIDEO_SECONDS
+      && requestedDuration <= MAX_CREATOR_VIDEO_SECONDS
       ? requestedDuration
       : null;
 

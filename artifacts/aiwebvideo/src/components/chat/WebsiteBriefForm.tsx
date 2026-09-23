@@ -26,6 +26,8 @@ import {
   type IdeaContext,
 } from "@/lib/creativeIdeas";
 import { trackStudioEvent } from "@/lib/studio-api";
+import { CREATIVE_PRESETS, type CreativePreset } from "@/components/landing/CreativePresets";
+import { fetchMarketingSettings } from "@/lib/api-client";
 import type { AudioMode, JobMode } from "./types";
 
 export type CreationIntent =
@@ -88,7 +90,7 @@ const CREATION_MODES = [
   { id: "video" as const, label: "AI Video", short: "AI Video", icon: Film },
   { id: "photo" as const, label: "Product Photos", short: "Photos", icon: ImageIcon },
   { id: "product-video" as const, label: "Product Video", short: "Product", icon: PackageOpen },
-  { id: "scenario" as const, label: "Talking Scene", short: "Talking", icon: MessageCircleMore },
+  { id: "scenario" as const, label: "Talking Person", short: "Talking", icon: MessageCircleMore },
   { id: "interior" as const, label: "Interior Design", short: "Interior", icon: House },
 ] as const;
 
@@ -115,7 +117,7 @@ const NARRATION_LANGUAGES = [
 
 function normalizeDuration(value: number) {
   if (!Number.isFinite(value)) return 8;
-  return Math.max(8, Math.min(144, Math.round(value)));
+  return Math.max(8, Math.min(60, Math.round(value)));
 }
 
 function intentFromSearch(): CreationIntent | null {
@@ -232,8 +234,10 @@ export function WebsiteBriefForm({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [compactPanel, setCompactPanel] = useState<"style" | "ideas" | null>(null);
   const [settings, setSettings] = useState<WebsiteGenerationSettings>(DEFAULT_SETTINGS);
+  const [customDurationDraft, setCustomDurationDraft] = useState<string | null>(null);
   const [selectedWebsiteRecipe, setSelectedWebsiteRecipe] = useState<WebsiteProductionMode | null>(null);
   const [selectedIdea, setSelectedIdea] = useState<CreativeIdea | null>(null);
+  const [personReferenceRequired, setPersonReferenceRequired] = useState(false);
   const [interiorOutput, setInteriorOutput] = useState<"images" | "video">("images");
   const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -253,6 +257,7 @@ export function WebsiteBriefForm({
     activeModeRef.current = intent;
     setActiveMode(intent);
     setSelectedIdea(null);
+    setPersonReferenceRequired(false);
     setCompactPanel(null);
     setSettingsOpen(false);
     setError(null);
@@ -280,6 +285,27 @@ export function WebsiteBriefForm({
       window.removeEventListener("popstate", handleHistoryIntent);
     };
   }, [initialCreationIntent]);
+
+  useEffect(() => {
+    const applyPreset = (preset: CreativePreset) => {
+      applyIntent(preset.intent);
+      setPersonReferenceRequired(preset.intent === "scenario");
+      if (preset.intent === "video" || preset.intent === "scenario") setPrompt(preset.prompt);
+      else setBrief(preset.prompt);
+      window.requestAnimationFrame(() => studioPromptRef.current?.focus());
+    };
+    const initialName = new URLSearchParams(window.location.search).get("preset");
+    const initial = CREATIVE_PRESETS.find((preset) => preset.title === initialName);
+    if (initial) applyPreset(initial);
+    else if (initialName) void fetchMarketingSettings().then((settings) => {
+      const video = settings.videos.showcase.find((item) => item.id === initialName && item.templateMode && item.templatePrompt);
+      if (!video?.templateMode || !video.templatePrompt) return;
+      applyPreset({ title: video.caption || "Video scene", kind: "Video", category: video.templateMode === "scenario" ? "People" : video.templateMode === "interior" ? "Interior" : "Product", intent: video.templateMode, prompt: video.templatePrompt, position: "50% 0%" });
+    }).catch(() => {});
+    const onPreset = (event: Event) => applyPreset((event as CustomEvent<CreativePreset>).detail);
+    window.addEventListener("aiwebvideo:creative-preset", onPreset);
+    return () => window.removeEventListener("aiwebvideo:creative-preset", onPreset);
+  }, []);
 
   const previews = useMemo(
     () => files.map((file) => ({ file, url: URL.createObjectURL(file) })),
@@ -383,14 +409,14 @@ export function WebsiteBriefForm({
         setError("Enter the public website URL you want to turn into a video.");
         return;
       }
-      if (!brief.trim()) {
+      if (!brief.trim() && !landingWebsitePreview) {
         setError("Tell AiWebVideo what the video should communicate before generating.");
         websiteBriefRef.current?.focus();
         return;
       }
       try {
         setError(null);
-        void onSubmit(normalizeWebsiteUrl(url), brief.trim(), settings, files);
+        void onSubmit(normalizeWebsiteUrl(url), brief.trim() || "Show the most useful pages and what this website offers.", settings, files);
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : "Enter a valid public website URL.");
       }
@@ -419,8 +445,14 @@ export function WebsiteBriefForm({
       setError(isInterior ? "Attach at least one clear photo, sketch, plan, elevation, or reference image of the space." : "Attach at least one real product or reference photo.");
       return;
     }
+    if (activeMode === "scenario" && personReferenceRequired && files.length === 0) {
+      setError("Add a portrait of the person before using this scene.");
+      return;
+    }
 
-    const durationSeconds = settings.durationSeconds === "auto" ? 8 : settings.durationSeconds;
+    const durationSeconds = customDurationDraft === null
+      ? (settings.durationSeconds === "auto" ? 8 : settings.durationSeconds)
+      : normalizeDuration(Number(customDurationDraft));
     setError(null);
     void onStudioSubmit({
       studioKind: isProduct ? "product" : activeMode === "scenario" ? "scenario" : "interior",
@@ -451,11 +483,13 @@ export function WebsiteBriefForm({
     : estimateRenderCredits("video", settings.audioMode !== "voice_music", durationSeconds, settings.outputQuality);
   const submitDisabled = disabled || (
     activeMode === "website"
-      ? !url.trim() || !brief.trim()
+      ? !url.trim() || (!brief.trim() && !landingWebsitePreview)
       : isProductMode
         ? files.length === 0 || !brief.trim()
         : isInteriorMode
           ? files.length === 0 || !brief.trim()
+          : activeMode === "scenario" && personReferenceRequired
+            ? files.length === 0 || !prompt.trim()
           : !prompt.trim()
   );
   const createLabel = activeMode === "website"
@@ -473,7 +507,7 @@ export function WebsiteBriefForm({
   return (
     <div
       ref={composerRootRef}
-      className={`creator-composer relative overflow-hidden ${compactLayout ? "rounded-[22px]" : "rounded-[28px]"} border bg-[#151027]/95 shadow-[0_28px_90px_-48px_rgba(139,92,246,.72)] backdrop-blur-2xl transition ${dragging ? "border-mint/60 ring-2 ring-mint/15" : "border-white/10"}`}
+      className={`creator-composer relative overflow-hidden ${compactLayout ? "rounded-[22px]" : "rounded-[28px]"} border bg-[#1c1b20]/95 shadow-[0_28px_90px_-48px_rgba(0,0,0,.9)] backdrop-blur-2xl transition ${dragging ? "border-mint/60 ring-2 ring-mint/15" : "border-white/15"}`}
       onPaste={(event) => {
         if (disabled) return;
         const pasted = Array.from(event.clipboardData.files ?? []).filter((file) => file.type.startsWith("image/"));
@@ -500,7 +534,6 @@ export function WebsiteBriefForm({
       }}
       onDrop={onDrop}
     >
-      <div className="pointer-events-none absolute inset-x-16 -top-24 h-44 rounded-full bg-violet/20 blur-3xl" />
       <input
         ref={inputRef}
         type="file"
@@ -534,7 +567,7 @@ export function WebsiteBriefForm({
               onClick={() => applyIntent(id, true)}
               className={`flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl px-3 text-[10px] font-semibold transition sm:px-4 sm:text-[11px] ${
                 activeMode === id
-                  ? "bg-mint text-[#10231f] shadow-[0_10px_26px_-18px_rgba(114,255,222,.9)]"
+                  ? "bg-[#d8ff19] text-[#181c04] shadow-[0_10px_26px_-18px_rgba(216,255,25,.6)]"
                   : "text-text-muted hover:bg-mint/[.08] hover:text-white"
               }`}
             >
@@ -565,7 +598,6 @@ export function WebsiteBriefForm({
             <p className="font-display text-base font-semibold text-white">
               {activeMode === "website" ? "Create a video from your website" : activeMode === "video" ? "Create an AI video" : activeMode === "photo" ? "Create product photos" : activeMode === "product-video" ? "Create a product video" : activeMode === "interior" ? "Design an interior" : "Create a talking scene"}
             </p>
-            <p className="mt-1 text-[11px] text-text-dim">Describe what you want, then use Ideas only when you want creative inspiration.</p>
           </div>
         )}
 
@@ -592,7 +624,6 @@ export function WebsiteBriefForm({
           <label className="block">
             <span className="mb-1.5 flex items-center justify-between gap-3 text-[11px] font-semibold text-white">
               <span>{activeMode === "website" ? "What should the video highlight?" : activeMode === "video" ? "Describe your video" : activeMode === "photo" ? "Describe the product photos" : activeMode === "product-video" ? "Describe the product video" : activeMode === "interior" ? "Describe the space, measurements and design" : "Describe the talking scene"}</span>
-              <span className="text-[9px] font-normal text-text-dim">Required</span>
             </span>
             <textarea
               ref={activeMode === "website" ? websiteBriefRef : studioPromptRef}
@@ -610,7 +641,7 @@ export function WebsiteBriefForm({
                       ? "Example: Premium ecommerce product photos with soft studio light."
                       : activeMode === "product-video"
                         ? "Example: Slow premium reveal, macro details, strong hero ending."
-                        : "Example: Two founders explain the product naturally in a bright studio."
+                        : "Example: Use my uploaded portrait. Have this person say: ‘Welcome to our new collection.’ Keep natural lip movement and the same face throughout."
               }
               rows={compactLayout ? 3 : 4}
               disabled={disabled}
@@ -650,7 +681,7 @@ export function WebsiteBriefForm({
             className={controlClass(false)}
           >
             <Paperclip size={13} className="text-mint" />
-            {files.length ? `References ${files.length}` : isProductMode ? "Add product photo" : activeMode === "interior" ? "Add space references" : "References"}
+            {files.length ? `References ${files.length}` : isProductMode ? "Add product photo" : activeMode === "scenario" ? "Add person photo" : activeMode === "interior" ? "Add space references" : "References"}
           </button>
 
           <button
@@ -747,25 +778,37 @@ export function WebsiteBriefForm({
             <div className="grid gap-3 sm:grid-cols-2">
               {isVideoMode && (
                 <div className="rounded-xl border border-white/[.07] bg-white/[.02] p-3">
-                  <div className="mb-2 flex items-center justify-between gap-2"><span className="text-[11px] font-semibold text-white">Duration</span><span className="text-[8px] text-text-dim">8–144 sec</span></div>
-                  <div className="grid grid-cols-5 gap-1.5">
+                  <div className="mb-2 flex items-center justify-between gap-2"><span className="text-[11px] font-semibold text-white">Duration</span><span className="text-xs text-text-muted">8–60 sec</span></div>
+                  <div className="grid grid-cols-4 gap-1.5">
                     {DURATION_PRESETS.map((duration) => (
-                      <button key={duration} type="button" onClick={() => setSettings((current) => ({ ...current, durationSeconds: duration }))} className={optionClass(settings.durationSeconds === duration)}>{duration}s</button>
+                      <button key={duration} type="button" onClick={() => { setCustomDurationDraft(null); setSettings((current) => ({ ...current, durationSeconds: duration })); }} className={optionClass(settings.durationSeconds === duration && customDurationDraft === null)}>{duration}s</button>
                     ))}
-                    <label className="relative">
+                  </div>
+                  <label className="mt-2 flex min-h-11 items-center gap-3 rounded-xl border border-white/10 bg-black/20 px-3 text-xs font-semibold text-white focus-within:border-violet/60">
+                    <span>Custom</span>
                       <input
                         type="number"
                         min={8}
-                        max={144}
+                        max={60}
                         step={1}
-                        value={durationSeconds}
-                        onChange={(event) => setSettings((current) => ({ ...current, durationSeconds: normalizeDuration(Number(event.currentTarget.value)) }))}
-                        className="h-10 w-full rounded-xl border border-white/10 bg-black/20 px-1 text-center text-[10px] font-semibold text-white outline-none focus:border-violet/45"
+                        value={customDurationDraft ?? durationSeconds}
+                        onFocus={(event) => event.currentTarget.select()}
+                        onChange={(event) => {
+                          // Read the value synchronously; React clears currentTarget after this event.
+                          setCustomDurationDraft(event.currentTarget.value);
+                        }}
+                        onBlur={() => {
+                          if (customDurationDraft === null) return;
+                          const value = normalizeDuration(Number(customDurationDraft));
+                          setSettings((current) => ({ ...current, durationSeconds: value }));
+                          setCustomDurationDraft(null);
+                        }}
+                        className="h-10 min-w-0 flex-1 bg-transparent px-1 text-right text-sm font-semibold text-white outline-none"
                         aria-label="Custom duration in seconds"
                       />
-                    </label>
-                  </div>
-                  <p className="mt-2 text-[8px] text-text-dim">Current: {durationLabel(durationSeconds)}</p>
+                    <span className="text-text-muted">seconds</span>
+                  </label>
+                  <p className="mt-2 text-xs text-text-muted">Current: {durationLabel(durationSeconds)}</p>
                 </div>
               )}
 
@@ -828,9 +871,9 @@ export function WebsiteBriefForm({
             type="button"
             onClick={submit}
             disabled={submitDisabled}
-            className="premium-button creator-primary-button flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-signature px-5 text-sm font-bold text-white shadow-violet transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45 sm:flex-none sm:min-w-[260px]"
+            className="premium-button creator-primary-button flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-[#d8ff19] px-5 text-sm font-bold text-[#171b03] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45 sm:flex-none sm:min-w-[210px]"
           >
-            <span>{landingWebsitePreview && activeMode === "website" ? "Continue to video" : createLabel}</span>
+            <span>{landingWebsitePreview && activeMode === "website" ? "Capture website" : createLabel}</span>
             {showCreditPricing && <span className="rounded-full border border-white/15 bg-black/15 px-2 py-1 text-[9px] font-semibold text-white/90">{exactCredits} credits</span>}
             <ArrowRight size={15} />
           </button>

@@ -9,8 +9,6 @@ import {
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
   onAuthStateChanged,
-  setPersistence,
-  browserLocalPersistence,
   type Auth,
   type User,
 } from 'firebase/auth';
@@ -37,11 +35,11 @@ function getFirebaseAuth(): Auth {
   return cachedAuth;
 }
 
-async function providerPopup(provider: GoogleAuthProvider | GithubAuthProvider | FacebookAuthProvider) {
+function providerPopup(provider: GoogleAuthProvider | GithubAuthProvider | FacebookAuthProvider) {
   const auth = getFirebaseAuth();
-  // Make provider state explicitly durable. This matters when the OAuth popup
-  // completes while AiWebVideo is backgrounded or the user changes tabs.
-  await setPersistence(auth, browserLocalPersistence);
+  // Open directly in the click task. Awaiting persistence before this call
+  // loses the transient user activation on mobile Safari/Chrome and blocks it.
+  // Firebase's browser default is durable local persistence.
   return signInWithPopup(auth, provider);
 }
 

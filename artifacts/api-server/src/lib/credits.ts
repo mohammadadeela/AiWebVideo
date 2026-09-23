@@ -11,7 +11,10 @@ export const CREDIT_COSTS = {
 };
 
 export const MIN_VIDEO_SECONDS = 8;
+// Historical productions and previously sold long-video credits still use
+// the renderer's 144s ceiling. New customer choices are limited to 60s.
 export const MAX_VIDEO_SECONDS = 144;
+export const MAX_CREATOR_VIDEO_SECONDS = 60;
 export const VIDEO_SCENE_SECONDS = 8;
 
 export function normalizedGeneratedSeconds(durationSeconds = MIN_VIDEO_SECONDS): number {

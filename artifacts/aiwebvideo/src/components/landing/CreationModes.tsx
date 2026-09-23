@@ -23,18 +23,16 @@ export function CreationModes() {
         <div className="max-w-2xl">
           <p className="font-utility text-[10px] uppercase tracking-[.2em] text-mint">Explore the studio</p>
           <h2 className="mt-3 font-display text-3xl font-bold tracking-[-.04em] text-white sm:text-4xl">What will you make?</h2>
-          <p className="mt-3 text-sm leading-6 text-text-muted">Choose a starting point. You can switch modes in the creator at any time.</p>
         </div>
         <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {modes.map(({ intent, title, source, detail, path, icon: Icon, accent, glow }) => (
-            <article key={intent} className={`group relative flex min-h-[205px] flex-col overflow-hidden rounded-[22px] border border-white/[.09] bg-gradient-to-br ${glow} to-panel p-5 transition duration-200 hover:-translate-y-0.5 hover:border-white/25 focus-within:border-white/25`}>
+          {modes.map(({ intent, title, source, path, icon: Icon, accent, glow }) => (
+            <article key={intent} className={`group relative flex min-h-[160px] flex-col overflow-hidden rounded-[22px] border border-white/[.09] bg-gradient-to-br ${glow} to-panel p-5 transition duration-200 hover:-translate-y-0.5 hover:border-white/25 focus-within:border-white/25`}>
               <div className="flex items-start justify-between">
                 <span className={`flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-black/20 ${accent}`}><Icon size={19} /></span>
                 <span className="font-utility text-[9px] uppercase tracking-[.12em] text-text-dim">{source}</span>
               </div>
               <h3 className="mt-6 font-display text-xl font-semibold tracking-[-.025em] text-white">{title}</h3>
-              <p className="mt-1 text-xs leading-5 text-text-muted">{detail}</p>
-              <div className="mt-auto flex items-center gap-5 pt-5">
+              <div className="mt-auto flex items-center gap-5 pt-3">
                 <button type="button" onClick={() => selectMode(intent)} className="inline-flex min-h-10 items-center gap-1.5 rounded-lg text-xs font-semibold text-white transition hover:text-mint focus-visible:outline focus-visible:outline-2 focus-visible:outline-mint">Create <ArrowRight size={13} className="transition group-hover:translate-x-0.5" /></button>
                 <a href={path} className="inline-flex min-h-10 items-center text-xs text-text-muted underline decoration-white/30 underline-offset-4 transition hover:text-white">Learn more</a>
               </div>

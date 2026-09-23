@@ -36,6 +36,7 @@ import {
   videoCreditQuote,
   CREDIT_COSTS,
   MAX_VIDEO_SECONDS,
+  MAX_CREATOR_VIDEO_SECONDS,
   MIN_VIDEO_SECONDS,
   VIDEO_SCENE_SECONDS,
 } from "../lib/credits.js";
@@ -46,7 +47,7 @@ import type { JobStatusResponse, JobWorkflowState } from "../types.js";
 import type { Storyboard } from "../lib/gemini.js";
 
 const router = Router();
-const MAX_REFERENCE_CAPTURES = MAX_VIDEO_SECONDS / VIDEO_SCENE_SECONDS;
+const MAX_REFERENCE_CAPTURES = Math.ceil(MAX_VIDEO_SECONDS / VIDEO_SCENE_SECONDS);
 
 type ActionWindow = { count: number; resetAt: number };
 const generationActionWindows = new Map<string, ActionWindow>();
@@ -454,7 +455,7 @@ router.patch("/:id/workflow", tryAuth, async (req, res) => {
           "linkedin",
           "custom",
         ]),
-        durationSeconds: z.number().int().min(8).max(MAX_VIDEO_SECONDS),
+        durationSeconds: z.number().int().min(8).max(MAX_CREATOR_VIDEO_SECONDS),
         featuresText: z.string().max(2000).nullable(),
         creativeBrief: z.string().max(8000).nullable(),
         aspectRatio: z.enum(["16:9", "9:16", "1:1"]),
@@ -466,7 +467,7 @@ router.patch("/:id/workflow", tryAuth, async (req, res) => {
         websiteAutoFlow: z.boolean().optional(),
         manualRenderAfterPlan: z.boolean().optional(),
         requestedDurationSeconds: z
-          .union([z.literal("auto"), z.number().int().min(8).max(MAX_VIDEO_SECONDS)])
+          .union([z.literal("auto"), z.number().int().min(8).max(MAX_CREATOR_VIDEO_SECONDS)])
           .optional(),
       })
       .parse(req.body);
@@ -584,7 +585,7 @@ router.post("/:id/preflight", requireAuth, async (req, res) => {
           "linkedin",
           "custom",
         ]),
-        durationSeconds: z.number().int().min(MIN_VIDEO_SECONDS).max(MAX_VIDEO_SECONDS),
+        durationSeconds: z.number().int().min(MIN_VIDEO_SECONDS).max(MAX_CREATOR_VIDEO_SECONDS),
         outputQuality: z.enum(["1080p", "4k"]).optional().default("1080p"),
         audioMode: z.enum(["voice_music", "native_audio", "music_only", "silent"]).optional().default("native_audio"),
       })
@@ -647,7 +648,7 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
           "custom",
         ]),
         vibeBrief: z.string().min(1).max(500),
-        durationSeconds: z.number().int().min(MIN_VIDEO_SECONDS).max(MAX_VIDEO_SECONDS).optional().default(8),
+        durationSeconds: z.number().int().min(MIN_VIDEO_SECONDS).max(MAX_CREATOR_VIDEO_SECONDS).optional().default(8),
         featuresText: z.string().max(1000).optional(),
         creativeBrief: z.string().max(8000).optional(),
         aspectRatio: z.enum(["16:9", "9:16", "1:1"]).optional().default("16:9"),

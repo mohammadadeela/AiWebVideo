@@ -313,7 +313,7 @@ const websiteStyles = [
 ] as const;
 
 const smartControls = [
-  { icon: SlidersHorizontal, title: "Duration", body: "Choose a preset duration or use Custom for exact 1-second control from 8 to 144 seconds. The credit quote updates before generation." },
+  { icon: SlidersHorizontal, title: "Duration", body: "Choose a preset duration or use Custom for exact 1-second control from 8 to 60 seconds. The credit quote updates before generation." },
   { icon: MonitorPlay, title: "Format", body: "Choose portrait 9:16, landscape 16:9, or square 1:1 depending on where the result will be used." },
   { icon: Layers3, title: "Quality", body: "Choose 1080p or 4K delivery while keeping the same creation flow." },
   { icon: Volume2, title: "Audio", body: "For video modes, choose scene audio, narration, music only, or silent delivery. Narration also supports language selection." },
@@ -532,7 +532,7 @@ const faqGroups = [
       ],
       [
         "How does it choose the duration?",
-        "You choose the duration before generation. Pick a preset or use Custom for any whole second from 8 to 144, with the credit quote shown before paid generation starts.",
+        "You choose the duration before generation. Pick a preset or use Custom for any whole second from 8 to 60, with the credit quote shown before paid generation starts.",
       ],
     ],
   },

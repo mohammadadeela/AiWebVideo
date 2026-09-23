@@ -10,16 +10,11 @@ export function Hero() {
             Make something
             <span className="block bg-signature-text">worth showing.</span>
           </h1>
-          <p className="mt-5 max-w-2xl text-sm leading-6 text-text-muted sm:text-base sm:leading-7">Create videos, product imagery, and interior designs from a prompt, a website, or your own photos.</p>
         </div>
 
         <div className="relative w-full">
           <div className="pointer-events-none absolute -inset-x-6 -inset-y-4 rounded-[44px] bg-gradient-to-r from-violet/[.08] via-pink/[.06] to-gold/[.04] blur-3xl" />
           <ChatWidget compactLanding className="relative w-full" />
-          <div className="relative mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-[10px] font-medium text-text-dim sm:text-[11px]">
-            <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-mint" />Choose a mode above to start</span>
-            <span>See the credit estimate before generation</span>
-          </div>
         </div>
       </div>
     </section>
