@@ -24,16 +24,32 @@ type SeoCopy = {
 
 type PublicPageDefinition = Omit<SeoPage, 'path' | 'index'> & { copy: SeoCopy };
 
+const MODE_LINKS: Array<[string, string]> = [
+  ['Website Video', '/website-video-generator'],
+  ['AI Video', '/ai-video-generator'],
+  ['Product Photos', '/product-photo-generator'],
+  ['Product Video', '/product-video-generator'],
+  ['Talking Scenes', '/talking-video-generator'],
+  ['Interior Design', '/ai-interior-design-generator'],
+];
+
+const FEATURE_PATHS = new Set([
+  '/url-to-video', '/website-video-generator', '/saas-demo-video-generator', '/product-page-to-video',
+  '/ai-video-generator', '/product-photo-generator', '/product-video-generator', '/talking-video-generator',
+  '/ai-interior-design-generator', '/interior-design-walkthrough-video', '/real-estate-walkthrough-video',
+  '/3d-house-walkthrough', '/ai-architectural-visualization', '/floor-plan-to-3d', '/room-redesign-ai',
+]);
+
 const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
   '/': {
     title: 'AI Video, Product Images & Interior Design | AiWebVideo',
     description:
       'Create website videos, original AI videos, product photos and videos, talking scenes, and interior design images or walkthroughs from your own sources.',
     copy: {
-      eyebrow: 'AI video, product media, and interior design',
-      h1: 'Make videos, product images, and interior design.',
+      eyebrow: 'Creative studio',
+      h1: 'Make something worth showing.',
       intro:
-        'Start with a public website URL, an original idea, product images, dialogue, or photos and plans of a real space. Choose video, images, or a design walkthrough; AiWebVideo keeps references, creative direction, progress, and finished media in one workspace.',
+        'Create videos, product imagery, and interior designs from a prompt, a website, or your own photos. Choose a mode and start in one creative workspace.',
       sections: [
         { heading: 'Website to video', body: 'Paste a public website or product page and describe the audience, offer, and campaign. Public page content and brand cues provide source context for a generated video.' },
         { heading: 'Idea or dialogue to video', body: 'Describe an original scene, or write the people, setting, and dialogue for a talking video. Add optional image references when visual identity matters.' },
@@ -717,8 +733,14 @@ function renderSeoSnapshot(page: SeoPage, publicUrl: string, examples: ReadonlyA
   const faq = copy.faq?.length
     ? `<section><h2>Frequently asked questions</h2>${copy.faq.map(([question, answer]) => `<article><h3>${escapeText(question)}</h3><p>${escapeText(answer)}</p></article>`).join('')}</section>`
     : '';
-  const links = copy.links?.length
-    ? `<nav aria-label="Related AiWebVideo pages"><h2>Explore AiWebVideo</h2><ul>${copy.links.map(([label, href]) => `<li><a href="${escapeAttribute(href)}">${escapeText(label)}</a></li>`).join('')}</ul></nav>`
+  const related = [...(copy.links ?? [])];
+  if (FEATURE_PATHS.has(page.path)) {
+    for (const [label, href] of MODE_LINKS) {
+      if (href !== page.path && !related.some(([, existing]) => existing === href)) related.push([label, href]);
+    }
+  }
+  const links = related.length
+    ? `<nav aria-label="Related AiWebVideo pages"><h2>Explore AiWebVideo</h2><ul>${related.map(([label, href]) => `<li><a href="${escapeAttribute(href)}">${escapeText(label)}</a></li>`).join('')}</ul></nav>`
     : '';
   return `<div class="seo-initial" data-seo-initial="true"><div class="seo-initial__inner"><p class="seo-initial__eyebrow">${escapeText(copy.eyebrow)}</p><h1>${escapeText(copy.h1)}</h1><p class="seo-initial__intro">${escapeText(copy.intro)}</p>${sections}${publishedExamples}${faq}${links}<p class="seo-initial__cta"><a href="${definition.copy.createHref ?? "/?create=website#generate"}">Start creating with AiWebVideo</a></p></div></div>`;
 }
