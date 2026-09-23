@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Play } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { fetchMarketingSettings, type MarketingVideo } from "@/lib/api-client";
 import { resolveVideoEmbed } from "@/lib/videoEmbed";
 
@@ -101,22 +101,6 @@ function CampaignMedia({ video, eager = false }: { video: MarketingVideo; eager?
   );
 }
 
-function PlaceholderFilm() {
-  return (
-    <div className="generation-grid relative h-full w-full overflow-hidden bg-[#0b0815]">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_32%,rgba(139,92,246,.35),transparent_42%),radial-gradient(circle_at_70%_76%,rgba(236,72,153,.16),transparent_36%)]" />
-      <div className="generation-scan absolute inset-x-0 top-1/2 h-px bg-gradient-to-r from-transparent via-mint to-transparent" />
-      <div className="absolute inset-0 flex flex-col items-center justify-center px-8 text-center">
-        <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/15 bg-white/[.07] text-mint shadow-[0_0_60px_rgba(45,212,191,.2)]">
-          <Play size={22} className="ml-0.5" />
-        </span>
-        <p className="font-display text-2xl font-bold text-white sm:text-3xl">Your campaign belongs here.</p>
-        <p className="mt-3 max-w-sm text-xs leading-5 text-text-dim">Start with a website, idea, product, or space. Finish in one creative chat.</p>
-      </div>
-    </div>
-  );
-}
-
 function SupportingFilm({ video, index }: { video: MarketingVideo; index: number }) {
   return (
     <article className="relative h-full overflow-hidden rounded-[20px] border border-white/10 bg-[#0d0919] transition duration-300 hover:-translate-y-1 hover:border-violet/40">
@@ -149,7 +133,7 @@ export function VideoShowcase() {
     };
   }, []);
 
-  const videos = settings?.videos.showcase.filter((video) => video.url) ?? [];
+  const videos = settings?.videos.showcase.filter((video) => video.url && !(video.templateMode && video.templatePrompt)) ?? [];
   const featured = videos[0];
   const supporting = videos.slice(1);
 
@@ -195,6 +179,8 @@ export function VideoShowcase() {
     setActiveSlide(nextIndex);
   }
 
+  if (!featured) return null;
+
   return (
     <section id="campaign-films" className="relative overflow-hidden border-b border-white/[.06]">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_0%,rgba(139,92,246,.2),transparent_34%),radial-gradient(circle_at_88%_32%,rgba(236,72,153,.12),transparent_32%)]" />
@@ -211,7 +197,7 @@ export function VideoShowcase() {
             <div className="pointer-events-none absolute -inset-8 rounded-[48px] bg-gradient-to-br from-violet/10 via-pink/[.08] to-mint/5 blur-3xl" />
             <div className="relative">
               <div className="relative aspect-video w-full min-w-0 overflow-hidden rounded-[20px] border border-white/12 bg-black shadow-[0_34px_100px_-48px_rgba(139,92,246,.85)] sm:rounded-[24px]">
-                {featured ? <CampaignMedia video={featured} eager /> : <PlaceholderFilm />}
+                <CampaignMedia video={featured} eager />
               </div>
               {featured && (
                 <div className="mt-3 px-1">

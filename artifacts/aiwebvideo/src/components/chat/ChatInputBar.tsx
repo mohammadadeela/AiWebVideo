@@ -148,7 +148,7 @@ export function ChatInputBar({
           if (dragDepthRef.current === 0) setDragging(false);
         }}
         onDrop={handleDrop}
-        className={`relative flex items-end gap-1.5 rounded-[26px] bg-white/[.065] p-2 shadow-[0_20px_55px_-32px_rgba(0,0,0,.9)] ring-1 transition ${dragging ? "ring-2 ring-mint/40 bg-mint/[.055]" : "ring-white/[.1] focus-within:ring-violet/35"}`}
+        className={`relative flex items-end gap-1.5 rounded-[22px] border border-violet/[.16] bg-[#1b1530] p-2 shadow-[0_16px_45px_-32px_rgba(139,92,246,.65)] ring-1 transition ${dragging ? "ring-2 ring-mint/40 bg-mint/[.055]" : "ring-white/[.1] focus-within:ring-violet/35"}`}
       >
         {onFiles && (
           <>

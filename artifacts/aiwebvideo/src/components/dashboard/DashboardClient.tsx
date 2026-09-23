@@ -231,7 +231,7 @@ export function DashboardClient() {
     );
 
   return (
-    <div className="min-h-screen bg-[#171719] lg:flex">
+    <div className="min-h-screen bg-bg lg:flex">
       {sidebarOpen && (
         <button
           type="button"
@@ -243,7 +243,7 @@ export function DashboardClient() {
       <aside
         id="workspace-project-menu"
         aria-label="Workspace projects"
-        className={`fixed bottom-2.5 left-2.5 top-[4.15rem] z-40 flex w-[min(82vw,292px)] max-w-[calc(100vw-3.25rem)] flex-col overflow-hidden rounded-[22px] border border-white/[.10] bg-[#18181b]/[.99] p-2.5 shadow-[0_28px_80px_-34px_rgba(0,0,0,.98)] backdrop-blur-2xl transition-[transform,opacity] duration-200 sm:left-3 sm:w-[300px] sm:p-3 lg:sticky lg:bottom-auto lg:left-auto lg:top-0 lg:h-screen lg:max-w-none lg:rounded-none lg:border-y-0 lg:border-l-0 lg:border-r lg:bg-[#18181b] lg:shadow-none lg:backdrop-blur-none ${sidebarOpen ? "pointer-events-auto translate-x-0 opacity-100" : "pointer-events-none -translate-x-[115%] opacity-0 lg:pointer-events-auto lg:translate-x-0 lg:opacity-100"} ${sidebarCollapsed ? "lg:w-0 lg:overflow-hidden lg:border-0 lg:p-0" : "lg:w-[286px]"}`}
+        className={`fixed bottom-2.5 left-2.5 top-[4.15rem] z-40 flex w-[min(82vw,292px)] max-w-[calc(100vw-3.25rem)] flex-col overflow-hidden rounded-[22px] border border-white/[.10] bg-[#100c20]/[.99] p-2.5 shadow-[0_28px_80px_-34px_rgba(0,0,0,.98)] backdrop-blur-2xl transition-[transform,opacity] duration-200 sm:left-3 sm:w-[300px] sm:p-3 lg:sticky lg:bottom-auto lg:left-auto lg:top-0 lg:h-screen lg:max-w-none lg:rounded-none lg:border-y-0 lg:border-l-0 lg:border-r lg:bg-[#100c20] lg:shadow-none lg:backdrop-blur-none ${sidebarOpen ? "pointer-events-auto translate-x-0 opacity-100" : "pointer-events-none -translate-x-[115%] opacity-0 lg:pointer-events-auto lg:translate-x-0 lg:opacity-100"} ${sidebarCollapsed ? "lg:w-0 lg:overflow-hidden lg:border-0 lg:p-0" : "lg:w-[286px]"}`}
       >
         <div className="flex items-center justify-between px-2 py-2">
           <Link href="/">
@@ -450,7 +450,7 @@ export function DashboardClient() {
       </aside>
 
       <div className="min-w-0 flex-1">
-        <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-white/10 bg-[#171719]/95 px-2.5 backdrop-blur-xl sm:h-16 sm:px-6">
+        <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-white/10 bg-bg/95 px-2.5 backdrop-blur-xl sm:h-16 sm:px-6">
           <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
             <button
               type="button"
