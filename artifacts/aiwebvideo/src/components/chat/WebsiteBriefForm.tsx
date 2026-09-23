@@ -137,11 +137,6 @@ function fileSize(value: number) {
   return `${(value / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function durationLabel(seconds: number) {
-  if (seconds < 60) return `${seconds}s`;
-  return `${Math.floor(seconds / 60)}m${seconds % 60 ? ` ${seconds % 60}s` : ""}`;
-}
-
 function optionClass(active: boolean) {
   return `flex min-h-10 items-center justify-center gap-1.5 rounded-xl border px-2.5 text-[11px] font-semibold transition ${
     active
@@ -471,13 +466,6 @@ export function WebsiteBriefForm({
   const isVideoMode = activeMode !== "photo" && (activeMode !== "interior" || interiorOutput === "video");
   const durationSeconds = settings.durationSeconds === "auto" ? 8 : settings.durationSeconds;
   const formatSummary = settings.aspectRatio === "9:16" ? "Portrait" : settings.aspectRatio === "16:9" ? "Wide" : "Square";
-  const audioSummary = settings.audioMode === "voice_music"
-    ? `Narration · ${settings.narrationLanguage.toUpperCase()}`
-    : settings.audioMode === "native_audio"
-      ? "Scene audio"
-      : settings.audioMode === "music_only"
-        ? "Music only"
-        : "Silent";
   const exactCredits = activeMode === "photo" || (activeMode === "interior" && interiorOutput === "images")
     ? estimateRenderCredits("photos", true, 8, "1080p")
     : estimateRenderCredits("video", settings.audioMode !== "voice_music", durationSeconds, settings.outputQuality);
@@ -507,7 +495,7 @@ export function WebsiteBriefForm({
   return (
     <div
       ref={composerRootRef}
-      className={`creator-composer relative overflow-hidden ${compactLayout ? "rounded-[22px]" : "rounded-[28px]"} border bg-[#1c1b20]/95 shadow-[0_28px_90px_-48px_rgba(0,0,0,.9)] backdrop-blur-2xl transition ${dragging ? "border-mint/60 ring-2 ring-mint/15" : "border-white/15"}`}
+      className={`creator-composer relative ${compactLayout ? "rounded-[22px]" : "rounded-[26px]"} border bg-[#171225]/95 shadow-[0_26px_80px_-50px_rgba(139,92,246,.55)] backdrop-blur-2xl transition ${dragging ? "border-mint/60 ring-2 ring-mint/15" : "border-white/15"}`}
       onPaste={(event) => {
         if (disabled) return;
         const pasted = Array.from(event.clipboardData.files ?? []).filter((file) => file.type.startsWith("image/"));
@@ -556,7 +544,7 @@ export function WebsiteBriefForm({
         </div>
       )}
 
-      <div className={`relative border-b border-white/[.08] ${compactLayout ? "p-2" : "p-2.5 sm:p-3"}`}>
+      <div className={`relative border-b border-white/[.07] ${compactLayout ? "px-3 py-2" : "px-4 py-3"}`}>
         <div className="chat-scroll flex gap-1 overflow-x-auto pb-0.5" role="tablist" aria-label="Creation mode">
           {CREATION_MODES.map(({ id, label, short, icon: Icon }) => (
             <button
@@ -565,10 +553,10 @@ export function WebsiteBriefForm({
               role="tab"
               aria-selected={activeMode === id}
               onClick={() => applyIntent(id, true)}
-              className={`flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl px-3 text-[10px] font-semibold transition sm:px-4 sm:text-[11px] ${
+              className={`flex min-h-9 shrink-0 items-center justify-center gap-2 rounded-full px-3 text-xs font-medium transition sm:px-4 ${
                 activeMode === id
-                  ? "bg-[#d8ff19] text-[#181c04] shadow-[0_10px_26px_-18px_rgba(216,255,25,.6)]"
-                  : "text-text-muted hover:bg-mint/[.08] hover:text-white"
+                  ? "bg-white/[.12] text-white"
+                  : "text-text-muted hover:bg-white/[.06] hover:text-white"
               }`}
             >
               <Icon size={14} />
@@ -581,11 +569,7 @@ export function WebsiteBriefForm({
 
       <div className={`relative ${compactLayout ? "p-3 sm:p-4" : "p-4 sm:p-5"}`}>
         {activeMode === "interior" && (
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-300/15 bg-emerald-300/[.04] p-3">
-            <div>
-              <p className="text-[11px] font-semibold text-white">Interior output</p>
-              <p className="mt-0.5 text-[9px] text-text-dim">Images for design review or a continuous walkthrough video.</p>
-            </div>
+          <div className="mb-3 flex flex-wrap items-center gap-3"><span className="text-xs font-medium text-text-muted">Output</span>
             <div className="flex rounded-xl border border-white/10 bg-black/20 p-1">
               <button type="button" onClick={() => setInteriorOutput("images")} className={optionClass(interiorOutput === "images")}>Design images</button>
               <button type="button" onClick={() => setInteriorOutput("video")} className={optionClass(interiorOutput === "video")}>Walkthrough video</button>
@@ -593,20 +577,12 @@ export function WebsiteBriefForm({
           </div>
         )}
 
-        {!compactLayout && (
-          <div className="mb-4">
-            <p className="font-display text-base font-semibold text-white">
-              {activeMode === "website" ? "Create a video from your website" : activeMode === "video" ? "Create an AI video" : activeMode === "photo" ? "Create product photos" : activeMode === "product-video" ? "Create a product video" : activeMode === "interior" ? "Design an interior" : "Create a talking scene"}
-            </p>
-          </div>
-        )}
-
-        <div className="space-y-3">
+        <div className="space-y-2">
           {activeMode === "website" && (
             <label className="block">
-              <span className="mb-1.5 block text-[11px] font-semibold text-white">Website URL</span>
-              <div className="flex items-center gap-3 rounded-2xl border border-mint/30 bg-[#0b0818] px-3 transition focus-within:border-mint/60 focus-within:ring-2 focus-within:ring-mint/10">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-mint/[.08] text-mint"><Globe2 size={16} /></span>
+              <span className="sr-only">Website URL</span>
+              <div className="flex items-center gap-3 rounded-xl border border-white/[.09] bg-white/[.035] px-3 transition focus-within:border-violet/50">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-violet/[.11] text-violet"><Globe2 size={16} /></span>
                 <input
                   value={url}
                   onChange={(event) => setUrl(event.currentTarget.value)}
@@ -615,14 +591,14 @@ export function WebsiteBriefForm({
                   autoComplete="url"
                   placeholder="Paste your website URL — example.com"
                   disabled={disabled}
-                  className="h-13 min-w-0 flex-1 bg-transparent py-3.5 text-sm text-white outline-none placeholder:text-white/40"
+                  className="h-11 min-w-0 flex-1 bg-transparent py-2.5 text-sm text-white outline-none placeholder:text-white/40"
                 />
               </div>
             </label>
           )}
 
           <label className="block">
-            <span className="mb-1.5 flex items-center justify-between gap-3 text-[11px] font-semibold text-white">
+            <span className="sr-only">
               <span>{activeMode === "website" ? "What should the video highlight?" : activeMode === "video" ? "Describe your video" : activeMode === "photo" ? "Describe the product photos" : activeMode === "product-video" ? "Describe the product video" : activeMode === "interior" ? "Describe the space, measurements and design" : "Describe the talking scene"}</span>
             </span>
             <textarea
@@ -643,14 +619,14 @@ export function WebsiteBriefForm({
                         ? "Example: Slow premium reveal, macro details, strong hero ending."
                         : "Example: Use my uploaded portrait. Have this person say: ‘Welcome to our new collection.’ Keep natural lip movement and the same face throughout."
               }
-              rows={compactLayout ? 3 : 4}
+              rows={compactLayout ? 3 : 3}
               disabled={disabled}
-              className="creator-field w-full resize-none rounded-2xl border border-white/[.14] bg-[#0b0818] px-4 py-3 text-sm leading-6 text-white outline-none transition placeholder:text-white/35 focus:border-violet/55 focus:ring-2 focus:ring-violet/10"
+              className="creator-field w-full resize-y rounded-xl border border-white/[.09] bg-white/[.025] px-4 py-3 text-sm leading-6 text-white outline-none transition placeholder:text-white/45 focus:border-violet/55 focus:ring-2 focus:ring-violet/10"
             />
           </label>
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-2">
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/[.07] pt-3">
           {activeMode === "website" && (
             <button
               type="button"
@@ -766,112 +742,72 @@ export function WebsiteBriefForm({
         )}
 
         {settingsOpen && (
-          <div className="mt-3 rounded-2xl border border-white/[.08] bg-[#0f0b1d]/95 p-3 sm:p-4">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold text-white">Generation settings</p>
-                <p className="mt-0.5 text-[9px] text-text-dim">Choose the exact delivery format before generation.</p>
-              </div>
-              <button type="button" onClick={() => setSettingsOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg text-text-dim hover:bg-white/5 hover:text-white" aria-label="Close settings"><X size={13} /></button>
+          <div className="mt-3 space-y-3 rounded-2xl border border-white/[.09] bg-[#100c20] p-3 sm:p-4" aria-label="Generation settings">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-white">Settings</span>
+              <button type="button" onClick={() => setSettingsOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg text-text-muted hover:bg-white/10 hover:text-white" aria-label="Close settings"><X size={15} /></button>
             </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              {isVideoMode && (
-                <div className="rounded-xl border border-white/[.07] bg-white/[.02] p-3">
-                  <div className="mb-2 flex items-center justify-between gap-2"><span className="text-[11px] font-semibold text-white">Duration</span><span className="text-xs text-text-muted">8–60 sec</span></div>
-                  <div className="grid grid-cols-4 gap-1.5">
-                    {DURATION_PRESETS.map((duration) => (
-                      <button key={duration} type="button" onClick={() => { setCustomDurationDraft(null); setSettings((current) => ({ ...current, durationSeconds: duration })); }} className={optionClass(settings.durationSeconds === duration && customDurationDraft === null)}>{duration}s</button>
-                    ))}
-                  </div>
-                  <label className="mt-2 flex min-h-11 items-center gap-3 rounded-xl border border-white/10 bg-black/20 px-3 text-xs font-semibold text-white focus-within:border-violet/60">
-                    <span>Custom</span>
-                      <input
-                        type="number"
-                        min={8}
-                        max={60}
-                        step={1}
-                        value={customDurationDraft ?? durationSeconds}
-                        onFocus={(event) => event.currentTarget.select()}
-                        onChange={(event) => {
-                          // Read the value synchronously; React clears currentTarget after this event.
-                          setCustomDurationDraft(event.currentTarget.value);
-                        }}
-                        onBlur={() => {
-                          if (customDurationDraft === null) return;
-                          const value = normalizeDuration(Number(customDurationDraft));
-                          setSettings((current) => ({ ...current, durationSeconds: value }));
-                          setCustomDurationDraft(null);
-                        }}
-                        className="h-10 min-w-0 flex-1 bg-transparent px-1 text-right text-sm font-semibold text-white outline-none"
-                        aria-label="Custom duration in seconds"
-                      />
-                    <span className="text-text-muted">seconds</span>
-                  </label>
-                  <p className="mt-2 text-xs text-text-muted">Current: {durationLabel(durationSeconds)}</p>
-                </div>
-              )}
-
-              <div className="rounded-xl border border-white/[.07] bg-white/[.02] p-3">
-                <p className="mb-2 text-[11px] font-semibold text-white">Format</p>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {([
-                    ["9:16", Smartphone, "Portrait"],
-                    ["16:9", Monitor, "Wide"],
-                    ["1:1", ImageIcon, "Square"],
-                  ] as const).map(([ratio, Icon, label]) => (
-                    <button key={ratio} type="button" onClick={() => setSettings((current) => ({ ...current, aspectRatio: ratio }))} className={optionClass(settings.aspectRatio === ratio)}><Icon size={13} />{label}</button>
-                  ))}
-                </div>
+            {isVideoMode && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="w-16 shrink-0 text-xs font-medium text-text-muted">Duration</span>
+                {DURATION_PRESETS.map((duration) => (
+                  <button key={duration} type="button" onClick={() => { setCustomDurationDraft(null); setSettings((current) => ({ ...current, durationSeconds: duration })); }} className={optionClass(settings.durationSeconds === duration && customDurationDraft === null)}>{duration}s</button>
+                ))}
+                <label className="flex h-10 items-center gap-1.5 rounded-xl border border-white/10 bg-white/[.035] px-2.5 text-xs text-white focus-within:border-violet/60">
+                  <span>Custom</span>
+                  <input type="number" min={8} max={60} step={1} value={customDurationDraft ?? durationSeconds}
+                    onFocus={(event) => event.currentTarget.select()}
+                    onChange={(event) => setCustomDurationDraft(event.currentTarget.value)}
+                    onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
+                    onBlur={() => {
+                      if (customDurationDraft === null) return;
+                      setSettings((current) => ({ ...current, durationSeconds: normalizeDuration(Number(customDurationDraft)) }));
+                      setCustomDurationDraft(null);
+                    }}
+                    className="w-10 bg-transparent text-center font-semibold text-white outline-none"
+                    aria-label="Custom duration in seconds" />
+                  <span className="text-text-muted">s</span>
+                </label>
+                <span className="text-xs text-text-muted">8–60s</span>
               </div>
-
-              <div className="rounded-xl border border-white/[.07] bg-white/[.02] p-3">
-                <p className="mb-2 text-[11px] font-semibold text-white">Quality</p>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {(["1080p", "4k"] as const).map((quality) => (
-                    <button key={quality} type="button" onClick={() => setSettings((current) => ({ ...current, outputQuality: quality }))} className={optionClass(settings.outputQuality === quality)}>{quality === "4k" ? "4K" : "1080p"}</button>
-                  ))}
-                </div>
-              </div>
-
-              {isVideoMode && (
-                <div className="rounded-xl border border-white/[.07] bg-white/[.02] p-3">
-                  <p className="mb-2 text-[11px] font-semibold text-white">Audio</p>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <button type="button" onClick={() => setSettings((current) => ({ ...current, audioMode: "native_audio" }))} className={optionClass(settings.audioMode === "native_audio")}>Scene audio</button>
-                    <button type="button" onClick={() => setSettings((current) => ({ ...current, audioMode: "voice_music" }))} className={optionClass(settings.audioMode === "voice_music")}><Volume2 size={12} />Narration</button>
-                    <button type="button" onClick={() => setSettings((current) => ({ ...current, audioMode: "music_only" }))} className={optionClass(settings.audioMode === "music_only")}>Music only</button>
-                    <button type="button" onClick={() => setSettings((current) => ({ ...current, audioMode: "silent" }))} className={optionClass(settings.audioMode === "silent")}>Silent</button>
-                  </div>
-                  {settings.audioMode === "voice_music" && (
-                    <select
-                      value={settings.narrationLanguage}
-                      onChange={(event) => setSettings((current) => ({ ...current, narrationLanguage: event.currentTarget.value }))}
-                      className="mt-2 h-10 w-full rounded-xl border border-white/10 bg-[#151027] px-3 text-[10px] font-semibold text-white outline-none focus:border-violet/45"
-                    >
-                      {NARRATION_LANGUAGES.map(([code, label]) => <option key={code} value={code}>{label}</option>)}
-                    </select>
-                  )}
-                  <p className="mt-2 text-[8px] text-text-dim">{audioSummary}</p>
-                </div>
-              )}
+            )}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="w-16 shrink-0 text-xs font-medium text-text-muted">Format</span>
+              {([["9:16", Smartphone, "Portrait"], ["16:9", Monitor, "Wide"], ["1:1", ImageIcon, "Square"]] as const).map(([ratio, Icon, label]) => (
+                <button key={ratio} type="button" onClick={() => setSettings((current) => ({ ...current, aspectRatio: ratio }))} className={optionClass(settings.aspectRatio === ratio)}><Icon size={14} />{label}</button>
+              ))}
             </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="w-16 shrink-0 text-xs font-medium text-text-muted">Quality</span>
+              {(["1080p", "4k"] as const).map((quality) => (
+                <button key={quality} type="button" onClick={() => setSettings((current) => ({ ...current, outputQuality: quality }))} className={optionClass(settings.outputQuality === quality)}>{quality === "4k" ? "4K" : "1080p"}</button>
+              ))}
+            </div>
+            {isVideoMode && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="w-16 shrink-0 text-xs font-medium text-text-muted">Audio</span>
+                {([["native_audio", "Scene"], ["voice_music", "Narration"], ["music_only", "Music"], ["silent", "Silent"]] as const).map(([mode, label]) => (
+                  <button key={mode} type="button" onClick={() => setSettings((current) => ({ ...current, audioMode: mode }))} className={optionClass(settings.audioMode === mode)}>{mode === "voice_music" && <Volume2 size={13} />}{label}</button>
+                ))}
+                {settings.audioMode === "voice_music" && (
+                  <select value={settings.narrationLanguage} onChange={(event) => setSettings((current) => ({ ...current, narrationLanguage: event.currentTarget.value }))}
+                    aria-label="Narration language" className="h-10 rounded-xl border border-white/10 bg-[#171225] px-3 text-xs text-white outline-none focus:border-violet/50">
+                    {NARRATION_LANGUAGES.map(([code, label]) => <option key={code} value={code}>{label}</option>)}
+                  </select>
+                )}
+              </div>
+            )}
           </div>
         )}
 
         {error && <p role="alert" className="mt-3 rounded-xl border border-pink/20 bg-pink/5 px-3 py-2 text-xs text-pink">{error}</p>}
 
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
-          {!compactLayout && (
-            <div className="flex-1 text-[9px] text-text-dim">
-              {isProductMode && !files.length ? "Add a real product photo before generating." : activeMode === "interior" && !files.length ? "Add space references before generating." : `Your setup: ${isVideoMode ? `${durationSeconds}s · ` : ""}${formatSummary} · ${settings.outputQuality}`}
-            </div>
-          )}
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
           <button
             type="button"
             onClick={submit}
             disabled={submitDisabled}
-            className="premium-button creator-primary-button flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-[#d8ff19] px-5 text-sm font-bold text-[#171b03] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45 sm:flex-none sm:min-w-[210px]"
+            className="premium-button creator-primary-button flex min-h-11 items-center justify-center gap-2 rounded-xl bg-signature px-5 text-sm font-semibold text-white shadow-[0_14px_36px_-23px_rgba(139,92,246,.9)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45 sm:min-w-[195px]"
           >
             <span>{landingWebsitePreview && activeMode === "website" ? "Capture website" : createLabel}</span>
             {showCreditPricing && <span className="rounded-full border border-white/15 bg-black/15 px-2 py-1 text-[9px] font-semibold text-white/90">{exactCredits} credits</span>}

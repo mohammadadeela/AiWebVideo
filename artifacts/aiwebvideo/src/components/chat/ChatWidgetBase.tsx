@@ -2518,7 +2518,7 @@ ${request.prompt}`
   return (
     <div
       ref={chatRootRef}
-      className={`relative flex min-h-0 flex-col overflow-hidden ${immersive ? "bg-[#171719]" : `${compactLanding ? "rounded-[20px] sm:rounded-[24px]" : "rounded-[20px] sm:rounded-[30px]"} border border-white/10 bg-[#1c1b20] shadow-[0_34px_110px_-48px_rgba(0,0,0,.8)] backdrop-blur-2xl`} ${className ?? ""}`}
+      className={`relative flex min-h-0 flex-col overflow-hidden ${immersive ? "bg-bg" : `${compactLanding ? "rounded-[20px] sm:rounded-[24px]" : "rounded-[20px] sm:rounded-[30px]"} border border-violet/15 bg-[linear-gradient(180deg,rgba(34,24,62,.96),rgba(17,12,30,.98))] shadow-[0_34px_110px_-48px_rgba(93,51,167,.42)] backdrop-blur-2xl`} ${className ?? ""}`}
     >
       {!immersive && (
         <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-violet/10 to-transparent" />
@@ -2572,7 +2572,7 @@ ${request.prompt}`
         <div
           ref={scrollRef}
           data-chat-messages
-          className={`chat-scroll relative min-h-0 flex-1 overflow-y-auto ${immersive ? "bg-[#171719] px-3 py-5 sm:px-8 sm:py-8" : "bg-[linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,0))] px-4 py-5 sm:px-5"}`}
+          className={`chat-scroll relative min-h-0 flex-1 overflow-y-auto ${immersive ? "bg-bg px-3 py-5 sm:px-8 sm:py-8" : "bg-[linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,0))] px-4 py-5 sm:px-5"}`}
         >
           <div className={`${immersive ? "mx-auto w-full max-w-5xl space-y-6" : "w-full space-y-3"}`}>
             {restoring ? (
