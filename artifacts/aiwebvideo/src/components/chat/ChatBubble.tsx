@@ -47,11 +47,11 @@ export function ChatBubble({
           immersive && isBot
             ? "min-w-0 flex-1 px-1 py-0.5 text-text-primary"
             : immersive
-              ? "max-w-[88%] rounded-[20px] rounded-tr-md border border-violet/20 bg-violet/[.14] px-4 py-2.5 text-white sm:max-w-[78%]"
+              ? "max-w-[88%] rounded-[22px] bg-white/[.085] px-4 py-2.5 text-white sm:max-w-[78%]"
               : clsx(
                   "max-w-[92%] px-4 py-3.5 backdrop-blur-sm sm:max-w-[88%]",
                   isBot
-                    ? "rounded-2xl rounded-tl-md border border-violet/[.12] bg-white/[.035] text-text-primary"
+                    ? "rounded-2xl rounded-tl-md border border-white/[.08] bg-white/[.045] text-text-primary shadow-[0_16px_38px_-28px_rgba(0,0,0,.72)]"
                     : "rounded-2xl rounded-tr-md border border-violet/25 bg-[linear-gradient(135deg,rgba(110,76,255,.96),rgba(220,78,150,.92))] text-white shadow-[0_18px_42px_-26px_rgba(139,92,246,.95)]",
                 ),
         )}

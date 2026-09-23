@@ -2518,7 +2518,7 @@ ${request.prompt}`
   return (
     <div
       ref={chatRootRef}
-      className={`relative flex min-h-0 flex-col overflow-hidden ${immersive ? "bg-bg" : `${compactLanding ? "rounded-[20px] sm:rounded-[24px]" : "rounded-[20px] sm:rounded-[30px]"} border border-violet/15 bg-[linear-gradient(180deg,rgba(34,24,62,.96),rgba(17,12,30,.98))] shadow-[0_34px_110px_-48px_rgba(93,51,167,.42)] backdrop-blur-2xl`} ${className ?? ""}`}
+      className={`relative flex min-h-0 flex-col overflow-hidden ${immersive ? "bg-bg" : `${compactLanding ? "rounded-[20px] sm:rounded-[24px]" : "rounded-[20px] sm:rounded-[30px]"} border border-white/10 bg-[linear-gradient(180deg,rgba(34,24,62,.96),rgba(17,12,30,.98))] shadow-[0_34px_110px_-48px_rgba(139,92,246,.8)] backdrop-blur-2xl`} ${className ?? ""}`}
     >
       {!immersive && (
         <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-violet/10 to-transparent" />
