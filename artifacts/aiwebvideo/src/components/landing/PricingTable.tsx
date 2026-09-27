@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/app-button";
 import { SecureCheckoutModal } from "@/components/billing/SecureCheckoutModal";
 import { SubscriptionCheckoutModal } from "@/components/billing/SubscriptionCheckoutModal";
-import type { CheckoutId } from "@/lib/api-client";
+import { fetchModelPricing, type CheckoutId, type ModelPricingResponse } from "@/lib/api-client";
 import { displayCredits, estimateRenderCredits } from "@/lib/credits";
 import { discountedPrice, fetchWelcomeGrowthOffer, formatUsd, formatWelcomeCountdown, type WelcomeGrowthOffer } from "@/lib/growth";
 
@@ -134,62 +134,6 @@ const CREDIT_PACKS = [
   { id: "topup250" as const, credits: 250, amountUsd: 69.99, note: "For several productions" },
 ];
 
-const CREDIT_COSTS = [
-  {
-    item: "Quick video · 8s · 1080p",
-    credits: "160 silent · 190 with narration",
-  },
-  {
-    item: "Social video · 16s · 1080p",
-    credits: "320 silent · 350 with narration",
-  },
-  {
-    item: "Standard video · 32s · 1080p",
-    credits: "640 silent · 670 with narration",
-  },
-  {
-    item: "Full video · 60s · 1080p",
-    credits: "1,200 silent · 1,230 with narration",
-  },
-  {
-    item: "Custom continuous video · 8s to 60s",
-    credits: "Exact whole-second duration · quote before generation",
-  },
-  { item: "4K AI video", credits: "30 per generated second · narration +30" },
-  { item: "Set of 4 marketing photos · up to 4K", credits: 40 },
-];
-
-const STUDIO_PRICES = [
-  {
-    item: "Product photo set (4 images)",
-    credits: `${estimateRenderCredits("photos", true)} credits`,
-  },
-  {
-    item: "Product video · 8s · 1080p",
-    credits: `${estimateRenderCredits("video", true, 8)} credits`,
-  },
-  {
-    item: "Product photos + video · 8s",
-    credits: `${estimateRenderCredits("both", true, 8)} credits`,
-  },
-  {
-    item: "Custom idea video · 8s with cinematic scene audio",
-    credits: `${estimateRenderCredits("custom", true, 8)} credits`,
-  },
-  {
-    item: "Custom idea video · 8s, narrated",
-    credits: `${estimateRenderCredits("custom", false, 8)} credits`,
-  },
-  {
-    item: "Scenario video · 8s with native dialogue / scene audio",
-    credits: `${estimateRenderCredits("custom", true, 8)} credits`,
-  },
-  {
-    item: "Scenario video · 32s with native dialogue / scene audio",
-    credits: `${estimateRenderCredits("custom", true, 32)} credits`,
-  },
-];
-
 type DirectCheckout = {
   plan: CheckoutId;
   productName: string;
@@ -210,10 +154,12 @@ export function PricingTable() {
   const [now, setNow] = useState(() => Date.now());
   const [directCheckout, setDirectCheckout] = useState<DirectCheckout | null>(null);
   const [subscriptionCheckout, setSubscriptionCheckout] = useState<SubscriptionCheckout | null>(null);
+  const [modelPricing, setModelPricing] = useState<ModelPricingResponse | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     fetchWelcomeGrowthOffer().then((offer) => { if (!cancelled) setWelcomeOffer(offer); }).catch(() => {});
+    fetchModelPricing().then((pricing) => { if (!cancelled) setModelPricing(pricing); }).catch(() => {});
     return () => { cancelled = true; };
   }, []);
 
@@ -226,6 +172,48 @@ export function PricingTable() {
   const activeOffer = welcomeOffer?.active && welcomeOffer.discountPercent > 0 && new Date(welcomeOffer.expiresAt).getTime() > now
     ? welcomeOffer
     : null;
+
+  const creditCosts = useMemo(() => {
+    const narration = modelPricing?.displayNarrationCredits ?? 30;
+    const videoRate = (tier: "cinema1" | "cinema2" | "cinema_pro", quality: "1080p" | "4k") => {
+      const live = modelPricing?.video[tier];
+      if (live) {
+        return quality === "4k"
+          ? (live.displayCreditsPerSecond4k ?? live.displayCreditsPerSecond1080)
+          : live.displayCreditsPerSecond1080;
+      }
+      const eightSecond = estimateRenderCredits("video", true, 8, quality, tier);
+      return Math.max(1, Math.round(eightSecond / 8));
+    };
+    const imageRate = (tier: "graphic1" | "graphic_pro") =>
+      modelPricing?.image[tier].displayCreditsPerImage
+      ?? Math.max(1, Math.round(estimateRenderCredits("photos", true, 8, tier === "graphic_pro" ? "4k" : "1080p", tier) / 4));
+
+    return [
+      { item: "AIWebVideo Cinema 1 · up to 1080p", credits: `${videoRate("cinema1", "1080p")} per generated second` },
+      { item: "AIWebVideo Cinema 2 · 1080p", credits: `${videoRate("cinema2", "1080p")} per generated second` },
+      { item: "AIWebVideo Cinema 2 · 4K", credits: `${videoRate("cinema2", "4k")} per generated second` },
+      { item: "AIWebVideo Cinema Pro · 1080p", credits: `${videoRate("cinema_pro", "1080p")} per generated second` },
+      { item: "AIWebVideo Cinema Pro · 4K", credits: `${videoRate("cinema_pro", "4k")} per generated second` },
+      { item: "AIWebVideo Graphic 1 · set of 4 images", credits: `${imageRate("graphic1") * 4} credits` },
+      { item: "AIWebVideo Graphic Pro · set of 4 images", credits: `${imageRate("graphic_pro") * 4} credits` },
+      { item: "Optional narration", credits: `+${narration} credits per video` },
+    ];
+  }, [modelPricing]);
+
+  const studioPrices = useMemo(() => {
+    const cinema2 = modelPricing?.video.cinema2.displayCreditsPerSecond1080
+      ?? Math.max(1, Math.round(estimateRenderCredits("video", true, 8, "1080p", "cinema2") / 8));
+    const graphic1 = modelPricing?.image.graphic1.displayCreditsPerImage
+      ?? Math.max(1, Math.round(estimateRenderCredits("photos", true, 8, "1080p", "graphic1") / 4));
+    return [
+      { item: "Product photo set · AIWebVideo Graphic 1", credits: `${graphic1 * 4} credits` },
+      { item: "Product video · 8s · AIWebVideo Cinema 2", credits: `${cinema2 * 8} credits` },
+      { item: "AI video · 8s · AIWebVideo Cinema 2", credits: `${cinema2 * 8} credits` },
+      { item: "Talking scene · 8s · AIWebVideo Cinema 2", credits: `${cinema2 * 8} credits` },
+      { item: "Architecture concept · 8s · AIWebVideo Cinema 2", credits: `${cinema2 * 8} credits` },
+    ];
+  }, [modelPricing]);
 
   function handleChoose(planId: string) {
     if (planId === "free") {
@@ -441,7 +429,7 @@ export function PricingTable() {
             </tr>
           </thead>
           <tbody>
-            {CREDIT_COSTS.map((row) => (
+            {creditCosts.map((row) => (
               <tr
                 key={row.item}
                 className="border-b border-border last:border-0 hover:bg-panel-alt/50 transition-colors"
@@ -456,11 +444,8 @@ export function PricingTable() {
         </table>
       </div>
       <p className="mt-3 text-xs text-text-dim">
-        Premium video uses 20 credits per requested second for a 1080p master and 30
-        credits per requested second for a 4K master, and optional AI narration
-        adds 30 credits per video. Choose any whole-second continuous length from 8 seconds to 2 minutes 24 seconds;
-        the exact total and any credit shortfall appear before generation. For videos longer than 8 seconds,
-        Veo continuity extensions use a 720p provider source and AiWebVideo masters that continuous source to the selected delivery size. Failed generations are automatically refunded.
+        Credit use follows the Quality Tier you select. The exact estimate and any shortfall appear before generation,
+        and the server recalculates the same amount before paid work starts. Failed or partially delivered production work is settled automatically.
       </p>
 
       <div className="mt-10">
@@ -480,7 +465,7 @@ export function PricingTable() {
               </tr>
             </thead>
             <tbody>
-              {STUDIO_PRICES.map((row) => (
+              {studioPrices.map((row) => (
                 <tr
                   key={row.item}
                   className="border-b border-border last:border-0 hover:bg-panel-alt/50 transition-colors"
