@@ -74,7 +74,8 @@ export function DashboardClient() {
       requested === "photo" ||
       requested === "product-video" ||
       requested === "scenario" ||
-      requested === "interior"
+      requested === "interior" ||
+      requested === "architecture"
       ? requested
       : undefined;
   }, []);
