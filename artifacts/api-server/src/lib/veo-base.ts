@@ -16,6 +16,7 @@ const VIDEO_CONCURRENCY = Math.max(1, Math.min(3, Number(process.env.AI_VIDEO_CO
 const POLL_MS = Math.max(2_000, Number(process.env.GEMINI_VIDEO_POLL_MS ?? 10_000));
 const POLL_LOG_MS = Math.max(POLL_MS, Number(process.env.GEMINI_VIDEO_POLL_LOG_MS ?? 30_000));
 const GENERATION_TIMEOUT_MS = Math.max(60_000, Number(process.env.GEMINI_VIDEO_TIMEOUT_MS ?? 12 * 60_000));
+const MAX_PROVIDER_POLLS = Math.max(6, Number(process.env.GEMINI_VIDEO_MAX_POLLS ?? 160));
 const DEFAULT_TOTAL_GENERATION_TIMEOUT_MS = 24 * 60_000;
 const TOTAL_GENERATION_TIMEOUT_ENV = process.env.AI_VIDEO_TOTAL_TIMEOUT_MS;
 const FINISHING_BUFFER_MS = 6 * 60_000; // stitching, audio mix, narration, final mux
@@ -361,9 +362,13 @@ async function generateGeminiSceneWithModel(
     : 'unknown';
   const started = Date.now();
   let lastPollLogAt = 0;
+  let pollCount = 0;
   console.info(`[ai-video] job=${jobId} scene=${sceneIndex + 1} provider=gemini submitted operation=${operationName}`);
 
   while (!operation.done) {
+    if (pollCount >= MAX_PROVIDER_POLLS) {
+      throw new Error(`AI video generation exceeded the safe polling limit while waiting for the current operation.`);
+    }
     const now = Date.now();
     const elapsedMs = now - started;
     if (deadlineAt && now >= deadlineAt) {
@@ -382,6 +387,7 @@ async function generateGeminiSceneWithModel(
       onStatus?.(`Generating AI scene ${sceneIndex + 1} · ${elapsedSeconds}s elapsed`);
     }
     await new Promise((resolve) => setTimeout(resolve, POLL_MS));
+    pollCount += 1;
     try {
       operation = await client.operations.getVideosOperation({ operation } as never);
     } catch (error) {
@@ -684,9 +690,13 @@ async function waitForContinuousOperation({
     : 'unknown';
   const started = Date.now();
   let lastPollLogAt = 0;
+  let pollCount = 0;
   console.info(`[ai-video] job=${jobId} continuous ${label} submitted operation=${operationName}`);
 
   while (!operation.done) {
+    if (pollCount >= MAX_PROVIDER_POLLS) {
+      throw new Error(`AI video generation exceeded the safe polling limit while waiting for the current operation.`);
+    }
     const now = Date.now();
     if (deadlineAt && now >= deadlineAt) throw new Error(`Continuous AI video generation exceeded the overall timeout while waiting for ${label}.`);
     if (now - started > GENERATION_TIMEOUT_MS) throw new Error(`Veo timed out while generating ${label}.`);
@@ -698,6 +708,7 @@ async function waitForContinuousOperation({
       onStatus?.(`${label} · ${elapsed}s elapsed`);
     }
     await new Promise((resolve) => setTimeout(resolve, POLL_MS));
+    pollCount += 1;
     try {
       operation = await client.operations.getVideosOperation({ operation } as never);
     } catch (error) {
