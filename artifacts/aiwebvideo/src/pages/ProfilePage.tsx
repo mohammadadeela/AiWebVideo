@@ -237,7 +237,7 @@ export function ProfilePage() {
                 {me?.isAdmin && (
                   <Button variant="secondary" asChild><Link href="/admin">Admin control center</Link></Button>
                 )}
-                <Button variant="primary" asChild><Link href="/dashboard">Open workspace</Link></Button>
+                <Button variant="primary" asChild><Link href="/?create=website#generate">Create</Link></Button>
               </div>
             </header>
 
