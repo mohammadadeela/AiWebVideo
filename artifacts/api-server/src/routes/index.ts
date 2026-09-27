@@ -21,11 +21,43 @@ import { verifyPrivateAssetSignature } from '../lib/asset-access.js';
 import { getR2Object } from '../lib/r2-storage.js';
 import { requireAuth } from '../lib/auth.js';
 import { CREDIT_DISPLAY_MULTIPLIER } from '../lib/growth-offers.js';
+import {
+  imageProviderCostPerImage,
+  markedUpCredits,
+  videoProviderCostPerSecond,
+  type ImageModelTier,
+  type VideoModelTier,
+} from '../lib/model-tiers.js';
 
 const router = Router();
 
 router.get('/health', (_req, res) => {
   res.json({ status: 'ok', ts: new Date().toISOString() });
+});
+
+router.get('/model-pricing', (_req, res) => {
+  const videoTiers: VideoModelTier[] = ['cinema1', 'cinema2', 'cinema_pro'];
+  const imageTiers: ImageModelTier[] = ['graphic1', 'graphic_pro'];
+  const display = (internal: number) => Math.round(internal * CREDIT_DISPLAY_MULTIPLIER);
+
+  res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+  res.json({
+    video: Object.fromEntries(videoTiers.map((tier) => {
+      const result: Record<string, number | null> = {
+        displayCreditsPerSecond1080: display(markedUpCredits(videoProviderCostPerSecond(tier, '1080p'))),
+        displayCreditsPerSecond4k: null,
+      };
+      if (tier !== 'cinema1') {
+        result.displayCreditsPerSecond4k = display(markedUpCredits(videoProviderCostPerSecond(tier, '4k')));
+      }
+      return [tier, result];
+    })),
+    image: Object.fromEntries(imageTiers.map((tier) => [
+      tier,
+      { displayCreditsPerImage: display(markedUpCredits(imageProviderCostPerImage(tier))) },
+    ])),
+    displayNarrationCredits: display(6),
+  });
 });
 
 router.get('/marketing', async (_req, res) => {
