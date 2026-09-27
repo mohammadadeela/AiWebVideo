@@ -45,6 +45,8 @@ export interface ProviderQueueSnapshot {
 }
 
 const states = new Map<string, QueueState>();
+const providerFailureWindows = new Map<string, number[]>();
+const providerCircuitBlockedUntil = new Map<string, number>();
 let sequence = 0;
 const ownerCache = new Map<string, { owner: string; expiresAt: number }>();
 
@@ -52,6 +54,12 @@ function envNumber(name: string, fallback: number, min: number, max: number) {
   const parsed = Number(process.env[name]);
   if (!Number.isFinite(parsed)) return fallback;
   return Math.max(min, Math.min(max, Math.round(parsed)));
+}
+
+function envMoney(name: string, fallback: number) {
+  const parsed = Number(process.env[name]);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(0, parsed);
 }
 
 export function queueSettings(kind: ProviderQueueKind) {
@@ -231,6 +239,60 @@ function providerStage(kind: ProviderQueueKind): PaidGenerationStage {
 }
 
 /** Re-check funding/cancellation after any queue wait and before every retry. */
+
+async function assertDailyProviderSpendBudget(item: QueueItem<unknown>) {
+  if (item.kind === 'storyboard') return;
+  const limitUsd = envMoney('PROVIDER_DAILY_SPEND_LIMIT_USD', 100);
+  if (!(limitUsd > 0)) return;
+  const { rows } = await query<{ spent_usd: number }>(
+    `SELECT COALESCE(SUM(total_cost_usd),0)::float AS spent_usd
+       FROM generation_cost_events
+      WHERE created_at >= date_trunc('day', NOW())`,
+  );
+  const spentUsd = Number(rows[0]?.spent_usd ?? 0);
+  if (spentUsd >= limitUsd) {
+    throw new Error(
+      `Daily provider spend safety limit reached (${spentUsd.toFixed(2)} / ${limitUsd.toFixed(2)}). New paid generation is paused until the limit resets or an operator raises PROVIDER_DAILY_SPEND_LIMIT_USD.`,
+    );
+  }
+}
+
+function isCircuitFailure(error: unknown) {
+  const value = errorText(error);
+  const status = Number((error as { status?: unknown; code?: unknown } | null)?.status ?? (error as { code?: unknown } | null)?.code);
+  return status >= 500 || /\b50[0234]\b|UNAVAILABLE|INTERNAL|overloaded|service unavailable|upstream/i.test(value);
+}
+
+function assertProviderCircuitAvailable(kind: ProviderQueueKind, model: string) {
+  const key = queueKey(kind, model);
+  const blockedUntil = providerCircuitBlockedUntil.get(key) ?? 0;
+  if (blockedUntil > Date.now()) {
+    throw new Error(`Provider circuit is temporarily paused after repeated failures. Retry after ${Math.ceil((blockedUntil - Date.now()) / 1000)}s.`);
+  }
+}
+
+function recordProviderOutcome(kind: ProviderQueueKind, model: string, error?: unknown) {
+  const key = queueKey(kind, model);
+  if (!error) {
+    providerFailureWindows.delete(key);
+    providerCircuitBlockedUntil.delete(key);
+    return;
+  }
+  if (!isCircuitFailure(error)) return;
+  const now = Date.now();
+  const windowMs = envNumber('PROVIDER_CIRCUIT_WINDOW_MS', 5 * 60_000, 30_000, 30 * 60_000);
+  const threshold = envNumber('PROVIDER_CIRCUIT_FAILURES', 4, 2, 20);
+  const failures = (providerFailureWindows.get(key) ?? []).filter((at) => now - at <= windowMs);
+  failures.push(now);
+  providerFailureWindows.set(key, failures);
+  if (failures.length >= threshold) {
+    const cooldownMs = envNumber('PROVIDER_CIRCUIT_COOLDOWN_MS', 2 * 60_000, 30_000, 30 * 60_000);
+    providerCircuitBlockedUntil.set(key, now + cooldownMs);
+    providerFailureWindows.set(key, []);
+    logger.warn({ kind, model, cooldownMs }, '[provider-queue] circuit breaker opened after repeated provider failures');
+  }
+}
+
 async function assertQueuedProviderAuthorization(item: QueueItem<unknown>) {
   const { rows } = await query<PaidGenerationSnapshot & { cancel_requested: boolean }>(
     `SELECT user_id, status, credits_spent, cancel_requested
@@ -347,10 +409,16 @@ async function drain(kind: ProviderQueueKind, model: string) {
     state.starts.push(Date.now());
 
     void assertQueuedProviderAuthorization(item)
+      .then(() => assertDailyProviderSpendBudget(item))
+      .then(() => assertProviderCircuitAvailable(kind, model))
       .then(() => item.task())
       .then(
-        (value) => item.resolve(value),
+        (value) => {
+          recordProviderOutcome(kind, model);
+          item.resolve(value);
+        },
         (error) => {
+          recordProviderOutcome(kind, model, error);
           const rateLimited = isRateLimitError(error);
           const maxRetries = maxRateLimitRetries(kind);
           if (rateLimited) {
