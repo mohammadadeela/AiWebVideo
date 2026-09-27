@@ -20,6 +20,7 @@ export type ProductionKind =
   | "campaign-photos"
   | "product-video"
   | "talking-scene"
+  | "interior-design"
   | "architecture-site";
 
 type Settings = {
@@ -36,6 +37,7 @@ const KIND: Record<ProductionKind, { label: string; Icon: typeof Film }> = {
   "campaign-photos": { label: "Campaign photos", Icon: Image },
   "product-video": { label: "Product video", Icon: PackageOpen },
   "talking-scene": { label: "Talking scene", Icon: Film },
+  "interior-design": { label: "Interior design", Icon: Image },
   "architecture-site": { label: "Architecture preview", Icon: Globe2 },
 };
 
@@ -400,14 +402,14 @@ export function GenerationCanvas({
                 </div>
                 <div className="absolute inset-x-0 bottom-0 p-3">
                   <p className="text-[10px] font-semibold text-white">{generatedVideo ? "Generated video is arriving" : phase(status)}</p>
-                  <p className="mt-0.5 max-w-[520px] text-[8px] leading-4 text-white/55">{generatedVideo ? "Showing the real generated media as soon as the backend exposes it." : statusMessage || (sourcePreview || sourceRecording ? "Veo is generating the next premium shot from your selected references and creative direction." : "Preparing your production.")}</p>
+                  <p className="mt-0.5 max-w-[520px] text-[8px] leading-4 text-white/55">{generatedVideo ? "Showing the real generated media as soon as it becomes available." : (sourcePreview || sourceRecording ? humanStage(status, safeProgress) : "Preparing your production.")}</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-1">
                 <div className="rounded-xl border border-white/[.07] bg-white/[.025] p-2.5">
                   <p className="font-utility text-[7px] uppercase tracking-[.13em] text-text-dim">Current stage</p>
                   <p className="mt-1 text-[10px] font-semibold text-white">{liveStage}</p>
-                  <p className="mt-1 line-clamp-2 text-[8px] leading-4 text-white/45">{statusMessage || "Production is progressing."}</p>
+                  <p className="mt-1 line-clamp-2 text-[8px] leading-4 text-white/45">{humanStage(status, safeProgress)}</p>
                   {elapsedLabel && <p className="mt-1 text-[7px] font-medium text-mint/75">{elapsedLabel}</p>}
                 </div>
                 <div className="rounded-xl border border-white/[.07] bg-white/[.025] p-2.5">
@@ -480,6 +482,12 @@ export function GenerationCanvas({
                 ))}
               </div>
             </div>
+          )}
+
+          {productionKind === "architecture-site" && (
+            <p className="mt-3 rounded-xl border border-amber-200/15 bg-amber-200/[.05] px-3 py-2 text-[9px] leading-4 text-amber-100/70">
+              AI visualization for concept purposes — not a surveyed or construction-accurate plan.
+            </p>
           )}
 
           <div className="mt-3 flex items-center justify-between gap-2.5 border-t border-white/[.06] pt-2.5">
