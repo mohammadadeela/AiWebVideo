@@ -48,9 +48,24 @@ function phase(status: JobStatus) {
   if (status === "capturing") return "Reading references";
   if (status === "captured" || status === "storyboarding") return "Directing";
   if (status === "rendering") return "Generating";
-  if (status === "done") return "Complete";
+  if (status === "done") return "Generated";
   if (status === "cancelled") return "Stopped";
   return "Needs attention";
+}
+
+function humanStage(status: JobStatus, progress: number) {
+  if (status === "queued") return "Preparing your production";
+  if (status === "capturing") return "Reading your references";
+  if (status === "captured" || status === "storyboarding") return "Choosing the strongest story direction";
+  if (status === "rendering") {
+    if (progress < 84) return "Directing the first shots";
+    if (progress < 93) return "Rendering your scenes";
+    if (progress < 97) return "Assembling the final result";
+    return "Finishing touches";
+  }
+  if (status === "done") return "Your result is ready";
+  if (status === "cancelled") return "Production stopped";
+  return "This production needs attention";
 }
 
 function cleanAudio(value: string) {
@@ -94,6 +109,8 @@ export function GenerationCanvas({
   const [settings, setSettings] = useState<Settings>({ quality: null, duration: null, audio: null, frameRate: null });
   const [liveAssets, setLiveAssets] = useState<JobAsset[]>([]);
   const [stopDialogOpen, setStopDialogOpen] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
+  const [photoTarget, setPhotoTarget] = useState(4);
   const [stopCreditsAtRisk, setStopCreditsAtRisk] = useState<number | null>(null);
   const [stopPreviewLoading, setStopPreviewLoading] = useState(false);
   const [stopSubmitting, setStopSubmitting] = useState(false);
@@ -109,22 +126,12 @@ export function GenerationCanvas({
   const eta = formatEta(etaSeconds);
   const visibleReferences = referenceItems.slice(0, 6);
   const effectiveCancelling = Boolean(cancelling || stopSubmitting || stopRequested);
-  const generatedPhotos = useMemo(() => liveAssets.filter((asset) => asset.type === "photo").slice(-4), [liveAssets]);
+  const generatedPhotos = useMemo(() => liveAssets.filter((asset) => asset.type === "photo").slice(-Math.max(1, photoTarget)), [liveAssets, photoTarget]);
   const generatedVideo = useMemo(() => [...liveAssets].reverse().find((asset) => asset.type === "video") ?? null, [liveAssets]);
   const sourceRecording = useMemo(() => [...liveAssets].reverse().find((asset) => asset.type === "recording") ?? null, [liveAssets]);
   const sourcePreview = visibleReferences[0] ?? null;
   const progressIsEstimated = !settled && status === "rendering" && !generatedVideo;
-  const liveStage = useMemo(() => {
-    const message = (statusMessage ?? "").toLowerCase();
-    if (message.includes("veo is generating") || message.includes("veo is starting")) return "Veo rendering";
-    if (message.includes("premium scene") && message.includes("ready")) return "Scene completed";
-    if (message.includes("assembling")) return "Assembling";
-    if (message.includes("finishing")) return "Finalizing";
-    if (message.includes("starting")) return "Starting";
-    if (status === "storyboarding") return "Creative planning";
-    if (status === "capturing") return "Reading references";
-    return phase(status);
-  }, [status, statusMessage]);
+  const liveStage = useMemo(() => humanStage(status, safeProgress), [safeProgress, status]);
   const elapsedLabel = useMemo(() => {
     const match = statusMessage?.match(/(\d+)s elapsed/i);
     if (!match) return null;
@@ -165,6 +172,9 @@ export function GenerationCanvas({
                 : null,
         });
         setLiveAssets(Array.isArray(job.assets) ? job.assets : []);
+        const meta = job.captureMetadata as { photoCount?: unknown } | null;
+        const requestedPhotoCount = Number(meta?.photoCount ?? 4);
+        setPhotoTarget([1, 4, 9].includes(requestedPhotoCount) ? requestedPhotoCount : 4);
         if (!settled && !["done", "failed", "cancelled"].includes(job.status)) {
           timer = window.setTimeout(syncJob, 1600);
         }
@@ -182,6 +192,8 @@ export function GenerationCanvas({
 
   useEffect(() => {
     setStopDialogOpen(false);
+    setShowDetails(false);
+    setPhotoTarget(4);
     setStopCreditsAtRisk(null);
     setStopPreviewLoading(false);
     setStopSubmitting(false);
@@ -205,6 +217,8 @@ export function GenerationCanvas({
       const scroller = panel.closest(".chat-scroll") as HTMLElement | null;
       if (!scroller) return;
 
+      const distanceFromBottom = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
+      if (distanceFromBottom > 110) return;
       const panelRect = panel.getBoundingClientRect();
       const scrollerRect = scroller.getBoundingClientRect();
       const outsideComfortZone = panelRect.top < scrollerRect.top + 8 || panelRect.bottom > scrollerRect.bottom - 12;
@@ -223,14 +237,14 @@ export function GenerationCanvas({
 
   const chips = useMemo(() => {
     const values: string[] = [copy.label, aspectRatio];
-    if (photoMode) values.push("4 photos");
+    if (photoMode) values.push(`${photoTarget} photo${photoTarget === 1 ? "" : "s"}`);
     if (settings.quality) values.push(settings.quality === "4k" ? "4K" : settings.quality);
     if (!photoMode && settings.duration) values.push(`${settings.duration}s`);
     if (!photoMode && settings.frameRate) values.push(`${settings.frameRate} fps`);
     if (!photoMode && settings.audio) values.push(cleanAudio(settings.audio));
     if (referenceItems.length) values.push(`${referenceItems.length} reference${referenceItems.length === 1 ? "" : "s"}`);
     return values;
-  }, [aspectRatio, copy.label, photoMode, referenceItems.length, settings]);
+  }, [aspectRatio, copy.label, photoMode, photoTarget, referenceItems.length, settings]);
 
   async function openStopDialog() {
     if (effectiveCancelling || settled) return;
@@ -304,7 +318,7 @@ export function GenerationCanvas({
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
                   <p className="truncate text-[12px] font-semibold text-white">
-                    {settled ? phase(status) : "Generating your result"}
+                    {settled ? phase(status) : liveStage}
                   </p>
                   {!settled && (
                     <span className="inline-flex items-center gap-1 rounded-full border border-mint/15 bg-mint/[.07] px-1.5 py-0.5 font-utility text-[7px] uppercase tracking-[.12em] text-mint">
@@ -313,7 +327,7 @@ export function GenerationCanvas({
                     </span>
                   )}
                 </div>
-                <p className="mt-0.5 truncate text-[9px] text-text-dim">{statusMessage || phase(status)}</p>
+                <p className="mt-0.5 flex min-h-4 items-center gap-1.5 truncate text-[9px] text-text-dim">{settled ? humanStage(status, safeProgress) : <><span>{humanStage(status, safeProgress)}</span><span className="inline-flex gap-0.5" aria-hidden="true"><span className="animate-pulse">·</span><span className="animate-pulse [animation-delay:150ms]">·</span><span className="animate-pulse [animation-delay:300ms]">·</span></span></>}</p>
               </div>
             </div>
             <div className="flex items-center gap-2.5">
@@ -322,21 +336,21 @@ export function GenerationCanvas({
                   <Clock3 size={10} /> {eta}
                 </span>
               )}
-              <span className="rounded-full border border-white/[.08] bg-black/20 px-2 py-1 font-utility text-[9px] font-semibold text-white">{safeProgress}%{progressIsEstimated ? " est." : ""}</span>
+              {!settled && <span className="font-utility text-[9px] font-semibold text-white/70">{safeProgress}%</span>}
             </div>
           </div>
 
-          {photoMode ? (
+          {showDetails && (photoMode ? (
             <div className="mt-3">
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <p className="text-[10px] font-semibold text-white">Live image generation</p>
                   <p className="mt-0.5 text-[8px] text-text-dim">Each slot fills immediately when its real generated image becomes available.</p>
                 </div>
-                <span className="rounded-full border border-white/[.07] bg-white/[.025] px-2 py-1 text-[8px] text-white/60">{generatedPhotos.length}/4 ready</span>
+                <span className="rounded-full border border-white/[.07] bg-white/[.025] px-2 py-1 text-[8px] text-white/60">{generatedPhotos.length}/{photoTarget} ready</span>
               </div>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {Array.from({ length: 4 }).map((_, index) => {
+                {Array.from({ length: photoTarget }).map((_, index) => {
                   const asset = generatedPhotos[index];
                   return (
                     <div
@@ -401,9 +415,9 @@ export function GenerationCanvas({
                 </div>
               </div>
             </div>
-          )}
+          ))}
 
-          <div className="mt-3 flex items-center gap-3">
+          {!settled && <div className="mt-3 flex items-center gap-3">
             <div
               className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-white/[.06]"
               role="progressbar"
@@ -414,9 +428,16 @@ export function GenerationCanvas({
               <div className="h-full rounded-full bg-signature shadow-[0_0_14px_rgba(236,72,153,.28)] transition-[width] duration-700" style={{ width: `${safeProgress}%` }} />
             </div>
             {eta && !settled && <span className="shrink-0 text-[8px] text-text-dim sm:hidden">{eta}</span>}
+          </div>}
+
+          <div className="mt-2.5 flex items-center justify-between gap-3">
+            <button type="button" onClick={() => setShowDetails((value) => !value)} aria-expanded={showDetails} className="rounded-full border border-white/[.08] bg-white/[.025] px-2.5 py-1.5 text-[8px] font-semibold text-white/60 transition hover:border-violet/30 hover:text-white">
+              {showDetails ? "Hide details" : "Show details"}
+            </button>
+            {!settled && <span className="text-[8px] text-text-dim">{eta ?? "Working live"}</span>}
           </div>
 
-          <div className="mt-2.5 flex flex-wrap gap-1.5">
+          {showDetails && <div className="mt-2.5 flex flex-wrap gap-1.5">
             {chips.map((chip) => (
               <span
                 key={chip}
@@ -425,9 +446,9 @@ export function GenerationCanvas({
                 {chip}
               </span>
             ))}
-          </div>
+          </div>}
 
-          {visibleReferences.length > 0 && (
+          {showDetails && visibleReferences.length > 0 && (
             <div className="mt-3 border-t border-white/[.055] pt-2.5">
               <div className="mb-1.5 flex items-center justify-between gap-2">
                 <p className="text-[8px] font-semibold text-white/65">Live inputs</p>
@@ -461,7 +482,7 @@ export function GenerationCanvas({
 
           <div className="mt-3 flex items-center justify-between gap-2.5 border-t border-white/[.06] pt-2.5">
             <p className="min-w-0 flex-1 truncate text-[8px] text-text-dim">
-              {progressIsEstimated ? "Estimated progress · provider generation time varies. Live stage and elapsed time are real." : "Live progress is saved. You can leave this chat and return without stopping generation."}
+              {settled ? (status === "done" ? "Generated successfully." : humanStage(status, safeProgress)) : "Generation keeps running if you leave this chat. Return any time to see the latest state."}
             </p>
             {onCancel && !settled && (
               <button
