@@ -35,7 +35,7 @@ const pages: Record<string, SeoLanding> = {
     title: "Turn any website URL into an AI video",
     seoTitle: "URL to Video AI Generator — Turn a Website Into Video",
     description:
-      "Paste a public website URL and turn it into a brand-aware AI marketing video. AiWebVideo reads the page, plans the story, generates the film, and keeps production in one workspace.",
+      "Paste a public website URL and turn it into a brand-aware AI marketing video. AiWebVideo reads the page, plans the story, generates the film, and keeps production in one creator.",
     intro:
       "Paste a public URL, describe what you want to promote, and let AiWebVideo use the real page as creative context for a finished campaign video.",
     primaryLabel: "Turn a URL into video",
@@ -54,7 +54,7 @@ const pages: Record<string, SeoLanding> = {
       ["Less manual setup", "Start from the page you already have instead of copying every headline and image into a video editor."],
       ["Closer to the brand", "The website becomes creative grounding for colors, products, interface, messaging and calls to action."],
       ["Built for campaigns", "Use the result for launches, social posts, product promotion, sales outreach and website marketing."],
-      ["One production workspace", "Keep the brief, captures, plan, live progress and final media together rather than jumping between tools."],
+      ["One production flow", "Keep the brief, captures, plan, live progress and final media together rather than jumping between tools."],
     ],
     useCases: [
       ["SaaS landing pages", "Turn product positioning and interface context into a concise launch or demo-style campaign."],
@@ -81,7 +81,7 @@ const pages: Record<string, SeoLanding> = {
     title: "Create a marketing video from your website",
     seoTitle: "AI Website Video Generator — Website to Marketing Video",
     description:
-      "Create an AI marketing video from your website. AiWebVideo studies useful pages and brand context, builds the campaign direction, and generates the final film in one workspace.",
+      "Create an AI marketing video from your website. AiWebVideo studies useful pages and brand context, builds the campaign direction, and generates the final film in one creator.",
     intro:
       "Use the website as the source of truth for the business—not just a single block of copied text—and turn it into campaign-ready video.",
     primaryLabel: "Create from my website",
@@ -99,8 +99,8 @@ const pages: Record<string, SeoLanding> = {
     benefits: [
       ["More context than a prompt", "The website can ground the production in real products, interface, brand language and positioning."],
       ["Fewer production decisions", "Smart defaults keep duration, format and creative decisions from becoming a long setup form."],
-      ["Useful for repeat campaigns", "Return to the workspace and create another angle from the same business context."],
-      ["Clear project history", "Active and completed productions stay attached to the signed-in workspace."],
+      ["Useful for repeat campaigns", "Return from history and create another angle from the same business context."],
+      ["Clear project history", "Active and completed productions stay attached to the signed-in history."],
     ],
     useCases: [
       ["Launch campaign", "Turn a new website or product launch into a short branded film."],
@@ -112,7 +112,7 @@ const pages: Record<string, SeoLanding> = {
       ["How is this different from URL to video?", "URL to video is the broad input pattern. The website-video workflow is designed specifically for turning a business website and its useful public pages into a campaign story."],
       ["Does AiWebVideo need access to private pages?", "No. Use public pages only. Do not submit private dashboards, customer data, or pages you are not authorized to use."],
       ["Can I tell it what part of the website matters?", "Yes. Your prompt can focus the production on a product, offer, feature, audience or call to action."],
-      ["Can I return while generation is running?", "Yes. Signed-in project history is designed to keep active production state available when you leave and return to the workspace."],
+      ["Can I return while generation is running?", "Yes. Signed-in project history is designed to keep active production state available when you leave and return to the creator."],
     ],
     related: [
       ["URL to Video", "/url-to-video", "Use any public webpage as video source context."],
@@ -127,7 +127,7 @@ const pages: Record<string, SeoLanding> = {
     title: "Turn your SaaS website into a product story",
     seoTitle: "SaaS Demo Video Generator — Create Product Videos With AI",
     description:
-      "Create AI SaaS demo and launch videos from your product website. Ground the story in real product positioning and interface context, then generate the campaign in one workspace.",
+      "Create AI SaaS demo and launch videos from your product website. Ground the story in real product positioning and interface context, then generate the campaign in one creator.",
     intro:
       "Use your SaaS homepage, feature pages and launch messaging as context for a product-focused video without starting from a blank script.",
     primaryLabel: "Create a SaaS video",
@@ -223,7 +223,7 @@ const pages: Record<string, SeoLanding> = {
     highlights: ["Text-to-video creative direction", "Optional image references", "Landscape, portrait and square", "Campaign-ready output"],
     problemTitle: "Start with an idea instead of a blank timeline",
     problemBody: "AI video generation should understand the creative intent behind a request. Describe the subject, setting, action, mood, camera language or story and let the creator organize those decisions into a coherent production.",
-    workflow: [["Describe the idea", "Explain the subject, setting, action, style, audience or story in your own words."], ["Add references", "Supply images when identity, appearance, product details or visual direction should stay grounded."], ["Direct the result", "Use duration, aspect ratio, quality and audio choices when they matter for the campaign."], ["AI plans the production", "The creator turns the brief into a coherent sequence with camera, motion, pacing and visual direction."], ["Generate the video", "Follow production in the workspace and review the finished AI video when it is ready."]],
+    workflow: [["Describe the idea", "Explain the subject, setting, action, style, audience or story in your own words."], ["Add references", "Supply images when identity, appearance, product details or visual direction should stay grounded."], ["Direct the result", "Use duration, aspect ratio, quality and audio choices when they matter for the campaign."], ["AI plans the production", "The creator turns the brief into a coherent sequence with camera, motion, pacing and visual direction."], ["Generate the video", "Follow production in the creator and review the finished AI video when it is ready."]],
     benefits: [["Natural-language control", "Describe the outcome instead of learning a complex timeline or prompt syntax."], ["Reference-aware", "Optional images can anchor the visual direction when the result needs a specific subject or look."], ["Multiple formats", "Create landscape, portrait or square media for different destinations."], ["Built for complete videos", "The workflow is designed around one coherent final production rather than unrelated clips."]],
     useCases: [["Social campaigns", "Create original visual concepts for vertical and square social content."], ["Brand concepts", "Explore cinematic concepts, product stories and campaign directions before production."], ["Explainer visuals", "Turn a concept or scenario into visual storytelling without recording a traditional shoot."], ["Creative testing", "Generate different visual directions around the same campaign idea."]],
     faq: [["What is an AI video generator?", "It is a tool that uses an instruction and optional references to generate video content. AiWebVideo adds creative planning so the request becomes a coherent production."], ["Can I use an image as a reference?", "Yes. Optional reference images can help anchor subjects, products, identity or visual direction."], ["Can I choose portrait video?", "Yes. The creator supports common landscape, portrait and square formats."], ["Can I make a product video instead?", "Yes. Use the dedicated Product Video page when the real product should remain the central reference."]],
@@ -259,7 +259,7 @@ const pages: Record<string, SeoLanding> = {
     highlights: ["Real product image references", "Commercial camera motion", "Continuous product storytelling", "Portrait, landscape and square"],
     problemTitle: "Turn a real product image into a campaign film",
     problemBody: "A product video needs to keep the item recognizable while adding useful motion, camera language, lighting and context. Reference-first production is designed to keep the supplied product central to the result.",
-    workflow: [["Upload product references", "Provide clear images that show the real product and important details."], ["Describe the commercial", "Specify the audience, environment, mood, motion, benefit or campaign angle."], ["AI plans the film", "The production direction organizes camera movement, product reveals, pacing and visual continuity."], ["Generate one coherent video", "The goal is a complete product film rather than a random collection of unrelated shots."], ["Review and download", "Keep the finished media in the same workspace for review and delivery."]],
+    workflow: [["Upload product references", "Provide clear images that show the real product and important details."], ["Describe the commercial", "Specify the audience, environment, mood, motion, benefit or campaign angle."], ["AI plans the film", "The production direction organizes camera movement, product reveals, pacing and visual continuity."], ["Generate one coherent video", "The goal is a complete product film rather than a random collection of unrelated shots."], ["Review and download", "Keep the finished media in the same project history for review and delivery."]],
     benefits: [["Product-faithful direction", "Real references are treated as the visual anchor for the production."], ["Commercial motion", "Use camera movement, hero reveals, macro details and environments to make the product feel alive."], ["Multiple campaign angles", "Create launch, benefit, lifestyle and promotional variants from the same product."], ["Flexible formats", "Choose the format that matches your destination."]],
     useCases: [["Product launch", "Introduce a new product with a concise commercial film."], ["Paid social", "Create vertical-first product creative for social advertising."], ["Ecommerce promotion", "Show the product through motion and detail rather than a static listing image."], ["Lifestyle campaign", "Place the product in a directed environment while keeping it central."]],
     faq: [["Does it use my real product image?", "Yes. Product Video is designed around supplied product references so the real item remains the primary visual anchor."], ["Can I control the video style?", "Yes. Describe the camera, environment, mood, pacing, audience and campaign goal in the brief."], ["Can I make product photos too?", "Yes. Use Product Photos when you need still campaign imagery."], ["Can I start from a product page instead?", "Yes. Product Page to Video is the URL-based workflow for public ecommerce pages."]],
@@ -534,7 +534,7 @@ function SearchLandingPage({ page }: { page: SeoLanding }) {
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(139,92,246,.22),transparent_52%)]" />
             <Link2 size={20} className="relative mx-auto text-mint" />
             <h2 className="relative mt-4 font-display text-3xl font-bold tracking-[-.035em] text-white">Start with your source and a clear idea</h2>
-            <p className="relative mx-auto mt-3 max-w-xl text-sm leading-6 text-text-muted">Open the creator, add your prompt or references, and review the credit estimate before generating in the same project workspace.</p>
+            <p className="relative mx-auto mt-3 max-w-xl text-sm leading-6 text-text-muted">Open the creator, add your prompt or references, and review the credit estimate before generating in the same project history.</p>
             <Button className="relative mt-6" asChild><Link href={page.createHref}>{page.primaryLabel} <ArrowRight size={14} /></Link></Button>
           </div>
         </section>
