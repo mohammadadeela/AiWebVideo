@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Check, Clock3, Film, Globe2, Image, LoaderCircle, PackageOpen, ShieldCheck, X } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, ChevronUp, Film, Globe2, Image, LoaderCircle, PackageOpen, ShieldCheck, Sparkles, X } from "lucide-react";
 import { fetchJob, request } from "@/lib/api-client";
 import { getActiveJobId } from "@/lib/guestSession";
-import type { JobAsset, JobStatus } from "./types";
+import type { JobAsset, JobStatus, JobStatusResponse } from "./types";
 import type { CaptureMediaItem } from "./MediaPlanningPanel";
 import {
   AlertDialog,
@@ -19,7 +19,8 @@ export type ProductionKind =
   | "product-photos"
   | "campaign-photos"
   | "product-video"
-  | "talking-scene";
+  | "talking-scene"
+  | "interior-design";
 
 type Settings = {
   quality: string | null;
@@ -28,13 +29,78 @@ type Settings = {
   frameRate: number | null;
 };
 
-const KIND: Record<ProductionKind, { label: string; Icon: typeof Film }> = {
-  "website-video": { label: "Website campaign", Icon: Globe2 },
-  "ai-video": { label: "AI video", Icon: Film },
-  "product-photos": { label: "Product photos", Icon: PackageOpen },
-  "campaign-photos": { label: "Campaign photos", Icon: Image },
-  "product-video": { label: "Product video", Icon: PackageOpen },
-  "talking-scene": { label: "Talking scene", Icon: Film },
+const KIND: Record<ProductionKind, {
+  label: string;
+  Icon: typeof Film;
+  accentText: string;
+  accentDot: string;
+  accentSoft: string;
+  accentBorder: string;
+  accentBar: string;
+}> = {
+  "website-video": {
+    label: "Website campaign",
+    Icon: Globe2,
+    accentText: "text-violet",
+    accentDot: "bg-violet shadow-[0_0_16px_rgba(139,92,246,.8)]",
+    accentSoft: "bg-violet/[.08]",
+    accentBorder: "border-violet/20",
+    accentBar: "bg-violet",
+  },
+  "ai-video": {
+    label: "AI video",
+    Icon: Film,
+    accentText: "text-pink",
+    accentDot: "bg-pink shadow-[0_0_16px_rgba(244,114,182,.72)]",
+    accentSoft: "bg-pink/[.07]",
+    accentBorder: "border-pink/20",
+    accentBar: "bg-pink",
+  },
+  "product-photos": {
+    label: "Product photos",
+    Icon: PackageOpen,
+    accentText: "text-gold",
+    accentDot: "bg-gold shadow-[0_0_16px_rgba(251,191,36,.7)]",
+    accentSoft: "bg-gold/[.07]",
+    accentBorder: "border-gold/20",
+    accentBar: "bg-gold",
+  },
+  "campaign-photos": {
+    label: "Campaign photos",
+    Icon: Image,
+    accentText: "text-mint",
+    accentDot: "bg-mint shadow-[0_0_16px_rgba(52,217,196,.72)]",
+    accentSoft: "bg-mint/[.07]",
+    accentBorder: "border-mint/20",
+    accentBar: "bg-mint",
+  },
+  "product-video": {
+    label: "Product video",
+    Icon: PackageOpen,
+    accentText: "text-mint",
+    accentDot: "bg-mint shadow-[0_0_16px_rgba(52,217,196,.72)]",
+    accentSoft: "bg-mint/[.07]",
+    accentBorder: "border-mint/20",
+    accentBar: "bg-mint",
+  },
+  "talking-scene": {
+    label: "Talking scene",
+    Icon: Film,
+    accentText: "text-violet",
+    accentDot: "bg-violet shadow-[0_0_16px_rgba(139,92,246,.8)]",
+    accentSoft: "bg-violet/[.08]",
+    accentBorder: "border-violet/20",
+    accentBar: "bg-violet",
+  },
+  "interior-design": {
+    label: "Interior design",
+    Icon: Image,
+    accentText: "text-gold",
+    accentDot: "bg-gold shadow-[0_0_16px_rgba(251,191,36,.7)]",
+    accentSoft: "bg-gold/[.07]",
+    accentBorder: "border-gold/20",
+    accentBar: "bg-gold",
+  },
 };
 
 function formatEta(seconds: number | null | undefined) {
@@ -43,23 +109,66 @@ function formatEta(seconds: number | null | undefined) {
   return `~${Math.max(1, Math.ceil(seconds / 60))} min`;
 }
 
-function phase(status: JobStatus) {
-  if (status === "queued") return "Preparing";
-  if (status === "capturing") return "Reading references";
-  if (status === "captured" || status === "storyboarding") return "Directing";
-  if (status === "rendering") return "Generating";
-  if (status === "done") return "Complete";
-  if (status === "cancelled") return "Stopped";
-  return "Needs attention";
+function formatElapsed(seconds: number) {
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+  return `${minutes}m ${String(remainder).padStart(2, "0")}s`;
 }
 
 function cleanAudio(value: string) {
   return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function sceneNumberFromStatus(message: string | null | undefined) {
+  const match = message?.match(/(?:premium\s+)?scene\s+(\d+)/i);
+  return match ? Number(match[1]) : null;
+}
+
+function humanStatus(status: JobStatus, statusMessage: string | null | undefined, productionKind: ProductionKind) {
+  const raw = (statusMessage ?? "").toLowerCase();
+  const sceneNumber = sceneNumberFromStatus(statusMessage);
+
+  if (status === "queued") return "Getting everything ready";
+  if (status === "capturing") {
+    return productionKind === "website-video" ? "Reading your website" : "Reading your references";
+  }
+  if (status === "captured" || status === "storyboarding") {
+    if (raw.includes("camera") || raw.includes("shot")) return "Directing camera movement";
+    return "Choosing the strongest story beat";
+  }
+  if (status === "rendering") {
+    if (raw.includes("assembling") || raw.includes("master") || raw.includes("final") || raw.includes("finishing") || raw.includes("mux")) {
+      return "Finishing touches";
+    }
+    if (raw.includes("download")) return sceneNumber ? `Finishing scene ${sceneNumber}` : "Finishing your scene";
+    if (raw.includes("photo") || raw.includes("image")) return "Creating your images";
+    if (sceneNumber) return `Rendering scene ${sceneNumber}`;
+    if (raw.includes("starting") || raw.includes("veo")) return "Directing camera movement";
+    return "Rendering your scene";
+  }
+  if (status === "done") return "Generated";
+  if (status === "cancelled") return "Stopped";
+  return "This generation needs attention";
+}
+
 function cancellationErrorMessage(error: unknown) {
   if (error instanceof Error && error.message.trim()) return error.message;
   return "We couldn't stop this production right now. Please try again.";
+}
+
+function AnimatedDots() {
+  return (
+    <span className="ml-0.5 inline-flex w-5 items-end gap-[2px]" aria-hidden="true">
+      {[0, 1, 2].map((index) => (
+        <span
+          key={index}
+          className="h-1 w-1 animate-pulse rounded-full bg-current opacity-70"
+          style={{ animationDelay: `${index * 180}ms`, animationDuration: "900ms" }}
+        />
+      ))}
+    </span>
+  );
 }
 
 export function GenerationCanvas({
@@ -93,48 +202,85 @@ export function GenerationCanvas({
 }) {
   const [settings, setSettings] = useState<Settings>({ quality: null, duration: null, audio: null, frameRate: null });
   const [liveAssets, setLiveAssets] = useState<JobAsset[]>([]);
+  const [storyboard, setStoryboard] = useState<JobStatusResponse["storyboard"]>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [stageElapsedSeconds, setStageElapsedSeconds] = useState(0);
   const [stopDialogOpen, setStopDialogOpen] = useState(false);
   const [stopCreditsAtRisk, setStopCreditsAtRisk] = useState<number | null>(null);
   const [stopPreviewLoading, setStopPreviewLoading] = useState(false);
   const [stopSubmitting, setStopSubmitting] = useState(false);
   const [stopRequested, setStopRequested] = useState(false);
   const [stopError, setStopError] = useState<string | null>(null);
-  const panelRef = useRef<HTMLElement>(null);
-  const lastActivityRef = useRef("");
+  const productionStartedAtRef = useRef(Date.now());
+  const stageStartedAtRef = useRef(Date.now());
+  const lastPhaseKeyRef = useRef("");
+  const lastStatusTextRef = useRef("");
+
   const copy = KIND[productionKind];
   const Icon = copy.Icon;
   const settled = ["done", "failed", "cancelled"].includes(status);
-  const photoMode = productionKind === "product-photos" || productionKind === "campaign-photos";
   const safeProgress = status === "done" ? 100 : Math.max(2, Math.min(99, Math.round(progress || 2)));
   const eta = formatEta(etaSeconds);
-  const visibleReferences = referenceItems.slice(0, 6);
+  const visibleReferences = referenceItems.slice(0, 12);
   const effectiveCancelling = Boolean(cancelling || stopSubmitting || stopRequested);
   const generatedPhotos = useMemo(() => liveAssets.filter((asset) => asset.type === "photo").slice(-4), [liveAssets]);
   const generatedVideo = useMemo(() => [...liveAssets].reverse().find((asset) => asset.type === "video") ?? null, [liveAssets]);
-  const sourceRecording = useMemo(() => [...liveAssets].reverse().find((asset) => asset.type === "recording") ?? null, [liveAssets]);
-  const sourcePreview = visibleReferences[0] ?? null;
-  const progressIsEstimated = !settled && status === "rendering" && !generatedVideo;
-  const liveStage = useMemo(() => {
-    const message = (statusMessage ?? "").toLowerCase();
-    if (message.includes("veo is generating") || message.includes("veo is starting")) return "Veo rendering";
-    if (message.includes("premium scene") && message.includes("ready")) return "Scene completed";
-    if (message.includes("assembling")) return "Assembling";
-    if (message.includes("finishing")) return "Finalizing";
-    if (message.includes("starting")) return "Starting";
-    if (status === "storyboarding") return "Creative planning";
-    if (status === "capturing") return "Reading references";
-    return phase(status);
-  }, [status, statusMessage]);
-  const elapsedLabel = useMemo(() => {
-    const match = statusMessage?.match(/(\d+)s elapsed/i);
-    if (!match) return null;
-    const seconds = Number(match[1]);
-    if (!Number.isFinite(seconds)) return null;
-    if (seconds < 60) return `${seconds}s elapsed`;
-    const minutes = Math.floor(seconds / 60);
-    const remainder = seconds % 60;
-    return `${minutes}m ${String(remainder).padStart(2, "0")}s elapsed`;
-  }, [statusMessage]);
+  const statusText = useMemo(
+    () => humanStatus(status, statusMessage, productionKind),
+    [productionKind, status, statusMessage],
+  );
+  const phaseKey = `${status}:${sceneNumberFromStatus(statusMessage) ?? ""}`;
+  const showLongStageReassurance = !settled && stageElapsedSeconds >= 30;
+
+  useEffect(() => {
+    productionStartedAtRef.current = Date.now();
+    stageStartedAtRef.current = Date.now();
+    lastPhaseKeyRef.current = "";
+    setElapsedSeconds(0);
+    setStageElapsedSeconds(0);
+    setDetailsOpen(false);
+    setStopDialogOpen(false);
+    setStopCreditsAtRisk(null);
+    setStopPreviewLoading(false);
+    setStopSubmitting(false);
+    setStopRequested(false);
+    setStopError(null);
+    setLiveAssets([]);
+    setStoryboard(null);
+  }, [jobId]);
+
+  useEffect(() => {
+    if (lastPhaseKeyRef.current === phaseKey) return;
+    lastPhaseKeyRef.current = phaseKey;
+    stageStartedAtRef.current = Date.now();
+    setStageElapsedSeconds(0);
+  }, [phaseKey]);
+
+  useEffect(() => {
+    if (settled) return;
+    const tick = () => {
+      setElapsedSeconds(Math.max(0, Math.floor((Date.now() - productionStartedAtRef.current) / 1000)));
+      setStageElapsedSeconds(Math.max(0, Math.floor((Date.now() - stageStartedAtRef.current) / 1000)));
+    };
+    tick();
+    const timer = window.setInterval(tick, 1000);
+    return () => window.clearInterval(timer);
+  }, [settled, jobId]);
+
+  useEffect(() => {
+    if (lastStatusTextRef.current && lastStatusTextRef.current !== statusText) {
+      const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      if (!reducedMotion && typeof navigator !== "undefined" && "vibrate" in navigator) {
+        try {
+          navigator.vibrate(status === "done" ? 18 : 5);
+        } catch {
+          // Haptics are best-effort and must never affect generation.
+        }
+      }
+    }
+    lastStatusTextRef.current = statusText;
+  }, [status, statusText]);
 
   useEffect(() => {
     const id = jobId ?? getActiveJobId();
@@ -165,6 +311,7 @@ export function GenerationCanvas({
                 : null,
         });
         setLiveAssets(Array.isArray(job.assets) ? job.assets : []);
+        setStoryboard(job.storyboard ?? null);
         if (!settled && !["done", "failed", "cancelled"].includes(job.status)) {
           timer = window.setTimeout(syncJob, 1600);
         }
@@ -180,57 +327,14 @@ export function GenerationCanvas({
     };
   }, [jobId, settled]);
 
-  useEffect(() => {
-    setStopDialogOpen(false);
-    setStopCreditsAtRisk(null);
-    setStopPreviewLoading(false);
-    setStopSubmitting(false);
-    setStopRequested(false);
-    setStopError(null);
-    setLiveAssets([]);
-  }, [jobId]);
-
-  // Keep the live production panel softly in view while new chat updates are
-  // inserted above it. This mirrors ChatGPT-style streaming: older updates move
-  // upward, while the user remains anchored on the current generation state.
-  useEffect(() => {
-    if (settled) return;
-    const activityKey = `${status}:${statusMessage ?? ""}:${Math.floor(safeProgress / 5)}:${liveAssets.length}`;
-    if (lastActivityRef.current === activityKey) return;
-    lastActivityRef.current = activityKey;
-
-    const timer = window.setTimeout(() => {
-      const panel = panelRef.current;
-      if (!panel) return;
-      const scroller = panel.closest(".chat-scroll") as HTMLElement | null;
-      if (!scroller) return;
-
-      const panelRect = panel.getBoundingClientRect();
-      const scrollerRect = scroller.getBoundingClientRect();
-      const outsideComfortZone = panelRect.top < scrollerRect.top + 8 || panelRect.bottom > scrollerRect.bottom - 12;
-      if (!outsideComfortZone) return;
-
-      const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-      const targetTop = Math.max(0, scroller.scrollTop + panelRect.top - scrollerRect.top - 8);
-      scroller.scrollTo({
-        top: targetTop,
-        behavior: reducedMotion ? "auto" : "smooth",
-      });
-    }, 70);
-
-    return () => window.clearTimeout(timer);
-  }, [liveAssets.length, safeProgress, settled, status, statusMessage]);
-
   const chips = useMemo(() => {
-    const values: string[] = [copy.label, aspectRatio];
-    if (photoMode) values.push("4 photos");
+    const values: string[] = [aspectRatio];
     if (settings.quality) values.push(settings.quality === "4k" ? "4K" : settings.quality);
-    if (!photoMode && settings.duration) values.push(`${settings.duration}s`);
-    if (!photoMode && settings.frameRate) values.push(`${settings.frameRate} fps`);
-    if (!photoMode && settings.audio) values.push(cleanAudio(settings.audio));
-    if (referenceItems.length) values.push(`${referenceItems.length} reference${referenceItems.length === 1 ? "" : "s"}`);
+    if (settings.duration) values.push(`${settings.duration}s`);
+    if (settings.frameRate) values.push(`${settings.frameRate}fps`);
+    if (settings.audio) values.push(cleanAudio(settings.audio));
     return values;
-  }, [aspectRatio, copy.label, photoMode, referenceItems.length, settings]);
+  }, [aspectRatio, settings]);
 
   async function openStopDialog() {
     if (effectiveCancelling || settled) return;
@@ -278,203 +382,177 @@ export function GenerationCanvas({
   return (
     <>
       <section
-        ref={panelRef}
-        className="relative w-full overflow-hidden rounded-[20px] border border-white/[.09] bg-[#0d0a18]/95 shadow-[0_22px_64px_-42px_rgba(139,92,246,.82)]"
+        className="relative w-full overflow-hidden rounded-[18px] border border-white/[.075] bg-[#0d0a18]/92 shadow-[0_22px_64px_-46px_rgba(139,92,246,.72)]"
         aria-label={`${copy.label} generation progress`}
-        aria-live="polite"
-        aria-atomic="false"
       >
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_-10%,rgba(139,92,246,.16),transparent_36%),radial-gradient(circle_at_100%_100%,rgba(52,217,196,.065),transparent_28%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_8%_-18%,rgba(139,92,246,.12),transparent_34%)]" />
         <div className="relative p-3.5 sm:p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2.5">
-            <div className="flex min-w-0 items-center gap-2.5">
-              <span
-                className={`flex h-9 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/[.09] bg-white/[.045] text-mint ${brandMarkUrl && productionKind === "website-video" ? "min-w-9 max-w-[112px] px-1.5" : "w-9"}`}
-              >
-                {brandMarkUrl && productionKind === "website-video" ? (
-                  <img
-                    src={brandMarkUrl}
-                    alt={brandName ? `${brandName} logo` : "Website logo"}
-                    className="max-h-5 max-w-[88px] object-contain"
-                  />
-                ) : (
-                  <Icon size={15} />
-                )}
+          {settled && status === "done" ? (
+            <div className="flex items-center gap-2 text-[11px] text-white/65">
+              <span className={`grid h-6 w-6 place-items-center rounded-full border ${copy.accentBorder} ${copy.accentSoft} ${copy.accentText}`}>
+                <Check size={12} />
               </span>
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <p className="truncate text-[12px] font-semibold text-white">
-                    {settled ? phase(status) : "Generating your result"}
-                  </p>
-                  {!settled && (
-                    <span className="inline-flex items-center gap-1 rounded-full border border-mint/15 bg-mint/[.07] px-1.5 py-0.5 font-utility text-[7px] uppercase tracking-[.12em] text-mint">
-                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-mint shadow-[0_0_10px_rgba(52,217,196,.65)]" aria-hidden="true" />
-                      Live
-                    </span>
-                  )}
-                </div>
-                <p className="mt-0.5 truncate text-[9px] text-text-dim">{statusMessage || phase(status)}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2.5">
-              {eta && !settled && (
-                <span className="hidden items-center gap-1 text-[8px] text-text-dim sm:flex">
-                  <Clock3 size={10} /> {eta}
-                </span>
-              )}
-              <span className="rounded-full border border-white/[.08] bg-black/20 px-2 py-1 font-utility text-[9px] font-semibold text-white">{safeProgress}%{progressIsEstimated ? " est." : ""}</span>
-            </div>
-          </div>
-
-          {photoMode ? (
-            <div className="mt-3">
-              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p className="text-[10px] font-semibold text-white">Live image generation</p>
-                  <p className="mt-0.5 text-[8px] text-text-dim">Each slot fills immediately when its real generated image becomes available.</p>
-                </div>
-                <span className="rounded-full border border-white/[.07] bg-white/[.025] px-2 py-1 text-[8px] text-white/60">{generatedPhotos.length}/4 ready</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {Array.from({ length: 4 }).map((_, index) => {
-                  const asset = generatedPhotos[index];
-                  return (
-                    <div
-                      key={asset?.id ?? index}
-                      className="relative aspect-[4/5] overflow-hidden rounded-xl border border-white/[.08] bg-[linear-gradient(145deg,#171229,#0a0813)]"
-                    >
-                      {asset ? (
-                        <img src={asset.url} alt={`Generated photo ${index + 1}`} className="h-full w-full object-cover" loading="eager" decoding="async" />
-                      ) : (
-                        <>
-                          {sourcePreview && <img src={sourcePreview.url} alt="" className="absolute inset-0 h-full w-full scale-105 object-cover opacity-[.12] blur-[2px]" />}
-                          <div className="generation-soft-flash pointer-events-none absolute inset-0" />
-                          <div className="absolute inset-0 bg-[radial-gradient(circle_at_35%_28%,rgba(139,92,246,.18),transparent_36%)]" />
-                          <div className="relative flex h-full flex-col items-center justify-center gap-1.5">
-                            <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-violet/20 bg-violet/[.09] text-violet">
-                              <LoaderCircle size={13} className={!settled ? "animate-spin" : ""} />
-                            </span>
-                            <span className="text-[8px] font-semibold text-white/75">Creating photo {index + 1}</span>
-                          </div>
-                        </>
-                      )}
-                      {asset && <span className="absolute right-1.5 top-1.5 inline-flex items-center gap-1 rounded-full border border-mint/20 bg-black/55 px-1.5 py-0.5 text-[7px] font-semibold text-mint backdrop-blur"><Check size={8} />Ready</span>}
-                    </div>
-                  );
-                })}
-              </div>
+              <span>Generated in {formatElapsed(elapsedSeconds)}</span>
             </div>
           ) : (
-            <div className="mt-3 grid gap-2.5 sm:grid-cols-[minmax(0,1fr)_150px]">
-              <div className="relative h-40 overflow-hidden rounded-2xl border border-white/[.08] bg-[#080611] sm:h-44">
-                {generatedVideo ? (
-                  <video src={generatedVideo.url} autoPlay muted loop playsInline preload="metadata" className="h-full w-full object-contain" />
-                ) : sourceRecording ? (
-                  <video src={sourceRecording.url} autoPlay muted loop playsInline preload="metadata" className="h-full w-full object-cover opacity-55" />
-                ) : sourcePreview ? (
-                  <img src={sourcePreview.url} alt={sourcePreview.title} className="h-full w-full object-cover object-top opacity-55" loading="eager" decoding="async" />
-                ) : (
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_42%_36%,rgba(139,92,246,.2),transparent_32%),linear-gradient(145deg,#171229,#080611)]" />
-                )}
-                {!generatedVideo && <div className="generation-soft-flash pointer-events-none absolute inset-0" />}
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/15" />
-                <div className="absolute left-2.5 top-2.5 inline-flex items-center gap-1.5 rounded-full border border-mint/20 bg-black/55 px-2 py-1 text-[7px] font-semibold uppercase tracking-[.1em] text-mint backdrop-blur">
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-mint" />
-                  {generatedVideo ? "Live output" : "Live canvas"}
-                </div>
-                <div className="absolute inset-x-0 bottom-0 p-3">
-                  <p className="text-[10px] font-semibold text-white">{generatedVideo ? "Generated video is arriving" : phase(status)}</p>
-                  <p className="mt-0.5 max-w-[520px] text-[8px] leading-4 text-white/55">{generatedVideo ? "Showing the real generated media as soon as the backend exposes it." : statusMessage || (sourcePreview || sourceRecording ? "Veo is generating the next premium shot from your selected references and creative direction." : "Preparing your production.")}</p>
+            <>
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className={`relative grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-xl border ${copy.accentBorder} ${copy.accentSoft} ${copy.accentText}`}>
+                  {brandMarkUrl && productionKind === "website-video" ? (
+                    <img
+                      src={brandMarkUrl}
+                      alt={brandName ? `${brandName} logo` : "Website logo"}
+                      className="max-h-5 max-w-7 object-contain"
+                    />
+                  ) : (
+                    <Sparkles size={15} />
+                  )}
+                  <span className={`absolute bottom-1 right-1 h-1.5 w-1.5 animate-pulse rounded-full ${copy.accentDot}`} />
+                </span>
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex h-5 items-center overflow-hidden" aria-live="polite" aria-atomic="true">
+                    <p key={statusText} className={`animate-fade-in-up truncate text-[12px] font-medium ${copy.accentText}`}>
+                      {statusText}<AnimatedDots />
+                    </p>
+                  </div>
+                  <p className="mt-0.5 text-[9px] text-white/38">{copy.label}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-1">
-                <div className="rounded-xl border border-white/[.07] bg-white/[.025] p-2.5">
-                  <p className="font-utility text-[7px] uppercase tracking-[.13em] text-text-dim">Current stage</p>
-                  <p className="mt-1 text-[10px] font-semibold text-white">{liveStage}</p>
-                  <p className="mt-1 line-clamp-2 text-[8px] leading-4 text-white/45">{statusMessage || "Production is progressing."}</p>
-                  {elapsedLabel && <p className="mt-1 text-[7px] font-medium text-mint/75">{elapsedLabel}</p>}
+
+              {showLongStageReassurance && (
+                <p className="mt-2 pl-[46px] text-[9px] leading-4 text-white/38">
+                  Still working — high-quality renders can take a little longer.
+                </p>
+              )}
+
+              <div className="mt-3">
+                <div className="mb-1.5 flex items-center justify-between gap-3 text-[9px] text-white/45">
+                  <span className="font-utility tabular-nums">{safeProgress}%</span>
+                  <span className="font-utility tabular-nums">{formatElapsed(elapsedSeconds)} elapsed</span>
                 </div>
-                <div className="rounded-xl border border-white/[.07] bg-white/[.025] p-2.5">
-                  <p className="font-utility text-[7px] uppercase tracking-[.13em] text-text-dim">Output</p>
-                  <p className="mt-1 text-[10px] font-semibold text-white">{aspectRatio}{settings.quality ? ` · ${settings.quality === "4k" ? "4K" : settings.quality}` : ""}</p>
-                  <p className="mt-1 text-[8px] leading-4 text-white/45">{settings.duration ? `${settings.duration}s` : "Selected duration"}{settings.audio ? ` · ${cleanAudio(settings.audio)}` : ""}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="mt-3 flex items-center gap-3">
-            <div
-              className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-white/[.06]"
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={safeProgress}
-            >
-              <div className="h-full rounded-full bg-signature shadow-[0_0_14px_rgba(236,72,153,.28)] transition-[width] duration-700" style={{ width: `${safeProgress}%` }} />
-            </div>
-            {eta && !settled && <span className="shrink-0 text-[8px] text-text-dim sm:hidden">{eta}</span>}
-          </div>
-
-          <div className="mt-2.5 flex flex-wrap gap-1.5">
-            {chips.map((chip) => (
-              <span
-                key={chip}
-                className="rounded-full border border-white/[.07] bg-white/[.025] px-2 py-1 text-[8px] capitalize text-white/75"
-              >
-                {chip}
-              </span>
-            ))}
-          </div>
-
-          {visibleReferences.length > 0 && (
-            <div className="mt-3 border-t border-white/[.055] pt-2.5">
-              <div className="mb-1.5 flex items-center justify-between gap-2">
-                <p className="text-[8px] font-semibold text-white/65">Live inputs</p>
-                <p className="text-[7px] text-text-dim">Using your real references</p>
-              </div>
-              <div className="chat-scroll flex gap-1.5 overflow-x-auto pb-0.5">
-                {visibleReferences.map((item) => (
+                <div
+                  className="h-1 w-full overflow-hidden rounded-full bg-white/[.065]"
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={safeProgress}
+                  aria-label={statusText}
+                >
                   <div
-                    key={item.id}
-                    className="relative w-20 shrink-0 overflow-hidden rounded-lg border border-white/[.07] bg-black/20"
+                    className={`h-full rounded-full transition-[width] duration-700 ease-out ${copy.accentBar}`}
+                    style={{ width: `${safeProgress}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="mt-3 flex items-center justify-between gap-2 border-t border-white/[.055] pt-2.5">
+                <button
+                  type="button"
+                  onClick={() => setDetailsOpen((open) => !open)}
+                  aria-expanded={detailsOpen}
+                  className="inline-flex min-h-8 items-center gap-1.5 rounded-lg px-1.5 text-[9px] font-medium text-white/42 transition hover:text-white/72"
+                >
+                  {detailsOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                  {detailsOpen ? "Hide details" : "Show details"}
+                </button>
+
+                {onCancel && (
+                  <button
+                    type="button"
+                    onClick={() => void openStopDialog()}
+                    disabled={effectiveCancelling}
+                    className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-white/[.075] bg-white/[.02] px-2.5 text-[8px] font-semibold text-white/46 transition hover:border-pink/25 hover:bg-pink/[.04] hover:text-pink disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    <div className="aspect-video overflow-hidden">
-                      <img
-                        src={item.url}
-                        alt={item.title}
-                        loading="eager"
-                        decoding="async"
-                        className="h-full w-full object-cover object-top"
-                      />
-                    </div>
-                    {sceneAssignments[item.id] ? (
-                      <span className="absolute right-1 top-1 rounded-full bg-violet px-1 py-0.5 text-[6px] font-bold text-white">
-                        R{sceneAssignments[item.id]}
-                      </span>
+                    {effectiveCancelling ? <LoaderCircle size={10} className="animate-spin" /> : <X size={10} />}
+                    {effectiveCancelling ? "Stopping…" : "Stop"}
+                  </button>
+                )}
+              </div>
+
+              {detailsOpen && (
+                <div className="mt-2.5 space-y-3 rounded-2xl border border-white/[.065] bg-black/15 p-3">
+                  <div>
+                    <p className="text-[8px] font-semibold uppercase tracking-[.14em] text-white/32">Direction</p>
+                    <p className="mt-1 text-[10px] leading-5 text-white/70">
+                      {storyboard?.concept || storyboard?.creativeBrief || "Building the strongest direction from your prompt and references."}
+                    </p>
+                    {storyboard?.scenes?.length ? (
+                      <div className="mt-2 space-y-1.5">
+                        {storyboard.scenes.map((scene, index) => (
+                          <div key={scene.sceneNumber ?? index} className="rounded-xl border border-white/[.05] bg-white/[.018] px-2.5 py-2">
+                            <p className="text-[8px] font-semibold text-white/42">
+                              {productionKind.includes("photos") ? "Image" : "Beat"} {scene.sceneNumber ?? index + 1}
+                            </p>
+                            <p className="mt-0.5 text-[9px] leading-4 text-white/58">{scene.shotDescription}</p>
+                          </div>
+                        ))}
+                      </div>
                     ) : null}
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
 
-          <div className="mt-3 flex items-center justify-between gap-2.5 border-t border-white/[.06] pt-2.5">
-            <p className="min-w-0 flex-1 truncate text-[8px] text-text-dim">
-              {progressIsEstimated ? "Estimated progress · provider generation time varies. Live stage and elapsed time are real." : "Live progress is saved. You can leave this chat and return without stopping generation."}
-            </p>
-            {onCancel && !settled && (
-              <button
-                type="button"
-                onClick={() => void openStopDialog()}
-                disabled={effectiveCancelling}
-                className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-white/[.08] bg-white/[.02] px-2.5 text-[8px] font-semibold text-text-muted transition hover:border-pink/30 hover:bg-pink/[.04] hover:text-pink disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {effectiveCancelling ? <LoaderCircle size={10} className="animate-spin" /> : <X size={10} />}
-                {effectiveCancelling ? "Stopping…" : "Stop"}
-              </button>
-            )}
-          </div>
+                  <div>
+                    <p className="text-[8px] font-semibold uppercase tracking-[.14em] text-white/32">Output</p>
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {chips.map((chip) => (
+                        <span key={chip} className="rounded-full border border-white/[.065] bg-white/[.025] px-2 py-1 text-[8px] text-white/62">
+                          {chip}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {visibleReferences.length > 0 && (
+                    <div>
+                      <p className="text-[8px] font-semibold uppercase tracking-[.14em] text-white/32">References</p>
+                      <div className="chat-scroll mt-1.5 flex gap-2 overflow-x-auto pb-1">
+                        {visibleReferences.map((item, index) => (
+                          <div key={item.id} className="w-24 shrink-0">
+                            <div className="relative aspect-video overflow-hidden rounded-lg border border-white/[.07] bg-black/20">
+                              <img
+                                src={item.url}
+                                alt={item.title}
+                                loading="eager"
+                                decoding="async"
+                                className="h-full w-full object-cover object-top"
+                              />
+                              {sceneAssignments[item.id] ? (
+                                <span className="absolute right-1 top-1 rounded-md bg-black/70 px-1.5 py-0.5 text-[6px] font-semibold text-white/80">
+                                  R{sceneAssignments[item.id]}
+                                </span>
+                              ) : null}
+                            </div>
+                            <p className="mt-1 truncate text-center text-[7px] text-white/38">{item.title || `Reference ${index + 1}`}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {(generatedVideo || generatedPhotos.length > 0) && (
+                    <div>
+                      <p className="text-[8px] font-semibold uppercase tracking-[.14em] text-white/32">Latest output</p>
+                      {generatedVideo ? (
+                        <video src={generatedVideo.url} muted loop playsInline autoPlay preload="metadata" className="mt-1.5 max-h-44 w-full rounded-xl bg-black object-contain" />
+                      ) : (
+                        <div className="mt-1.5 grid grid-cols-4 gap-1.5">
+                          {generatedPhotos.map((asset, index) => (
+                            <img key={asset.id} src={asset.url} alt={`Generated image ${index + 1}`} className="aspect-[4/5] w-full rounded-lg object-cover" />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <p className="border-t border-white/[.05] pt-2 text-[8px] leading-4 text-white/30">
+                    {statusMessage ? `Live stage: ${statusMessage}. ` : ""}
+                    Provider timing can vary; the stage and elapsed time above are live.
+                    {eta ? ` Current estimate: ${eta}.` : ""}
+                  </p>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </section>
 
