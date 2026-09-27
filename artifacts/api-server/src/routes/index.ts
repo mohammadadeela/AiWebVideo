@@ -11,6 +11,7 @@ import growthRouter, { settleGrowthCredits } from './growth.js';
 import adminRouter from './admin.js';
 import studioRouter from './studio.js';
 import studioUploadRouter from './studio-upload.js';
+import productLinkRouter from './product-link.js';
 import * as path from 'path';
 import * as fs from 'fs';
 import { Readable } from 'node:stream';
@@ -181,6 +182,7 @@ router.get('/user/me', requireAuth, async (req, _res, next) => {
 
 router.use('/capture', captureRouter);
 router.use('/uploads', uploadsRouter);
+router.use('/product-link', productLinkRouter);
 router.use('/jobs', jobsRouter);
 router.use('/user', userRouter);
 router.use('/auth', userRouter);
