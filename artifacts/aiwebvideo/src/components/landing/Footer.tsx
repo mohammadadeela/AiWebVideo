@@ -16,7 +16,7 @@ export function Footer() {
               <Wordmark />
               <p className="mt-4 max-w-[260px] text-xs leading-6 text-text-dim">
                 Videos, product imagery, and interior design from your own ideas
-                and references. One creative workspace.
+                and references. One place for all your creations.
               </p>
             </div>
             <div>
