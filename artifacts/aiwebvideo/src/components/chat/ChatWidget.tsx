@@ -159,37 +159,13 @@ export function ChatWidget({
         currentTray = nextTray;
         setActionTray(nextTray);
 
-        // Every newly completed generation should land the user on the
-        // generated result and leave the large action area collapsed. The
-        // user can reopen it with the small connected chevron whenever they
-        // want another version, a direction edit, or saved references.
+        // Collapse the large post-result controls, but do not scroll here.
+        // ChatWidgetBase owns scroll intent and only follows the result when
+        // the user is already at/near the bottom. This prevents completion
+        // from yanking someone back down after they deliberately scrolled up.
         if (isNewFinishedResult) {
           setFinishControlsCollapsed(true);
           writeFinishedPanelState(activeChatId, true);
-
-          const alignToFinishedResult = () => {
-            const messages = shell.querySelector<HTMLElement>("[data-chat-messages]");
-            if (!messages) return;
-            const results = messages.querySelectorAll<HTMLElement>('[data-generated-result="true"]');
-            const result = results[results.length - 1];
-            if (!result) {
-              messages.scrollTop = messages.scrollHeight;
-              return;
-            }
-            const messagesRect = messages.getBoundingClientRect();
-            const resultRect = result.getBoundingClientRect();
-            const top = Math.max(0, messages.scrollTop + resultRect.top - messagesRect.top - 10);
-            messages.scrollTo({
-              top,
-              behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
-            });
-          };
-
-          window.requestAnimationFrame(() => {
-            window.requestAnimationFrame(alignToFinishedResult);
-          });
-          window.setTimeout(alignToFinishedResult, 220);
-          window.setTimeout(alignToFinishedResult, 720);
         }
       }
 
