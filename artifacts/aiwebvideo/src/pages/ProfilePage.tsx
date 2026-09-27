@@ -237,7 +237,7 @@ export function ProfilePage() {
                 {me?.isAdmin && (
                   <Button variant="secondary" asChild><Link href="/admin">Admin control center</Link></Button>
                 )}
-                <Button variant="primary" asChild><Link href="/dashboard">Open workspace</Link></Button>
+                <Button variant="primary" asChild><Link href="/dashboard">Open my creations</Link></Button>
               </div>
             </header>
 
@@ -311,7 +311,7 @@ export function ProfilePage() {
                   >
                     <FolderClock size={18} className="text-violet" aria-hidden="true" />
                     <span>
-                      <span className="block text-xs font-semibold text-text-primary">Production workspace</span>
+                      <span className="block text-xs font-semibold text-text-primary">My creations</span>
                       <span className="mt-1 block text-[10px] text-text-dim">History, active jobs and results</span>
                     </span>
                   </Link>
