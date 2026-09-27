@@ -20,6 +20,7 @@ import {
 } from './veo-base.js';
 import { getJob, refundJobCredits, updateJob } from './queries.js';
 import { videoCreditQuote } from './credits.js';
+import { isVideoModelTier, videoModelForTier, type VideoModelTier } from './model-tiers.js';
 import { buildPartialDeliveryMetadata, type PartialDeliveryMetadata } from './partial-delivery.js';
 
 const execFileAsync = promisify(execFile);
@@ -592,7 +593,16 @@ async function settlePartialDelivery({
 }): Promise<PartialDeliveryMetadata | null> {
   const job = await getJob(jobId);
   if (!job?.user_id) throw new Error('Could not settle partial video billing because the production owner was unavailable.');
-  const quote = videoCreditQuote(job.mode, audioMode !== 'voice_music', requestedSeconds, outputQuality);
+  const workflowTier = job.workflow_state && typeof job.workflow_state === 'object'
+    ? (job.workflow_state as Record<string, unknown>).modelTier
+    : undefined;
+  const quote = videoCreditQuote(
+    job.mode,
+    audioMode !== 'voice_music',
+    requestedSeconds,
+    outputQuality,
+    isVideoModelTier(workflowTier) ? workflowTier : undefined,
+  );
   const metadata = buildPartialDeliveryMetadata(requestedSeconds, deliveredSeconds, quote.perSecondCredits);
   if (!metadata) return null;
 
@@ -668,6 +678,7 @@ export async function generateMarketingVideo(
   narrationAudioPath?: Promise<string | null> | string | null,
   referenceLabels: string[] = [],
   shouldCancel?: () => Promise<boolean>,
+  modelTier?: VideoModelTier,
 ): Promise<GeneratedVideo> {
   try {
     const sourceScenes = (storyboard.scenes ?? []).slice(0, 30);
@@ -690,8 +701,8 @@ export async function generateMarketingVideo(
     const segments = buildPremiumScenePlan(sourceScenes, targetDurationSeconds, referenceImages.length, mode);
     if (segments.length > 18) throw new Error(`Premium scene renderer supports up to 144 seconds. Requested ${targetDurationSeconds}s.`);
 
-    const model = geminiModelChain()[0];
-    if (!model) throw new Error('No Gemini video model is configured.');
+    const model = modelTier ? videoModelForTier(modelTier) : geminiModelChain()[0];
+    if (!model) throw new Error('No video model is configured.');
     const deadlineAt = Date.now() + totalGenerationTimeoutMs(segments.length, 1);
     const useAssetReferences = isStudioMode(mode);
     const completedClips: string[] = [];
