@@ -7,6 +7,9 @@ import {
   Globe2,
   Image as ImageIcon,
   House,
+  Link2,
+  LoaderCircle,
+  MapPinned,
   MessageCircleMore,
   Monitor,
   PackageOpen,
@@ -240,6 +243,12 @@ export function WebsiteBriefForm({
   const [roomType, setRoomType] = useState("Living Room");
   const [voicePreset, setVoicePreset] = useState("Natural");
   const [photoCount, setPhotoCount] = useState<1 | 4 | 9>(4);
+  const [productLinkOpen, setProductLinkOpen] = useState(false);
+  const [productLink, setProductLink] = useState("");
+  const [productLinkLoading, setProductLinkLoading] = useState(false);
+  const [architectureOpen, setArchitectureOpen] = useState(false);
+  const [architectureLocation, setArchitectureLocation] = useState("");
+  const [locationLoading, setLocationLoading] = useState(false);
   const [compactPanel, setCompactPanel] = useState<"style" | "ideas" | null>(null);
   const [settings, setSettings] = useState<WebsiteGenerationSettings>(DEFAULT_SETTINGS);
   const [customDurationDraft, setCustomDurationDraft] = useState<string | null>(null);
@@ -271,6 +280,8 @@ export function WebsiteBriefForm({
     setCompactPanel(null);
     setSettingsOpen(false);
     setDurationQuickOpen(false);
+    setProductLinkOpen(false);
+    setArchitectureOpen(false);
     setStylePreset(intent === "website" ? "Auto" : "");
     setError(null);
     setSettings((current) => {
@@ -443,6 +454,65 @@ export function WebsiteBriefForm({
     if (!disabled) addFiles(event.dataTransfer.files);
   }
 
+  async function fileFromDataUrl(dataUrl: string, name: string) {
+    const response = await fetch(dataUrl);
+    const blob = await response.blob();
+    return new File([blob], name, { type: blob.type || "image/png" });
+  }
+
+  async function importProductLink() {
+    const value = productLink.trim();
+    if (!value || productLinkLoading) return;
+    setProductLinkLoading(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/discovery/product", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: value }),
+      });
+      const payload = await response.json() as { product?: { title?: string; description?: string; imageData?: string | null; sourceUrl?: string }; error?: string };
+      if (!response.ok || !payload.product) throw new Error(payload.error || "We could not import that product.");
+      if (payload.product.imageData) {
+        const imported = await fileFromDataUrl(payload.product.imageData, "product-link-reference.png");
+        setFiles([imported]);
+      }
+      const importedPrompt = [payload.product.title, payload.product.description].filter(Boolean).join(". ");
+      if (!brief.trim() && importedPrompt) setBrief(importedPrompt.slice(0, 2200));
+      setProductLinkOpen(false);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "We could not import that product.");
+    } finally {
+      setProductLinkLoading(false);
+    }
+  }
+
+  async function fetchArchitectureSite() {
+    const value = architectureLocation.trim();
+    if (!value || locationLoading) return;
+    setLocationLoading(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/discovery/location-preview", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ location: value }),
+      });
+      const payload = await response.json() as { preview?: { label?: string; imageData?: string; disclaimer?: string }; error?: string };
+      if (!response.ok || !payload.preview?.imageData) throw new Error(payload.error || "We could not fetch that site.");
+      const siteReference = await fileFromDataUrl(payload.preview.imageData, "real-site-reference.png");
+      setFiles((current) => [siteReference, ...current.filter((file) => file.name !== "real-site-reference.png")].slice(0, 10));
+      if (!brief.trim()) setBrief(`Create a concept visualization for this exact site while preserving the real plot orientation, visible surroundings and reference geometry. Location: ${payload.preview.label || value}.`);
+      setArchitectureOpen(false);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "We could not fetch that site.");
+    } finally {
+      setLocationLoading(false);
+    }
+  }
+
   function applyMasterIdea(idea: CreativeIdea) {
     setSelectedIdea(idea);
     if (activeMode === "video" || activeMode === "scenario") setPrompt(idea.masterPrompt);
@@ -601,6 +671,8 @@ export function WebsiteBriefForm({
     <div className="relative flex min-h-16 items-end gap-2 rounded-[30px] border border-white/[.16] bg-[#191522] px-3 py-2 shadow-[0_20px_55px_-40px_rgba(0,0,0,.9)] transition-[border-color,box-shadow] duration-200 focus-within:border-white/35 focus-within:shadow-[0_0_0_1px_var(--composer-accent,rgba(181,154,255,.36)),0_24px_70px_-42px_var(--composer-accent,rgba(181,154,255,.72))] sm:px-4" style={{ "--composer-accent": accents[activeMode] } as CSSProperties}>
       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[15px] border border-white/10 bg-black/20" style={{ color: accents[activeMode] }}><ToolIcon size={19} /></span>
       <textarea ref={activeMode === "website" ? websiteBriefRef : studioPromptRef} value={activeMode === "video" || activeMode === "scenario" ? prompt : brief} onChange={(event) => { if (activeMode === "video" || activeMode === "scenario") setPrompt(event.currentTarget.value); else setBrief(event.currentTarget.value); growPrompt(event.currentTarget); }} onInput={(event) => growPrompt(event.currentTarget)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); submit(); } }} placeholder={toolPlaceholder[activeMode]} rows={2} disabled={disabled} aria-label={activeMode === "scenario" ? "Script and scene" : "Creative prompt"} className={`min-h-11 min-w-0 flex-1 resize-none overflow-hidden bg-transparent px-1 py-2.5 text-sm leading-5 text-white outline-none placeholder:text-white/40 ${activeMode === "scenario" ? "font-mono" : ""}`} />
+      {isProductMode && <button type="button" title="Import product from link" aria-label="Import product from link" onClick={() => setProductLinkOpen(true)} className="hidden h-10 shrink-0 items-center gap-1.5 rounded-full border border-white/[.10] bg-white/[.035] px-2.5 text-[10px] font-semibold text-white/70 transition hover:border-white/20 hover:bg-white/[.07] hover:text-white sm:inline-flex"><Link2 size={14} />Product</button>}
+      {activeMode === "interior" && <button type="button" title="Use a real site from Google Maps or an address" aria-label="Use a real site" onClick={() => setArchitectureOpen(true)} className="hidden h-10 shrink-0 items-center gap-1.5 rounded-full border border-white/[.10] bg-white/[.035] px-2.5 text-[10px] font-semibold text-white/70 transition hover:border-white/20 hover:bg-white/[.07] hover:text-white sm:inline-flex"><MapPinned size={14} />Site</button>}
       <button type="button" title="Attach images" aria-label={files.length ? `${files.length} images attached. Add more` : "Attach images"} onClick={() => inputRef.current?.click()} disabled={disabled || files.length >= 10} className={iconButton}>{files.length ? <><img src={previews[0]?.url} alt="" className="h-7 w-7 rounded-full object-cover" />{files.length > 1 && <span className="absolute -right-1 -top-1 rounded-full bg-white px-1 text-[9px] font-semibold text-black">+{files.length - 1}</span>}</> : <Paperclip size={18} />}</button>
       {isVideoMode && <div ref={settingsAnchorRef} className="relative">
         <button type="button" title="Duration" aria-label={`Duration ${durationSeconds} seconds`} aria-expanded={durationQuickOpen} onClick={() => { setSettingsOpen(false); setDurationQuickOpen((current) => !current); }} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-white/[.10] bg-white/[.035] px-2.5 text-[10px] font-semibold text-white/75 transition hover:border-white/20 hover:bg-white/[.07] hover:text-white"><TimerReset size={14} /><span>{durationSeconds}s</span></button>
@@ -629,5 +701,39 @@ export function WebsiteBriefForm({
       <p className="text-[10px] text-white/35">{(activeMode === "video" || activeMode === "scenario" ? prompt : brief).trim().length > 180 ? "Detailed prompts help preserve your direction." : "Shift + Enter for a new line."}</p>
       {showCreditPricing && <p className="shrink-0 text-right text-[10px] text-white/45">Estimate: {photoCount === 4 || activeMode !== "photo" ? exactCredits : Math.ceil(exactCredits * photoCount / 4)} credits</p>}
     </div>
+
+    {productLinkOpen && <div className="fixed inset-0 z-[80] grid place-items-center bg-black/65 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Import product link" onMouseDown={(event) => { if (event.target === event.currentTarget && !productLinkLoading) setProductLinkOpen(false); }}>
+      <div className="w-full max-w-[760px] overflow-hidden rounded-[26px] border border-white/[.12] bg-[#15101f] shadow-2xl">
+        <div className="grid gap-0 md:grid-cols-[1.2fr_.8fr]">
+          <div className="p-5 sm:p-7">
+            <div className="flex items-center justify-between gap-3"><span className="grid h-10 w-10 place-items-center rounded-2xl bg-[#f55d93]/15 text-[#ff8cb5]"><Link2 size={18} /></span><button type="button" onClick={() => !productLinkLoading && setProductLinkOpen(false)} className={iconButton} aria-label="Close product link"><X size={17} /></button></div>
+            <p className="mt-5 text-[11px] font-semibold uppercase tracking-[.12em] text-[#ff8cb5]">Product Link</p>
+            <h3 className="mt-1 text-2xl font-semibold tracking-[-.03em] text-white">Make the product ready to create with.</h3>
+            <p className="mt-2 max-w-lg text-sm leading-6 text-white/50">Paste a public product page. AiWebVideo extracts the real title, description and main product image, then fills the creator for you. Nothing generates or charges until you press Create.</p>
+            <div className="mt-5 flex gap-2 rounded-2xl border border-white/[.10] bg-black/20 p-2 focus-within:border-white/25">
+              <input value={productLink} onChange={(event) => setProductLink(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void importProductLink(); }} placeholder="https://store.com/products/..." inputMode="url" autoFocus className="min-w-0 flex-1 bg-transparent px-2 text-sm text-white outline-none placeholder:text-white/28" />
+              <button type="button" onClick={() => void importProductLink()} disabled={!productLink.trim() || productLinkLoading} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-signature px-4 text-xs font-semibold text-white disabled:opacity-40">{productLinkLoading ? <LoaderCircle size={14} className="animate-spin" /> : <ArrowRight size={14} />}Continue</button>
+            </div>
+          </div>
+          <div className="relative min-h-[210px] border-t border-white/[.08] bg-[radial-gradient(circle_at_35%_30%,rgba(244,114,182,.24),transparent_35%),radial-gradient(circle_at_75%_65%,rgba(139,92,246,.24),transparent_36%),#0d0a14] md:border-l md:border-t-0">
+            <div className="absolute inset-0 grid place-items-center p-8"><div className="relative h-28 w-28 rounded-[28px] border border-white/[.14] bg-[linear-gradient(145deg,#dbff63,#78c98b)] shadow-[0_24px_55px_-22px_rgba(174,255,102,.65)]"><div className="absolute inset-4 rounded-2xl border border-black/10 bg-white/15" /><span className="absolute -bottom-3 -right-3 grid h-12 w-12 place-items-center rounded-full border border-white/20 bg-[#191421] text-white"><Sparkles size={18} /></span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>}
+
+    {architectureOpen && <div className="fixed inset-0 z-[80] grid place-items-center bg-black/65 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Use a real architecture site" onMouseDown={(event) => { if (event.target === event.currentTarget && !locationLoading) setArchitectureOpen(false); }}>
+      <div className="w-full max-w-[650px] rounded-[26px] border border-white/[.12] bg-[#15101f] p-5 shadow-2xl sm:p-7">
+        <div className="flex items-center justify-between gap-3"><span className="grid h-10 w-10 place-items-center rounded-2xl bg-[#bdcba6]/15 text-[#bdcba6]"><MapPinned size={18} /></span><button type="button" onClick={() => !locationLoading && setArchitectureOpen(false)} className={iconButton} aria-label="Close site picker"><X size={17} /></button></div>
+        <p className="mt-5 text-[11px] font-semibold uppercase tracking-[.12em] text-[#bdcba6]">Architecture Preview</p>
+        <h3 className="mt-1 text-2xl font-semibold tracking-[-.03em] text-white">Ground the concept in a real site.</h3>
+        <p className="mt-2 text-sm leading-6 text-white/50">Paste a Google Maps link, coordinates, or an address. We fetch a real satellite reference and attach it to the generation so the concept starts from the real plot and surroundings.</p>
+        <div className="mt-5 flex gap-2 rounded-2xl border border-white/[.10] bg-black/20 p-2 focus-within:border-white/25">
+          <input value={architectureLocation} onChange={(event) => setArchitectureLocation(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void fetchArchitectureSite(); }} placeholder="Google Maps link, coordinates, or address" autoFocus className="min-w-0 flex-1 bg-transparent px-2 text-sm text-white outline-none placeholder:text-white/28" />
+          <button type="button" onClick={() => void fetchArchitectureSite()} disabled={!architectureLocation.trim() || locationLoading} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-signature px-4 text-xs font-semibold text-white disabled:opacity-40">{locationLoading ? <LoaderCircle size={14} className="animate-spin" /> : <MapPinned size={14} />}Fetch site</button>
+        </div>
+        <p className="mt-3 rounded-xl border border-amber-200/10 bg-amber-200/[.04] px-3 py-2 text-[10px] leading-5 text-amber-100/55">AI visualization for concept purposes — not a surveyed or construction-accurate plan. Add measurements, plans and reference photos when dimensional accuracy matters.</p>
+      </div>
+    </div>}
   </div>;
 }
