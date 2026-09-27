@@ -7,6 +7,7 @@ import { AuthModal } from "@/components/auth/AuthModal";
 import { Button } from "@/components/ui/app-button";
 import { Wordmark } from "@/components/ui/Wordmark";
 import { UserMenu, formatCredits } from "@/components/account/UserMenu";
+import { GenerationHistoryButton } from "@/components/account/GenerationHistoryButton";
 import { CreditUpgradeNotice } from "@/components/account/CreditUpgradeNotice";
 import { watchAuthState } from "@/lib/firebase/client";
 import { deleteSavedChat, fetchMe, fetchUserJobs, updateSavedChat, type UserJobSummary } from "@/lib/api-client";
@@ -74,7 +75,8 @@ export function DashboardClient() {
       requested === "photo" ||
       requested === "product-video" ||
       requested === "scenario" ||
-      requested === "interior"
+      requested === "interior" ||
+      requested === "architecture"
       ? requested
       : undefined;
   }, []);
@@ -106,7 +108,7 @@ export function DashboardClient() {
       setJobs(Array.isArray(history.jobs) ? history.jobs.filter((job) => job && typeof job.id === "string") : []);
       setError(null);
     } catch {
-      setError("We could not refresh your workspace. Please try again in a moment.");
+      setError("We could not refresh the creator. Please try again in a moment.");
     }
   }, []);
 
@@ -232,239 +234,12 @@ export function DashboardClient() {
 
   return (
     <div className="min-h-screen bg-bg lg:flex">
-      {sidebarOpen && (
-        <button
-          type="button"
-          aria-label="Close project menu"
-          className="fixed inset-x-0 bottom-0 top-14 z-30 bg-black/35 backdrop-blur-[1px] lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-      <aside
-        id="workspace-project-menu"
-        aria-label="Workspace projects"
-        className={`fixed bottom-2.5 left-2.5 top-[4.15rem] z-40 flex w-[min(82vw,292px)] max-w-[calc(100vw-3.25rem)] flex-col overflow-hidden rounded-[22px] border border-white/[.10] bg-[#100c20]/[.99] p-2.5 shadow-[0_28px_80px_-34px_rgba(0,0,0,.98)] backdrop-blur-2xl transition-[transform,opacity] duration-200 sm:left-3 sm:w-[300px] sm:p-3 lg:sticky lg:bottom-auto lg:left-auto lg:top-0 lg:h-screen lg:max-w-none lg:rounded-none lg:border-y-0 lg:border-l-0 lg:border-r lg:bg-[#100c20] lg:shadow-none lg:backdrop-blur-none ${sidebarOpen ? "pointer-events-auto translate-x-0 opacity-100" : "pointer-events-none -translate-x-[115%] opacity-0 lg:pointer-events-auto lg:translate-x-0 lg:opacity-100"} ${sidebarCollapsed ? "lg:w-0 lg:overflow-hidden lg:border-0 lg:p-0" : "lg:w-[286px]"}`}
-      >
-        <div className="flex items-center justify-between px-2 py-2">
-          <Link href="/">
-            <Wordmark />
-          </Link>
-          <button
-            type="button"
-            onClick={() => {
-              if (window.matchMedia("(min-width: 1024px)").matches) setSidebarCollapsed(true);
-              else setSidebarOpen(false);
-            }}
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/[.06] bg-white/[.025] text-text-dim transition hover:bg-white/5 hover:text-text-primary active:scale-95 lg:h-10 lg:w-10 lg:border-0 lg:bg-transparent"
-            aria-label="Close project menu"
-          >
-            <PanelLeftClose size={17} />
-          </button>
-        </div>
-        <button
-          type="button"
-          onClick={startNew}
-          className="premium-button mt-2.5 flex w-full items-center gap-2.5 rounded-xl border border-violet/30 bg-violet/10 px-3 py-2.5 text-left text-[12px] font-semibold text-text-primary transition hover:bg-violet/15 active:scale-[.99] sm:mt-3 sm:py-3 sm:text-sm"
-        >
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-signature text-sm text-white">
-            ＋
-          </span>
-          New creation
-        </button>
-        <div className="relative mt-3">
-          <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-dim" />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            type="search"
-            placeholder="Search projects"
-            className="w-full rounded-xl border border-border bg-panel/70 py-2.5 pl-9 pr-9 text-base text-text-primary outline-none placeholder:text-text-dim focus:border-violet/50 sm:text-xs"
-          />
-          {query && (
-            <button
-              type="button"
-              onClick={() => setQuery("")}
-              className="absolute right-0.5 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-lg text-text-dim hover:bg-white/5 hover:text-text-primary"
-              aria-label="Clear search"
-            >
-              <X size={14} />
-            </button>
-          )}
-        </div>
-        <div className="chat-scroll mt-4 flex-1 overflow-y-auto">
-          {runningJobs.length > 0 && (
-            <div className="sticky top-0 z-10 mx-1 mb-3 space-y-1.5 rounded-xl border border-violet/25 bg-[#100c20] p-2 shadow-lg shadow-black/20">
-              <div className="flex items-center gap-2 px-1 pt-0.5">
-                <span className="h-2 w-2 animate-pulse rounded-full bg-mint" />
-                <p className="text-[11px] font-semibold text-text-primary">
-                  {runningJobs.length} generation
-                  {runningJobs.length === 1 ? "" : "s"} running
-                </p>
-              </div>
-              {/* Always-visible and clickable — pinned to the top of the list
-                  (even while scrolled) so a running job is never something
-                  you have to go hunting for after switching chats. */}
-              {runningJobs.map((job) => (
-                <a
-                  key={job.id}
-                  href={`/dashboard?job=${encodeURIComponent(job.id)}`}
-                  onClick={(event) => {
-                    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-                    event.preventDefault();
-                    openProject(job.id);
-                  }}
-                  className="block rounded-lg px-2 py-1.5 text-left transition hover:bg-white/5"
-                >
-                  <p className="truncate text-[11px] font-medium text-text-primary">{job.title}</p>
-                  <div className="mt-1 flex items-center gap-2">
-                    <span className="h-1 flex-1 overflow-hidden rounded-full bg-white/10">
-                      <span
-                        className="block h-full rounded-full bg-signature transition-all"
-                        style={{
-                          width: `${Math.max(4, Math.min(100, job.progress))}%`,
-                        }}
-                      />
-                    </span>
-                    <span className="text-[9px] text-text-dim">
-                      {Math.max(0, Math.min(100, Math.round(job.progress)))}%
-                    </span>
-                  </div>
-                </a>
-              ))}
-            </div>
-          )}
-          <p className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-[.16em] text-text-dim">
-            Recent projects
-          </p>
-          <div className="space-y-1">
-            {filteredJobs.map((item) => (
-              <div
-                key={item.id}
-                className={`group relative rounded-xl transition-colors ${(selectedJobId ?? composerJobId) === item.id ? "bg-white/10" : "hover:bg-white/5"}`}
-              >
-                <a
-                  href={`/dashboard?job=${encodeURIComponent(item.id)}`}
-                  onClick={(event) => {
-                    // A real href makes right-click → "open in new tab",
-                    // middle-click, and Cmd/Ctrl-click work like any normal
-                    // link. Only a plain left-click is intercepted for
-                    // in-app SPA navigation.
-                    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-                    event.preventDefault();
-                    openProject(item.id);
-                  }}
-                  className="block w-full px-3 py-2.5 pr-9 text-left"
-                >
-                  <div className="flex items-center gap-2">
-                    {(item.previewUrl || item.screenshotUrl) && (
-                      <img src={item.previewUrl || item.screenshotUrl || ""} alt="" loading="lazy" className="h-8 w-8 shrink-0 rounded-lg border border-white/10 object-cover" />
-                    )}
-                    <span
-                      className={`h-1.5 w-1.5 shrink-0 rounded-full ${item.status === "done" ? "bg-mint" : item.status === "failed" ? "bg-pink" : "bg-violet animate-pulse-soft"}`}
-                    />
-                    {item.pinned && <Pin size={11} className="shrink-0 fill-violet text-violet" />}
-                    <span className="min-w-0 flex-1 truncate text-xs font-medium text-text-primary">{item.title}</span>
-                    <span className="text-[10px] text-text-dim">{relativeTime(item.updatedAt)}</span>
-                  </div>
-                  <div className="mt-1 flex items-center gap-2 pl-3.5">
-                    <p className="min-w-0 flex-1 truncate text-[10px] capitalize text-text-dim">
-                      {item.featureLabel || item.mode} · {statusLabel(item.status, item.progress)}
-                    </p>
-                    {ACTIVE_STATUSES.has(item.status) && (
-                      <span className="h-1 w-12 overflow-hidden rounded-full bg-white/10">
-                        <span
-                          className="block h-full rounded-full bg-signature transition-all"
-                          style={{
-                            width: `${Math.max(4, Math.min(100, item.progress))}%`,
-                          }}
-                        />
-                      </span>
-                    )}
-                  </div>
-                </a>
-                <button
-                  type="button"
-                  onClick={() => setActionMenuId((value) => (value === item.id ? null : item.id))}
-                  className="absolute right-1 top-1 flex h-10 w-10 items-center justify-center rounded-lg text-text-dim opacity-100 hover:bg-white/10 hover:text-text-primary sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
-                  aria-label={`Production options for ${item.title}`}
-                >
-                  <MoreHorizontal size={15} />
-                </button>
-                {actionMenuId === item.id && (
-                  <div className="absolute right-2 top-10 z-50 w-44 rounded-xl border border-border bg-panel p-1.5 shadow-2xl">
-                    <button
-                      type="button"
-                      onClick={() => void togglePin(item)}
-                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-text-muted hover:bg-white/5 hover:text-text-primary"
-                    >
-                      <Pin size={14} />
-                      {item.pinned ? "Unpin production" : "Pin production"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void removeChat(item)}
-                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-pink hover:bg-pink/10"
-                    >
-                      <Trash2 size={14} />
-                      Delete production
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
-            {!filteredJobs.length && (
-              <p className="px-3 py-6 text-center text-xs text-text-dim">
-                {query ? "No matching projects." : "Your first project will appear here."}
-              </p>
-            )}
-          </div>
-        </div>
-        {me && (
-          <div className="mt-3 space-y-2">
-            {me.isAdmin && (
-              <Link
-                href="/admin"
-                className="flex items-center gap-2 rounded-xl border border-violet/25 bg-violet/10 px-3 py-2.5 text-xs font-semibold text-violet transition hover:bg-violet/15"
-              >
-                <ShieldCheck size={15} />
-                Admin control center
-              </Link>
-            )}
-            <Link
-              href="/profile"
-              className="flex items-center gap-2.5 rounded-xl border border-border bg-panel/60 p-2.5 transition hover:bg-panel sm:gap-3 sm:p-3"
-            >
-              <span className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-panel-alt text-text-primary sm:h-9 sm:w-9">
-                <CircleUserRound size={19} strokeWidth={1.8} aria-hidden="true" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-xs font-semibold text-text-primary">{me.email}</span>
-                <span className="block text-[10px] capitalize text-text-muted">
-                  {me.plan} · {formatCredits(me.creditsBalance)} credits
-                </span>
-              </span>
-              <span className="text-text-dim">›</span>
-            </Link>
-          </div>
-        )}
-      </aside>
-
       <div className="min-w-0 flex-1">
         <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-white/10 bg-bg/95 px-2.5 backdrop-blur-xl sm:h-16 sm:px-6">
           <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                setSidebarOpen(true);
-                setSidebarCollapsed(false);
-              }}
-              className={`flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-panel/60 text-text-muted shadow-[0_8px_22px_-18px_rgba(0,0,0,.9)] transition hover:text-text-primary active:scale-95 sm:h-10 sm:w-10 ${sidebarCollapsed ? "" : "lg:hidden"}`}
-              aria-label="Open projects menu"
-              aria-expanded={sidebarOpen}
-              aria-controls="workspace-project-menu"
-            >
-              <PanelLeftOpen size={16} />
-            </button>
+            <Link href="/" className="shrink-0 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet" aria-label="AiWebVideo home">
+              <Wordmark />
+            </Link>
             <div>
               <p className="text-sm font-semibold text-text-primary">
                 {selectedJobId || composerJobId ? "Creative chat" : "New creation"}
@@ -487,6 +262,7 @@ export function DashboardClient() {
             >
               {me && me.creditsBalance <= 0 ? "Recharge credits" : `${formatCredits(me?.creditsBalance)} credits`}
             </Link>
+            {me && <GenerationHistoryButton />}
             {me && <UserMenu email={me.email} plan={me.plan} creditsBalance={me.creditsBalance} isAdmin={me.isAdmin} />}
             {!isSignedIn && <Button onClick={() => setShowAuthModal(true)}>Sign in</Button>}
           </div>
@@ -527,7 +303,7 @@ export function DashboardClient() {
                 </div>
               )}
 
-              <div id="workspace-creator" className={`scroll-mt-24 ${composerJobId ? "min-h-0 flex-1" : ""}`}>
+              <div id="creator" className={`scroll-mt-24 ${composerJobId ? "min-h-0 flex-1" : ""}`}>
                 <ChatWidget
                   key={newProjectKey}
                   initialJobId={reuseJobId}
