@@ -154,7 +154,9 @@ type CaptureMeta = {
   logoUrl?: string | null;
   pages?: Array<{ url?: string; title?: string; screenshotUrl?: string }>;
   sourceType?: "website" | "upload" | "studio";
-  studioKind?: "product" | "idea" | "scenario" | "interior" | null;
+  studioKind?: "product" | "idea" | "scenario" | "interior" | "architecture" | null;
+  architectureLocation?: string | null;
+  architectureCoordinates?: { lat: number; lng: number } | null;
   ideaPrompt?: string | null;
   generatedReferenceUrls?: string[];
 };
