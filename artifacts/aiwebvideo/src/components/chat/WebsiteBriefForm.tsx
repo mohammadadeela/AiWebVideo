@@ -30,7 +30,7 @@ import {
 } from "@/lib/creativeIdeas";
 import { trackStudioEvent } from "@/lib/studio-api";
 import { CREATIVE_PRESETS, type CreativePreset } from "@/components/landing/CreativePresets";
-import { fetchMarketingSettings, fetchProductLinkPreview } from "@/lib/api-client";
+import { fetchMarketingSettings, fetchModelPricing, fetchProductLinkPreview, type ModelPricingResponse } from "@/lib/api-client";
 import { IMAGE_MODEL_OPTIONS, VIDEO_MODEL_OPTIONS, type ModelTier } from "@/lib/modelTiers";
 import type { AudioMode, JobMode } from "./types";
 import {
@@ -253,6 +253,7 @@ export function WebsiteBriefForm({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [compactPanel, setCompactPanel] = useState<"style" | "ideas" | null>(null);
   const [settings, setSettings] = useState<WebsiteGenerationSettings>(DEFAULT_SETTINGS);
+  const [liveModelPricing, setLiveModelPricing] = useState<ModelPricingResponse | null>(null);
   const [customDurationDraft, setCustomDurationDraft] = useState<string | null>(null);
   const [selectedWebsiteRecipe, setSelectedWebsiteRecipe] = useState<WebsiteProductionMode | null>(null);
   const [selectedIdea, setSelectedIdea] = useState<CreativeIdea | null>(null);
@@ -318,6 +319,14 @@ export function WebsiteBriefForm({
       window.removeEventListener("popstate", handleHistoryIntent);
     };
   }, [initialCreationIntent]);
+
+  useEffect(() => {
+    let active = true;
+    void fetchModelPricing()
+      .then((pricing) => { if (active) setLiveModelPricing(pricing); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     const applyPreset = (preset: CreativePreset) => {
@@ -542,9 +551,22 @@ export function WebsiteBriefForm({
       : settings.audioMode === "music_only"
         ? "Music only"
         : "Silent";
-  const exactCredits = isImageMode
-    ? estimateRenderCredits("photos", true, 8, settings.outputQuality, settings.modelTier)
-    : estimateRenderCredits("video", settings.audioMode !== "voice_music", durationSeconds, settings.outputQuality, settings.modelTier);
+  const exactCredits = useMemo(() => {
+    if (!liveModelPricing) {
+      return isImageMode
+        ? estimateRenderCredits("photos", true, 8, settings.outputQuality, settings.modelTier)
+        : estimateRenderCredits("video", settings.audioMode !== "voice_music", durationSeconds, settings.outputQuality, settings.modelTier);
+    }
+    if (settings.modelTier === "graphic1" || settings.modelTier === "graphic_pro") {
+      return liveModelPricing.image[settings.modelTier].displayCreditsPerImage * 4;
+    }
+    const tier = liveModelPricing.video[settings.modelTier];
+    const perSecond = settings.outputQuality === "4k"
+      ? (tier.displayCreditsPerSecond4k ?? tier.displayCreditsPerSecond1080)
+      : tier.displayCreditsPerSecond1080;
+    const narration = settings.audioMode === "voice_music" ? liveModelPricing.displayNarrationCredits : 0;
+    return perSecond * durationSeconds + narration;
+  }, [durationSeconds, isImageMode, liveModelPricing, settings.audioMode, settings.modelTier, settings.outputQuality]);
   const submitDisabled = disabled || (
     activeMode === "website"
       ? !url.trim()
