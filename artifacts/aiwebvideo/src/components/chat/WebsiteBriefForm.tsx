@@ -189,7 +189,6 @@ function MasterIdeas({
   onSelect: (idea: CreativeIdea) => void;
 }) {
   return (
-    <>
     <div className="chat-scroll flex gap-2 overflow-x-auto pb-1">
       {ideas.map((idea) => {
         const selected = selectedId === idea.id;
@@ -574,6 +573,7 @@ export function WebsiteBriefForm({
               : "Create talking scene";
 
   return (
+    <>
     <div
       ref={composerRootRef}
       className={`creator-composer relative overflow-hidden ${compactLayout ? "rounded-[22px]" : "rounded-[28px]"} border bg-[#151027]/95 shadow-[0_28px_90px_-48px_rgba(139,92,246,.55)] backdrop-blur-2xl transition ${dragging ? "border-mint/60 ring-2 ring-mint/15" : "border-white/15"}`}
