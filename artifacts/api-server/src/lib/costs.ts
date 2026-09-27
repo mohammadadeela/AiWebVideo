@@ -40,16 +40,19 @@ export const GEMINI_COST_CATALOG = {
     outputToken: Number(process.env.GEMINI_TEXT_OUTPUT_COST_PER_MILLION_USD ?? 3.00) / 1_000_000,
   },
   video: {
-    lite720: 0.05,
-    lite1080: 0.08,
-    fast720: 0.10,
-    fast1080: 0.12,
-    fast4k: 0.30,
-    standard1080: 0.40,
-    standard4k: 0.60,
+    lite720: Number(process.env.GEMINI_VIDEO_LITE_720P_COST_PER_SECOND_USD ?? 0.05),
+    lite1080: Number(process.env.GEMINI_VIDEO_LITE_1080P_COST_PER_SECOND_USD ?? 0.08),
+    fast720: Number(process.env.GEMINI_VIDEO_FAST_720P_COST_PER_SECOND_USD ?? 0.10),
+    fast1080: Number(process.env.GEMINI_VIDEO_FAST_1080P_COST_PER_SECOND_USD ?? 0.12),
+    fast4k: Number(process.env.GEMINI_VIDEO_FAST_4K_COST_PER_SECOND_USD ?? 0.30),
+    standard1080: Number(process.env.GEMINI_VIDEO_STANDARD_1080P_COST_PER_SECOND_USD ?? 0.40),
+    standard4k: Number(process.env.GEMINI_VIDEO_STANDARD_4K_COST_PER_SECOND_USD ?? 0.60),
   },
-  image: { twoK: 0.101, fourK: 0.151 },
-  ttsAudioSecond: 0.0005,
+  image: {
+    twoK: Number(process.env.GEMINI_IMAGE_COST_2K_USD ?? 0.101),
+    fourK: Number(process.env.GEMINI_IMAGE_COST_4K_USD ?? 0.151),
+  },
+  ttsAudioSecond: Number(process.env.GEMINI_TTS_AUDIO_SECOND_COST_USD ?? 0.0005),
 } as const;
 
 export async function recordGeminiTextUsage(jobId: string, model: string, operation: string, usage: { promptTokenCount?: number | null; candidatesTokenCount?: number | null } | null | undefined): Promise<void> {
