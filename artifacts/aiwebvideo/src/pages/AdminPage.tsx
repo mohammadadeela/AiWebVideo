@@ -556,15 +556,15 @@ export function AdminPage() {
   }
 
   if (!checked) return <div className="flex min-h-screen items-center justify-center bg-bg"><div className="h-9 w-9 animate-spin rounded-full border-2 border-violet border-t-transparent" /></div>;
-  if (!allowed) return <main className="flex min-h-screen items-center justify-center bg-bg px-5"><div className="max-w-md rounded-3xl border border-border bg-panel p-8 text-center"><ShieldCheck size={38} className="mx-auto text-violet" /><h1 className="mt-4 font-display text-2xl font-bold text-text-primary">Administrator access only</h1><p className="mt-2 text-sm text-text-muted">This protected control center is available only to approved administrator accounts.</p><Button className="mt-6" asChild><Link href="/dashboard">Return to workspace</Link></Button></div></main>;
+  if (!allowed) return <main className="flex min-h-screen items-center justify-center bg-bg px-5"><div className="max-w-md rounded-3xl border border-border bg-panel p-8 text-center"><ShieldCheck size={38} className="mx-auto text-violet" /><h1 className="mt-4 font-display text-2xl font-bold text-text-primary">Administrator access only</h1><p className="mt-2 text-sm text-text-muted">This protected control center is available only to approved administrator accounts.</p><Button className="mt-6" asChild><Link href="/">Return to site</Link></Button></div></main>;
 
   return <div className="min-h-screen bg-bg lg:flex">
     <aside className="border-b border-border bg-[#100c20] p-4 lg:sticky lg:top-0 lg:h-screen lg:w-64 lg:border-b-0 lg:border-r">
       <div className="flex items-center justify-between"><Link href="/"><Wordmark /></Link><span className="rounded-full bg-violet/15 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-violet">Admin</span></div>
       <nav className="mt-7 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-1">{tabs.map((item) => <button key={item.id} type="button" onClick={() => selectTab(item.id)} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs font-semibold transition ${tab === item.id ? 'bg-violet/15 text-text-primary' : 'text-text-muted hover:bg-white/5 hover:text-text-primary'}`}><item.icon size={16} />{item.label}</button>)}</nav>
-      <Link href="/dashboard" className="mt-4 block rounded-xl border border-border px-3 py-2.5 text-center text-xs text-text-muted hover:text-text-primary lg:hidden">← User workspace</Link>
+      <Link href="/" className="mt-4 block rounded-xl border border-border px-3 py-2.5 text-center text-xs text-text-muted hover:text-text-primary lg:hidden">← Main site</Link>
       <div className="mt-6 hidden rounded-2xl border border-border bg-panel/60 p-4 lg:block"><p className="text-xs font-semibold text-text-primary">Protected controls</p><p className="mt-1 text-[10px] leading-relaxed text-text-dim">Gemini credentials stay server-side. This page shows readiness only, never secret values.</p></div>
-      <Link href="/dashboard" className="mt-4 hidden rounded-xl border border-border px-3 py-2.5 text-center text-xs text-text-muted hover:text-text-primary lg:block">← User workspace</Link>
+      <Link href="/" className="mt-4 hidden rounded-xl border border-border px-3 py-2.5 text-center text-xs text-text-muted hover:text-text-primary lg:block">← Main site</Link>
     </aside>
 
     <main className="min-w-0 flex-1 p-4 sm:p-7 lg:p-10">
@@ -682,7 +682,7 @@ export function AdminPage() {
               <label className="block text-xs text-text-muted">Caption<input value={video.caption ?? ''} placeholder="Fashion store launch video" onChange={(event) => { setMarketing({ ...marketing, videos: { showcase: marketing.videos.showcase.map((item, i) => i === index ? { ...item, caption: event.target.value || null } : item) } }); setDirty(true); }} className="mt-1.5 w-full rounded-xl border border-border bg-bg px-3 py-2.5 text-xs" /></label>
               <label className="block text-xs text-text-muted">Text over the video<textarea rows={2} value={video.overlayText ?? ''} placeholder="Created from a real website in minutes" onChange={(event) => { setMarketing({ ...marketing, videos: { showcase: marketing.videos.showcase.map((item, i) => i === index ? { ...item, overlayText: event.target.value || null } : item) } }); setDirty(true); }} className="mt-1.5 w-full resize-none rounded-xl border border-border bg-bg px-3 py-2.5 text-xs" /></label>
               <div className="border-t border-white/10 pt-3">
-                <label className="block text-xs font-semibold text-white">Make this video a workspace preset
+                <label className="block text-xs font-semibold text-white">Make this video a creator preset
                   <select value={video.templateMode ?? ''} onChange={(event) => { const value = event.currentTarget.value as NonNullable<typeof video.templateMode> | ''; setMarketing({ ...marketing, videos: { showcase: marketing.videos.showcase.map((item, i) => i === index ? { ...item, templateMode: value || null } : item) } }); setDirty(true); }} className="mt-2 w-full rounded-xl border border-border bg-bg px-3 py-2.5 text-xs text-white">
                     <option value="">Showcase only</option><option value="photo">Product image</option><option value="product-video">Product video</option><option value="scenario">Talking person / portrait</option><option value="video">AI video</option><option value="interior">Interior</option>
                   </select>
