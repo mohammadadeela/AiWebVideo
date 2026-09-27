@@ -244,86 +244,6 @@ export function PricingTable() {
 
   return (
     <div>
-      <div
-        id="plans"
-        className="scroll-mt-24 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4"
-      >
-        {PLANS.map((plan, i) => (
-          <div
-            key={plan.id}
-            className={`relative flex flex-col rounded-2xl border p-3 sm:p-5 transition-all duration-200 hover:-translate-y-1 animate-fade-in-up ${
-              plan.highlight
-                ? "border-violet/60 bg-signature-soft shadow-[0_0_40px_-10px_rgba(139,92,246,0.3)]"
-                : "border-border bg-panel hover:border-violet/30"
-            }`}
-            style={{ animationDelay: `${i * 80}ms` }}
-          >
-            {plan.highlight && (
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                <span className="inline-flex items-center rounded-full bg-signature px-2 sm:px-3 py-0.5 text-[9px] sm:text-[11px] font-semibold text-white whitespace-nowrap">
-                  Most popular
-                </span>
-              </div>
-            )}
-            <h3 className="font-display text-sm sm:text-base font-bold text-text-primary">
-              {plan.name}
-            </h3>
-            <p className="mt-0.5 text-[10px] sm:text-xs text-text-muted line-clamp-1 sm:line-clamp-none">
-              {plan.tagline}
-            </p>
-            <div className="mt-2 sm:mt-3">
-              <span className="font-display text-xl sm:text-3xl font-bold text-text-primary">
-                {plan.price}
-              </span>
-              {plan.period && (
-                <span className="text-xs sm:text-sm text-text-dim">
-                  {plan.period}
-                </span>
-              )}
-              {plan.sub && (
-                <span className="ml-1 text-xs sm:text-sm text-text-dim">
-                  {plan.sub}
-                </span>
-              )}
-            </div>
-            <p className="font-utility mt-1 text-[10px] sm:text-xs text-mint">
-              {plan.credits}
-            </p>
-            {plan.id !== "free" && (
-              <p className="mt-1.5 text-[10px] leading-4 text-text-dim">
-                Renews monthly · cancel anytime
-              </p>
-            )}
-            <ul className="mt-2 sm:mt-4 flex-1 space-y-1 sm:space-y-2">
-              {plan.notes.map((n) => (
-                <li
-                  key={n}
-                  className="flex items-start gap-1.5 sm:gap-2 text-[11px] sm:text-sm text-text-muted"
-                >
-                  <span className="mt-0.5 text-mint shrink-0">✓</span>
-                  {n}
-                </li>
-              ))}
-            </ul>
-            {plan.id === "free" ? (
-              <Button
-                variant={plan.highlight ? "primary" : "secondary"}
-                size="md"
-                className="mt-3 sm:mt-5 w-full !text-xs sm:!text-sm"
-                onClick={() => handleChoose(plan.id)}
-              >
-                {plan.cta}
-              </Button>
-            ) : (
-              <PurchaseButton
-                primary={plan.highlight}
-                onBuy={() => handleChoose(plan.id)}
-              />
-            )}
-          </div>
-        ))}
-      </div>
-
       <div className="mt-8 sm:mt-12">
         <h3 className="font-display text-lg sm:text-xl font-bold text-text-primary">
           Just need one video?
@@ -432,6 +352,89 @@ export function PricingTable() {
         </div>
       </section>
 
+      <div className="mt-12">
+        <h3 className="mb-4 font-display text-xl font-semibold text-text-primary">Monthly plans</h3>
+        <div
+        id="plans"
+        className="scroll-mt-24 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4"
+      >
+        {PLANS.map((plan, i) => (
+          <div
+            key={plan.id}
+            className={`relative flex flex-col rounded-2xl border p-3 sm:p-5 transition-all duration-200 hover:-translate-y-1 animate-fade-in-up ${
+              plan.highlight
+                ? "border-violet/60 bg-signature-soft shadow-[0_0_40px_-10px_rgba(139,92,246,0.3)]"
+                : "border-border bg-panel hover:border-violet/30"
+            }`}
+            style={{ animationDelay: `${i * 80}ms` }}
+          >
+            {plan.highlight && (
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <span className="inline-flex items-center rounded-full bg-signature px-2 sm:px-3 py-0.5 text-[9px] sm:text-[11px] font-semibold text-white whitespace-nowrap">
+                  Most popular
+                </span>
+              </div>
+            )}
+            <h3 className="font-display text-sm sm:text-base font-bold text-text-primary">
+              {plan.name}
+            </h3>
+            <p className="mt-0.5 text-[10px] sm:text-xs text-text-muted line-clamp-1 sm:line-clamp-none">
+              {plan.tagline}
+            </p>
+            <div className="mt-2 sm:mt-3">
+              <span className="font-display text-xl sm:text-3xl font-bold text-text-primary">
+                {plan.price}
+              </span>
+              {plan.period && (
+                <span className="text-xs sm:text-sm text-text-dim">
+                  {plan.period}
+                </span>
+              )}
+              {plan.sub && (
+                <span className="ml-1 text-xs sm:text-sm text-text-dim">
+                  {plan.sub}
+                </span>
+              )}
+            </div>
+            <p className="font-utility mt-1 text-[10px] sm:text-xs text-mint">
+              {plan.credits}
+            </p>
+            {plan.id !== "free" && (
+              <p className="mt-1.5 text-[10px] leading-4 text-text-dim">
+                Renews monthly · cancel anytime
+              </p>
+            )}
+            <ul className="mt-2 sm:mt-4 flex-1 space-y-1 sm:space-y-2">
+              {plan.notes.map((n) => (
+                <li
+                  key={n}
+                  className="flex items-start gap-1.5 sm:gap-2 text-[11px] sm:text-sm text-text-muted"
+                >
+                  <span className="mt-0.5 text-mint shrink-0">✓</span>
+                  {n}
+                </li>
+              ))}
+            </ul>
+            {plan.id === "free" ? (
+              <Button
+                variant={plan.highlight ? "primary" : "secondary"}
+                size="md"
+                className="mt-3 sm:mt-5 w-full !text-xs sm:!text-sm"
+                onClick={() => handleChoose(plan.id)}
+              >
+                {plan.cta}
+              </Button>
+            ) : (
+              <PurchaseButton
+                primary={plan.highlight}
+                onBuy={() => handleChoose(plan.id)}
+              />
+            )}
+          </div>
+        ))}
+      </div>
+
+      </div>
       <div className="mt-10 overflow-x-auto rounded-xl border border-border">
         <table className="w-full text-left text-sm">
           <thead>

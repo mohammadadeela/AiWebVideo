@@ -33,6 +33,8 @@ export interface CapturedPage {
   url: string;
   title: string;
   screenshotUrl: string;
+  offerings?: string[];
+  description?: string | null;
 }
 
 export interface SiteCapture {
@@ -48,6 +50,7 @@ export interface SiteCapture {
   recordingUrl: string | null;
   pages: CapturedPage[];
   pageCount: number;
+  siteAnalysis?: { summary: string | null; navigation: string[]; offerings: string[]; actions: string[] };
 }
 
 export type CaptureProgress = (progress: number, message: string, etaSeconds: number, partialCapture?: SiteCapture | null) => void | Promise<void>;
@@ -227,7 +230,20 @@ async function collectMetadata(page: Page, fallbackUrl: string) {
       match?.forEach((color) => colors.size < 6 && colors.add(color.toLowerCase()));
     };
     add(document.documentElement.innerHTML.slice(0, 500_000));
-    return { title, description, iconUrl: icon, logoUrl: icon, brandColors: Array.from(colors), htmlLang };
+    const clean = (value: string) => value.replace(/\s+/g, ' ').trim().slice(0, 110);
+    const unique = (selector: string, max: number) => Array.from(new Set(
+      Array.from(document.querySelectorAll<HTMLElement>(selector))
+        .filter((node) => Boolean(node.getClientRects().length))
+        .map((node) => clean(node.innerText || node.getAttribute('aria-label') || ''))
+        .filter((value) => value.length > 2 && value.length < 105)
+    )).slice(0, max);
+    const siteAnalysis = {
+      summary: description || clean(document.querySelector('main h1, h1')?.textContent || '') || null,
+      navigation: unique('header nav a, nav a', 12),
+      offerings: unique('main h2, main h3, article h2, article h3', 16),
+      actions: unique('main a, main button', 12),
+    };
+    return { title, description, iconUrl: icon, logoUrl: icon, brandColors: Array.from(colors), htmlLang, siteAnalysis };
   }, fallbackUrl);
 }
 
@@ -855,7 +871,7 @@ async function captureSiteNow(jobId: string, sourceUrl: string, onProgress?: Cap
     // missed, but repeated/low-value routes and near-duplicate content are
     // skipped before a screenshot is saved.
     const rootCanonical = normalizeInternalPageUrl(sourceUrl, sourceUrl) ?? sourceUrl;
-    const pages: CapturedPage[] = [{ url: sourceUrl, title: meta.title, screenshotUrl: fullPageScreenshotUrl }];
+    const pages: CapturedPage[] = [{ url: sourceUrl, title: meta.title, screenshotUrl: fullPageScreenshotUrl, offerings: meta.siteAnalysis.offerings, description: meta.description }];
     const currentCaptureSnapshot = (): SiteCapture => ({
       ...meta,
       logoUrl: websiteIconUrl ?? meta.logoUrl,
@@ -962,7 +978,7 @@ async function captureSiteNow(jobId: string, sourceUrl: string, onProgress?: Cap
                 const buffer = await screenshotPage(child, false);
                 const filename = `page-${pageFileIndex++}.jpg`;
                 const pageScreenshotUrl = await saveImageFile(jobId, filename, buffer);
-                pages.push({ url: child.url(), title: childMeta.title, screenshotUrl: pageScreenshotUrl });
+                pages.push({ url: child.url(), title: childMeta.title, screenshotUrl: pageScreenshotUrl, offerings: childMeta.siteAnalysis.offerings, description: childMeta.description });
                 capturedCanonicalUrls.add(finalCanonical);
                 familyCounts.set(family, currentFamilyCount + 1);
                 savedSignatures.push(signature);
@@ -1020,8 +1036,13 @@ async function captureSiteNow(jobId: string, sourceUrl: string, onProgress?: Cap
       }
     }
 
+    const siteAnalysis = {
+      ...meta.siteAnalysis,
+      offerings: Array.from(new Set(pages.flatMap((page) => page.offerings ?? []))).slice(0, 40),
+    };
     const finalCapture: SiteCapture = {
       ...meta,
+      siteAnalysis,
       logoUrl: websiteIconUrl ?? meta.logoUrl,
       screenshotUrl,
       fullPageScreenshotUrl,

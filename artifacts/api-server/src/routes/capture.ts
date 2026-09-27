@@ -11,7 +11,7 @@ const router = Router();
 
 const CaptureBody = z.object({
   url: z.string().url().min(1),
-  creativeBrief: z.string().trim().min(1).max(8000),
+  creativeBrief: z.string().trim().max(8000).default(''),
   setupSummary: z.string().trim().max(500).optional(),
 });
 
@@ -80,7 +80,7 @@ router.post('/', tryAuth, async (req, res) => {
     const userId = req.user?.id ?? null;
     const job = await createJob(userId, safeUrl, 'video');
     await addJobMessage(job.id, 'user', safeUrl, 'url');
-    await addJobMessage(job.id, 'user', creativeBrief, 'prompt');
+    if (creativeBrief) await addJobMessage(job.id, 'user', creativeBrief, 'prompt');
     if (setupSummary) await addJobMessage(job.id, 'user', setupSummary, 'setup');
     await addJobMessage(job.id, 'assistant', 'Reading the website and selecting the strongest distinct pages for the campaign.', 'status');
 

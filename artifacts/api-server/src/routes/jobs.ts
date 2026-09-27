@@ -144,6 +144,7 @@ function initialAiVideoEstimate(sceneCount: number, finishAllowanceSeconds: numb
 type CaptureMeta = {
   title?: string;
   description?: string | null;
+  siteAnalysis?: { summary: string | null; navigation: string[]; offerings: string[]; actions: string[] };
   screenshotUrl?: string | null;
   pageCount?: number;
   recordingUrl?: string | null;
@@ -883,7 +884,13 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
           pageTitle:
             meta?.title ??
             (job.source_url.startsWith("upload://") ? "Uploaded media" : new URL(job.source_url).hostname),
-          description: meta?.description ?? null,
+          description: meta?.siteAnalysis ? [
+            meta.description || meta.siteAnalysis.summary,
+            `Observed navigation: ${meta.siteAnalysis.navigation.join(', ')}`,
+            `Observed products, services and features: ${meta.siteAnalysis.offerings.join(', ')}`,
+            `Observed customer actions: ${meta.siteAnalysis.actions.join(', ')}`,
+            'Use these as leads only; verify each against the provided screenshots before describing it. Do not invent features or claims.',
+          ].filter(Boolean).join('\n').slice(0, 3000) : meta?.description ?? null,
           screenshotBase64,
           fullPageScreenshotBase64: fullPageBase64,
           referenceCaptures: plannerCaptures.map((capture) => ({

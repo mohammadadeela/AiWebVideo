@@ -240,6 +240,8 @@ export function WebsiteBriefForm({
   const [personReferenceRequired, setPersonReferenceRequired] = useState(false);
   const [interiorOutput, setInteriorOutput] = useState<"images" | "video">("images");
   const [files, setFiles] = useState<File[]>([]);
+  const [exampleReference, setExampleReference] = useState<File | null>(null);
+  const [selectedExample, setSelectedExample] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const dragDepthRef = useRef(0);
@@ -289,18 +291,45 @@ export function WebsiteBriefForm({
   useEffect(() => {
     const applyPreset = (preset: CreativePreset) => {
       applyIntent(preset.intent);
+      setSelectedExample(preset.title);
+      setExampleReference(null);
+      if (preset.image) void fetch(preset.image).then(async (response) => {
+        if (!response.ok) throw new Error('Example unavailable');
+        const blob = await response.blob();
+        if (blob.type.startsWith('image/')) setExampleReference(new File([blob], 'gallery-style-reference.webp', { type: blob.type }));
+      }).catch(() => {});
+      else if (preset.preview?.startsWith('/')) {
+        const player = document.createElement('video');
+        player.muted = true;
+        player.preload = 'metadata';
+        player.src = preset.preview;
+        player.addEventListener('loadeddata', () => {
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.min(1024, player.videoWidth);
+            canvas.height = Math.max(1, Math.round(canvas.width * player.videoHeight / player.videoWidth));
+            canvas.getContext('2d')?.drawImage(player, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob((blob) => {
+              if (blob) setExampleReference(new File([blob], 'gallery-video-frame.jpg', { type: 'image/jpeg' }));
+              player.removeAttribute('src');
+              player.load();
+            }, 'image/jpeg', 0.85);
+          } catch { /* Keep the written direction if the frame cannot be read. */ }
+        }, { once: true });
+      }
       setPersonReferenceRequired(preset.intent === "scenario");
-      if (preset.intent === "video" || preset.intent === "scenario") setPrompt(preset.prompt);
-      else setBrief(preset.prompt);
+      const direction = `${preset.prompt} The final reference image, when attached, is the gallery example for STYLE, lighting and composition only. Earlier images uploaded by the customer are the exact product, person or space to depict; never copy the example's subject or branding.`;
+      if (preset.intent === "video" || preset.intent === "scenario") setPrompt(direction);
+      else setBrief(direction);
       window.requestAnimationFrame(() => studioPromptRef.current?.focus());
     };
     const initialName = new URLSearchParams(window.location.search).get("preset");
     const initial = CREATIVE_PRESETS.find((preset) => preset.title === initialName);
     if (initial) applyPreset(initial);
     else if (initialName) void fetchMarketingSettings().then((settings) => {
-      const video = settings.videos.showcase.find((item) => item.id === initialName && item.templateMode && item.templatePrompt);
-      if (!video?.templateMode || !video.templatePrompt) return;
-      applyPreset({ title: video.caption || "Video scene", kind: "Video", category: video.templateMode === "scenario" ? "People" : video.templateMode === "interior" ? "Interior" : "Product", intent: video.templateMode, prompt: video.templatePrompt, position: "50% 0%" });
+      const video = settings.videos.showcase.find((item) => item.id === initialName && item.templateMode && item.url);
+      if (!video?.templateMode) return;
+      applyPreset({ title: video.caption || "Create your version", kind: video.kind === 'image' ? "Image" : "Video", category: video.templateMode === "scenario" ? "People" : video.templateMode === "interior" ? "Interior" : "Product", intent: video.templateMode, prompt: video.templatePrompt?.trim() || (video.templateMode === 'interior' ? 'Recreate the selected example using my real room layout and measurements.' : video.templateMode === 'scenario' ? 'Recreate the selected scene with the person in my portrait, keeping their identity.' : 'Recreate the selected example with my exact uploaded product, preserving its branding.'), position: "50% 0%", image: video.kind === 'image' ? video.url ?? undefined : video.posterUrl ?? undefined });
     }).catch(() => {});
     const onPreset = (event: Event) => applyPreset((event as CustomEvent<CreativePreset>).detail);
     window.addEventListener("aiwebvideo:creative-preset", onPreset);
@@ -409,14 +438,9 @@ export function WebsiteBriefForm({
         setError("Enter the public website URL you want to turn into a video.");
         return;
       }
-      if (!brief.trim() && !landingWebsitePreview) {
-        setError("Tell AiWebVideo what the video should communicate before generating.");
-        websiteBriefRef.current?.focus();
-        return;
-      }
       try {
         setError(null);
-        void onSubmit(normalizeWebsiteUrl(url), brief.trim() || "Show the most useful pages and what this website offers.", settings, files);
+        void onSubmit(normalizeWebsiteUrl(url), brief.trim(), settings, files);
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : "Enter a valid public website URL.");
       }
@@ -457,7 +481,7 @@ export function WebsiteBriefForm({
     void onStudioSubmit({
       studioKind: isProduct ? "product" : activeMode === "scenario" ? "scenario" : "interior",
       prompt: activePrompt,
-      files,
+      files: exampleReference && files.length < 10 ? [...files, exampleReference] : files,
       mode: activeMode === "photo" ? "photos" : activeMode === "product-video" ? "video" : isInterior ? (interiorOutput === "video" ? "custom" : "photos") : "custom",
       durationSeconds: activeMode === "photo" ? 8 : durationSeconds,
       aspectRatio: settings.aspectRatio,
@@ -483,7 +507,7 @@ export function WebsiteBriefForm({
     : estimateRenderCredits("video", settings.audioMode !== "voice_music", durationSeconds, settings.outputQuality);
   const submitDisabled = disabled || (
     activeMode === "website"
-      ? !url.trim() || (!brief.trim() && !landingWebsitePreview)
+      ? !url.trim()
       : isProductMode
         ? files.length === 0 || !brief.trim()
         : isInteriorMode
@@ -601,6 +625,7 @@ export function WebsiteBriefForm({
           </div>
         )}
 
+        {selectedExample && activeMode !== "website" && <p className="mb-3 text-xs text-mint">Creating your version of {selectedExample}. Add your own reference below; the gallery image guides the style.</p>}
         <div className="space-y-3">
           {activeMode === "website" && (
             <label className="block">
@@ -634,7 +659,7 @@ export function WebsiteBriefForm({
               }}
               placeholder={
                 activeMode === "website"
-                  ? "Example: Show the best products, main benefits, and finish with a strong CTA."
+                  ? "Optional — we can plan from your website alone. Add a goal if you have one."
                   : activeMode === "video"
                     ? "Example: A cinematic drone reveal that moves from the city into the location."
                     : activeMode === "photo"

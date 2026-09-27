@@ -352,6 +352,7 @@ router.put('/marketing', async (req, res) => {
       id: z.string().trim().min(1).max(40),
       url: z.string().trim().max(2000).nullable(),
       posterUrl: z.string().trim().max(2000).nullable(),
+      kind: z.enum(['image', 'video']).optional(),
       caption: nullableText,
       overlayText: nullableText,
       eyebrow: z.string().trim().max(60).nullable(),

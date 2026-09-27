@@ -55,6 +55,13 @@ export function SiteCard({ sourceUrl, metadata }: { sourceUrl: string; metadata:
           </div>
         </div>
       )}
+      {!isUpload && metadata.siteAnalysis && <div className="mb-3 rounded-xl border border-white/[.08] bg-white/[.025] p-4">
+        <p className="text-xs font-semibold text-white">What we found on your website</p>
+        {metadata.siteAnalysis.summary && <p className="mt-2 text-xs leading-5 text-text-muted">{metadata.siteAnalysis.summary}</p>}
+        {metadata.siteAnalysis.offerings.length > 0 && <div className="mt-3"><p className="text-[10px] font-medium text-white/70">Products, services and features</p><div className="mt-1.5 flex flex-wrap gap-1.5">{metadata.siteAnalysis.offerings.slice(0, 10).map((item) => <span key={item} className="rounded-md border border-white/10 bg-white/[.04] px-2 py-1 text-[10px] text-white/80">{item}</span>)}</div>{metadata.siteAnalysis.offerings.length > 10 && <details className="mt-2 text-[10px] text-mint"><summary className="cursor-pointer">View all {metadata.siteAnalysis.offerings.length} observed features</summary><p className="mt-2 leading-5 text-text-muted">{metadata.siteAnalysis.offerings.slice(10).join(" · ")}</p></details>}</div>}
+        {metadata.siteAnalysis.navigation.length > 0 && <p className="mt-3 text-[10px] leading-5 text-text-dim">Pages and sections: {metadata.siteAnalysis.navigation.join(' · ')}</p>}
+        {metadata.siteAnalysis.actions.length > 0 && <p className="mt-1 text-[10px] leading-5 text-text-dim">Visitor actions: {metadata.siteAnalysis.actions.join(' · ')}</p>}
+      </div>}
       {allShots.length > 0 && (
         <div className="mb-3 rounded-xl border border-white/[.08] bg-white/[.025] p-3">
           <div className="mb-2 flex flex-wrap items-start justify-between gap-2">

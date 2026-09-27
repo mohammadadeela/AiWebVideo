@@ -133,7 +133,7 @@ export function VideoShowcase() {
     };
   }, []);
 
-  const videos = settings?.videos.showcase.filter((video) => video.url && !(video.templateMode && video.templatePrompt)) ?? [];
+  const videos = settings?.videos.showcase.filter((video) => video.url && video.kind !== 'image' && !video.templateMode) ?? [];
   const featured = videos[0];
   const supporting = videos.slice(1);
 
