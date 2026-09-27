@@ -3,6 +3,7 @@ import {
   ArrowRight,
   Check,
   ChevronDown,
+  Clock3,
   Film,
   Globe2,
   Image as ImageIcon,
@@ -157,6 +158,16 @@ function controlClass(active: boolean) {
       ? "border-violet/40 bg-violet/[.10] text-white"
       : "border-white/[.10] bg-white/[.035] text-text-muted hover:border-violet/30 hover:bg-violet/[.07] hover:text-white"
   }`;
+}
+
+function resizePromptTextarea(node: HTMLTextAreaElement | null) {
+  if (!node || typeof window === "undefined") return;
+  const viewportCap = Math.max(132, Math.round(window.innerHeight * 0.38));
+  const maxHeight = Math.min(220, viewportCap);
+  node.style.height = "0px";
+  const nextHeight = Math.max(52, Math.min(maxHeight, node.scrollHeight));
+  node.style.height = `${nextHeight}px`;
+  node.style.overflowY = node.scrollHeight > maxHeight ? "auto" : "hidden";
 }
 
 function MasterIdeas({
@@ -351,6 +362,18 @@ export function WebsiteBriefForm({
     document.addEventListener("keydown", onKey);
     return () => { document.removeEventListener("pointerdown", onPointer); document.removeEventListener("keydown", onKey); };
   }, [settingsOpen]);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      resizePromptTextarea(activeMode === "website" ? websiteBriefRef.current : studioPromptRef.current);
+    });
+    const onResize = () => resizePromptTextarea(activeMode === "website" ? websiteBriefRef.current : studioPromptRef.current);
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [activeMode, brief, prompt]);
 
   const previews = useMemo(
     () => files.map((file) => ({ file, url: URL.createObjectURL(file) })),
@@ -571,10 +594,11 @@ export function WebsiteBriefForm({
       {url ? <img src={`https://${url.replace(/^https?:\/\//, "").split("/")[0]}/favicon.ico`} alt="" className="h-5 w-5 rounded-md object-contain" onError={(event) => { event.currentTarget.style.display = "none"; }} /> : <Globe2 size={16} className="text-white/55" />}
       <input value={url} onChange={(event) => setUrl(event.currentTarget.value)} type="url" inputMode="url" autoComplete="url" placeholder="Paste a website URL" disabled={disabled} className="min-w-0 flex-1 bg-transparent py-3 text-sm text-white outline-none placeholder:text-white/40" />
     </div>}
-    <div className="relative flex min-h-16 items-center gap-2 rounded-[30px] border border-white/[.16] bg-[#191522] px-3 py-2 shadow-[0_20px_55px_-40px_rgba(0,0,0,.9)] focus-within:border-white/35 sm:px-4">
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[15px] border border-white/10 bg-black/20" style={{ color: accents[activeMode] }}><ToolIcon size={19} /></span>
-      <textarea ref={activeMode === "website" ? websiteBriefRef : studioPromptRef} value={activeMode === "video" || activeMode === "scenario" ? prompt : brief} onChange={(event) => { if (activeMode === "video" || activeMode === "scenario") setPrompt(event.currentTarget.value); else setBrief(event.currentTarget.value); event.currentTarget.style.height = "auto"; event.currentTarget.style.height = `${Math.min(160, event.currentTarget.scrollHeight)}px`; }} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); submit(); } }} placeholder={toolPlaceholder[activeMode]} rows={1} disabled={disabled} aria-label={activeMode === "scenario" ? "Script and scene" : "Creative prompt"} className={`max-h-40 min-h-10 min-w-0 flex-1 resize-none bg-transparent px-1 py-2.5 text-sm leading-5 text-white outline-none placeholder:text-white/40 ${activeMode === "scenario" ? "font-mono" : ""}`} />
+    <div className="relative flex min-h-16 flex-wrap items-end gap-2 rounded-[30px] border border-white/[.16] bg-[#191522] px-3 py-2 shadow-[0_20px_55px_-40px_rgba(0,0,0,.9)] transition focus-within:border-white/35 focus-within:shadow-[0_0_0_1px_rgba(181,154,255,.16),0_22px_60px_-42px_rgba(181,154,255,.7)] sm:flex-nowrap sm:items-center sm:px-4">
+      <span className="grid h-10 w-10 shrink-0 place-items-center self-start rounded-[15px] border border-white/10 bg-black/20 sm:self-auto" style={{ color: accents[activeMode] }}><ToolIcon size={19} /></span>
+      <textarea ref={activeMode === "website" ? websiteBriefRef : studioPromptRef} value={activeMode === "video" || activeMode === "scenario" ? prompt : brief} onChange={(event) => { if (activeMode === "video" || activeMode === "scenario") setPrompt(event.currentTarget.value); else setBrief(event.currentTarget.value); resizePromptTextarea(event.currentTarget); }} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); submit(); } }} placeholder={toolPlaceholder[activeMode]} rows={2} disabled={disabled} aria-label={activeMode === "scenario" ? "Script and scene" : "Creative prompt"} className={`min-h-[52px] max-h-[min(220px,38dvh)] min-w-0 basis-[calc(100%-3.5rem)] flex-1 resize-none overflow-y-hidden bg-transparent px-1 py-2.5 text-sm leading-5 text-white outline-none placeholder:text-white/40 sm:basis-0 ${activeMode === "scenario" ? "font-mono" : ""}`} />
       <button type="button" title="Attach images" aria-label={files.length ? `${files.length} images attached. Add more` : "Attach images"} onClick={() => inputRef.current?.click()} disabled={disabled || files.length >= 10} className={iconButton}>{files.length ? <><img src={previews[0]?.url} alt="" className="h-7 w-7 rounded-full object-cover" />{files.length > 1 && <span className="absolute -right-1 -top-1 rounded-full bg-white px-1 text-[9px] font-semibold text-black">+{files.length - 1}</span>}</> : <Paperclip size={18} />}</button>
+      {isVideoMode && <button type="button" title="Change duration" aria-label={`Duration ${durationSeconds} seconds`} onClick={() => { const values = [8,16,24,32,60]; const index = Math.max(0, values.indexOf(durationSeconds)); setSettings((current) => ({ ...current, durationSeconds: values[(index + 1) % values.length] })); }} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-white/[.10] bg-white/[.035] px-2.5 text-[10px] font-semibold text-white/70 transition hover:border-white/25 hover:bg-white/[.07] hover:text-white"><Clock3 size={14} /><span>{durationSeconds}s</span></button>}
       <div ref={settingsAnchorRef} className="relative">
         <button type="button" title="Settings" aria-label="Settings" aria-expanded={settingsOpen} onClick={() => setSettingsOpen((current) => !current)} className={iconButton}><Settings2 size={18} /></button>
         {settingsOpen && <div className="absolute bottom-[calc(100%+14px)] right-[-3.5rem] z-40 w-[min(355px,calc(100vw-2.5rem))] origin-bottom-right animate-fade-in-up rounded-[24px] border border-white/[.14] bg-[#211b2c] p-4 shadow-2xl sm:right-0" role="group" aria-label="Generation settings">
@@ -591,7 +615,7 @@ export function WebsiteBriefForm({
     {activeMode === "scenario" && <div className="mt-3 flex gap-2 overflow-x-auto">{["Natural", "Warm", "Narrator", "Dialogue"].map((voice) => <button type="button" key={voice} onClick={() => setVoicePreset(voice)} className={segmented(voicePreset === voice)}>{voice}</button>)}</div>}
     {activeMode === "photo" && <div className="mt-3 flex items-center gap-2 text-xs text-white/55"><span>Images</span><div className="flex rounded-full border border-white/10 p-1">{([1,4,9] as const).map((count) => <button type="button" key={count} aria-pressed={photoCount === count} onClick={() => setPhotoCount(count)} className={segmented(photoCount === count)}>{count}</button>)}</div></div>}
     <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1">{styles[activeMode].map((style) => <button type="button" key={style} onClick={() => setStylePreset(style)} aria-pressed={stylePreset === style} className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] transition ${stylePreset === style ? "border-white/40 bg-white/10 text-white" : "border-white/10 text-white/50 hover:text-white"}`}>{style}</button>)}</div>
-    <div className="mt-2 flex gap-2 overflow-x-auto pb-1" aria-label="Prompt ideas">{masterIdeas.slice(0,4).map((idea) => <button key={idea.id} type="button" onClick={() => applyMasterIdea(idea)} className="shrink-0 rounded-full px-3 py-1.5 text-[11px] text-white/45 transition hover:bg-white/[.06] hover:text-white">{idea.displayText}</button>)}</div>
+    <div className="mt-3" aria-label="Prompt ideas"><MasterIdeas ideas={masterIdeas.slice(0,4)} context={ideaContext} selectedId={selectedIdea?.id ?? null} onSelect={applyMasterIdea} /></div>
     {selectedExample && <p className="mt-2 text-xs text-white/55">Your version of {selectedExample} · attach your own subject.</p>}
     {error && <p role="alert" className="mt-2 text-xs text-[#f3a9bd]">{error}</p>}
     {showCreditPricing && <p className="mt-2 text-right text-[10px] text-white/45">Estimate: {photoCount === 4 || activeMode !== "photo" ? exactCredits : Math.ceil(exactCredits * photoCount / 4)} credits before generation</p>}
