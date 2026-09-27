@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 
 import { createPortal } from "react-dom";
 import { Link, useLocation } from "wouter";
 import {
+  Building2,
   ChevronDown,
   Film,
   Globe2,
@@ -18,6 +19,7 @@ import { Wordmark } from "@/components/ui/Wordmark";
 import { Button } from "@/components/ui/app-button";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { UserMenu, formatCredits } from "@/components/account/UserMenu";
+import { GenerationHistoryButton } from "@/components/account/GenerationHistoryButton";
 import { fetchMe } from "@/lib/api-client";
 import { watchAuthState } from "@/lib/firebase/client";
 import { resolveDashboardDestination } from "@/lib/guestSession";
@@ -40,6 +42,7 @@ const productItems = [
   ["Product Video", "Generated product film from references", "/?create=product-video#generate", PackageOpen],
   ["Talking Scenes", "Dialogue and scenario-driven video", "/?create=scenario#generate", MessageCircleMore],
   ["Interior Design", "Redesign rooms, homes and spaces", "/?create=interior#generate", House],
+  ["Architecture Design", "Visualize a real plot from Maps or an address", "/?create=architecture#generate", Building2],
 ] as const;
 
 export function Nav() {
@@ -114,7 +117,7 @@ export function Nav() {
 
     const requested = target.searchParams.get("create");
     const intent =
-      requested === "video" || requested === "photo" || requested === "product-video" || requested === "scenario" || requested === "interior" || requested === "website"
+      requested === "video" || requested === "photo" || requested === "product-video" || requested === "scenario" || requested === "interior" || requested === "architecture" || requested === "website"
         ? requested
         : "website";
 
@@ -209,18 +212,13 @@ export function Nav() {
                   <span>Admin</span>
                 </Link>
               )}
-              <Link
-                href="/dashboard"
-                className="hidden h-10 min-w-[112px] items-center justify-center whitespace-nowrap rounded-xl bg-signature px-4 text-xs font-bold text-white shadow-[0_14px_30px_-20px_rgba(236,72,153,.75)] transition hover:-translate-y-0.5 hover:brightness-110 sm:inline-flex"
-              >
-                Workspace
-              </Link>
+              <GenerationHistoryButton />
               {me && <UserMenu email={me.email} plan={me.plan} creditsBalance={me.creditsBalance} isAdmin={me.isAdmin} />}
             </>
           ) : (
             <>
               <Button className="hidden sm:inline-flex" variant="ghost" size="sm" onClick={() => setShowAuthModal(true)}>Log in</Button>
-              <Button variant="primary" size="sm" className="px-3 text-xs" asChild><a href="/dashboard" className="hidden sm:inline-flex">Open workspace</a></Button>
+              <Button variant="primary" size="sm" className="px-3 text-xs" asChild><a href="/?create=website#generate" className="hidden sm:inline-flex">Create</a></Button>
             </>
           )}
           <button
@@ -311,7 +309,7 @@ export function Nav() {
                 </div>
               ) : isSignedIn ? (
                 <div className="flex items-center gap-2">
-                  <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="flex min-h-11 flex-1 items-center justify-center rounded-xl bg-signature px-4 text-xs font-bold text-white shadow-[0_14px_28px_-20px_rgba(236,72,153,.72)]">Workspace</Link>
+                  <Link href="/?create=website#generate" onClick={() => setMobileOpen(false)} className="flex min-h-11 flex-1 items-center justify-center rounded-xl bg-signature px-4 text-xs font-bold text-white shadow-[0_14px_28px_-20px_rgba(236,72,153,.72)]">Create</Link>
                   <Link href="/pricing" onClick={() => setMobileOpen(false)} className="flex min-h-11 min-w-[96px] items-center justify-center rounded-xl border border-white/[.08] bg-white/[.025] px-3 font-utility text-[9px] font-semibold text-mint">{formatCredits(me?.creditsBalance)} credits</Link>
                   {me?.isAdmin && (
                     <Link href="/admin" onClick={() => setMobileOpen(false)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-violet/25 bg-violet/10 text-violet" aria-label="Admin"><ShieldCheck size={15} /></Link>
@@ -320,7 +318,7 @@ export function Nav() {
               ) : (
                 <div className="grid grid-cols-2 gap-2">
                   <Button variant="secondary" size="md" onClick={() => { setMobileOpen(false); setShowAuthModal(true); }}>Log in</Button>
-                  <Button className="w-full" variant="primary" size="md" asChild><a href="/dashboard" onClick={() => setMobileOpen(false)}>Workspace</a></Button>
+                  <Button className="w-full" variant="primary" size="md" asChild><a href="/?create=website#generate" onClick={() => setMobileOpen(false)}>Create</a></Button>
                 </div>
               )}
             </div>
