@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Film, Globe2, House, Image as ImageIcon, MessageCircleMore, PackageOpen, ArrowUpRight } from "lucide-react";
+import { Film, Globe2, House, Image as ImageIcon, MapPinned, MessageCircleMore, PackageOpen, ArrowUpRight } from "lucide-react";
 import { ChatWidget } from "@/components/chat/ChatWidget";
 import { CreativePresets } from "@/components/landing/CreativePresets";
 import type { CreationIntent } from "@/components/chat/WebsiteBriefForm";
@@ -12,6 +12,7 @@ const tools = [
   { intent: "product-video", name: "Product Video", note: "Turn a product reference into a moving commercial", Icon: PackageOpen, accent: "#eac68d" },
   { intent: "scenario", name: "Talking Person", note: "Create dialogue-led scenes with controlled direction", Icon: MessageCircleMore, accent: "#a7bdfa" },
   { intent: "interior", name: "Interior Design", note: "Redesign a real space while preserving its structure", Icon: House, accent: "#bdcba6" },
+  { intent: "architecture", name: "Architecture Preview", note: "Design on a real site using Maps-grounded context", Icon: MapPinned, accent: "#8fd7c8" },
 ] as const;
 
 function intentFromUrl(): CreationIntent {
@@ -43,9 +44,9 @@ export function Hero() {
     <div className="mx-auto max-w-7xl px-4 pb-14 pt-14 sm:px-5 sm:pt-20 lg:px-8">
       <h1 className="font-display text-[clamp(2.5rem,7vw,5rem)] font-semibold leading-[1.03] tracking-[-.055em] text-white">Make something worth showing.</h1>
       <p className="mt-3 text-sm text-white/55 sm:text-base">Pick a tool and start creating.</p>
-      <div className="mt-9 grid grid-cols-2 gap-2.5 md:grid-cols-3 xl:grid-cols-6" role="tablist" aria-label="Creation tools">
+      <div className="mt-9 grid grid-cols-2 gap-2.5 md:grid-cols-3 xl:grid-cols-7" role="tablist" aria-label="Creation tools">
         {tools.map(({ intent, name, note, Icon, accent }) => {
-          const sample = media.find((item) => item.templateMode === intent);
+          const sample = intent === "architecture" ? undefined : media.find((item) => item.templateMode === intent);
           const selected = active === intent;
           return <button key={intent} type="button" role="tab" aria-selected={selected} onClick={() => select(intent)} className={`group relative flex min-h-[220px] flex-col overflow-hidden rounded-[24px] border p-4 text-left transition duration-200 hover:scale-[1.015] focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/70 sm:min-h-[265px] ${selected ? "border-white/40 bg-[#201a2d] ring-1 ring-white/15" : "border-white/10 bg-[#171420] opacity-80 hover:border-white/25 hover:opacity-100"}`}>
             {sample && <div className="absolute inset-x-0 bottom-0 top-[44%] overflow-hidden"><div className="absolute inset-0 z-10 bg-gradient-to-t from-[#171420]/25 to-[#171420]" />{sample.kind === "image" ? <img src={sample.url ?? ""} alt="" loading="lazy" className="h-full w-full object-cover" /> : <video src={sample.url ?? ""} poster={sample.posterUrl ?? undefined} muted playsInline loop autoPlay preload="metadata" aria-hidden="true" className="h-full w-full object-cover" />}</div>}
