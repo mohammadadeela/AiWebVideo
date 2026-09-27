@@ -43,10 +43,12 @@ import {
 import { ASSETS_DIR } from "../lib/capture.js";
 import { signAssetTree, signPrivateAssetUrl } from "../lib/asset-access.js";
 import { ensureLocalAsset, uploadFileToR2 } from "../lib/r2-storage.js";
-import type { JobStatusResponse, JobWorkflowState } from "../types.js";
+import type { JobStatusResponse, JobWorkflowState, ModelTier } from "../types.js";
+import { isModelTier, isVideoModelTier, isImageModelTier } from "../lib/model-tiers.js";
 import type { Storyboard } from "../lib/gemini.js";
 
 const router = Router();
+const MODEL_TIER_SCHEMA = z.enum(["cinema1", "cinema2", "cinema_pro", "graphic1", "graphic_pro"]);
 const MAX_REFERENCE_CAPTURES = Math.ceil(MAX_VIDEO_SECONDS / VIDEO_SCENE_SECONDS);
 
 type ActionWindow = { count: number; resetAt: number };
@@ -460,6 +462,7 @@ router.patch("/:id/workflow", tryAuth, async (req, res) => {
         creativeBrief: z.string().max(8000).nullable(),
         aspectRatio: z.enum(["16:9", "9:16", "1:1"]),
         outputQuality: z.enum(["1080p", "4k"]),
+        modelTier: MODEL_TIER_SCHEMA.optional(),
         frameRate: z.union([z.literal(24), z.literal(30), z.literal(60)]),
         selectedCaptureIds: z.array(z.string().max(180)).max(30),
         audioMode: z.enum(["voice_music", "native_audio", "music_only", "silent"]),
@@ -587,6 +590,7 @@ router.post("/:id/preflight", requireAuth, async (req, res) => {
         ]),
         durationSeconds: z.number().int().min(MIN_VIDEO_SECONDS).max(MAX_CREATOR_VIDEO_SECONDS),
         outputQuality: z.enum(["1080p", "4k"]).optional().default("1080p"),
+        modelTier: MODEL_TIER_SCHEMA.optional(),
         audioMode: z.enum(["voice_music", "native_audio", "music_only", "silent"]).optional().default("native_audio"),
       })
       .parse(req.body);
@@ -599,6 +603,7 @@ router.post("/:id/preflight", requireAuth, async (req, res) => {
       input.audioMode !== "voice_music",
       input.durationSeconds,
       input.outputQuality,
+      input.modelTier,
     );
     const balance = req.user!.creditsBalance;
     res.json({
@@ -653,6 +658,7 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
         creativeBrief: z.string().max(8000).optional(),
         aspectRatio: z.enum(["16:9", "9:16", "1:1"]).optional().default("16:9"),
         outputQuality: z.enum(["1080p", "4k"]).optional().default("1080p"),
+        modelTier: MODEL_TIER_SCHEMA.optional(),
         audioMode: z.enum(["voice_music", "native_audio", "music_only", "silent"]).optional(),
         frameRate: z
           .union([z.literal(24), z.literal(30), z.literal(60)])
@@ -681,12 +687,22 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
       featuresText,
       creativeBrief,
       outputQuality,
+      modelTier: requestedModelTier,
       audioMode: requestedAudioMode,
       frameRate,
       selectedCaptureIds,
       selectedGeneratedPhotoIds,
     } = storyboardInput;
     const aspectRatio = mode === "icon" ? ("1:1" as const) : storyboardInput.aspectRatio;
+    if (requestedModelTier === "cinema1" && outputQuality === "4k") {
+      throw new AppError("AIWebVideo Cinema 1 supports up to 1080p.", 400, "MODEL_QUALITY_MISMATCH");
+    }
+    if ((mode === "photos" || mode === "icon") && requestedModelTier && !isImageModelTier(requestedModelTier)) {
+      throw new AppError("Choose an image quality tier for this production.", 400, "MODEL_MODE_MISMATCH");
+    }
+    if (mode !== "photos" && mode !== "icon" && requestedModelTier && !isVideoModelTier(requestedModelTier)) {
+      throw new AppError("Choose a video quality tier for this production.", 400, "MODEL_MODE_MISMATCH");
+    }
 
     let job = await getJob(String(req.params.id));
     if (!job || job.deleted_at) throw new AppError("Job not found.", 404, "NOT_FOUND");
@@ -696,7 +712,13 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
 
     const savedWorkflowForCredit = job.workflow_state as Partial<JobWorkflowState> | null;
     const planningAudioMode = requestedAudioMode ?? savedWorkflowForCredit?.audioMode ?? "native_audio";
-    const planningQuote = videoCreditQuote(mode, planningAudioMode !== "voice_music", durationSeconds, outputQuality);
+    const planningQuote = videoCreditQuote(
+      mode,
+      planningAudioMode !== "voice_music",
+      durationSeconds,
+      outputQuality,
+      requestedModelTier,
+    );
     if (!req.user!.isAdmin && req.user!.creditsBalance < planningQuote.totalCredits) {
       const shortfall = planningQuote.totalCredits - req.user!.creditsBalance;
       throw new AppError(
@@ -792,6 +814,7 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
       creativeBrief: creativeBrief ?? null,
       aspectRatio,
       outputQuality,
+      modelTier: requestedModelTier,
       frameRate,
       selectedCaptureIds: selectedCaptureIds ?? [],
       audioMode: planningAudioMode,
@@ -1012,6 +1035,9 @@ router.post("/:id/quote", requireAuth, async (req, res) => {
       input.audioMode !== "voice_music",
       storyboard.targetDurationSeconds || 8,
       storyboard.outputQuality ?? "1080p",
+      isModelTier((job.workflow_state as Partial<JobWorkflowState> | null)?.modelTier)
+        ? (job.workflow_state as Partial<JobWorkflowState>).modelTier
+        : undefined,
     );
     const balance = req.user!.creditsBalance;
     const reservedCredits = Math.max(0, job.credits_spent || 0);
@@ -1084,6 +1110,7 @@ router.post("/:id/render", requireAuth, async (req, res) => {
       creativeBrief: storyboard.creativeBrief ?? existingWorkflow?.creativeBrief ?? null,
       aspectRatio: storyboard.aspectRatio ?? existingWorkflow?.aspectRatio ?? "16:9",
       outputQuality: storyboard.outputQuality ?? existingWorkflow?.outputQuality ?? "1080p",
+      modelTier: existingWorkflow?.modelTier,
       frameRate: storyboard.frameRate ?? existingWorkflow?.frameRate ?? 24,
       selectedCaptureIds: storyboard.selectedCaptureIds ?? existingWorkflow?.selectedCaptureIds ?? [],
       audioMode,
@@ -1096,7 +1123,17 @@ router.post("/:id/render", requireAuth, async (req, res) => {
     // Generation is balance-based. One-time credit buyers can render without
     // being mislabeled as subscribers; the atomic claim below is the paywall.
     const targetDuration = storyboard.targetDurationSeconds || 8;
-    const cost = videoCreditCost(job.mode, skipVoiceover, targetDuration, storyboard.outputQuality ?? "1080p");
+    const renderModelTier: ModelTier | undefined = isModelTier(existingWorkflow?.modelTier)
+      ? existingWorkflow?.modelTier
+      : undefined;
+    const renderQuote = videoCreditQuote(
+      job.mode,
+      skipVoiceover,
+      targetDuration,
+      storyboard.outputQuality ?? "1080p",
+      renderModelTier,
+    );
+    const cost = renderQuote.totalCredits;
     const claim = await claimRenderAndSpend(job.id, req.user!.id, cost);
     if (!claim.ok && claim.reason === "already_started") {
       throw new AppError("This job is already rendering or has finished.", 409, "RENDER_ALREADY_STARTED");
@@ -1300,6 +1337,7 @@ router.post("/:id/render", requireAuth, async (req, res) => {
                   iconReferences,
                   storyboard.outputQuality ?? "1080p",
                   storyboard.creativeBrief ?? null,
+                  isImageModelTier(renderModelTier) ? renderModelTier : undefined,
                 );
               }
               return await generateMarketingPhoto(
@@ -1319,6 +1357,7 @@ router.post("/:id/render", requireAuth, async (req, res) => {
                   : job.mode === "both"
                     ? "mixed-campaign"
                     : "website-photos",
+                isImageModelTier(renderModelTier) ? renderModelTier : undefined,
               );
             } finally {
               completedPhotos++;
@@ -1398,6 +1437,7 @@ router.post("/:id/render", requireAuth, async (req, res) => {
                 narrationPromise,
                 loadedCaptures.map((capture) => capture.label),
                 () => isCancelRequested(job.id),
+                isVideoModelTier(renderModelTier) ? renderModelTier : undefined,
               ).then(
                 (value) => ({ status: "fulfilled" as const, value }),
                 (reason) => ({ status: "rejected" as const, reason }),
@@ -1460,8 +1500,8 @@ router.post("/:id/render", requireAuth, async (req, res) => {
           // silently delivering a silent video after charging for sound.
           const finalNarrationError = videoResult.value.narrationError ?? narrationErrorMessage;
           if (wantsNarration && finalNarrationError) {
-            await refund(CREDIT_COSTS.VOICEOVER, `Voiceover unavailable refund ${job.id}`);
-            const narrationNote = `Voiceover narration wasn't available for this render, so the ${CREDIT_COSTS.VOICEOVER}-credit narration charge was refunded. The AI video's own native cinematic audio remains when the selected provider generated it. Exact error: ${finalNarrationError}`;
+            await refund(renderQuote.narrationCredits, `Voiceover unavailable refund ${job.id}`);
+            const narrationNote = `Voiceover narration wasn't available for this render, so the ${renderQuote.narrationCredits}-credit narration charge was refunded. The AI video's own native cinematic audio remains when the selected provider generated it. Exact error: ${finalNarrationError}`;
             shortDeliveryNote = shortDeliveryNote ? `${shortDeliveryNote} ${narrationNote}` : narrationNote;
           }
         } else if (wantsVideo) {
@@ -1491,7 +1531,7 @@ router.post("/:id/render", requireAuth, async (req, res) => {
 
         if (wantsPhotos && photoCount < photoScenes.length) {
           const missingPhotos = photoScenes.length - photoCount;
-          const photoRefund = missingPhotos * CREDIT_COSTS.PHOTO_SINGLE;
+          const photoRefund = missingPhotos * (renderQuote.photoSingleCredits ?? CREDIT_COSTS.PHOTO_SINGLE);
           await refund(photoRefund, `Partial photo refund ${job.id}`);
           shortDeliveryNote = `${shortDeliveryNote ? `${shortDeliveryNote} ` : ""}${missingPhotos} photo${missingPhotos === 1 ? "" : "s"} couldn't be generated and ${photoRefund} credits were refunded.`;
         }
@@ -1500,7 +1540,7 @@ router.post("/:id/render", requireAuth, async (req, res) => {
         // video portion of the charge and surface a partial note.
         let completionError: string | null = shortDeliveryNote;
         if (wantsVideo && !hasVideo && photoCount > 0) {
-          const videoPortion = cost - CREDIT_COSTS.PHOTO_SET_4;
+          const videoPortion = renderQuote.videoCredits + renderQuote.narrationCredits;
           await refund(videoPortion, `Video failure refund ${job.id}`);
           const videoReason = (videoResult as PromiseRejectedResult).reason as Error | undefined;
           completionError = `Video generation failed — photos were delivered instead and the video credits were refunded. Exact error: ${videoReason?.message ?? "unknown error"}. Please try again for video.${shortDeliveryNote ? ` ${shortDeliveryNote}` : ""}`;
