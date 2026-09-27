@@ -427,8 +427,10 @@ export function ChatWidget({
         ? "product-video"
         : isStudioProject && projectCaptureMetadata?.studioKind === "scenario"
           ? "talking-scene"
-          : isStudioProject
-            ? "ai-video"
+          : isStudioProject && projectCaptureMetadata?.studioKind === "interior" && /real satellite reference|construction plan|real site/i.test(projectCaptureMetadata?.ideaPrompt ?? "")
+            ? "architecture-site"
+            : isStudioProject
+              ? "ai-video"
             : "website-video";
   const liveReferenceItems = captureMediaItems(projectCaptureMetadata);
   const activeSceneCount = Math.max(1, Math.ceil((job?.storyboard?.targetDurationSeconds || durationSeconds) / 8));
