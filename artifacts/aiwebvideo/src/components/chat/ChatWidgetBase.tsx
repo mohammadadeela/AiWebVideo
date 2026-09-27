@@ -1819,7 +1819,13 @@ Promotion direction: ${brief}` : normalized);
 
 USER DESIGN BRIEF (highest-priority creative direction):
 ${request.prompt}`
-      : request.prompt;
+      : request.studioKind === "architecture"
+        ? `ARCHITECTURE LOCATION-GROUNDING RULES:
+The first reference is a real Street View or satellite image resolved from the user's exact Google Maps location/address. Treat that real image as authoritative site context. Preserve the plot orientation, street relationship, visible neighboring context, horizon, perspective, access direction, and plausible scale. Design onto or from that real location reference; do not replace it with an unrelated generic property. Do not claim survey accuracy, legal setbacks, structural engineering, dimensions, zoning compliance, or construction readiness unless the user supplied verified plans. The output is a concept visualization.
+
+USER ARCHITECTURE BRIEF:
+${request.prompt}`
+        : request.prompt;
     setBusy(true);
     setActiveCaptureMetadata(null);
     setSelectedCaptureIds([]);
