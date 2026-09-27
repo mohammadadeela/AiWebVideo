@@ -175,6 +175,16 @@ const MODE_DEFAULT_VIBES: Record<JobMode, string> = {
 
 const isImageMode = (value: JobMode) => value === "photos" || value === "icon";
 
+function publicGenerationMessage(value: string | null | undefined) {
+  if (!value) return "";
+  return value
+    .replace(/\b(?:Google\s+)?Gemini\b/gi, "generation service")
+    .replace(/\bVeo(?:\s*3(?:\.1)?)?\b/gi, "video engine")
+    .replace(/provider[\s_-]*(?:operation|request|generation)/gi, "generation")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 let msgCounter = 0;
 const nextId = () => `m${++msgCounter}`;
 
@@ -201,7 +211,7 @@ function doneResultMessage(
       <p>{label}</p>
       {job.errorMessage && (
         <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
-          {job.errorMessage}
+          {publicGenerationMessage(job.errorMessage)}
         </p>
       )}
       <ResultGrid
@@ -925,7 +935,7 @@ export function ChatWidget({
             content:
               saved.status === "cancelled"
                 ? "Stopped — all reserved credits for this render were restored."
-                : saved.errorMessage || "The render didn't finish. Try again or start over with a different URL.",
+                : publicGenerationMessage(saved.errorMessage) || "The render didn't finish. Try again or start over with a different URL.",
           });
           setMessages(rebuilt);
           setStage("failed");
@@ -968,7 +978,7 @@ export function ChatWidget({
 
     if (job.status === "failed") {
       capturedRef.current = true;
-      pushBot(job.errorMessage || "We couldn't load that site. Check the URL and try again.");
+      pushBot(publicGenerationMessage(job.errorMessage) || "We couldn't load that site. Check the URL and try again.");
       setStage("failed");
       return;
     }
@@ -1093,7 +1103,7 @@ export function ChatWidget({
     if (job.status === "failed") {
       storyboardedRef.current = true;
       pushBot(
-        job.errorMessage ||
+        publicGenerationMessage(job.errorMessage) ||
           "We couldn't prepare the edit plan this time. Your capture is safe — try the direction again.",
       );
       setStage("awaiting_brief");
@@ -1164,7 +1174,7 @@ export function ChatWidget({
       void fetchMe()
         .then((account) => setCreditBalance(account.creditsBalance))
         .catch(() => {});
-      pushBot(job.errorMessage || "The render didn't finish. Try again or start over with a different URL.");
+      pushBot(publicGenerationMessage(job.errorMessage) || "The render didn't finish. Try again or start over with a different URL.");
       // Stop here. A failed provider attempt must never trigger another paid
       // planning or generation request automatically. The user can edit a new
       // direction explicitly; that path is credit-gated again before AI runs.
