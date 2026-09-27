@@ -666,7 +666,7 @@ export function StudioWorkspacePage() {
         <button type="button" onClick={() => { setLeftTab('projects'); setLeftOpen(true); }} className="hidden items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-semibold text-white/80 hover:bg-white/5 sm:flex"><Layers3 size={14} className="text-violet" />Editor</button>
 
         <div className="mx-1 h-5 w-px bg-white/10" />
-        <Link href="/dashboard" className="hidden items-center gap-1.5 rounded-lg px-2.5 py-2 text-[11px] text-text-muted transition hover:bg-white/5 hover:text-white md:flex"><ArrowLeft size={13} />Workspace</Link>
+        <Link href="/?create=video#generate" className="hidden items-center gap-1.5 rounded-lg px-2.5 py-2 text-[11px] text-text-muted transition hover:bg-white/5 hover:text-white md:flex"><ArrowLeft size={13} />Create</Link>
         <Link href="/?create=video#generate" className="hidden items-center gap-1.5 rounded-lg px-2.5 py-2 text-[11px] text-text-muted transition hover:bg-white/5 hover:text-white md:flex"><Sparkles size={13} />Generate</Link>
 
         <div className="min-w-0 flex-1 text-center">
@@ -894,7 +894,7 @@ export function StudioWorkspacePage() {
         <button onClick={() => { setLeftTab('media'); setLeftOpen(true); }} disabled={!project} className="flex min-w-16 flex-col items-center gap-1 text-[8px] text-text-muted disabled:opacity-30"><ImageIcon size={15} />Media</button>
         <button onClick={() => { setRightTab('ai'); setRightOpen(true); }} disabled={!project} className="flex min-w-16 flex-col items-center gap-1 text-[8px] text-violet disabled:opacity-30"><WandSparkles size={15} />AI Edit</button>
         <button onClick={() => { setRightTab('inspector'); setRightOpen(true); }} disabled={!project} className="flex min-w-16 flex-col items-center gap-1 text-[8px] text-text-muted disabled:opacity-30"><Layers3 size={15} />Adjust</button>
-        <Link href="/dashboard" className="flex min-w-16 flex-col items-center gap-1 text-[8px] text-text-muted"><Home size={15} />Workspace</Link>
+        <Link href="/?create=video#generate" className="flex min-w-16 flex-col items-center gap-1 text-[8px] text-text-muted"><Home size={15} />Create</Link>
       </div>
     </div>
   );
