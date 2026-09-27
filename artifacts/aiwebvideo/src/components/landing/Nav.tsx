@@ -8,6 +8,7 @@ import {
   Globe2,
   Image as ImageIcon,
   Layers3,
+  MapPinned,
   Menu,
   MessageCircleMore,
   PackageOpen,
@@ -42,6 +43,7 @@ const productItems = [
   ["Product Video", "Generated product film from references", "/?create=product-video#generate", PackageOpen],
   ["Talking Scenes", "Dialogue and scenario-driven video", "/?create=scenario#generate", MessageCircleMore],
   ["Interior Design", "Redesign rooms, homes and spaces", "/?create=interior#generate", House],
+  ["Architecture Preview", "Ground concepts in a real site location", "/?create=architecture#generate", MapPinned],
 ] as const;
 
 export function Nav() {
@@ -117,7 +119,7 @@ export function Nav() {
 
     const requested = target.searchParams.get("create");
     const intent =
-      requested === "video" || requested === "photo" || requested === "product-video" || requested === "scenario" || requested === "interior" || requested === "website"
+      requested === "video" || requested === "photo" || requested === "product-video" || requested === "scenario" || requested === "interior" || requested === "architecture" || requested === "website"
         ? requested
         : "website";
 
