@@ -453,8 +453,8 @@ export function PricingTable() {
           Studio generators
         </h3>
         <p className="mt-1 text-xs text-text-muted">
-          Product Photos &amp; Video, Custom Idea Video, and Scenario Video run
-          on the exact same credit pricing above — no separate plan required.
+          Product Photos &amp; Video, AI Video, Talking Person, Interior Design, and Architecture Design use
+          the same Quality Tier pricing above — no separate plan required.
         </p>
         <div className="mt-4 overflow-x-auto rounded-xl border border-border">
           <table className="w-full text-left text-sm">
