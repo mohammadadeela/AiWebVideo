@@ -953,7 +953,15 @@ export function ChatWidget({
           .map((message) => ({
             id: message.id,
             role: message.role === "user" ? "user" : "bot",
-            content: restoredMessageContent(message, () => setShowAuthModal(true), resultSourceKind(saved)),
+            content: restoredMessageContent(
+              message,
+              () => setShowAuthModal(true),
+              resultSourceKind(saved),
+              [],
+              undefined,
+              [],
+              saved.captureMetadata?.studioKind === "architecture",
+            ),
           }));
         const rebuilt: Message[] = [...transcript];
         if (saved.captureMetadata) {
