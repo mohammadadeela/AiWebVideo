@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Hero } from "@/components/landing/Hero";
 import { Nav } from "@/components/landing/Nav";
 import { Footer } from "@/components/landing/Footer";
+import { VideoShowcase } from "@/components/landing/VideoShowcase";
 import { useSeo } from "@/lib/useSeo";
 
 const landingFaqs: ReadonlyArray<readonly [string, string]> = [
@@ -32,6 +33,7 @@ export function HomePage() {
       <Nav />
       <main>
         <Hero />
+        <VideoShowcase />
       </main>
       <Footer />
     </>

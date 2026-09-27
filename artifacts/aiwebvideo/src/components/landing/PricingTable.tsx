@@ -463,7 +463,7 @@ export function PricingTable() {
         credits per requested second for a 4K master, and optional AI narration
         adds 30 credits per video. Choose any whole-second continuous length from 8 seconds to 2 minutes 24 seconds;
         the exact total and any credit shortfall appear before generation. For videos longer than 8 seconds,
-        Veo continuity extensions use a 720p provider source and AiWebVideo masters that continuous source to the selected delivery size. Failed generations are automatically refunded.
+        AiWebVideo builds the result from multiple native-quality generation segments and shows the exact credit total before generation. Failed generations are automatically refunded.
       </p>
 
       <div className="mt-10">

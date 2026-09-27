@@ -26,6 +26,7 @@ const execFileAsync = promisify(execFile);
 const POLL_MS = Math.max(2_000, Number(process.env.GEMINI_VIDEO_POLL_MS ?? 5_000));
 const POLL_LOG_MS = Math.max(POLL_MS, Number(process.env.GEMINI_VIDEO_POLL_LOG_MS ?? 20_000));
 const GENERATION_TIMEOUT_MS = Math.max(60_000, Number(process.env.GEMINI_VIDEO_TIMEOUT_MS ?? 12 * 60_000));
+const MAX_PROVIDER_POLLS = Math.max(6, Number(process.env.GEMINI_VIDEO_MAX_POLLS ?? 160));
 const PROVIDER_SCENE_SECONDS = 8;
 
 /**
@@ -284,10 +285,14 @@ async function waitForSceneOperation({
     : 'unknown';
   const started = Date.now();
   let lastPollLogAt = 0;
+  let pollCount = 0;
   console.info(`[ai-video] job=${jobId} premium_scene=${sceneIndex + 1} submitted operation=${operationName} resolution=${quality}`);
   onStatus?.(`Veo is generating premium scene ${sceneIndex + 1}`, 0);
 
   while (!operation.done) {
+    if (pollCount >= MAX_PROVIDER_POLLS) {
+      throw new Error(`AI video generation exceeded the safe polling limit while waiting for the current operation.`);
+    }
     const now = Date.now();
     if (deadlineAt && now >= deadlineAt) {
       throw new Error(`Premium AI video generation exceeded the overall timeout while waiting for scene ${sceneIndex + 1}.`);
@@ -302,6 +307,7 @@ async function waitForSceneOperation({
       onStatus?.(`Veo is generating premium scene ${sceneIndex + 1} · ${elapsedSeconds}s elapsed`, elapsedSeconds);
     }
     await new Promise((resolve) => setTimeout(resolve, POLL_MS));
+    pollCount += 1;
     try {
       operation = await client.operations.getVideosOperation({ operation } as never);
     } catch (error) {

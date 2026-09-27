@@ -3,10 +3,13 @@ import {
   ArrowRight,
   Check,
   ChevronDown,
+  Clock3,
   Film,
   Globe2,
   Image as ImageIcon,
   House,
+  Link2,
+  MapPinned,
   MessageCircleMore,
   Monitor,
   PackageOpen,
@@ -36,7 +39,8 @@ export type CreationIntent =
   | "photo"
   | "product-video"
   | "scenario"
-  | "interior";
+  | "interior"
+  | "architecture";
 
 export type WebsiteProductionMode = Extract<
   JobMode,
@@ -93,6 +97,7 @@ const CREATION_MODES = [
   { id: "product-video" as const, label: "Product Video", short: "Product", icon: PackageOpen },
   { id: "scenario" as const, label: "Talking Person", short: "Talking", icon: MessageCircleMore },
   { id: "interior" as const, label: "Interior Design", short: "Interior", icon: House },
+  { id: "architecture" as const, label: "Architecture Preview", short: "Site", icon: MapPinned },
 ] as const;
 
 const ACCEPTED_IMAGES = ["image/jpeg", "image/png", "image/webp"];
@@ -127,7 +132,8 @@ function intentFromSearch(): CreationIntent | null {
   if (value === "photo" || value === "product") return "photo";
   if (value === "product-video") return "product-video";
   if (value === "scenario" || value === "talking") return "scenario";
-  if (value === "interior" || value === "interior-design" || value === "architecture") return "interior";
+  if (value === "architecture") return "architecture";
+  if (value === "interior" || value === "interior-design") return "interior";
   if (value === "video" || value === "idea") return "video";
   if (value === "website") return "website";
   return null;
@@ -157,6 +163,16 @@ function controlClass(active: boolean) {
       ? "border-violet/40 bg-violet/[.10] text-white"
       : "border-white/[.10] bg-white/[.035] text-text-muted hover:border-violet/30 hover:bg-violet/[.07] hover:text-white"
   }`;
+}
+
+function resizePromptTextarea(node: HTMLTextAreaElement | null) {
+  if (!node || typeof window === "undefined") return;
+  const viewportCap = Math.max(132, Math.round(window.innerHeight * 0.38));
+  const maxHeight = Math.min(220, viewportCap);
+  node.style.height = "0px";
+  const nextHeight = Math.max(52, Math.min(maxHeight, node.scrollHeight));
+  node.style.height = `${nextHeight}px`;
+  node.style.overflowY = node.scrollHeight > maxHeight ? "auto" : "hidden";
 }
 
 function MasterIdeas({
@@ -245,6 +261,12 @@ export function WebsiteBriefForm({
   const [selectedIdea, setSelectedIdea] = useState<CreativeIdea | null>(null);
   const [personReferenceRequired, setPersonReferenceRequired] = useState(false);
   const [interiorOutput, setInteriorOutput] = useState<"images" | "video">("images");
+  const [productLinkOpen, setProductLinkOpen] = useState(false);
+  const [productLink, setProductLink] = useState("");
+  const [productLinkBusy, setProductLinkBusy] = useState(false);
+  const [architectureLocation, setArchitectureLocation] = useState("");
+  const [locationBusy, setLocationBusy] = useState(false);
+  const [locationResolved, setLocationResolved] = useState<string | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [exampleReference, setExampleReference] = useState<File | null>(null);
   const [selectedExample, setSelectedExample] = useState<string | null>(null);
@@ -271,8 +293,8 @@ export function WebsiteBriefForm({
     setStylePreset(intent === "website" ? "Auto" : "");
     setError(null);
     setSettings((current) => {
-      if (intent === "photo" || intent === "interior") return { ...current, aspectRatio: intent === "interior" ? "16:9" : "1:1", audioMode: "silent" };
-      const leavingPhotoDefaults = (previousIntent === "photo" || previousIntent === "interior") && current.audioMode === "silent";
+      if (intent === "photo" || intent === "interior" || intent === "architecture") return { ...current, aspectRatio: intent === "photo" ? "1:1" : "16:9", audioMode: "silent" };
+      const leavingPhotoDefaults = (previousIntent === "photo" || previousIntent === "interior" || previousIntent === "architecture") && current.audioMode === "silent";
       return leavingPhotoDefaults ? { ...current, aspectRatio: "9:16", audioMode: "native_audio" } : current;
     });
   }
@@ -344,6 +366,13 @@ export function WebsiteBriefForm({
   }, []);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if ((activeMode === "photo" || activeMode === "product-video") && params.get("productLink") === "1") {
+      setProductLinkOpen(true);
+    }
+  }, [activeMode]);
+
+  useEffect(() => {
     if (!settingsOpen) return;
     const onPointer = (event: PointerEvent) => { if (!settingsAnchorRef.current?.contains(event.target as Node)) setSettingsOpen(false); };
     const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") setSettingsOpen(false); };
@@ -351,6 +380,18 @@ export function WebsiteBriefForm({
     document.addEventListener("keydown", onKey);
     return () => { document.removeEventListener("pointerdown", onPointer); document.removeEventListener("keydown", onKey); };
   }, [settingsOpen]);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      resizePromptTextarea(activeMode === "website" ? websiteBriefRef.current : studioPromptRef.current);
+    });
+    const onResize = () => resizePromptTextarea(activeMode === "website" ? websiteBriefRef.current : studioPromptRef.current);
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [activeMode, brief, prompt]);
 
   const previews = useMemo(
     () => files.map((file) => ({ file, url: URL.createObjectURL(file) })),
@@ -385,7 +426,7 @@ export function WebsiteBriefForm({
   }), [activeMode, brief, files, prompt, url]);
 
   const masterIdeas = useMemo(
-    () => getIdeasForIntent(activeMode, ideaContext, 6),
+    () => getIdeasForIntent(activeMode === "architecture" ? "interior" : activeMode, ideaContext, 6),
     [activeMode, ideaContext],
   );
 
@@ -407,6 +448,70 @@ export function WebsiteBriefForm({
     setFiles((current) => activeMode === "product-video" || activeMode === "video" ? accepted.slice(0, 1) : [...current, ...accepted].slice(0, 10));
     if (files.length + accepted.length > 10) nextError = "You can attach up to 10 reference images.";
     setError(nextError);
+  }
+
+
+  async function importProductLink() {
+    if (!productLink.trim() || productLinkBusy) return;
+    setProductLinkBusy(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/product-source/resolve", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ url: normalizeWebsiteUrl(productLink) }),
+      });
+      const source = await response.json() as { title?: string; description?: string; images?: string[]; error?: string };
+      if (!response.ok) throw new Error(source.error || "Could not import that product page.");
+      const imported: File[] = [];
+      for (const [index, imageUrl] of (source.images ?? []).slice(0, 3).entries()) {
+        const imageResponse = await fetch(`/api/product-source/image?url=${encodeURIComponent(imageUrl)}`, { credentials: "include" });
+        if (!imageResponse.ok) continue;
+        const blob = await imageResponse.blob();
+        if (!ACCEPTED_IMAGES.includes(blob.type)) continue;
+        imported.push(new File([blob], `product-link-${index + 1}.${blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg"}`, { type: blob.type }));
+      }
+      if (!imported.length) throw new Error("The product page was found, but it did not expose a usable product image. Attach a product photo manually.");
+      setFiles((current) => [...current, ...imported].slice(0, 10));
+      const facts = [source.title, source.description].filter(Boolean).join(". ");
+      if (facts) setBrief((current) => current.trim() ? current : `Create a premium campaign for this product. Use only supported product facts: ${facts}`);
+      setProductLinkOpen(false);
+      setProductLink("");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not import that product page.");
+    } finally {
+      setProductLinkBusy(false);
+    }
+  }
+
+  async function resolveArchitectureLocation() {
+    if (!architectureLocation.trim() || locationBusy) return;
+    setLocationBusy(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/location-source/preview", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ location: architectureLocation.trim() }),
+      });
+      const source = await response.json() as { label?: string; lat?: number; lng?: number; imageDataUrl?: string; error?: string };
+      if (!response.ok || !source.imageDataUrl) throw new Error(source.error || "Could not resolve that location.");
+      const blob = await (await fetch(source.imageDataUrl)).blob();
+      const file = new File([blob], "real-location-satellite-reference.jpg", { type: blob.type || "image/jpeg" });
+      setFiles((current) => [file, ...current.filter((item) => item.name !== file.name)].slice(0, 10));
+      const label = source.label || architectureLocation.trim();
+      setLocationResolved(label);
+      setBrief((current) => {
+        const grounding = `Use the attached real satellite reference as the location ground truth for ${label}. Preserve the real plot orientation, surrounding context and visible site geometry. This is a concept visualization, not a surveyed construction plan.`;
+        return current.includes("real satellite reference") ? current : `${grounding} ${current}`.trim();
+      });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not resolve that location.");
+    } finally {
+      setLocationBusy(false);
+    }
   }
 
   function onDrop(event: DragEvent<HTMLDivElement>) {
@@ -464,11 +569,11 @@ export function WebsiteBriefForm({
     }
 
     const isProduct = activeMode === "photo" || activeMode === "product-video";
-    const isInterior = activeMode === "interior";
+    const isInterior = activeMode === "interior" || activeMode === "architecture";
     const writtenPrompt = isProduct || isInterior ? brief.trim() : prompt.trim();
-    const defaultDirection = activeMode === "photo" ? "Create premium product images using the uploaded product as the exact subject." : activeMode === "interior" ? "Design the uploaded space while preserving its architecture and dimensions." : "";
+    const defaultDirection = activeMode === "photo" ? "Create premium product images using the uploaded product as the exact subject." : activeMode === "architecture" ? "Create a high-fidelity architecture concept grounded in the attached real location reference while preserving the site's real orientation and context." : activeMode === "interior" ? "Design the uploaded space while preserving its architecture and dimensions." : "";
     const styleDirection = stylePreset && stylePreset !== "Auto" ? ` Style direction: ${stylePreset}.` : "";
-    const contextDirection = activeMode === "interior" ? ` Room: ${roomType}.` : activeMode === "scenario" ? ` Voice direction: ${voicePreset}.` : "";
+    const contextDirection = activeMode === "interior" ? ` Room: ${roomType}.` : activeMode === "architecture" ? " Maintain real-site grounding; never claim survey-grade dimensional accuracy." : activeMode === "scenario" ? ` Voice direction: ${voicePreset}.` : "";
     const activePrompt = `${writtenPrompt || defaultDirection}${styleDirection}${contextDirection}`.trim();
     if (!activePrompt) {
       setError(
@@ -506,14 +611,14 @@ export function WebsiteBriefForm({
       durationSeconds: activeMode === "photo" ? 8 : durationSeconds,
       aspectRatio: settings.aspectRatio,
       outputQuality: settings.outputQuality,
-      audioMode: activeMode === "photo" || isInterior ? "silent" : settings.audioMode,
+      audioMode: activeMode === "photo" || (isInterior && interiorOutput === "images") ? "silent" : settings.audioMode,
       photoCount: activeMode === "photo" ? photoCount : undefined,
     });
   }
 
   const isProductMode = activeMode === "photo" || activeMode === "product-video";
-  const isInteriorMode = activeMode === "interior";
-  const isVideoMode = activeMode !== "photo" && (activeMode !== "interior" || interiorOutput === "video");
+  const isInteriorMode = activeMode === "interior" || activeMode === "architecture";
+  const isVideoMode = activeMode !== "photo" && (!isInteriorMode || interiorOutput === "video");
   const durationSeconds = settings.durationSeconds === "auto" ? 8 : settings.durationSeconds;
   const formatSummary = settings.aspectRatio === "9:16" ? "Portrait" : settings.aspectRatio === "16:9" ? "Wide" : "Square";
   const audioSummary = settings.audioMode === "voice_music"
@@ -523,7 +628,7 @@ export function WebsiteBriefForm({
       : settings.audioMode === "music_only"
         ? "Music only"
         : "Silent";
-  const exactCredits = activeMode === "photo" || (activeMode === "interior" && interiorOutput === "images")
+  const exactCredits = activeMode === "photo" || (isInteriorMode && interiorOutput === "images")
     ? estimateRenderCredits("photos", true, 8, "1080p")
     : estimateRenderCredits("video", settings.audioMode !== "voice_music", durationSeconds, settings.outputQuality);
   const submitDisabled = disabled || (
@@ -547,34 +652,42 @@ export function WebsiteBriefForm({
           ? "Create product video"
           : activeMode === "interior"
             ? "Create interior design"
-            : "Create talking scene";
+            : activeMode === "architecture"
+              ? "Create architecture preview"
+              : "Create talking scene";
 
   const activeTool = CREATION_MODES.find((item) => item.id === activeMode) ?? CREATION_MODES[0];
   const ToolIcon = activeTool.icon;
-  const accents: Record<CreationIntent, string> = { website: "#75dcc9", video: "#b59aff", photo: "#f3a9bd", "product-video": "#eac68d", scenario: "#a7bdfa", interior: "#bdcba6" };
+  const accents: Record<CreationIntent, string> = { website: "#75dcc9", video: "#b59aff", photo: "#f3a9bd", "product-video": "#eac68d", scenario: "#a7bdfa", interior: "#bdcba6", architecture: "#8fd7c8" };
   const styles: Record<CreationIntent, string[]> = {
     website: ["Auto", "Bold", "Minimal", "Luxury"], video: ["Cinematic", "Dreamlike", "Editorial", "Energetic"],
     photo: ["Studio", "Editorial", "Natural", "Luxury"], "product-video": ["Studio", "Lifestyle", "Macro", "Splash"],
     scenario: ["Natural", "Interview", "Warm", "Cinematic"], interior: ["Modern", "Minimalist", "Scandinavian", "Industrial", "Luxury"],
+    architecture: ["Contemporary", "Minimal", "Landscape-led", "Commercial", "Residential"],
   };
   const iconButton = "relative grid h-10 w-10 shrink-0 place-items-center rounded-full text-white/65 transition hover:scale-105 hover:bg-white/[.08] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/60";
   const toolPlaceholder: Record<CreationIntent, string> = {
     website: "What should the video highlight? (optional)", video: "A cinematic reveal from the city into the location…",
     photo: "Soft studio light, sculptural shadows, refined textures…", "product-video": "Slow premium reveal, macro details, strong hero ending…",
     scenario: "Write the words they should say and describe the scene…", interior: "A calm modern space with warm wood and natural light…",
+    architecture: "Describe what should be designed on this real site, access, massing, materials and landscape…",
   };
   const segmented = (selected: boolean) => `min-h-9 rounded-full px-3 text-[11px] font-medium transition ${selected ? "bg-white text-[#15121c]" : "text-white/65 hover:bg-white/[.08] hover:text-white"}`;
   return <div ref={composerRootRef} className={`relative ${dragging ? "rounded-[28px] ring-2 ring-white/40" : ""}`} onPaste={(event) => { if (disabled) return; const pasted = Array.from(event.clipboardData.files ?? []).filter((file) => file.type.startsWith("image/")); if (pasted.length) { event.preventDefault(); addFiles(pasted); } }} onDragEnter={(event) => { if (disabled || !Array.from(event.dataTransfer.types ?? []).includes("Files")) return; event.preventDefault(); dragDepthRef.current++; setDragging(true); }} onDragOver={(event) => { if (disabled) return; event.preventDefault(); event.dataTransfer.dropEffect = "copy"; }} onDragLeave={(event) => { event.preventDefault(); dragDepthRef.current = Math.max(0, dragDepthRef.current - 1); if (!dragDepthRef.current) setDragging(false); }} onDrop={onDrop}>
     <input ref={inputRef} type="file" multiple={activeMode !== "product-video" && activeMode !== "video"} accept={ACCEPTED_IMAGES.join(",")} className="hidden" onChange={(event) => { addFiles(event.currentTarget.files); event.currentTarget.value = ""; }} />
     {dragging && <div className="pointer-events-none absolute inset-0 z-20 grid place-items-center rounded-[28px] border-2 border-dashed border-white/50 bg-[#17131f]/95 text-sm text-white">Drop images to attach</div>}
+    {isProductMode && <div className="mb-3 flex items-center justify-between gap-3 rounded-2xl border border-white/[.09] bg-white/[.025] px-3 py-2.5"><div className="min-w-0"><p className="text-[11px] font-semibold text-white">Start from a product page</p><p className="mt-0.5 truncate text-[9px] text-white/45">Import the real product image and page facts before you generate.</p></div><button type="button" onClick={() => setProductLinkOpen((value) => !value)} className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full border border-white/10 px-3 text-[10px] font-semibold text-white/70 transition hover:border-mint/35 hover:text-white"><Link2 size={13} />Product link</button></div>}
+    {productLinkOpen && isProductMode && <div className="mb-3 rounded-[20px] border border-white/[.12] bg-[#14101d] p-3"><div className="flex gap-2"><input value={productLink} onChange={(event) => setProductLink(event.currentTarget.value)} placeholder="https://store.com/product/…" type="url" inputMode="url" className="min-w-0 flex-1 rounded-full border border-white/10 bg-black/20 px-4 py-2.5 text-sm text-white outline-none placeholder:text-white/35 focus:border-mint/35" /><button type="button" disabled={!productLink.trim() || productLinkBusy} onClick={() => void importProductLink()} className="rounded-full bg-signature px-4 text-[10px] font-semibold text-white disabled:opacity-40">{productLinkBusy ? "Importing…" : "Continue"}</button></div><p className="mt-2 text-[9px] text-white/40">Nothing generates or spends credits here. Review the imported references and prompt first.</p></div>}
+    {activeMode === "architecture" && <div className="mb-3 rounded-[20px] border border-white/[.12] bg-[#11151a] p-3"><div className="flex flex-col gap-2 sm:flex-row"><div className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3"><MapPinned size={14} className="shrink-0 text-mint" /><input value={architectureLocation} onChange={(event) => { setArchitectureLocation(event.currentTarget.value); setLocationResolved(null); }} placeholder="Google Maps link or site address" className="min-w-0 flex-1 bg-transparent py-2.5 text-sm text-white outline-none placeholder:text-white/35" /></div><button type="button" disabled={!architectureLocation.trim() || locationBusy} onClick={() => void resolveArchitectureLocation()} className="rounded-full border border-mint/25 bg-mint/[.08] px-4 py-2.5 text-[10px] font-semibold text-mint transition hover:bg-mint/[.14] disabled:opacity-40">{locationBusy ? "Fetching site…" : locationResolved ? "Refresh site" : "Fetch real site"}</button></div>{locationResolved && <p className="mt-2 truncate text-[9px] text-mint/75">Real satellite reference attached · {locationResolved}</p>}<p className="mt-2 text-[9px] leading-4 text-amber-200/65">AI visualization for concept purposes — not a surveyed or construction-accurate plan.</p></div>}
     {activeMode === "website" && <div className="mb-3 flex min-h-12 items-center gap-3 rounded-full border border-white/[.12] bg-[#0d0b15] px-4 focus-within:border-white/35">
       {url ? <img src={`https://${url.replace(/^https?:\/\//, "").split("/")[0]}/favicon.ico`} alt="" className="h-5 w-5 rounded-md object-contain" onError={(event) => { event.currentTarget.style.display = "none"; }} /> : <Globe2 size={16} className="text-white/55" />}
       <input value={url} onChange={(event) => setUrl(event.currentTarget.value)} type="url" inputMode="url" autoComplete="url" placeholder="Paste a website URL" disabled={disabled} className="min-w-0 flex-1 bg-transparent py-3 text-sm text-white outline-none placeholder:text-white/40" />
     </div>}
-    <div className="relative flex min-h-16 items-center gap-2 rounded-[30px] border border-white/[.16] bg-[#191522] px-3 py-2 shadow-[0_20px_55px_-40px_rgba(0,0,0,.9)] focus-within:border-white/35 sm:px-4">
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[15px] border border-white/10 bg-black/20" style={{ color: accents[activeMode] }}><ToolIcon size={19} /></span>
-      <textarea ref={activeMode === "website" ? websiteBriefRef : studioPromptRef} value={activeMode === "video" || activeMode === "scenario" ? prompt : brief} onChange={(event) => { if (activeMode === "video" || activeMode === "scenario") setPrompt(event.currentTarget.value); else setBrief(event.currentTarget.value); event.currentTarget.style.height = "auto"; event.currentTarget.style.height = `${Math.min(160, event.currentTarget.scrollHeight)}px`; }} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); submit(); } }} placeholder={toolPlaceholder[activeMode]} rows={1} disabled={disabled} aria-label={activeMode === "scenario" ? "Script and scene" : "Creative prompt"} className={`max-h-40 min-h-10 min-w-0 flex-1 resize-none bg-transparent px-1 py-2.5 text-sm leading-5 text-white outline-none placeholder:text-white/40 ${activeMode === "scenario" ? "font-mono" : ""}`} />
+    <div className="relative flex min-h-16 flex-wrap items-end gap-2 rounded-[30px] border border-white/[.16] bg-[#191522] px-3 py-2 shadow-[0_20px_55px_-40px_rgba(0,0,0,.9)] transition focus-within:border-white/35 focus-within:shadow-[0_0_0_1px_rgba(181,154,255,.16),0_22px_60px_-42px_rgba(181,154,255,.7)] sm:flex-nowrap sm:items-center sm:px-4">
+      <span className="grid h-10 w-10 shrink-0 place-items-center self-start rounded-[15px] border border-white/10 bg-black/20 sm:self-auto" style={{ color: accents[activeMode] }}><ToolIcon size={19} /></span>
+      <textarea ref={activeMode === "website" ? websiteBriefRef : studioPromptRef} value={activeMode === "video" || activeMode === "scenario" ? prompt : brief} onChange={(event) => { if (activeMode === "video" || activeMode === "scenario") setPrompt(event.currentTarget.value); else setBrief(event.currentTarget.value); resizePromptTextarea(event.currentTarget); }} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); submit(); } }} placeholder={toolPlaceholder[activeMode]} rows={2} disabled={disabled} aria-label={activeMode === "scenario" ? "Script and scene" : "Creative prompt"} className={`min-h-[52px] max-h-[min(220px,38dvh)] min-w-0 basis-[calc(100%-3.5rem)] flex-1 resize-none overflow-y-hidden bg-transparent transition-[height] duration-150 px-1 py-2.5 text-sm leading-5 text-white outline-none placeholder:text-white/40 sm:basis-0 ${activeMode === "scenario" ? "font-mono" : ""}`} />
       <button type="button" title="Attach images" aria-label={files.length ? `${files.length} images attached. Add more` : "Attach images"} onClick={() => inputRef.current?.click()} disabled={disabled || files.length >= 10} className={iconButton}>{files.length ? <><img src={previews[0]?.url} alt="" className="h-7 w-7 rounded-full object-cover" />{files.length > 1 && <span className="absolute -right-1 -top-1 rounded-full bg-white px-1 text-[9px] font-semibold text-black">+{files.length - 1}</span>}</> : <Paperclip size={18} />}</button>
+      {isVideoMode && <button type="button" title="Change duration" aria-label={`Duration ${durationSeconds} seconds`} onClick={() => { const values = [8,16,24,32,60]; const index = Math.max(0, values.indexOf(durationSeconds)); setSettings((current) => ({ ...current, durationSeconds: values[(index + 1) % values.length] })); }} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-white/[.10] bg-white/[.035] px-2.5 text-[10px] font-semibold text-white/70 transition hover:border-white/25 hover:bg-white/[.07] hover:text-white"><Clock3 size={14} /><span>{durationSeconds}s</span></button>}
       <div ref={settingsAnchorRef} className="relative">
         <button type="button" title="Settings" aria-label="Settings" aria-expanded={settingsOpen} onClick={() => setSettingsOpen((current) => !current)} className={iconButton}><Settings2 size={18} /></button>
         {settingsOpen && <div className="absolute bottom-[calc(100%+14px)] right-[-3.5rem] z-40 w-[min(355px,calc(100vw-2.5rem))] origin-bottom-right animate-fade-in-up rounded-[24px] border border-white/[.14] bg-[#211b2c] p-4 shadow-2xl sm:right-0" role="group" aria-label="Generation settings">
@@ -587,11 +700,11 @@ export function WebsiteBriefForm({
       <button type="button" title={landingWebsitePreview && activeMode === "website" ? "Capture website" : createLabel} aria-label={landingWebsitePreview && activeMode === "website" ? "Capture website" : createLabel} onClick={submit} disabled={submitDisabled} className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-signature text-white transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-35">{disabled ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-t-white" /> : <ArrowRight size={20} className="-rotate-45" />}</button>
     </div>
     {previews.length > 0 && <div className="mt-3 flex gap-2 overflow-x-auto pb-1">{previews.map((preview, index) => <div key={`${preview.file.name}-${index}`} className="relative h-14 w-14 shrink-0"><img src={preview.url} alt={preview.file.name} className="h-full w-full rounded-xl object-cover" /><button type="button" onClick={() => setFiles((current) => current.filter((_, i) => i !== index))} aria-label={`Remove ${preview.file.name}`} className="absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-[#37303f] text-white"><X size={11} /></button></div>)}</div>}
-    {activeMode === "interior" && <div className="mt-3 flex flex-wrap gap-2"><select value={roomType} onChange={(event) => setRoomType(event.target.value)} aria-label="Room type" className="rounded-full border border-white/10 bg-[#201b29] px-3 py-2 text-xs text-white">{["Living Room","Bedroom","Kitchen","Office","Other Space"].map((room) => <option key={room}>{room}</option>)}</select><div className="flex rounded-full border border-white/10 p-1"><button type="button" onClick={() => setInteriorOutput("images")} className={segmented(interiorOutput === "images")}>Images</button><button type="button" onClick={() => setInteriorOutput("video")} className={segmented(interiorOutput === "video")}>Walkthrough</button></div></div>}
+    {isInteriorMode && <div className="mt-3 flex flex-wrap gap-2">{activeMode === "interior" && <select value={roomType} onChange={(event) => setRoomType(event.target.value)} aria-label="Room type" className="rounded-full border border-white/10 bg-[#201b29] px-3 py-2 text-xs text-white">{["Living Room","Bedroom","Kitchen","Office","Other Space"].map((room) => <option key={room}>{room}</option>)}</select>}<div className="flex rounded-full border border-white/10 p-1"><button type="button" onClick={() => setInteriorOutput("images")} className={segmented(interiorOutput === "images")}>Images</button><button type="button" onClick={() => setInteriorOutput("video")} className={segmented(interiorOutput === "video")}>{activeMode === "architecture" ? "Site video" : "Walkthrough"}</button></div></div>}
     {activeMode === "scenario" && <div className="mt-3 flex gap-2 overflow-x-auto">{["Natural", "Warm", "Narrator", "Dialogue"].map((voice) => <button type="button" key={voice} onClick={() => setVoicePreset(voice)} className={segmented(voicePreset === voice)}>{voice}</button>)}</div>}
     {activeMode === "photo" && <div className="mt-3 flex items-center gap-2 text-xs text-white/55"><span>Images</span><div className="flex rounded-full border border-white/10 p-1">{([1,4,9] as const).map((count) => <button type="button" key={count} aria-pressed={photoCount === count} onClick={() => setPhotoCount(count)} className={segmented(photoCount === count)}>{count}</button>)}</div></div>}
     <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1">{styles[activeMode].map((style) => <button type="button" key={style} onClick={() => setStylePreset(style)} aria-pressed={stylePreset === style} className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] transition ${stylePreset === style ? "border-white/40 bg-white/10 text-white" : "border-white/10 text-white/50 hover:text-white"}`}>{style}</button>)}</div>
-    <div className="mt-2 flex gap-2 overflow-x-auto pb-1" aria-label="Prompt ideas">{masterIdeas.slice(0,4).map((idea) => <button key={idea.id} type="button" onClick={() => applyMasterIdea(idea)} className="shrink-0 rounded-full px-3 py-1.5 text-[11px] text-white/45 transition hover:bg-white/[.06] hover:text-white">{idea.displayText}</button>)}</div>
+    <div className="mt-3" aria-label="Prompt ideas"><MasterIdeas ideas={masterIdeas.slice(0,4)} context={ideaContext} selectedId={selectedIdea?.id ?? null} onSelect={applyMasterIdea} /></div>
     {selectedExample && <p className="mt-2 text-xs text-white/55">Your version of {selectedExample} · attach your own subject.</p>}
     {error && <p role="alert" className="mt-2 text-xs text-[#f3a9bd]">{error}</p>}
     {showCreditPricing && <p className="mt-2 text-right text-[10px] text-white/45">Estimate: {photoCount === 4 || activeMode !== "photo" ? exactCredits : Math.ceil(exactCredits * photoCount / 4)} credits before generation</p>}

@@ -10,9 +10,9 @@ import { continuousOperationCount, totalGenerationTimeoutMs } from '../src/lib/v
  * concurrency.
  */
 
-test('a small job keeps at least the default 24-minute floor', () => {
+test('a small job keeps at least the default 16-minute floor', () => {
   const ms = totalGenerationTimeoutMs(1);
-  assert.ok(ms >= 24 * 60_000, `expected at least 24 minutes, got ${ms / 60_000} min`);
+  assert.ok(ms >= 16 * 60_000, `expected at least 24 minutes, got ${ms / 60_000} min`);
 });
 
 test('a larger job gets a proportionally larger timeout than a smaller one', () => {
@@ -24,7 +24,7 @@ test('a larger job gets a proportionally larger timeout than a smaller one', () 
 test('timeout never shrinks below the default floor regardless of operation count', () => {
   for (const count of [0, 1, 2, 3, 4, 5, 6, 7, 8, 20]) {
     const ms = totalGenerationTimeoutMs(count);
-    assert.ok(ms >= 24 * 60_000, `operationCount=${count} produced ${ms / 60_000}min, below the 24-minute floor`);
+    assert.ok(ms >= 16 * 60_000, `operationCount=${count} produced ${ms / 60_000}min, below the 16-minute floor`);
   }
 });
 

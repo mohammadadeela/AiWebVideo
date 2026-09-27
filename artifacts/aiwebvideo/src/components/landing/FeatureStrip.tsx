@@ -11,7 +11,7 @@ const FEATURES = [
   },
   {
     title: 'Professional delivery formats',
-    body: 'Choose landscape or portrait, with 1080p or 4K mastered delivery. Eight-second Veo generations can be native at the selected size; longer continuous films use Veo continuity extension before final mastering.',
+    body: 'Choose landscape or portrait, with 1080p or 4K delivery. Short clips render directly at the selected size; longer films are assembled from multiple native-quality generation segments before final mastering.',
     icon: <><rect x="4" y="4" width="9" height="9" rx="1.5" /><path d="M17 8v9a2 2 0 0 1-2 2H8" /></>,
   },
   {

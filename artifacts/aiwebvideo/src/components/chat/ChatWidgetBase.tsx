@@ -43,7 +43,7 @@ import {
   type WorkflowStage,
 } from "./types";
 import { normalizeWebsiteUrl } from "@/lib/websiteUrl";
-import { INTERIOR_MASTER_PROMPT } from "@/lib/creativeIdeas";
+import { ARCHITECTURE_MASTER_PROMPT, INTERIOR_MASTER_PROMPT } from "@/lib/creativeIdeas";
 import { estimateRenderCredits, estimateInternalRenderCredits } from "@/lib/credits";
 import {
   clearLocalJobWorkflow,
@@ -175,6 +175,16 @@ const MODE_DEFAULT_VIBES: Record<JobMode, string> = {
 
 const isImageMode = (value: JobMode) => value === "photos" || value === "icon";
 
+function publicGenerationMessage(value: string | null | undefined) {
+  if (!value) return "";
+  return value
+    .replace(/\b(?:Google\s+)?Gemini\b/gi, "generation service")
+    .replace(/\bVeo(?:\s*3(?:\.1)?)?\b/gi, "video engine")
+    .replace(/provider[\s_-]*(?:operation|request|generation)/gi, "generation")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 let msgCounter = 0;
 const nextId = () => `m${++msgCounter}`;
 
@@ -201,7 +211,7 @@ function doneResultMessage(
       <p>{label}</p>
       {job.errorMessage && (
         <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
-          {job.errorMessage}
+          {publicGenerationMessage(job.errorMessage)}
         </p>
       )}
       <ResultGrid
@@ -418,18 +428,27 @@ export function ChatWidget({
   const nextVersionShortfall = Math.max(0, estimatedCredits - creditBalance);
   const projectCaptureMetadata = activeCaptureMetadata ?? job?.captureMetadata;
   const isStudioProject = projectCaptureMetadata?.sourceType === "studio";
+  const isArchitectureProject =
+    isStudioProject &&
+    projectCaptureMetadata?.studioKind === "interior" &&
+    /real satellite reference|concept visualization|construction plan|real site/i.test(projectCaptureMetadata?.ideaPrompt ?? "");
+  const isInteriorProject = isStudioProject && projectCaptureMetadata?.studioKind === "interior";
   const productionKind: ProductionKind =
-    mode === "photos"
-      ? isStudioProject
-        ? "product-photos"
-        : "campaign-photos"
-      : isStudioProject && projectCaptureMetadata?.studioKind === "product"
-        ? "product-video"
-        : isStudioProject && projectCaptureMetadata?.studioKind === "scenario"
-          ? "talking-scene"
-          : isStudioProject
-            ? "ai-video"
-            : "website-video";
+    isArchitectureProject
+      ? "architecture-site"
+      : isInteriorProject
+        ? "interior-design"
+        : mode === "photos"
+          ? isStudioProject
+            ? "product-photos"
+            : "campaign-photos"
+          : isStudioProject && projectCaptureMetadata?.studioKind === "product"
+            ? "product-video"
+            : isStudioProject && projectCaptureMetadata?.studioKind === "scenario"
+              ? "talking-scene"
+              : isStudioProject
+                ? "ai-video"
+                : "website-video";
   const liveReferenceItems = captureMediaItems(projectCaptureMetadata);
   const activeSceneCount = Math.max(1, Math.ceil((job?.storyboard?.targetDurationSeconds || durationSeconds) / 8));
   const sceneAssignments = useMemo(() => {
@@ -916,7 +935,7 @@ export function ChatWidget({
             content:
               saved.status === "cancelled"
                 ? "Stopped — all reserved credits for this render were restored."
-                : saved.errorMessage || "The render didn't finish. Try again or start over with a different URL.",
+                : publicGenerationMessage(saved.errorMessage) || "The render didn't finish. Try again or start over with a different URL.",
           });
           setMessages(rebuilt);
           setStage("failed");
@@ -959,7 +978,7 @@ export function ChatWidget({
 
     if (job.status === "failed") {
       capturedRef.current = true;
-      pushBot(job.errorMessage || "We couldn't load that site. Check the URL and try again.");
+      pushBot(publicGenerationMessage(job.errorMessage) || "We couldn't load that site. Check the URL and try again.");
       setStage("failed");
       return;
     }
@@ -1084,7 +1103,7 @@ export function ChatWidget({
     if (job.status === "failed") {
       storyboardedRef.current = true;
       pushBot(
-        job.errorMessage ||
+        publicGenerationMessage(job.errorMessage) ||
           "We couldn't prepare the edit plan this time. Your capture is safe — try the direction again.",
       );
       setStage("awaiting_brief");
@@ -1155,7 +1174,7 @@ export function ChatWidget({
       void fetchMe()
         .then((account) => setCreditBalance(account.creditsBalance))
         .catch(() => {});
-      pushBot(job.errorMessage || "The render didn't finish. Try again or start over with a different URL.");
+      pushBot(publicGenerationMessage(job.errorMessage) || "The render didn't finish. Try again or start over with a different URL.");
       // Stop here. A failed provider attempt must never trigger another paid
       // planning or generation request automatically. The user can edit a new
       // direction explicitly; that path is credit-gated again before AI runs.
@@ -1318,16 +1337,21 @@ export function ChatWidget({
       },
       attachmentDraftKey,
     });
+    const isArchitectureRequest =
+      request.studioKind === "interior" &&
+      /real satellite reference|concept visualization|construction plan|real site/i.test(request.prompt);
     const mappedCreate =
       request.studioKind === "idea"
         ? "video"
         : request.studioKind === "scenario"
           ? "scenario"
-          : request.studioKind === "interior"
-            ? "interior"
-            : request.mode === "photos"
-              ? "photo"
-              : "product-video";
+          : isArchitectureRequest
+            ? "architecture"
+            : request.studioKind === "interior"
+              ? "interior"
+              : request.mode === "photos"
+                ? "photo"
+                : "product-video";
     window.location.assign(`/dashboard?create=${encodeURIComponent(mappedCreate)}&handoff=1`);
   }
 
@@ -1684,8 +1708,11 @@ Promotion direction: ${brief}` : normalized);
   }
 
   async function performStudioSubmit(request: StudioGenerationRequest) {
+    const architectureRequest =
+      request.studioKind === "interior" &&
+      /real satellite reference|concept visualization|construction plan|real site/i.test(request.prompt);
     const effectiveStudioPrompt = request.studioKind === "interior"
-      ? `${INTERIOR_MASTER_PROMPT}
+      ? `${architectureRequest ? ARCHITECTURE_MASTER_PROMPT : INTERIOR_MASTER_PROMPT}
 
 USER DESIGN BRIEF (highest-priority creative direction):
 ${request.prompt}`
@@ -1703,8 +1730,10 @@ ${request.prompt}`
     storyboardedRef.current = false;
     renderedRef.current = false;
     pushUser(
-      request.studioKind === "interior"
-        ? `Create an interior design${request.prompt ? ` · ${request.prompt}` : ""}`
+      architectureRequest
+        ? `Create an architecture preview${request.prompt ? ` · ${request.prompt}` : ""}`
+        : request.studioKind === "interior"
+          ? `Create an interior design${request.prompt ? ` · ${request.prompt}` : ""}`
         : request.studioKind === "product"
         ? request.mode === "photos"
           ? `Create a product photo campaign${request.prompt ? ` · ${request.prompt}` : ""}`
@@ -1712,7 +1741,11 @@ ${request.prompt}`
         : request.prompt,
     );
     pushBot(
-      request.studioKind === "interior"
+      architectureRequest
+        ? request.mode === "photos"
+          ? "I’m grounding the concept in the real site reference first, then designing within the visible plot orientation and surrounding context."
+          : "I’m grounding the site video in the real location reference, then planning a camera path that preserves the visible site orientation and context."
+        : request.studioKind === "interior"
         ? request.mode === "photos"
           ? "I’m cross-checking your space references, measurements and architectural constraints before creating the interior concept. The result will stay grounded in the supplied geometry."
           : "I’m building a continuous architectural walkthrough from your references, measurements and design direction. The camera path will stay consistent with the supplied space."
