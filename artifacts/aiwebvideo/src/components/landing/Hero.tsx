@@ -6,12 +6,12 @@ import type { CreationIntent } from "@/components/chat/WebsiteBriefForm";
 import { fetchMarketingSettings, type MarketingVideo } from "@/lib/api-client";
 
 const tools = [
-  { intent: "website", name: "Website Video", note: "A film from your site", Icon: Globe2, accent: "#75dcc9" },
-  { intent: "video", name: "AI Video", note: "Bring an idea to life", Icon: Film, accent: "#b59aff" },
-  { intent: "photo", name: "Product Photos", note: "Your product, reimagined", Icon: ImageIcon, accent: "#f3a9bd" },
-  { intent: "product-video", name: "Product Video", note: "Set your product in motion", Icon: PackageOpen, accent: "#eac68d" },
-  { intent: "scenario", name: "Talking Person", note: "Direct a scene or script", Icon: MessageCircleMore, accent: "#a7bdfa" },
-  { intent: "interior", name: "Interior Design", note: "See a space differently", Icon: House, accent: "#bdcba6" },
+  { intent: "website", name: "Website Video", note: "Turn any URL into a cinematic campaign", Icon: Globe2, accent: "#75dcc9" },
+  { intent: "video", name: "AI Video", note: "Direct an original scene from your prompt", Icon: Film, accent: "#b59aff" },
+  { intent: "photo", name: "Product Photos", note: "Create campaign images from your real product", Icon: ImageIcon, accent: "#f3a9bd" },
+  { intent: "product-video", name: "Product Video", note: "Turn a product reference into a moving commercial", Icon: PackageOpen, accent: "#eac68d" },
+  { intent: "scenario", name: "Talking Person", note: "Create dialogue-led scenes with controlled direction", Icon: MessageCircleMore, accent: "#a7bdfa" },
+  { intent: "interior", name: "Interior Design", note: "Redesign a real space while preserving its structure", Icon: House, accent: "#bdcba6" },
 ] as const;
 
 function intentFromUrl(): CreationIntent {
