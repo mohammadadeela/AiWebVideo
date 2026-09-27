@@ -418,20 +418,27 @@ export function ChatWidget({
   const nextVersionShortfall = Math.max(0, estimatedCredits - creditBalance);
   const projectCaptureMetadata = activeCaptureMetadata ?? job?.captureMetadata;
   const isStudioProject = projectCaptureMetadata?.sourceType === "studio";
+  const isArchitectureProject =
+    isStudioProject &&
+    projectCaptureMetadata?.studioKind === "interior" &&
+    /real satellite reference|concept visualization|construction plan|real site/i.test(projectCaptureMetadata?.ideaPrompt ?? "");
+  const isInteriorProject = isStudioProject && projectCaptureMetadata?.studioKind === "interior";
   const productionKind: ProductionKind =
-    mode === "photos"
-      ? isStudioProject
-        ? "product-photos"
-        : "campaign-photos"
-      : isStudioProject && projectCaptureMetadata?.studioKind === "product"
-        ? "product-video"
-        : isStudioProject && projectCaptureMetadata?.studioKind === "scenario"
-          ? "talking-scene"
-          : isStudioProject && projectCaptureMetadata?.studioKind === "interior" && /real satellite reference|construction plan|real site/i.test(projectCaptureMetadata?.ideaPrompt ?? "")
-            ? "architecture-site"
-            : isStudioProject
-              ? "ai-video"
-            : "website-video";
+    isArchitectureProject
+      ? "architecture-site"
+      : isInteriorProject
+        ? "interior-design"
+        : mode === "photos"
+          ? isStudioProject
+            ? "product-photos"
+            : "campaign-photos"
+          : isStudioProject && projectCaptureMetadata?.studioKind === "product"
+            ? "product-video"
+            : isStudioProject && projectCaptureMetadata?.studioKind === "scenario"
+              ? "talking-scene"
+              : isStudioProject
+                ? "ai-video"
+                : "website-video";
   const liveReferenceItems = captureMediaItems(projectCaptureMetadata);
   const activeSceneCount = Math.max(1, Math.ceil((job?.storyboard?.targetDurationSeconds || durationSeconds) / 8));
   const sceneAssignments = useMemo(() => {
