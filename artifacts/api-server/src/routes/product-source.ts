@@ -21,8 +21,10 @@ function decodeEntities(value: string) {
 
 function attr(tag: string, name: string) {
   const escaped = name.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&');
-  const match = tag.match(new RegExp('\\b' + escaped + '\\s*=\\s*(?:"([^"]*)"|\\'([^\\']*)\\'|([^\\s>]+))', 'i'));
-  return decodeEntities(match?.[1] ?? match?.[2] ?? match?.[3] ?? '');
+  const doubleQuoted = tag.match(new RegExp('\\b' + escaped + '\\s*=\\s*"([^"]*)"', 'i'));
+  const singleQuoted = tag.match(new RegExp("\\b" + escaped + "\\s*=\\s*'([^']*)'", 'i'));
+  const unquoted = tag.match(new RegExp('\\b' + escaped + '\\s*=\\s*([^\\s>]+)', 'i'));
+  return decodeEntities(doubleQuoted?.[1] ?? singleQuoted?.[1] ?? unquoted?.[1] ?? '');
 }
 
 function meta(html: string, keys: string[]) {
@@ -123,13 +125,13 @@ router.post('/resolve', requireAuth, async (req, res) => {
 
 router.get('/image', requireAuth, async (req, res) => {
   const rawUrl = z.string().min(4).max(4_000).parse(req.query.url);
-  const { response } = await safeFetch(rawUrl, { headers: { accept: 'image/avif,image/webp,image/png,image/jpeg' } });
+  const { response } = await safeFetch(rawUrl, { headers: { accept: 'image/webp,image/png,image/jpeg' } });
   if (!response.ok) {
     res.status(422).json({ error: 'Product image could not be downloaded.', code: 'PRODUCT_IMAGE_UNAVAILABLE' });
     return;
   }
   const type = response.headers.get('content-type')?.split(';')[0]?.trim() ?? '';
-  if (!['image/jpeg', 'image/png', 'image/webp', 'image/avif'].includes(type)) {
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(type)) {
     res.status(415).json({ error: 'Product source did not return a supported image.', code: 'PRODUCT_IMAGE_INVALID' });
     return;
   }
