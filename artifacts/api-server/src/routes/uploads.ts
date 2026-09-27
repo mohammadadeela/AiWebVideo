@@ -7,6 +7,8 @@ import { requireAuth, tryAuth } from '../lib/auth.js';
 import { AppError, sendError } from '../lib/errors.js';
 import { saveImageFile } from '../lib/capture.js';
 import { MAX_CREATOR_VIDEO_SECONDS, MIN_VIDEO_SECONDS, videoCreditCost } from '../lib/credits.js';
+import { isModelTier, type ModelTier } from '../lib/model-tiers.js';
+import { resolveArchitectureReference, type ArchitectureReference } from '../lib/architecture-reference.js';
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_PHOTOS, normalizeUploadToJpeg, sanitizeUploadTitle, uploadPhotoLabel } from '../lib/uploads.js';
 
 const router = Router();
@@ -77,12 +79,18 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
     if (ideaPrompt.length > 8000) {
       throw new AppError('Your prompt is longer than 8,000 characters. Shorten it slightly so every detail can be sent without hidden truncation.', 400, 'PROMPT_TOO_LONG');
     }
-    const studioKind = ['product', 'idea', 'scenario', 'interior'].includes(req.body?.studioKind) ? req.body.studioKind as 'product' | 'idea' | 'scenario' | 'interior' : null;
+    const studioKind = ['product', 'idea', 'scenario', 'interior', 'architecture'].includes(req.body?.studioKind)
+      ? req.body.studioKind as 'product' | 'idea' | 'scenario' | 'interior' | 'architecture'
+      : null;
     const studioMode = ['video', 'photos', 'both', 'custom'].includes(req.body?.mode) ? req.body.mode as 'video' | 'photos' | 'both' | 'custom' : null;
     const studioAudioMode = ['voice_music', 'native_audio', 'music_only', 'silent'].includes(req.body?.audioMode)
       ? req.body.audioMode as 'voice_music' | 'native_audio' | 'music_only' | 'silent'
       : 'native_audio';
     const studioQuality = req.body?.outputQuality === '4k' ? '4k' as const : '1080p' as const;
+    const requestedModelTier: ModelTier | undefined = isModelTier(req.body?.modelTier) ? req.body.modelTier : undefined;
+    const architectureLocation = typeof req.body?.architectureLocation === 'string'
+      ? req.body.architectureLocation.trim().slice(0, 2000)
+      : '';
     const requestedDuration = Number(req.body?.durationSeconds ?? MIN_VIDEO_SECONDS);
     const studioDuration = Number.isInteger(requestedDuration)
       && requestedDuration >= MIN_VIDEO_SECONDS
@@ -97,8 +105,8 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
       if (studioKind === 'product' && !['video', 'photos', 'both'].includes(studioMode)) {
         throw new AppError('Choose product photos, product video, or both.', 400, 'INVALID_STUDIO_MODE');
       }
-      if ((studioKind === 'idea' || studioKind === 'scenario') && studioMode !== 'custom') {
-        throw new AppError('Custom Idea and Scenario productions use the independent custom-video engine.', 400, 'INVALID_STUDIO_MODE');
+      if ((studioKind === 'idea' || studioKind === 'scenario' || studioKind === 'architecture') && studioMode !== 'custom') {
+        throw new AppError('This production uses the independent custom-video engine.', 400, 'INVALID_STUDIO_MODE');
       }
       if (studioKind === 'interior' && !['photos', 'custom'].includes(studioMode)) {
         throw new AppError('Interior Design uses image generation or custom video mode.', 400, 'INVALID_STUDIO_MODE');
@@ -109,7 +117,25 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
       if (studioKind === 'product' && !files.length) {
         throw new AppError('Upload at least one real product photo before generating a product campaign.', 400, 'PRODUCT_PHOTO_REQUIRED');
       }
-      const requiredCredits = videoCreditCost(studioMode, studioAudioMode !== 'voice_music', studioDuration, studioQuality);
+      if (studioKind === 'architecture' && !architectureLocation) {
+        throw new AppError('Enter a Google Maps link or typed address for the architecture visualization.', 400, 'ARCHITECTURE_LOCATION_REQUIRED');
+      }
+      if (requestedModelTier === 'cinema1' && studioQuality === '4k') {
+        throw new AppError('AIWebVideo Cinema 1 supports up to 1080p. Choose 1080p or a higher quality tier.', 400, 'MODEL_QUALITY_MISMATCH');
+      }
+      if (studioMode === 'photos' && requestedModelTier && !['graphic1', 'graphic_pro'].includes(requestedModelTier)) {
+        throw new AppError('Choose an image quality tier for this image production.', 400, 'MODEL_MODE_MISMATCH');
+      }
+      if (studioMode !== 'photos' && requestedModelTier && !['cinema1', 'cinema2', 'cinema_pro'].includes(requestedModelTier)) {
+        throw new AppError('Choose a video quality tier for this video production.', 400, 'MODEL_MODE_MISMATCH');
+      }
+      const requiredCredits = videoCreditCost(
+        studioMode,
+        studioAudioMode !== 'voice_music',
+        studioDuration,
+        studioQuality,
+        requestedModelTier,
+      );
       if (req.user.creditsBalance < requiredCredits) {
         throw new AppError(`This production needs ${requiredCredits} credits. Add credits before generation starts.`, 402, 'INSUFFICIENT_CREDITS');
       }
@@ -126,7 +152,26 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
       throw new AppError('Sign in to generate a starting image from your idea.', 401, 'AUTH_REQUIRED');
     }
 
-    const title = sanitizeUploadTitle(typeof req.body?.title === 'string' ? req.body.title : (ideaPrompt ? ideaPrompt.slice(0, 80) : null));
+    let architectureReference: ArchitectureReference | null = null;
+    if (studioKind === 'architecture') {
+      try {
+        architectureReference = await resolveArchitectureReference(architectureLocation);
+      } catch (error) {
+        const message = (error as Error).message || 'The location could not be resolved.';
+        const code = /GOOGLE_MAPS_STATIC_API_KEY/i.test(message)
+          ? 'ARCHITECTURE_MAPS_NOT_CONFIGURED'
+          : 'ARCHITECTURE_LOCATION_INVALID';
+        throw new AppError(message, code === 'ARCHITECTURE_MAPS_NOT_CONFIGURED' ? 503 : 400, code);
+      }
+    }
+
+    const title = sanitizeUploadTitle(
+      typeof req.body?.title === 'string'
+        ? req.body.title
+        : architectureReference?.formattedAddress
+          ? architectureReference.formattedAddress
+          : (ideaPrompt ? ideaPrompt.slice(0, 80) : null),
+    );
     const userId = req.user?.id ?? null;
     const aspectRatio = (['16:9', '9:16', '1:1'] as const).includes(req.body?.aspectRatio) ? req.body.aspectRatio as '16:9' | '9:16' | '1:1' : '16:9';
 
@@ -157,6 +202,25 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
     }
 
     const pages: Array<{ url: string; title: string; screenshotUrl: string }> = [];
+    if (architectureReference) {
+      const screenshotUrl = await saveImageFile(
+        job.id,
+        'screenshot-full.jpg',
+        architectureReference.buffer,
+      );
+      pages.push({
+        url: 'architecture://' + architectureReference.lat + ',' + architectureReference.lng,
+        title: architectureReference.source === 'streetview' ? 'Real location street view' : 'Real location satellite view',
+        screenshotUrl,
+      });
+      await addJobMessage(
+        job.id,
+        'assistant',
+        'Real location reference captured from the exact map coordinates. Your concept will stay grounded to this plot.',
+        'architecture_reference',
+      );
+    }
+
     for (const [index, file] of files.entries()) {
       let jpeg: Buffer;
       try {
@@ -171,9 +235,14 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
       // the same page-N.jpg convention captured child pages use. This is
       // what lets loadReferenceCaptures() in jobs.ts pick these up with zero
       // changes — it already expects exactly this filename+metadata shape.
-      const filename = index === 0 ? 'screenshot-full.jpg' : `page-${index}.jpg`;
+      const pageIndex = pages.length;
+      const filename = pageIndex === 0 ? 'screenshot-full.jpg' : `page-${pageIndex}.jpg`;
       const screenshotUrl = await saveImageFile(job.id, filename, jpeg);
-      pages.push({ url: `upload://${job.id}/${index}`, title: uploadPhotoLabel(index, file.originalname), screenshotUrl });
+      pages.push({
+        url: `upload://${job.id}/${index}`,
+        title: uploadPhotoLabel(index, file.originalname),
+        screenshotUrl,
+      });
     }
 
     // Text-only Custom Idea and Scenario jobs never call an image provider at
@@ -191,6 +260,12 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
         sourceType: studioKind ? 'studio' : 'upload',
         studioKind,
         ideaPrompt: studioKind ? ideaPrompt : null,
+        architectureLocation: studioKind === 'architecture' ? architectureReference?.formattedAddress ?? architectureLocation : null,
+        architectureCoordinates: studioKind === 'architecture' && architectureReference
+          ? { lat: architectureReference.lat, lng: architectureReference.lng }
+          : null,
+        architectureReferenceSource: studioKind === 'architecture' ? architectureReference?.source ?? null : null,
+        modelTier: requestedModelTier ?? null,
         description: null,
         logoUrl: null,
         brandColors: [],
@@ -210,7 +285,9 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
       'assistant',
       directTextToVideo
         ? 'Your idea is ready. This production will be generated directly from your text — no website or screenshot is required.'
-        : `Saved ${pages.length} photo${pages.length === 1 ? '' : 's'}. What would you like to create from them?`,
+        : studioKind === 'architecture'
+          ? 'Your exact location and references are ready for architecture visualization.'
+          : `Saved ${pages.length} photo${pages.length === 1 ? '' : 's'}. What would you like to create from them?`,
       'status',
     );
     res.status(201).json({ jobId: job.id, status: 'captured' });
