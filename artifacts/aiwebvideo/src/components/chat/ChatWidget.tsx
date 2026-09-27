@@ -52,14 +52,93 @@ export function ChatWidget({
   const [actionTray, setActionTray] = useState<HTMLElement | null>(null);
   const [startOverButton, setStartOverButton] = useState<HTMLButtonElement | null>(null);
   const [startOverDisabled, setStartOverDisabled] = useState(false);
+  const [showJumpToLatest, setShowJumpToLatest] = useState(false);
   const shellRef = useRef<HTMLDivElement>(null);
   const openedChatAutoScrollRef = useRef<string | null>(null);
+  const followLatestRef = useRef(true);
 
   useEffect(() => {
     const nextChatId = resumeJobId ?? initialJobId ?? null;
     setActiveChatId(nextChatId);
     setFinishControlsCollapsed(readFinishedPanelState(nextChatId));
   }, [initialJobId, resumeJobId]);
+
+  // Follow streaming work only while the user is already at the working end.
+  // The moment they scroll upward we stop moving the conversation and surface
+  // a small jump-to-latest control instead of fighting their reading position.
+  useEffect(() => {
+    const shell = shellRef.current;
+    if (!shell) return;
+
+    let messages: HTMLElement | null = null;
+    let messageObserver: MutationObserver | null = null;
+    let shellObserver: MutationObserver | null = null;
+    let frame = 0;
+
+    const nearBottom = (node: HTMLElement) =>
+      node.scrollHeight - node.scrollTop - node.clientHeight <= 110;
+
+    const onScroll = () => {
+      if (!messages) return;
+      const atBottom = nearBottom(messages);
+      followLatestRef.current = atBottom;
+      if (atBottom) setShowJumpToLatest(false);
+    };
+
+    const onMutation = () => {
+      if (!messages) return;
+      if (frame) window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        if (!messages) return;
+        if (followLatestRef.current || nearBottom(messages)) {
+          followLatestRef.current = true;
+          messages.scrollTo({
+            top: messages.scrollHeight,
+            behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+          });
+          setShowJumpToLatest(false);
+        } else {
+          setShowJumpToLatest(true);
+        }
+      });
+    };
+
+    const attach = () => {
+      const next = shell.querySelector<HTMLElement>("[data-chat-messages]");
+      if (!next || next === messages) return Boolean(next);
+      messages?.removeEventListener("scroll", onScroll);
+      messageObserver?.disconnect();
+      messages = next;
+      followLatestRef.current = nearBottom(next);
+      setShowJumpToLatest(false);
+      next.addEventListener("scroll", onScroll, { passive: true });
+      messageObserver = new MutationObserver(onMutation);
+      messageObserver.observe(next, { childList: true, subtree: true, characterData: true });
+      return true;
+    };
+
+    attach();
+    shellObserver = new MutationObserver(() => attach());
+    shellObserver.observe(shell, { childList: true, subtree: true });
+
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      messages?.removeEventListener("scroll", onScroll);
+      messageObserver?.disconnect();
+      shellObserver?.disconnect();
+    };
+  }, []);
+
+  const jumpToLatest = () => {
+    const messages = shellRef.current?.querySelector<HTMLElement>("[data-chat-messages]");
+    if (!messages) return;
+    followLatestRef.current = true;
+    setShowJumpToLatest(false);
+    messages.scrollTo({
+      top: messages.scrollHeight,
+      behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+    });
+  };
 
   // Every time an existing chat is opened from history/sidebar, land at the
   // working end of the conversation instead of making the user manually scroll
@@ -301,6 +380,18 @@ export function ChatWidget({
         onJobCreated={handleJobCreated}
         className="h-full w-full"
       />
+      {showJumpToLatest && (
+        <button
+          type="button"
+          onClick={jumpToLatest}
+          className="absolute bottom-24 right-3 z-40 inline-flex h-10 items-center gap-2 rounded-full border border-white/12 bg-[#171222]/95 px-3 text-[10px] font-semibold text-white shadow-[0_16px_44px_-20px_rgba(0,0,0,.95)] backdrop-blur-xl transition hover:border-violet/35 hover:bg-[#211a30] sm:right-4"
+          aria-label="Jump to latest generation update"
+        >
+          <ChevronDown size={15} />
+          <span>Latest</span>
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-violet" aria-hidden="true" />
+        </button>
+      )}
       {toggle}
       {startOverDock}
     </div>
