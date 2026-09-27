@@ -196,7 +196,7 @@ export function StudioIndexPage() {
                 {EDITOR_FEATURES.map(([Icon, label]) => <span key={label} className="inline-flex items-center gap-1.5 rounded-full border border-white/[.08] bg-white/[.035] px-2.5 py-1 text-[10px] text-white/70"><Icon size={11} className="text-violet" />{label}</span>)}
               </div>
             </div>
-            <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-text-muted hover:text-white">Back to Workspace <ArrowRight size={14} /></Link>
+            <Link href="/?create=video#generate" className="inline-flex items-center gap-2 text-sm text-text-muted hover:text-white">Back to Create <ArrowRight size={14} /></Link>
           </div>
 
           <div className="mt-7 grid gap-3 lg:grid-cols-[1.35fr_.85fr_.85fr]">
