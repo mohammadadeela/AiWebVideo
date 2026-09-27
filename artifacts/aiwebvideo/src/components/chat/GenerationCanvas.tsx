@@ -218,7 +218,6 @@ export function GenerationCanvas({
   const lastStatusTextRef = useRef("");
 
   const copy = KIND[productionKind];
-  const Icon = copy.Icon;
   const settled = ["done", "failed", "cancelled"].includes(status);
   const safeProgress = status === "done" ? 100 : Math.max(2, Math.min(99, Math.round(progress || 2)));
   const eta = formatEta(etaSeconds);
@@ -413,7 +412,7 @@ export function GenerationCanvas({
                 <div className="min-w-0 flex-1">
                   <div className="flex h-5 items-center overflow-hidden" aria-live="polite" aria-atomic="true">
                     <p key={statusText} className={`animate-fade-in-up truncate text-[12px] font-medium ${copy.accentText}`}>
-                      {statusText}<AnimatedDots />
+                      {statusText}{!settled && <AnimatedDots />}
                     </p>
                   </div>
                   <p className="mt-0.5 text-[9px] text-white/38">{copy.label}</p>
