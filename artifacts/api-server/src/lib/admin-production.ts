@@ -5,7 +5,8 @@ export type AdminProductionFeature =
   | 'product-photos'
   | 'product-video'
   | 'talking-scene'
-  | 'interior-design';
+  | 'interior-design'
+  | 'architecture-design';
 
 const FEATURE_LABELS: Record<AdminProductionFeature, string> = {
   'website-video': 'Website Video',
@@ -15,6 +16,7 @@ const FEATURE_LABELS: Record<AdminProductionFeature, string> = {
   'product-video': 'Product Video',
   'talking-scene': 'Talking Scene',
   'interior-design': 'Interior Design',
+  'architecture-design': 'Architecture Design',
 };
 
 function record(value: unknown): Record<string, unknown> {
@@ -32,8 +34,10 @@ export function classifyAdminProduction(input: {
   const sourceType = String(capture.sourceType ?? '');
   const studioKind = String(capture.studioKind ?? '');
 
-  const type: AdminProductionFeature = sourceType === 'studio' && studioKind === 'interior'
-    ? 'interior-design'
+  const type: AdminProductionFeature = sourceType === 'studio' && studioKind === 'architecture'
+    ? 'architecture-design'
+    : sourceType === 'studio' && studioKind === 'interior'
+      ? 'interior-design'
     : sourceType === 'studio' && studioKind === 'product'
     ? mode === 'photos' ? 'product-photos' : 'product-video'
     : sourceType === 'studio' && studioKind === 'scenario'
