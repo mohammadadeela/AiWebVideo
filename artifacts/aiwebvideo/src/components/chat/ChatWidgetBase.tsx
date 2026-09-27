@@ -753,6 +753,8 @@ export function ChatWidget({
     if (!justStarted && lastAlignedGenerationJobRef.current === jobId) return;
     if (lastAlignedGenerationJobRef.current === jobId) return;
     lastAlignedGenerationJobRef.current = jobId;
+    followLatestRef.current = true;
+    setShowJumpToLatest(false);
 
     const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     const behavior: ScrollBehavior = reducedMotion ? "auto" : "smooth";
@@ -762,10 +764,8 @@ export function ChatWidget({
     const alignProductionPanel = () => {
       const root = chatRootRef.current;
       const scroller = scrollRef.current;
-      if (!root || !scroller) return;
+      if (!root || !scroller || !followLatestRef.current) return;
 
-      followLatestRef.current = true;
-      setShowJumpToLatest(false);
       programmaticScrollRef.current = true;
       root.scrollIntoView({ behavior, block: "start" });
       scroller.scrollTo({ top: scroller.scrollHeight, behavior });
@@ -1622,9 +1622,6 @@ Promotion direction: ${brief}` : normalized);
     setSelectedCaptureIds(captureIds);
     setAudioMode(request.audioMode);
     setNarrationLanguage(request.narrationLanguage);
-    pushBot(
-      `The website capture is ready and visible below. I selected ${usefulPageCount} strong story beat${usefulPageCount === 1 ? "" : "s"} and a ${durationLabel(smartDuration)} production. Now I’m directing the hook, scene order, motion and ending.`,
-    );
     storyboardedRef.current = false;
     setStage("storyboarding");
     try {
@@ -2014,29 +2011,6 @@ ${request.prompt}`
     setBusy(true);
     storyboardedRef.current = true;
     setStage("storyboarding");
-    pushBot(
-      productionKind === "product-photos"
-        ? "Planning a product photo campaign from your real references and direction."
-        : productionKind === "product-video"
-          ? "Planning a product film around the real references, pacing, movement and final hero moment."
-          : productionKind === "talking-scene"
-            ? "Planning the performance, dialogue timing, camera and scene flow."
-            : productionKind === "ai-video"
-              ? "Planning one continuous AI video from your idea and references."
-              : mode === "photos"
-                ? "Planning campaign images from the website source and your direction."
-                : mode === "icon"
-                  ? "Planning four distinct square icon concepts from the website’s real identity, captured icon/logo, colors, purpose, and your direction."
-                  : mode === "both"
-                    ? "Planning one campaign from the captured website states and brand references, with coordinated video and campaign photography."
-                    : mode === "demo"
-                      ? "Planning a true AI-generated cinematic brand film grounded in your real logo, products, UI, and captured brand content. Each scene will be generated as video rather than created by moving screenshots with code."
-                      : mode === "mockup"
-                        ? "Planning a fast, AI-generated social-feed-style reveal of your real pages/photos — the flip-through style used to advertise products and digital downloads on TikTok, Reels, and Pinterest."
-                        : mode === "custom"
-                          ? "Planning your custom concept as real AI-generated video, grounded in your captured pages/photos."
-                          : "Planning one continuous AI-generated website film from your real saved captures. The screenshots are grounding references for the full film, not separate clips. Visible UI text, prices, products and branding must stay faithful to the captured website.",
-    );
     try {
       const requestedJobId = jobId;
       const response = await requestStoryboard(requestedJobId, mode, vibe, durationSeconds, featuresText ?? undefined, {
@@ -2232,11 +2206,6 @@ ${request.prompt}`
     storyboardedRef.current = true;
     renderedRef.current = false;
     pushUser(label);
-    pushBot(
-      isImageMode(mode)
-        ? "Creating a fresh image direction from the same project references. Your finished images stay in this conversation."
-        : "Creating a fresh scene direction from the same project source. Your finished video stays in this conversation.",
-    );
     setStage("storyboarding");
     try {
       // The storyboard endpoint automatically creates an immutable child job
@@ -2594,9 +2563,11 @@ ${request.prompt}`
                 ? "Product film · one conversation"
                 : productionKind === "talking-scene"
                   ? "Talking scene · one conversation"
-                  : productionKind === "ai-video"
-                    ? "AI video · one conversation"
-                    : "Website campaign · one conversation"}
+                  : productionKind === "interior-design"
+                    ? "Interior design · one conversation"
+                    : productionKind === "ai-video"
+                      ? "AI video · one conversation"
+                      : "Website campaign · one conversation"}
           </p>
         </div>
         {jobId && (
@@ -2609,7 +2580,9 @@ ${request.prompt}`
                   ? "AI product video"
                   : projectCaptureMetadata?.studioKind === "scenario"
                     ? "Talking scene"
-                    : "Original AI video"
+                    : projectCaptureMetadata?.studioKind === "interior"
+                      ? "Interior design"
+                      : "Original AI video"
               : mode === "photos"
                 ? "Creative photo edits"
                 : mode === "icon"
