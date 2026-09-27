@@ -19,7 +19,8 @@ export type ProductionKind =
   | "product-photos"
   | "campaign-photos"
   | "product-video"
-  | "talking-scene";
+  | "talking-scene"
+  | "architecture-site";
 
 type Settings = {
   quality: string | null;
@@ -35,6 +36,7 @@ const KIND: Record<ProductionKind, { label: string; Icon: typeof Film }> = {
   "campaign-photos": { label: "Campaign photos", Icon: Image },
   "product-video": { label: "Product video", Icon: PackageOpen },
   "talking-scene": { label: "Talking scene", Icon: Film },
+  "architecture-site": { label: "Architecture preview", Icon: Globe2 },
 };
 
 function formatEta(seconds: number | null | undefined) {
