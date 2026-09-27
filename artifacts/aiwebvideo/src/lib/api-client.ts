@@ -287,6 +287,21 @@ export interface MarketingSettings {
 }
 
 // Public — powers the homepage, no auth required.
+export interface ModelPricingResponse {
+  video: Record<'cinema1' | 'cinema2' | 'cinema_pro', {
+    displayCreditsPerSecond1080: number;
+    displayCreditsPerSecond4k: number | null;
+  }>;
+  image: Record<'graphic1' | 'graphic_pro', {
+    displayCreditsPerImage: number;
+  }>;
+  displayNarrationCredits: number;
+}
+
+export function fetchModelPricing() {
+  return request<ModelPricingResponse>('/api/model-pricing');
+}
+
 export function fetchMarketingSettings() { return request<MarketingSettings>('/api/marketing', { cache: 'default' }); }
 export function saveMarketingSettings(settings: MarketingSettings) { return request<MarketingSettings>('/api/admin/marketing', { method: 'PUT', body: JSON.stringify(settings) }); }
 export async function uploadMarketingAsset(file: File) {
