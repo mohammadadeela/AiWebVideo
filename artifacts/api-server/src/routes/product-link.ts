@@ -59,10 +59,20 @@ function imageCandidates(html: string, baseUrl: string) {
   return [...unique];
 }
 
+async function safeFetch(rawUrl: string, init: RequestInit, maxRedirects = 5): Promise<Response> {
+  let current = await validateUrl(rawUrl);
+  for (let hop = 0; hop <= maxRedirects; hop++) {
+    const response = await fetch(current, { ...init, redirect: 'manual' });
+    if (![301, 302, 303, 307, 308].includes(response.status)) return response;
+    const location = response.headers.get('location');
+    if (!location) return response;
+    current = await validateUrl(new URL(location, current).toString());
+  }
+  throw new Error('Too many redirects.');
+}
+
 async function downloadProductImage(rawUrl: string, index: number) {
-  const safeUrl = await validateUrl(rawUrl);
-  const response = await fetch(safeUrl, {
-    redirect: 'follow',
+  const response = await safeFetch(rawUrl, {
     signal: AbortSignal.timeout(12_000),
     headers: {
       'User-Agent': 'AiWebVideo/1.0 product-reference-fetcher',
@@ -96,8 +106,7 @@ router.post('/preview', async (req, res) => {
       throw error;
     }
 
-    const response = await fetch(safeUrl, {
-      redirect: 'follow',
+    const response = await safeFetch(safeUrl, {
       signal: AbortSignal.timeout(15_000),
       headers: {
         'User-Agent': 'Mozilla/5.0 AiWebVideo Product Link Preview',
