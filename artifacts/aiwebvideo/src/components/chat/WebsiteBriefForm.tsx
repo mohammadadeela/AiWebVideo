@@ -12,6 +12,7 @@ import {
   PackageOpen,
   Paperclip,
   Settings2,
+  TimerReset,
   Sparkles,
   Smartphone,
   Volume2,
@@ -233,6 +234,7 @@ export function WebsiteBriefForm({
   const [brief, setBrief] = useState("");
   const [prompt, setPrompt] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [durationQuickOpen, setDurationQuickOpen] = useState(false);
   const settingsAnchorRef = useRef<HTMLDivElement>(null);
   const [stylePreset, setStylePreset] = useState("Auto");
   const [roomType, setRoomType] = useState("Living Room");
@@ -268,6 +270,7 @@ export function WebsiteBriefForm({
     setPersonReferenceRequired(false);
     setCompactPanel(null);
     setSettingsOpen(false);
+    setDurationQuickOpen(false);
     setStylePreset(intent === "website" ? "Auto" : "");
     setError(null);
     setSettings((current) => {
@@ -344,13 +347,37 @@ export function WebsiteBriefForm({
   }, []);
 
   useEffect(() => {
-    if (!settingsOpen) return;
-    const onPointer = (event: PointerEvent) => { if (!settingsAnchorRef.current?.contains(event.target as Node)) setSettingsOpen(false); };
-    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") setSettingsOpen(false); };
+    if (!settingsOpen && !durationQuickOpen) return;
+    const onPointer = (event: PointerEvent) => {
+      if (!settingsAnchorRef.current?.contains(event.target as Node)) {
+        setSettingsOpen(false);
+        setDurationQuickOpen(false);
+      }
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setSettingsOpen(false);
+        setDurationQuickOpen(false);
+      }
+    };
     document.addEventListener("pointerdown", onPointer);
     document.addEventListener("keydown", onKey);
     return () => { document.removeEventListener("pointerdown", onPointer); document.removeEventListener("keydown", onKey); };
-  }, [settingsOpen]);
+  }, [durationQuickOpen, settingsOpen]);
+
+  const growPrompt = (element: HTMLTextAreaElement) => {
+    element.style.height = "auto";
+    const viewportCap = typeof window === "undefined" ? 220 : Math.max(132, Math.min(220, Math.round(window.innerHeight * 0.38)));
+    element.style.height = `${Math.min(viewportCap, Math.max(44, element.scrollHeight))}px`;
+    element.style.overflowY = element.scrollHeight > viewportCap ? "auto" : "hidden";
+  };
+
+  useEffect(() => {
+    const active = activeMode === "website" ? websiteBriefRef.current : studioPromptRef.current;
+    if (!active) return;
+    const frame = window.requestAnimationFrame(() => growPrompt(active));
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeMode, brief, prompt]);
 
   const previews = useMemo(
     () => files.map((file) => ({ file, url: URL.createObjectURL(file) })),
@@ -571,12 +598,16 @@ export function WebsiteBriefForm({
       {url ? <img src={`https://${url.replace(/^https?:\/\//, "").split("/")[0]}/favicon.ico`} alt="" className="h-5 w-5 rounded-md object-contain" onError={(event) => { event.currentTarget.style.display = "none"; }} /> : <Globe2 size={16} className="text-white/55" />}
       <input value={url} onChange={(event) => setUrl(event.currentTarget.value)} type="url" inputMode="url" autoComplete="url" placeholder="Paste a website URL" disabled={disabled} className="min-w-0 flex-1 bg-transparent py-3 text-sm text-white outline-none placeholder:text-white/40" />
     </div>}
-    <div className="relative flex min-h-16 items-center gap-2 rounded-[30px] border border-white/[.16] bg-[#191522] px-3 py-2 shadow-[0_20px_55px_-40px_rgba(0,0,0,.9)] focus-within:border-white/35 sm:px-4">
+    <div className="relative flex min-h-16 items-end gap-2 rounded-[30px] border border-white/[.16] bg-[#191522] px-3 py-2 shadow-[0_20px_55px_-40px_rgba(0,0,0,.9)] transition-[border-color,box-shadow] duration-200 focus-within:border-white/35 focus-within:shadow-[0_0_0_1px_var(--composer-accent,rgba(181,154,255,.36)),0_24px_70px_-42px_var(--composer-accent,rgba(181,154,255,.72))] sm:px-4" style={{ "--composer-accent": accents[activeMode] } as React.CSSProperties}>
       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[15px] border border-white/10 bg-black/20" style={{ color: accents[activeMode] }}><ToolIcon size={19} /></span>
-      <textarea ref={activeMode === "website" ? websiteBriefRef : studioPromptRef} value={activeMode === "video" || activeMode === "scenario" ? prompt : brief} onChange={(event) => { if (activeMode === "video" || activeMode === "scenario") setPrompt(event.currentTarget.value); else setBrief(event.currentTarget.value); event.currentTarget.style.height = "auto"; event.currentTarget.style.height = `${Math.min(160, event.currentTarget.scrollHeight)}px`; }} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); submit(); } }} placeholder={toolPlaceholder[activeMode]} rows={1} disabled={disabled} aria-label={activeMode === "scenario" ? "Script and scene" : "Creative prompt"} className={`max-h-40 min-h-10 min-w-0 flex-1 resize-none bg-transparent px-1 py-2.5 text-sm leading-5 text-white outline-none placeholder:text-white/40 ${activeMode === "scenario" ? "font-mono" : ""}`} />
+      <textarea ref={activeMode === "website" ? websiteBriefRef : studioPromptRef} value={activeMode === "video" || activeMode === "scenario" ? prompt : brief} onChange={(event) => { if (activeMode === "video" || activeMode === "scenario") setPrompt(event.currentTarget.value); else setBrief(event.currentTarget.value); growPrompt(event.currentTarget); }} onInput={(event) => growPrompt(event.currentTarget)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); submit(); } }} placeholder={toolPlaceholder[activeMode]} rows={2} disabled={disabled} aria-label={activeMode === "scenario" ? "Script and scene" : "Creative prompt"} className={`min-h-11 min-w-0 flex-1 resize-none overflow-hidden bg-transparent px-1 py-2.5 text-sm leading-5 text-white outline-none placeholder:text-white/40 ${activeMode === "scenario" ? "font-mono" : ""}`} />
       <button type="button" title="Attach images" aria-label={files.length ? `${files.length} images attached. Add more` : "Attach images"} onClick={() => inputRef.current?.click()} disabled={disabled || files.length >= 10} className={iconButton}>{files.length ? <><img src={previews[0]?.url} alt="" className="h-7 w-7 rounded-full object-cover" />{files.length > 1 && <span className="absolute -right-1 -top-1 rounded-full bg-white px-1 text-[9px] font-semibold text-black">+{files.length - 1}</span>}</> : <Paperclip size={18} />}</button>
-      <div ref={settingsAnchorRef} className="relative">
-        <button type="button" title="Settings" aria-label="Settings" aria-expanded={settingsOpen} onClick={() => setSettingsOpen((current) => !current)} className={iconButton}><Settings2 size={18} /></button>
+      {isVideoMode && <div ref={settingsAnchorRef} className="relative">
+        <button type="button" title="Duration" aria-label={`Duration ${durationSeconds} seconds`} aria-expanded={durationQuickOpen} onClick={() => { setSettingsOpen(false); setDurationQuickOpen((current) => !current); }} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-white/[.10] bg-white/[.035] px-2.5 text-[10px] font-semibold text-white/75 transition hover:border-white/20 hover:bg-white/[.07] hover:text-white"><TimerReset size={14} /><span>{durationSeconds}s</span></button>
+        {durationQuickOpen && <div className="absolute bottom-[calc(100%+12px)] right-0 z-40 flex w-[min(320px,calc(100vw-2rem))] gap-1.5 overflow-x-auto rounded-2xl border border-white/[.14] bg-[#211b2c] p-2 shadow-2xl" role="group" aria-label="Choose duration">{[8,16,24,32,60].map((value) => <button key={value} type="button" onClick={() => { setSettings((current) => ({ ...current, durationSeconds: value })); setCustomDurationDraft(null); setDurationQuickOpen(false); }} className={`min-h-9 min-w-12 rounded-xl px-3 text-[11px] font-semibold transition ${durationSeconds === value ? "bg-white text-[#17131f]" : "bg-white/[.04] text-white/65 hover:bg-white/[.09] hover:text-white"}`}>{value}s</button>)}</div>}
+      </div>}
+      <div ref={!isVideoMode ? settingsAnchorRef : undefined} className="relative">
+        <button type="button" title="Settings" aria-label="Settings" aria-expanded={settingsOpen} onClick={() => { setDurationQuickOpen(false); setSettingsOpen((current) => !current); }} className={iconButton}><Settings2 size={18} /></button>
         {settingsOpen && <div className="absolute bottom-[calc(100%+14px)] right-[-3.5rem] z-40 w-[min(355px,calc(100vw-2.5rem))] origin-bottom-right animate-fade-in-up rounded-[24px] border border-white/[.14] bg-[#211b2c] p-4 shadow-2xl sm:right-0" role="group" aria-label="Generation settings">
           {isVideoMode && <div><div className="mb-2 flex items-center justify-between text-xs text-white/70"><span>Duration</span><span className="rounded-full border border-white/20 px-2 py-0.5 font-semibold text-white">{durationSeconds}s</span></div><input type="range" min={0} max={4} step={1} value={Math.max(0, [8,16,24,32,60].indexOf(durationSeconds))} onChange={(event) => setSettings((current) => ({ ...current, durationSeconds: [8,16,24,32,60][Number(event.target.value)] }))} className="w-full accent-white" aria-label="Duration" /><div className="flex justify-between text-[10px] text-white/45">{[8,16,24,32,60].map((value) => <span key={value}>{value}s</span>)}</div></div>}
           <div className="mt-4"><p className="mb-2 text-xs text-white/70">Format</p><div className="flex rounded-full border border-white/10 bg-black/20 p-1">{([ ["9:16", Smartphone, "Portrait"], ["16:9", Monitor, "Wide"], ["1:1", ImageIcon, "Square"] ] as const).map(([ratio, Icon, label]) => <button key={ratio} type="button" title={label} aria-label={label} aria-pressed={settings.aspectRatio === ratio} onClick={() => setSettings((current) => ({ ...current, aspectRatio: ratio }))} className={`${segmented(settings.aspectRatio === ratio)} flex flex-1 items-center justify-center gap-1.5`}><Icon size={14} /><span className="hidden sm:inline">{label}</span></button>)}</div></div>
@@ -591,9 +622,12 @@ export function WebsiteBriefForm({
     {activeMode === "scenario" && <div className="mt-3 flex gap-2 overflow-x-auto">{["Natural", "Warm", "Narrator", "Dialogue"].map((voice) => <button type="button" key={voice} onClick={() => setVoicePreset(voice)} className={segmented(voicePreset === voice)}>{voice}</button>)}</div>}
     {activeMode === "photo" && <div className="mt-3 flex items-center gap-2 text-xs text-white/55"><span>Images</span><div className="flex rounded-full border border-white/10 p-1">{([1,4,9] as const).map((count) => <button type="button" key={count} aria-pressed={photoCount === count} onClick={() => setPhotoCount(count)} className={segmented(photoCount === count)}>{count}</button>)}</div></div>}
     <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1">{styles[activeMode].map((style) => <button type="button" key={style} onClick={() => setStylePreset(style)} aria-pressed={stylePreset === style} className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] transition ${stylePreset === style ? "border-white/40 bg-white/10 text-white" : "border-white/10 text-white/50 hover:text-white"}`}>{style}</button>)}</div>
-    <div className="mt-2 flex gap-2 overflow-x-auto pb-1" aria-label="Prompt ideas">{masterIdeas.slice(0,4).map((idea) => <button key={idea.id} type="button" onClick={() => applyMasterIdea(idea)} className="shrink-0 rounded-full px-3 py-1.5 text-[11px] text-white/45 transition hover:bg-white/[.06] hover:text-white">{idea.displayText}</button>)}</div>
+    <div className="mt-2 flex gap-2 overflow-x-auto pb-1 pr-8 [mask-image:linear-gradient(to_right,#000_0%,#000_88%,transparent_100%)]" aria-label="Prompt ideas">{masterIdeas.slice(0,4).map((idea) => <button key={idea.id} type="button" onClick={() => applyMasterIdea(idea)} className={`group w-[180px] shrink-0 rounded-2xl border px-3 py-2.5 text-left transition ${selectedIdea?.id === idea.id ? "border-white/35 bg-white/[.10]" : "border-white/[.09] bg-white/[.025] hover:border-white/20 hover:bg-white/[.055]"}`}><span className="flex items-center gap-2 text-[9px] font-semibold uppercase tracking-[.08em]" style={{ color: accents[activeMode] }}><Sparkles size={11} />Idea</span><span className="mt-1.5 block text-[11px] leading-4 text-white/72 group-hover:text-white">{idea.displayText}</span></button>)}</div>
     {selectedExample && <p className="mt-2 text-xs text-white/55">Your version of {selectedExample} · attach your own subject.</p>}
     {error && <p role="alert" className="mt-2 text-xs text-[#f3a9bd]">{error}</p>}
-    {showCreditPricing && <p className="mt-2 text-right text-[10px] text-white/45">Estimate: {photoCount === 4 || activeMode !== "photo" ? exactCredits : Math.ceil(exactCredits * photoCount / 4)} credits before generation</p>}
+    <div className="mt-2 flex items-center justify-between gap-3 px-1">
+      <p className="text-[10px] text-white/35">{(activeMode === "video" || activeMode === "scenario" ? prompt : brief).trim().length > 180 ? "Detailed prompts help preserve your direction." : "Shift + Enter for a new line."}</p>
+      {showCreditPricing && <p className="shrink-0 text-right text-[10px] text-white/45">Estimate: {photoCount === 4 || activeMode !== "photo" ? exactCredits : Math.ceil(exactCredits * photoCount / 4)} credits</p>}
+    </div>
   </div>;
 }
