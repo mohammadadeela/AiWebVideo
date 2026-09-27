@@ -2197,7 +2197,7 @@ ${request.prompt}`
         setStage("ready_to_render");
         showLockedTeaser();
       } else if (err instanceof ApiError && err.code === "INSUFFICIENT_CREDITS") {
-        const required = estimateRenderCredits(mode, skipVoiceover, durationSeconds, outputQuality);
+        const required = estimateRenderCredits(mode, skipVoiceover, durationSeconds, outputQuality, modelTier);
         const shortfall = Math.max(0, required - creditBalance);
         setPaywallContext(`Add ${shortfall} credit${shortfall === 1 ? "" : "s"} to generate this saved production`);
         pushBot(
