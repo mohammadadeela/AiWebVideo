@@ -17,9 +17,15 @@ const POLL_MS = Math.max(2_000, Number(process.env.GEMINI_VIDEO_POLL_MS ?? 10_00
 const POLL_LOG_MS = Math.max(POLL_MS, Number(process.env.GEMINI_VIDEO_POLL_LOG_MS ?? 30_000));
 const GENERATION_TIMEOUT_MS = Math.max(60_000, Number(process.env.GEMINI_VIDEO_TIMEOUT_MS ?? 12 * 60_000));
 const MAX_PROVIDER_POLLS = Math.max(6, Number(process.env.GEMINI_VIDEO_MAX_POLLS ?? 160));
-const DEFAULT_TOTAL_GENERATION_TIMEOUT_MS = 24 * 60_000;
+const DEFAULT_TOTAL_GENERATION_TIMEOUT_MS = Math.max(
+  10 * 60_000,
+  Number(process.env.AI_VIDEO_MIN_TOTAL_TIMEOUT_MS ?? 16 * 60_000),
+);
 const TOTAL_GENERATION_TIMEOUT_ENV = process.env.AI_VIDEO_TOTAL_TIMEOUT_MS;
-const FINISHING_BUFFER_MS = 6 * 60_000; // stitching, audio mix, narration, final mux
+const FINISHING_BUFFER_MS = Math.max(
+  2 * 60_000,
+  Number(process.env.AI_VIDEO_FINISHING_BUFFER_MS ?? 4 * 60_000),
+); // stitching, audio mix, narration, final mux
 
 /**
  * Scale the total deadline with the actual number of provider operations.
