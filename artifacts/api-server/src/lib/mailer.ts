@@ -327,7 +327,7 @@ export async function sendWelcomeEmail(input: { to: string }) {
     intro: 'You can now keep projects, credits, billing and completed media connected to one account.',
     rows: [
       ['Website preview', 'Free before paid generation'],
-      ['Workspace', 'Saved projects and live progress'],
+      ['History', 'Saved projects and live progress'],
       ['Usage', 'Credits, productions and billing history'],
     ],
     note: 'Start with a website URL, an idea, or a product reference. Paid generation always shows/checks the required credits before provider work begins.',
