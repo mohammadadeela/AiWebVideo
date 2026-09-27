@@ -1,5 +1,5 @@
 import { getIdToken } from '@/lib/firebase/client';
-import type { AudioMode, JobStatusResponse, JobMode, JobWorkflowState } from '@/components/chat/types';
+import type { AudioMode, JobStatusResponse, JobMode, JobWorkflowState, ModelTier } from '@/components/chat/types';
 
 export class ApiError extends Error {
   code?: string;
@@ -67,12 +67,14 @@ export async function uploadStudioMedia(opts: {
   files?: File[];
   title?: string;
   ideaPrompt?: string;
-  studioKind: 'product' | 'idea' | 'scenario' | 'interior';
+  studioKind: 'product' | 'idea' | 'scenario' | 'interior' | 'architecture';
   mode: JobMode;
   durationSeconds: number;
   audioMode: AudioMode;
   aspectRatio: '16:9' | '9:16' | '1:1';
   outputQuality: '1080p' | '4k';
+  modelTier?: ModelTier;
+  architectureLocation?: string;
 }) {
   const token = await getIdToken();
   const form = new FormData();
@@ -85,6 +87,8 @@ export async function uploadStudioMedia(opts: {
   form.append('audioMode', opts.audioMode);
   form.append('aspectRatio', opts.aspectRatio);
   form.append('outputQuality', opts.outputQuality);
+  if (opts.modelTier) form.append('modelTier', opts.modelTier);
+  if (opts.architectureLocation) form.append('architectureLocation', opts.architectureLocation);
   const res = await fetch('/api/uploads', {
     method: 'POST',
     signal: AbortSignal.timeout(10 * 60_000),
@@ -128,7 +132,7 @@ export function requestStoryboard(
   vibeBrief: string,
   durationSeconds = 8,
   featuresText?: string,
-  options?: { creativeBrief?: string; aspectRatio?: '16:9' | '9:16' | '1:1'; outputQuality?: '1080p' | '4k'; audioMode?: AudioMode; frameRate?: 24 | 30 | 60; selectedCaptureIds?: string[]; selectedGeneratedPhotoIds?: string[] }
+  options?: { creativeBrief?: string; aspectRatio?: '16:9' | '9:16' | '1:1'; outputQuality?: '1080p' | '4k'; modelTier?: ModelTier; audioMode?: AudioMode; frameRate?: 24 | 30 | 60; selectedCaptureIds?: string[]; selectedGeneratedPhotoIds?: string[] }
 ) {
   return request<{ jobId: string; status: string; creditsReserved?: number; creditsRemaining?: number }>(`/api/jobs/${jobId}/storyboard`, {
     method: 'POST',
@@ -161,10 +165,11 @@ export function requestGenerationPreflight(
   durationSeconds: number,
   outputQuality: '1080p' | '4k',
   audioMode: AudioMode = 'native_audio',
+  modelTier?: ModelTier,
 ) {
   return request<GenerationPreflightQuote>(`/api/jobs/${jobId}/preflight`, {
     method: 'POST',
-    body: JSON.stringify({ mode, durationSeconds, outputQuality, audioMode }),
+    body: JSON.stringify({ mode, durationSeconds, outputQuality, audioMode, ...(modelTier ? { modelTier } : {}) }),
   });
 }
 
@@ -305,6 +310,8 @@ export interface UserJobSummary {
   featureLabel: string;
   screenshotUrl: string | null;
   previewUrl: string | null;
+  originalPrompt: string | null;
+  studioKind?: string | null;
   pinned: boolean;
   updatedAt: string;
   createdAt: string;
@@ -312,6 +319,20 @@ export interface UserJobSummary {
 
 export function fetchUserJobs() {
   return request<{ jobs: UserJobSummary[] }>('/api/user/jobs');
+}
+
+export interface ProductLinkPreview {
+  title: string;
+  description: string;
+  sourceUrl: string;
+  images: Array<{ name: string; mimeType: string; dataBase64: string }>;
+}
+
+export function fetchProductLinkPreview(url: string) {
+  return request<ProductLinkPreview>('/api/product-link/preview', {
+    method: 'POST',
+    body: JSON.stringify({ url }),
+  });
 }
 
 export function updateSavedChat(jobId: string, patch: { title?: string; pinned?: boolean }) {
