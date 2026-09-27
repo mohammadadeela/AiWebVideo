@@ -15,8 +15,8 @@ export function Footer() {
             <div className="col-span-2 sm:col-span-1">
               <Wordmark />
               <p className="mt-4 max-w-[260px] text-xs leading-6 text-text-dim">
-                Videos, product imagery, and interior design from your own ideas
-                and references. One creative workspace.
+                Videos, product imagery, interior design, and architecture concepts from your own ideas
+                and references.
               </p>
             </div>
             <div>
@@ -58,14 +58,7 @@ export function Footer() {
                 </li>
                 <li><a href="/?create=scenario#generate" className="transition-colors hover:text-white">Talking video</a></li>
                 <li><a href="/?create=interior#generate" className="transition-colors hover:text-white">Interior design</a></li>
-                <li>
-                  <Link
-                    href="/dashboard"
-                    className="transition-colors hover:text-white"
-                  >
-                    Workspace
-                  </Link>
-                </li>
+                <li><a href="/?create=architecture#generate" className="transition-colors hover:text-white">Architecture design</a></li>
               </ul>
             </div>
             <div>
