@@ -13,6 +13,10 @@ import { deleteSavedChat, fetchMe, fetchUserJobs, updateSavedChat, type UserJobS
 import { type JobMode } from "@/components/chat/types";
 import {
   CircleUserRound,
+  Heart,
+  Home,
+  Link2,
+  MapPinned,
   MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
@@ -63,6 +67,7 @@ export function DashboardClient() {
   );
   const [composerJobId, setComposerJobId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [historyView, setHistoryView] = useState<"all" | "favorites">("all");
   const [newProjectKey, setNewProjectKey] = useState(0);
   const [reuseJobId, setReuseJobId] = useState<string | null>(() =>
     new URLSearchParams(window.location.search).get("reuse"),
@@ -107,7 +112,7 @@ export function DashboardClient() {
       setJobs(Array.isArray(history.jobs) ? history.jobs.filter((job) => job && typeof job.id === "string") : []);
       setError(null);
     } catch {
-      setError("We could not refresh your workspace. Please try again in a moment.");
+      setError("We could not refresh your creations. Please try again in a moment.");
     }
   }, []);
 
@@ -169,8 +174,11 @@ export function DashboardClient() {
   const runningJobs = useMemo(() => jobs.filter((job) => ACTIVE_STATUSES.has(job.status)), [jobs]);
 
   const filteredJobs = useMemo(
-    () => jobs.filter((job) => `${job.title} ${job.sourceUrl} ${job.mode} ${job.featureLabel ?? ""}`.toLowerCase().includes(query.toLowerCase())),
-    [jobs, query],
+    () => jobs.filter((job) => {
+      if (historyView === "favorites" && !job.pinned) return false;
+      return `${job.title} ${job.sourceUrl} ${job.mode} ${job.featureLabel ?? ""}`.toLowerCase().includes(query.toLowerCase());
+    }),
+    [historyView, jobs, query],
   );
 
   function startNew() {
@@ -243,7 +251,7 @@ export function DashboardClient() {
       )}
       <aside
         id="workspace-project-menu"
-        aria-label="Workspace projects"
+        aria-label="My creations and projects"
         className={`fixed bottom-2.5 left-2.5 top-[4.15rem] z-40 flex w-[min(82vw,292px)] max-w-[calc(100vw-3.25rem)] flex-col overflow-hidden rounded-[22px] border border-white/[.10] bg-[#100c20]/[.99] p-2.5 shadow-[0_28px_80px_-34px_rgba(0,0,0,.98)] backdrop-blur-2xl transition-[transform,opacity] duration-200 sm:left-3 sm:w-[300px] sm:p-3 lg:sticky lg:bottom-auto lg:left-auto lg:top-0 lg:h-screen lg:max-w-none lg:rounded-none lg:border-y-0 lg:border-l-0 lg:border-r lg:bg-[#100c20] lg:shadow-none lg:backdrop-blur-none ${sidebarOpen ? "pointer-events-auto translate-x-0 opacity-100" : "pointer-events-none -translate-x-[115%] opacity-0 lg:pointer-events-auto lg:translate-x-0 lg:opacity-100"} ${sidebarCollapsed ? "lg:w-0 lg:overflow-hidden lg:border-0 lg:p-0" : "lg:w-[286px]"}`}
       >
         <div className="flex items-center justify-between px-2 py-2">
@@ -262,6 +270,30 @@ export function DashboardClient() {
             <PanelLeftClose size={17} />
           </button>
         </div>
+        <div className="mt-2 grid gap-1">
+          <Link href="/" className="flex min-h-9 items-center gap-2.5 rounded-xl px-3 text-[11px] font-medium text-text-muted transition hover:bg-white/5 hover:text-white">
+            <Home size={14} />Home
+          </Link>
+          <button type="button" onClick={() => setHistoryView("all")} className={`flex min-h-9 items-center gap-2.5 rounded-xl px-3 text-left text-[11px] font-medium transition ${historyView === "all" ? "bg-white/[.07] text-white" : "text-text-muted hover:bg-white/5 hover:text-white"}`}>
+            <Clock3 size={14} />My generations
+          </button>
+          <button type="button" onClick={() => setHistoryView("favorites")} className={`flex min-h-9 items-center gap-2.5 rounded-xl px-3 text-left text-[11px] font-medium transition ${historyView === "favorites" ? "bg-white/[.07] text-white" : "text-text-muted hover:bg-white/5 hover:text-white"}`}>
+            <Heart size={14} />My favorites
+          </button>
+        </div>
+
+        <div className="mt-3 border-t border-white/[.06] pt-3">
+          <p className="px-3 pb-1.5 font-utility text-[8px] uppercase tracking-[.14em] text-text-dim">Tools</p>
+          <div className="grid gap-1">
+            <Link href="/?create=photo&productLink=1#generate" className="flex min-h-9 items-center gap-2.5 rounded-xl px-3 text-[11px] font-medium text-text-muted transition hover:bg-white/5 hover:text-white">
+              <Link2 size={14} />Product Link
+            </Link>
+            <Link href="/?create=architecture#generate" className="flex min-h-9 items-center gap-2.5 rounded-xl px-3 text-[11px] font-medium text-text-muted transition hover:bg-white/5 hover:text-white">
+              <MapPinned size={14} />Architecture Preview
+            </Link>
+          </div>
+        </div>
+
         <button
           type="button"
           onClick={startNew}
@@ -335,7 +367,7 @@ export function DashboardClient() {
             </div>
           )}
           <p className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-[.16em] text-text-dim">
-            Recent projects
+            {historyView === "favorites" ? "Favorite creations" : "Projects"}
           </p>
           <div className="space-y-1">
             {filteredJobs.map((item) => (
@@ -415,7 +447,7 @@ export function DashboardClient() {
             ))}
             {!filteredJobs.length && (
               <p className="px-3 py-6 text-center text-xs text-text-dim">
-                {query ? "No matching projects." : "Your first project will appear here."}
+                {query ? "No matching projects." : historyView === "favorites" ? "Pin a creation to keep it here." : "Your first project will appear here."}
               </p>
             )}
           </div>
