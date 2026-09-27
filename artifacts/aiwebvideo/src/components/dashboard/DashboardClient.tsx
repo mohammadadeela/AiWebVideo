@@ -13,6 +13,7 @@ import { deleteSavedChat, fetchMe, fetchUserJobs, updateSavedChat, type UserJobS
 import { type JobMode } from "@/components/chat/types";
 import {
   CircleUserRound,
+  Clock3,
   Heart,
   Home,
   Link2,
