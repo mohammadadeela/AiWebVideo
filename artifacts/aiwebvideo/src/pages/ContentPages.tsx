@@ -218,7 +218,7 @@ const sharedWorkflow = [
   ["Give AI the source", "Paste a public website, write the creative direction, or attach product, room, or plan references depending on the mode."],
   ["Keep defaults or adjust settings", "Smart settings handle the common choices. Open them only when you want to change duration, format, quality, or audio."],
   ["Credits are verified before paid AI starts", "Website screenshots can be captured for free. Before AI planning, video, image, or voice providers are used, the server verifies and reserves the exact production credits."],
-  ["Generate in the same conversation", "After the credit gate passes, the project continues in Workspace, where the source, prompt, references, settings, and generation state stay together."],
+  ["Generate in the same conversation", "After the credit gate passes, the project continues in the creator, where the source, prompt, references, settings, and generation state stay together."],
   ["Follow progress and get the result", "Live production status stays visible until the final media is ready to review, download, or continue from."],
 ] as const;
 
@@ -336,7 +336,7 @@ export function HowItWorksPage() {
             <div className="lg:sticky lg:top-28">
               <p className="font-utility text-[10px] uppercase tracking-[.2em] text-mint">The shared workflow</p>
               <h2 className="mt-4 max-w-xl font-display text-2xl font-bold tracking-[-.04em] text-white sm:text-4xl">The same simple path, whichever feature you choose.</h2>
-              <p className="mt-4 max-w-lg text-sm leading-7 text-text-muted">You do not need to learn a different editor for every feature. Only the source changes; the project still continues in the same creator and Workspace.</p>
+              <p className="mt-4 max-w-lg text-sm leading-7 text-text-muted">You do not need to learn a different editor for every feature. Only the source changes; the project still continues in the same creator.</p>
             </div>
             <div className="relative">
               <div className="absolute bottom-8 left-5 top-8 hidden w-px bg-gradient-to-b from-mint via-violet to-pink opacity-50 sm:block" aria-hidden="true" />
@@ -447,7 +447,7 @@ export function HowItWorksPage() {
               </div>
             </div>
             <div>
-              <p className="font-utility text-[10px] uppercase tracking-[.2em] text-pink">Workspace</p>
+              <p className="font-utility text-[10px] uppercase tracking-[.2em] text-pink">Creator</p>
               <h2 className="mt-4 font-display text-2xl font-bold tracking-[-.04em] text-white sm:text-4xl">You can leave the page without losing the project.</h2>
               <div className="mt-6 space-y-3">
                 {[
@@ -549,7 +549,7 @@ const faqGroups = [
       ],
       [
         "How long does generation take?",
-        "Capture, planning and final production timing vary by project. The workspace shows the current production stage and progress while the job is active.",
+        "Capture, planning and final production timing vary by project. The creator shows the current production stage and progress while the job is active.",
       ],
     ],
   },
@@ -591,7 +591,7 @@ const faqGroups = [
     items: [
       [
         "What happens to my project after I sign in?",
-        "Signed-in productions stay connected to the account workspace so you can return to active or completed work from project history.",
+        "Signed-in productions stay connected to the account history so you can return to active or completed work from project history.",
       ],
       [
         "What website content is captured?",
