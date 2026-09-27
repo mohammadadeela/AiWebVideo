@@ -366,6 +366,13 @@ export function WebsiteBriefForm({
   }, []);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if ((activeMode === "photo" || activeMode === "product-video") && params.get("productLink") === "1") {
+      setProductLinkOpen(true);
+    }
+  }, [activeMode]);
+
+  useEffect(() => {
     if (!settingsOpen) return;
     const onPointer = (event: PointerEvent) => { if (!settingsAnchorRef.current?.contains(event.target as Node)) setSettingsOpen(false); };
     const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") setSettingsOpen(false); };
