@@ -189,6 +189,7 @@ export interface StoryboardInput {
   mode: string; // video | photos | both | demo | tutorial | buy | tour
   vibeBrief: string;
   targetDurationSeconds: number;
+  photoCount?: number;
   featuresText?: string | null;
   creativeBrief?: string | null;
   aspectRatio: '16:9' | '9:16' | '1:1';
@@ -374,7 +375,7 @@ Discover the strongest real features visible across all captures, including sear
 Use the captures as grounding references, then create cinematic motion, dimensional devices, elegant environments, lighting, depth, and premium camera movement. Keep any website UI inside screens faithful to the real references and preserve the actual brand/products. Never invent features, claims, prices, or a different brand.`,
 
   photos: `PHOTOS — premium marketing image creation from the real captured website.
-Use the customer's description as the primary art direction. Plan four distinct campaign images grounded in the real products/brand visible in the captures. Explore useful marketing variations such as product-hero imagery, premium studio/background changes, editorial/lifestyle treatment, social-ad compositions, seasonal campaign treatment, or clean brand visuals — but only when consistent with what the user asked for. Do not add random text. If the user wants the website UI itself shown, keep that UI text faithful to the source instead of recreating it.`,
+Use the customer's description as the primary art direction. Plan distinct campaign images grounded in the real products/brand visible in the captures. Explore useful marketing variations such as product-hero imagery, premium studio/background changes, editorial/lifestyle treatment, social-ad compositions, seasonal campaign treatment, or clean brand visuals — but only when consistent with what the user asked for. Do not add random text. If the user wants the website UI itself shown, keep that UI text faithful to the source instead of recreating it.`,
 
   icon: `WEBSITE ICON — four premium square brand-mark concepts.
 Analyze the captured website, its real icon/logo, business purpose, color system and visual character. Plan four meaningfully different icon concepts that look intentionally designed for this exact brand, remain recognizable at favicon size, and can also work as a mobile shortcut, social avatar and branded video-ending mark.`,
@@ -420,8 +421,8 @@ export function buildFallbackStoryboard(input: StoryboardInput): Storyboard {
   const isDemo = input.mode === 'demo';
   const isStudioVideo = ['custom', 'ai-video', 'product-video', 'talking-scene'].includes(input.mode);
   const isPromptFirstStudio = ['custom', 'ai-video', 'talking-scene'].includes(input.mode);
-  const sceneCount = isPhotos ? 4 : Math.max(1, Math.round(input.targetDurationSeconds / 8));
-  const beatDurations = isPhotos ? Array(4).fill(0) : timelineBeatDurations(input.targetDurationSeconds, sceneCount);
+  const sceneCount = isPhotos ? (input.mode === "photos" && [1,4,9].includes(input.photoCount ?? 4) ? input.photoCount ?? 4 : 4) : Math.max(1, Math.round(input.targetDurationSeconds / 8));
+  const beatDurations = isPhotos ? Array(sceneCount).fill(0) : timelineBeatDurations(input.targetDurationSeconds, sceneCount);
   const brandName = brandNameFrom(input);
   const variantSeed = stableVariantSeed(input.variationKey);
   const actualCaptureCount =
@@ -712,7 +713,7 @@ export function buildStoryboardPrompt(input: StoryboardInput): PlannerPrompt {
   const isPromptFirstStudio = ['custom', 'ai-video', 'talking-scene'].includes(mode);
   const isProductVideo = mode === 'product-video';
   const isUploadProject = siteUrl.startsWith('upload://');
-  const sceneCount = isPhotos ? 4 : Math.max(1, Math.round(targetDurationSeconds / 8));
+  const sceneCount = isPhotos ? (mode === "photos" && [1,4,9].includes(input.photoCount ?? 4) ? input.photoCount ?? 4 : 4) : Math.max(1, Math.round(targetDurationSeconds / 8));
   const brandName = brandNameFrom(input);
   const modeDirection = MODE_MASTER_DIRECTIONS[mode] ?? MODE_MASTER_DIRECTIONS.video;
   const variantSeed = stableVariantSeed(variationKey);
@@ -726,7 +727,7 @@ export function buildStoryboardPrompt(input: StoryboardInput): PlannerPrompt {
   const structureBlock = isIcon
     ? `Create exactly 4 website-icon scenes. Each scene should be a distinct square brand-mark direction grounded in the captured website/icon references and the customer's request.`
     : isPhotos
-      ? `Create exactly 4 marketing-photo scenes. Each scene should be a distinct image-generation/editing direction grounded in the captured website references and the customer's request.`
+      ? `Create exactly ${sceneCount} marketing-photo scenes. Each scene should be a distinct image-generation/editing direction grounded in the captured website references and the customer's request.`
       : isDemo
         ? `Create exactly ${sceneCount} timeline beats spanning ONE continuous ${targetDurationSeconds}s AI-generated film. These beats are planning checkpoints only, NOT independent clips. Keep one consistent cinematic world while progressing naturally through the full film.`
         : isStudioVideo

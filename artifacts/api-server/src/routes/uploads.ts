@@ -77,6 +77,7 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
     if (ideaPrompt.length > 8000) {
       throw new AppError('Your prompt is longer than 8,000 characters. Shorten it slightly so every detail can be sent without hidden truncation.', 400, 'PROMPT_TOO_LONG');
     }
+    const photoCount = [1, 4, 9].includes(Number(req.body?.photoCount)) ? Number(req.body.photoCount) as 1 | 4 | 9 : 4;
     const studioKind = ['product', 'idea', 'scenario', 'interior'].includes(req.body?.studioKind) ? req.body.studioKind as 'product' | 'idea' | 'scenario' | 'interior' : null;
     const studioMode = ['video', 'photos', 'both', 'custom'].includes(req.body?.mode) ? req.body.mode as 'video' | 'photos' | 'both' | 'custom' : null;
     const studioAudioMode = ['voice_music', 'native_audio', 'music_only', 'silent'].includes(req.body?.audioMode)
@@ -109,7 +110,7 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
       if (studioKind === 'product' && !files.length) {
         throw new AppError('Upload at least one real product photo before generating a product campaign.', 400, 'PRODUCT_PHOTO_REQUIRED');
       }
-      const requiredCredits = videoCreditCost(studioMode, studioAudioMode !== 'voice_music', studioDuration, studioQuality);
+      const requiredCredits = videoCreditCost(studioMode, studioAudioMode !== 'voice_music', studioDuration, studioQuality, studioMode === 'photos' && studioKind === 'product' ? photoCount : 4);
       if (req.user.creditsBalance < requiredCredits) {
         throw new AppError(`This production needs ${requiredCredits} credits. Add credits before generation starts.`, 402, 'INSUFFICIENT_CREDITS');
       }
@@ -190,6 +191,7 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
         title,
         sourceType: studioKind ? 'studio' : 'upload',
         studioKind,
+        photoCount: studioMode === 'photos' && studioKind === 'product' ? photoCount : 4,
         ideaPrompt: studioKind ? ideaPrompt : null,
         description: null,
         logoUrl: null,

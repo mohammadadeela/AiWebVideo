@@ -73,6 +73,7 @@ export async function uploadStudioMedia(opts: {
   audioMode: AudioMode;
   aspectRatio: '16:9' | '9:16' | '1:1';
   outputQuality: '1080p' | '4k';
+  photoCount?: 1 | 4 | 9;
 }) {
   const token = await getIdToken();
   const form = new FormData();
@@ -85,6 +86,7 @@ export async function uploadStudioMedia(opts: {
   form.append('audioMode', opts.audioMode);
   form.append('aspectRatio', opts.aspectRatio);
   form.append('outputQuality', opts.outputQuality);
+  if (opts.photoCount) form.append('photoCount', String(opts.photoCount));
   const res = await fetch('/api/uploads', {
     method: 'POST',
     signal: AbortSignal.timeout(10 * 60_000),
@@ -274,7 +276,7 @@ export function fetchAdminAudit(filters: AdminAuditFilters = {}) {
 }
 
 // ---- Read-only landing-page videos ----
-export interface MarketingVideo { id: string; url: string | null; posterUrl: string | null; kind?: 'image' | 'video'; caption: string | null; overlayText: string | null; eyebrow: string | null; templateMode?: 'video' | 'photo' | 'product-video' | 'scenario' | 'interior' | null; templatePrompt?: string | null; }
+export interface MarketingVideo { id: string; url: string | null; posterUrl: string | null; kind?: 'image' | 'video'; caption: string | null; overlayText: string | null; eyebrow: string | null; templateMode?: 'website' | 'video' | 'photo' | 'product-video' | 'scenario' | 'interior' | null; templatePrompt?: string | null; tags?: string[]; published?: boolean; }
 export interface MarketingSettings {
   heading: string;
   description: string;
@@ -284,6 +286,27 @@ export interface MarketingSettings {
 // Public — powers the homepage, no auth required.
 export function fetchMarketingSettings() { return request<MarketingSettings>('/api/marketing', { cache: 'default' }); }
 export function saveMarketingSettings(settings: MarketingSettings) { return request<MarketingSettings>('/api/admin/marketing', { method: 'PUT', body: JSON.stringify(settings) }); }
+export async function uploadMarketingAssetWithProgress(file: File, onProgress: (percent: number) => void): Promise<{ url: string; kind: 'video' | 'image' }> {
+  const token = await getIdToken();
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/admin/marketing/upload');
+    xhr.withCredentials = true;
+    xhr.timeout = 120_000;
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    xhr.upload.onprogress = (event) => { if (event.lengthComputable) onProgress(Math.min(99, Math.round(event.loaded / event.total * 100))); };
+    xhr.onerror = () => reject(new Error('Upload connection failed.'));
+    xhr.ontimeout = () => reject(new Error('Upload timed out.'));
+    xhr.onload = () => {
+      let data: { url?: string; kind?: 'image' | 'video'; error?: string } = {};
+      try { data = JSON.parse(xhr.responseText); } catch { /* Report a readable server error below. */ }
+      if (xhr.status >= 200 && xhr.status < 300 && data.url && data.kind) { onProgress(100); resolve({ url: data.url, kind: data.kind }); }
+      else reject(new ApiError(data.error || 'The media could not be uploaded.', xhr.status));
+    };
+    const form = new FormData(); form.append('file', file); xhr.send(form);
+  });
+}
+
 export async function uploadMarketingAsset(file: File) {
   const token = await getIdToken();
   const form = new FormData();
@@ -305,6 +328,8 @@ export interface UserJobSummary {
   featureLabel: string;
   screenshotUrl: string | null;
   previewUrl: string | null;
+  downloadUrl?: string | null;
+  prompt?: string | null;
   pinned: boolean;
   updatedAt: string;
   createdAt: string;

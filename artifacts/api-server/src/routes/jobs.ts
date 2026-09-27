@@ -154,6 +154,7 @@ type CaptureMeta = {
   pages?: Array<{ url?: string; title?: string; screenshotUrl?: string }>;
   sourceType?: "website" | "upload" | "studio";
   studioKind?: "product" | "idea" | "scenario" | "interior" | null;
+  photoCount?: number;
   ideaPrompt?: string | null;
   generatedReferenceUrls?: string[];
 };
@@ -600,6 +601,7 @@ router.post("/:id/preflight", requireAuth, async (req, res) => {
       input.audioMode !== "voice_music",
       input.durationSeconds,
       input.outputQuality,
+      input.mode === "photos" && (job.capture_metadata as CaptureMeta | null)?.studioKind === "product" ? (job.capture_metadata as CaptureMeta).photoCount ?? 4 : 4,
     );
     const balance = req.user!.creditsBalance;
     res.json({
@@ -697,7 +699,7 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
 
     const savedWorkflowForCredit = job.workflow_state as Partial<JobWorkflowState> | null;
     const planningAudioMode = requestedAudioMode ?? savedWorkflowForCredit?.audioMode ?? "native_audio";
-    const planningQuote = videoCreditQuote(mode, planningAudioMode !== "voice_music", durationSeconds, outputQuality);
+    const planningQuote = videoCreditQuote(mode, planningAudioMode !== "voice_music", durationSeconds, outputQuality, mode === "photos" && (job.capture_metadata as CaptureMeta | null)?.studioKind === "product" ? (job.capture_metadata as CaptureMeta).photoCount ?? 4 : 4);
     if (!req.user!.isAdmin && req.user!.creditsBalance < planningQuote.totalCredits) {
       const shortfall = planningQuote.totalCredits - req.user!.creditsBalance;
       throw new AppError(
@@ -893,6 +895,7 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
           ].filter(Boolean).join('\n').slice(0, 3000) : meta?.description ?? null,
           screenshotBase64,
           fullPageScreenshotBase64: fullPageBase64,
+          photoCount: mode === "photos" && meta?.studioKind === "product" ? meta.photoCount ?? 4 : 4,
           referenceCaptures: plannerCaptures.map((capture) => ({
             label: capture.label,
             base64: capture.buffer.toString("base64"),
@@ -1019,6 +1022,7 @@ router.post("/:id/quote", requireAuth, async (req, res) => {
       input.audioMode !== "voice_music",
       storyboard.targetDurationSeconds || 8,
       storyboard.outputQuality ?? "1080p",
+      job.mode === "photos" && (job.capture_metadata as CaptureMeta | null)?.studioKind === "product" ? (job.capture_metadata as CaptureMeta).photoCount ?? 4 : 4,
     );
     const balance = req.user!.creditsBalance;
     const reservedCredits = Math.max(0, job.credits_spent || 0);
@@ -1103,7 +1107,7 @@ router.post("/:id/render", requireAuth, async (req, res) => {
     // Generation is balance-based. One-time credit buyers can render without
     // being mislabeled as subscribers; the atomic claim below is the paywall.
     const targetDuration = storyboard.targetDurationSeconds || 8;
-    const cost = videoCreditCost(job.mode, skipVoiceover, targetDuration, storyboard.outputQuality ?? "1080p");
+    const cost = videoCreditCost(job.mode, skipVoiceover, targetDuration, storyboard.outputQuality ?? "1080p", job.mode === "photos" && (job.capture_metadata as CaptureMeta | null)?.studioKind === "product" ? (job.capture_metadata as CaptureMeta).photoCount ?? 4 : 4);
     const claim = await claimRenderAndSpend(job.id, req.user!.id, cost);
     if (!claim.ok && claim.reason === "already_started") {
       throw new AppError("This job is already rendering or has finished.", 409, "RENDER_ALREADY_STARTED");
@@ -1288,7 +1292,7 @@ router.post("/:id/render", requireAuth, async (req, res) => {
         // Kick off photo + video production in parallel.
         const photoScenes =
           wantsPhotos && scenes.length > 0
-            ? Array.from({ length: 4 }, (_, index) => scenes[index % scenes.length])
+            ? Array.from({ length: job.mode === "photos" && meta?.studioKind === "product" ? meta.photoCount ?? 4 : 4 }, (_, index) => scenes[index % scenes.length])
             : [];
         let completedPhotos = 0;
         const photoPromise = Promise.allSettled(

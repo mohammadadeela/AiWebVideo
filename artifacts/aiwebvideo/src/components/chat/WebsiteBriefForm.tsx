@@ -61,6 +61,7 @@ export interface StudioGenerationRequest {
   aspectRatio: "16:9" | "9:16" | "1:1";
   outputQuality: "1080p" | "4k";
   audioMode: AudioMode;
+  photoCount?: 1 | 4 | 9;
 }
 
 const DEFAULT_SETTINGS: WebsiteGenerationSettings = {
@@ -232,6 +233,11 @@ export function WebsiteBriefForm({
   const [brief, setBrief] = useState("");
   const [prompt, setPrompt] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsAnchorRef = useRef<HTMLDivElement>(null);
+  const [stylePreset, setStylePreset] = useState("Auto");
+  const [roomType, setRoomType] = useState("Living Room");
+  const [voicePreset, setVoicePreset] = useState("Natural");
+  const [photoCount, setPhotoCount] = useState<1 | 4 | 9>(4);
   const [compactPanel, setCompactPanel] = useState<"style" | "ideas" | null>(null);
   const [settings, setSettings] = useState<WebsiteGenerationSettings>(DEFAULT_SETTINGS);
   const [customDurationDraft, setCustomDurationDraft] = useState<string | null>(null);
@@ -262,6 +268,7 @@ export function WebsiteBriefForm({
     setPersonReferenceRequired(false);
     setCompactPanel(null);
     setSettingsOpen(false);
+    setStylePreset(intent === "website" ? "Auto" : "");
     setError(null);
     setSettings((current) => {
       if (intent === "photo" || intent === "interior") return { ...current, aspectRatio: intent === "interior" ? "16:9" : "1:1", audioMode: "silent" };
@@ -336,6 +343,15 @@ export function WebsiteBriefForm({
     return () => window.removeEventListener("aiwebvideo:creative-preset", onPreset);
   }, []);
 
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const onPointer = (event: PointerEvent) => { if (!settingsAnchorRef.current?.contains(event.target as Node)) setSettingsOpen(false); };
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") setSettingsOpen(false); };
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("pointerdown", onPointer); document.removeEventListener("keydown", onKey); };
+  }, [settingsOpen]);
+
   const previews = useMemo(
     () => files.map((file) => ({ file, url: URL.createObjectURL(file) })),
     [files],
@@ -388,7 +404,7 @@ export function WebsiteBriefForm({
       }
       accepted.push(file);
     }
-    setFiles((current) => [...current, ...accepted].slice(0, 10));
+    setFiles((current) => activeMode === "product-video" || activeMode === "video" ? accepted.slice(0, 1) : [...current, ...accepted].slice(0, 10));
     if (files.length + accepted.length > 10) nextError = "You can attach up to 10 reference images.";
     setError(nextError);
   }
@@ -440,7 +456,7 @@ export function WebsiteBriefForm({
       }
       try {
         setError(null);
-        void onSubmit(normalizeWebsiteUrl(url), brief.trim(), settings, files);
+        void onSubmit(normalizeWebsiteUrl(url), `${brief.trim()}${stylePreset && stylePreset !== "Auto" ? ` Visual style: ${stylePreset}.` : ""}`.trim(), settings, files);
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : "Enter a valid public website URL.");
       }
@@ -449,7 +465,11 @@ export function WebsiteBriefForm({
 
     const isProduct = activeMode === "photo" || activeMode === "product-video";
     const isInterior = activeMode === "interior";
-    const activePrompt = isProduct || isInterior ? brief.trim() : prompt.trim();
+    const writtenPrompt = isProduct || isInterior ? brief.trim() : prompt.trim();
+    const defaultDirection = activeMode === "photo" ? "Create premium product images using the uploaded product as the exact subject." : activeMode === "interior" ? "Design the uploaded space while preserving its architecture and dimensions." : "";
+    const styleDirection = stylePreset && stylePreset !== "Auto" ? ` Style direction: ${stylePreset}.` : "";
+    const contextDirection = activeMode === "interior" ? ` Room: ${roomType}.` : activeMode === "scenario" ? ` Voice direction: ${voicePreset}.` : "";
+    const activePrompt = `${writtenPrompt || defaultDirection}${styleDirection}${contextDirection}`.trim();
     if (!activePrompt) {
       setError(
         activeMode === "scenario"
@@ -479,7 +499,7 @@ export function WebsiteBriefForm({
       : normalizeDuration(Number(customDurationDraft));
     setError(null);
     void onStudioSubmit({
-      studioKind: isProduct ? "product" : activeMode === "scenario" ? "scenario" : "interior",
+      studioKind: isProduct ? "product" : activeMode === "scenario" ? "scenario" : isInterior ? "interior" : "idea",
       prompt: activePrompt,
       files: exampleReference && files.length < 10 ? [...files, exampleReference] : files,
       mode: activeMode === "photo" ? "photos" : activeMode === "product-video" ? "video" : isInterior ? (interiorOutput === "video" ? "custom" : "photos") : "custom",
@@ -487,6 +507,7 @@ export function WebsiteBriefForm({
       aspectRatio: settings.aspectRatio,
       outputQuality: settings.outputQuality,
       audioMode: activeMode === "photo" || isInterior ? "silent" : settings.audioMode,
+      photoCount: activeMode === "photo" ? photoCount : undefined,
     });
   }
 
@@ -509,9 +530,9 @@ export function WebsiteBriefForm({
     activeMode === "website"
       ? !url.trim()
       : isProductMode
-        ? files.length === 0 || !brief.trim()
+        ? files.length === 0
         : isInteriorMode
-          ? files.length === 0 || !brief.trim()
+          ? files.length === 0
           : activeMode === "scenario" && personReferenceRequired
             ? files.length === 0 || !prompt.trim()
           : !prompt.trim()
@@ -528,380 +549,51 @@ export function WebsiteBriefForm({
             ? "Create interior design"
             : "Create talking scene";
 
-  return (
-    <div
-      ref={composerRootRef}
-      className={`creator-composer relative overflow-hidden ${compactLayout ? "rounded-[22px]" : "rounded-[28px]"} border bg-[#151027]/95 shadow-[0_28px_90px_-48px_rgba(139,92,246,.55)] backdrop-blur-2xl transition ${dragging ? "border-mint/60 ring-2 ring-mint/15" : "border-white/15"}`}
-      onPaste={(event) => {
-        if (disabled) return;
-        const pasted = Array.from(event.clipboardData.files ?? []).filter((file) => file.type.startsWith("image/"));
-        if (!pasted.length) return;
-        event.preventDefault();
-        addFiles(pasted);
-      }}
-      onDragEnter={(event) => {
-        if (disabled || !Array.from(event.dataTransfer.types ?? []).includes("Files")) return;
-        event.preventDefault();
-        dragDepthRef.current += 1;
-        setDragging(true);
-      }}
-      onDragOver={(event) => {
-        if (disabled || !Array.from(event.dataTransfer.types ?? []).includes("Files")) return;
-        event.preventDefault();
-        event.dataTransfer.dropEffect = "copy";
-      }}
-      onDragLeave={(event) => {
-        if (!dragging) return;
-        event.preventDefault();
-        dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
-        if (dragDepthRef.current === 0) setDragging(false);
-      }}
-      onDrop={onDrop}
-    >
-      <input
-        ref={inputRef}
-        type="file"
-        multiple
-        accept={ACCEPTED_IMAGES.join(",")}
-        className="hidden"
-        onChange={(event) => {
-          addFiles(event.currentTarget.files);
-          event.currentTarget.value = "";
-        }}
-      />
-
-      {dragging && (
-        <div className="pointer-events-none absolute inset-0 z-30 grid place-items-center bg-[#0b0818]/90 backdrop-blur-sm">
-          <div className="rounded-2xl border border-mint/30 bg-panel px-6 py-5 text-center shadow-2xl">
-            <Paperclip className="mx-auto text-mint" size={22} />
-            <p className="mt-2 text-sm font-semibold text-white">Drop your references here</p>
-            <p className="mt-1 text-[10px] text-text-dim">JPEG, PNG or WEBP · up to 10MB each</p>
-          </div>
-        </div>
-      )}
-
-      <div className={`relative border-b border-white/[.08] ${compactLayout ? "p-2" : "p-2.5 sm:p-3"}`}>
-        <div className="chat-scroll flex gap-1 overflow-x-auto pb-0.5" role="tablist" aria-label="Creation mode">
-          {CREATION_MODES.map(({ id, label, short, icon: Icon }) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={activeMode === id}
-              onClick={() => applyIntent(id, true)}
-              className={`flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl px-3 text-[10px] font-semibold transition sm:px-4 sm:text-[11px] ${
-                activeMode === id
-                  ? "bg-mint text-[#10231f] shadow-[0_10px_26px_-18px_rgba(114,255,222,.9)]"
-                  : "text-text-muted hover:bg-mint/[.08] hover:text-white"
-              }`}
-            >
-              <Icon size={14} />
-              <span className="hidden md:inline">{label}</span>
-              <span className="md:hidden">{short}</span>
-            </button>
-          ))}
-        </div>
+  const activeTool = CREATION_MODES.find((item) => item.id === activeMode) ?? CREATION_MODES[0];
+  const ToolIcon = activeTool.icon;
+  const accents: Record<CreationIntent, string> = { website: "#75dcc9", video: "#b59aff", photo: "#f3a9bd", "product-video": "#eac68d", scenario: "#a7bdfa", interior: "#bdcba6" };
+  const styles: Record<CreationIntent, string[]> = {
+    website: ["Auto", "Bold", "Minimal", "Luxury"], video: ["Cinematic", "Dreamlike", "Editorial", "Energetic"],
+    photo: ["Studio", "Editorial", "Natural", "Luxury"], "product-video": ["Studio", "Lifestyle", "Macro", "Splash"],
+    scenario: ["Natural", "Interview", "Warm", "Cinematic"], interior: ["Modern", "Minimalist", "Scandinavian", "Industrial", "Luxury"],
+  };
+  const iconButton = "relative grid h-10 w-10 shrink-0 place-items-center rounded-full text-white/65 transition hover:scale-105 hover:bg-white/[.08] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/60";
+  const toolPlaceholder: Record<CreationIntent, string> = {
+    website: "What should the video highlight? (optional)", video: "A cinematic reveal from the city into the location…",
+    photo: "Soft studio light, sculptural shadows, refined textures…", "product-video": "Slow premium reveal, macro details, strong hero ending…",
+    scenario: "Write the words they should say and describe the scene…", interior: "A calm modern space with warm wood and natural light…",
+  };
+  const segmented = (selected: boolean) => `min-h-9 rounded-full px-3 text-[11px] font-medium transition ${selected ? "bg-white text-[#15121c]" : "text-white/65 hover:bg-white/[.08] hover:text-white"}`;
+  return <div ref={composerRootRef} className={`relative ${dragging ? "rounded-[28px] ring-2 ring-white/40" : ""}`} onPaste={(event) => { if (disabled) return; const pasted = Array.from(event.clipboardData.files ?? []).filter((file) => file.type.startsWith("image/")); if (pasted.length) { event.preventDefault(); addFiles(pasted); } }} onDragEnter={(event) => { if (disabled || !Array.from(event.dataTransfer.types ?? []).includes("Files")) return; event.preventDefault(); dragDepthRef.current++; setDragging(true); }} onDragOver={(event) => { if (disabled) return; event.preventDefault(); event.dataTransfer.dropEffect = "copy"; }} onDragLeave={(event) => { event.preventDefault(); dragDepthRef.current = Math.max(0, dragDepthRef.current - 1); if (!dragDepthRef.current) setDragging(false); }} onDrop={onDrop}>
+    <input ref={inputRef} type="file" multiple={activeMode !== "product-video" && activeMode !== "video"} accept={ACCEPTED_IMAGES.join(",")} className="hidden" onChange={(event) => { addFiles(event.currentTarget.files); event.currentTarget.value = ""; }} />
+    {dragging && <div className="pointer-events-none absolute inset-0 z-20 grid place-items-center rounded-[28px] border-2 border-dashed border-white/50 bg-[#17131f]/95 text-sm text-white">Drop images to attach</div>}
+    {activeMode === "website" && <div className="mb-3 flex min-h-12 items-center gap-3 rounded-full border border-white/[.12] bg-[#0d0b15] px-4 focus-within:border-white/35">
+      {url ? <img src={`https://${url.replace(/^https?:\/\//, "").split("/")[0]}/favicon.ico`} alt="" className="h-5 w-5 rounded-md object-contain" onError={(event) => { event.currentTarget.style.display = "none"; }} /> : <Globe2 size={16} className="text-white/55" />}
+      <input value={url} onChange={(event) => setUrl(event.currentTarget.value)} type="url" inputMode="url" autoComplete="url" placeholder="Paste a website URL" disabled={disabled} className="min-w-0 flex-1 bg-transparent py-3 text-sm text-white outline-none placeholder:text-white/40" />
+    </div>}
+    <div className="relative flex min-h-16 items-center gap-2 rounded-[30px] border border-white/[.16] bg-[#191522] px-3 py-2 shadow-[0_20px_55px_-40px_rgba(0,0,0,.9)] focus-within:border-white/35 sm:px-4">
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[15px] border border-white/10 bg-black/20" style={{ color: accents[activeMode] }}><ToolIcon size={19} /></span>
+      <textarea ref={activeMode === "website" ? websiteBriefRef : studioPromptRef} value={activeMode === "video" || activeMode === "scenario" ? prompt : brief} onChange={(event) => { if (activeMode === "video" || activeMode === "scenario") setPrompt(event.currentTarget.value); else setBrief(event.currentTarget.value); event.currentTarget.style.height = "auto"; event.currentTarget.style.height = `${Math.min(160, event.currentTarget.scrollHeight)}px`; }} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); submit(); } }} placeholder={toolPlaceholder[activeMode]} rows={1} disabled={disabled} aria-label={activeMode === "scenario" ? "Script and scene" : "Creative prompt"} className={`max-h-40 min-h-10 min-w-0 flex-1 resize-none bg-transparent px-1 py-2.5 text-sm leading-5 text-white outline-none placeholder:text-white/40 ${activeMode === "scenario" ? "font-mono" : ""}`} />
+      <button type="button" title="Attach images" aria-label={files.length ? `${files.length} images attached. Add more` : "Attach images"} onClick={() => inputRef.current?.click()} disabled={disabled || files.length >= 10} className={iconButton}>{files.length ? <><img src={previews[0]?.url} alt="" className="h-7 w-7 rounded-full object-cover" />{files.length > 1 && <span className="absolute -right-1 -top-1 rounded-full bg-white px-1 text-[9px] font-semibold text-black">+{files.length - 1}</span>}</> : <Paperclip size={18} />}</button>
+      <div ref={settingsAnchorRef} className="relative">
+        <button type="button" title="Settings" aria-label="Settings" aria-expanded={settingsOpen} onClick={() => setSettingsOpen((current) => !current)} className={iconButton}><Settings2 size={18} /></button>
+        {settingsOpen && <div className="absolute bottom-[calc(100%+14px)] right-[-3.5rem] z-40 w-[min(355px,calc(100vw-2.5rem))] origin-bottom-right animate-fade-in-up rounded-[24px] border border-white/[.14] bg-[#211b2c] p-4 shadow-2xl sm:right-0" role="group" aria-label="Generation settings">
+          {isVideoMode && <div><div className="mb-2 flex items-center justify-between text-xs text-white/70"><span>Duration</span><span className="rounded-full border border-white/20 px-2 py-0.5 font-semibold text-white">{durationSeconds}s</span></div><input type="range" min={0} max={4} step={1} value={Math.max(0, [8,16,24,32,60].indexOf(durationSeconds))} onChange={(event) => setSettings((current) => ({ ...current, durationSeconds: [8,16,24,32,60][Number(event.target.value)] }))} className="w-full accent-white" aria-label="Duration" /><div className="flex justify-between text-[10px] text-white/45">{[8,16,24,32,60].map((value) => <span key={value}>{value}s</span>)}</div></div>}
+          <div className="mt-4"><p className="mb-2 text-xs text-white/70">Format</p><div className="flex rounded-full border border-white/10 bg-black/20 p-1">{([ ["9:16", Smartphone, "Portrait"], ["16:9", Monitor, "Wide"], ["1:1", ImageIcon, "Square"] ] as const).map(([ratio, Icon, label]) => <button key={ratio} type="button" title={label} aria-label={label} aria-pressed={settings.aspectRatio === ratio} onClick={() => setSettings((current) => ({ ...current, aspectRatio: ratio }))} className={`${segmented(settings.aspectRatio === ratio)} flex flex-1 items-center justify-center gap-1.5`}><Icon size={14} /><span className="hidden sm:inline">{label}</span></button>)}</div></div>
+          <div className="mt-4"><p className="mb-2 text-xs text-white/70">Quality</p><div className="flex rounded-full border border-white/10 bg-black/20 p-1">{(["1080p","4k"] as const).map((quality) => <button key={quality} type="button" aria-pressed={settings.outputQuality === quality} onClick={() => setSettings((current) => ({ ...current, outputQuality: quality }))} className={`${segmented(settings.outputQuality === quality)} flex-1`}>{quality === "4k" ? "4K" : "1080p"}</button>)}</div></div>
+          {isVideoMode && <div className="mt-4"><p className="mb-2 text-xs text-white/70">Audio</p><div className="grid grid-cols-4 rounded-full border border-white/10 bg-black/20 p-1">{([ ["native_audio","Scene"], ["voice_music","Voice"], ["music_only","Music"], ["silent","Silent"] ] as const).map(([mode,label]) => <button key={mode} type="button" aria-label={label} aria-pressed={settings.audioMode === mode} onClick={() => setSettings((current) => ({ ...current, audioMode: mode }))} className={segmented(settings.audioMode === mode)}>{label}</button>)}</div>{settings.audioMode === "voice_music" && <select value={settings.narrationLanguage} onChange={(event) => setSettings((current) => ({ ...current, narrationLanguage: event.target.value }))} aria-label="Narration language" className="mt-2 w-full rounded-full border border-white/15 bg-[#17131f] px-3 py-2 text-xs text-white">{NARRATION_LANGUAGES.map(([code,label]) => <option key={code} value={code}>{label}</option>)}</select>}</div>}
+        </div>}
       </div>
-
-      <div className={`relative ${compactLayout ? "p-3 sm:p-4" : "p-4 sm:p-5"}`}>
-        {activeMode === "interior" && (
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-300/15 bg-emerald-300/[.04] p-3">
-            <div>
-              <p className="text-[11px] font-semibold text-white">Interior output</p>
-              <p className="mt-0.5 text-[9px] text-text-dim">Images for design review or a continuous walkthrough video.</p>
-            </div>
-            <div className="flex rounded-xl border border-white/10 bg-black/20 p-1">
-              <button type="button" onClick={() => setInteriorOutput("images")} className={optionClass(interiorOutput === "images")}>Design images</button>
-              <button type="button" onClick={() => setInteriorOutput("video")} className={optionClass(interiorOutput === "video")}>Walkthrough video</button>
-            </div>
-          </div>
-        )}
-
-        {!compactLayout && (
-          <div className="mb-4">
-            <p className="font-display text-base font-semibold text-white">
-              {activeMode === "website" ? "Create a video from your website" : activeMode === "video" ? "Create an AI video" : activeMode === "photo" ? "Create product photos" : activeMode === "product-video" ? "Create a product video" : activeMode === "interior" ? "Design an interior" : "Create a talking scene"}
-            </p>
-          </div>
-        )}
-
-        {selectedExample && activeMode !== "website" && <p className="mb-3 text-xs text-mint">Creating your version of {selectedExample}. Add your own reference below; the gallery image guides the style.</p>}
-        <div className="space-y-3">
-          {activeMode === "website" && (
-            <label className="block">
-              <span className="mb-1.5 block text-[11px] font-semibold text-white">Website URL</span>
-              <div className="flex items-center gap-3 rounded-2xl border border-mint/30 bg-[#0b0818] px-3 transition focus-within:border-mint/60 focus-within:ring-2 focus-within:ring-mint/10">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-mint/[.08] text-mint"><Globe2 size={16} /></span>
-                <input
-                  value={url}
-                  onChange={(event) => setUrl(event.currentTarget.value)}
-                  type="url"
-                  inputMode="url"
-                  autoComplete="url"
-                  placeholder="Paste your website URL — example.com"
-                  disabled={disabled}
-                  className="h-13 min-w-0 flex-1 bg-transparent py-3.5 text-sm text-white outline-none placeholder:text-white/40"
-                />
-              </div>
-            </label>
-          )}
-
-          <label className="block">
-            <span className="mb-1.5 flex items-center justify-between gap-3 text-[11px] font-semibold text-white">
-              <span>{activeMode === "website" ? "What should the video highlight?" : activeMode === "video" ? "Describe your video" : activeMode === "photo" ? "Describe the product photos" : activeMode === "product-video" ? "Describe the product video" : activeMode === "interior" ? "Describe the space, measurements and design" : "Describe the talking scene"}</span>
-            </span>
-            <textarea
-              ref={activeMode === "website" ? websiteBriefRef : studioPromptRef}
-              value={activeMode === "video" || activeMode === "scenario" ? prompt : brief}
-              onChange={(event) => {
-                if (activeMode === "video" || activeMode === "scenario") setPrompt(event.currentTarget.value);
-                else setBrief(event.currentTarget.value);
-              }}
-              placeholder={
-                activeMode === "website"
-                  ? "Optional — we can plan from your website alone. Add a goal if you have one."
-                  : activeMode === "video"
-                    ? "Example: A cinematic drone reveal that moves from the city into the location."
-                    : activeMode === "photo"
-                      ? "Example: Premium ecommerce product photos with soft studio light."
-                      : activeMode === "product-video"
-                        ? "Example: Slow premium reveal, macro details, strong hero ending."
-                        : "Example: Use my uploaded portrait. Have this person say: ‘Welcome to our new collection.’ Keep natural lip movement and the same face throughout."
-              }
-              rows={compactLayout ? 3 : 4}
-              disabled={disabled}
-              className="creator-field w-full resize-none rounded-2xl border border-white/[.14] bg-[#0b0818] px-4 py-3 text-sm leading-6 text-white outline-none transition placeholder:text-white/35 focus:border-violet/55 focus:ring-2 focus:ring-violet/10"
-            />
-          </label>
-        </div>
-
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          {activeMode === "website" && (
-            <button
-              type="button"
-              onClick={() => {
-                setSettingsOpen(false);
-                setCompactPanel((current) => current === "style" ? null : "style");
-              }}
-              aria-expanded={compactPanel === "style"}
-              className={controlClass(compactPanel === "style")}
-            >
-              <Film size={13} className="text-mint" />
-              Style: {selectedWebsiteRecipe ? WEBSITE_RECIPES.find((recipe) => recipe.mode === selectedWebsiteRecipe)?.label : "Auto"}
-              <ChevronDown size={12} className={compactPanel === "style" ? "rotate-180" : ""} />
-            </button>
-          )}
-
-          <button type="button" onClick={toggleIdeas} aria-expanded={compactPanel === "ideas"} className={controlClass(compactPanel === "ideas")}>
-            <Sparkles size={13} className="text-violet" />
-            Ideas
-            {selectedIdea && <span className="rounded-full bg-mint/10 px-1.5 py-0.5 text-[8px] text-mint">Added</span>}
-            <ChevronDown size={12} className={compactPanel === "ideas" ? "rotate-180" : ""} />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            disabled={disabled || files.length >= 10}
-            className={controlClass(false)}
-          >
-            <Paperclip size={13} className="text-mint" />
-            {files.length ? `References ${files.length}` : isProductMode ? "Add product photo" : activeMode === "scenario" ? "Add person photo" : activeMode === "interior" ? "Add space references" : "References"}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setCompactPanel(null);
-              setSettingsOpen((current) => !current);
-            }}
-            aria-expanded={settingsOpen}
-            className={controlClass(settingsOpen)}
-          >
-            <Settings2 size={13} />
-            {isVideoMode ? `${durationSeconds}s · ${formatSummary} · ${settings.outputQuality}` : `${formatSummary} · ${settings.outputQuality}`}
-            <ChevronDown size={12} className={settingsOpen ? "rotate-180" : ""} />
-          </button>
-        </div>
-
-        {compactPanel === "style" && activeMode === "website" && (
-          <div className="mt-2 rounded-2xl border border-mint/15 bg-mint/[.035] p-2.5">
-            <div className="chat-scroll flex gap-1.5 overflow-x-auto pb-0.5">
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedWebsiteRecipe(null);
-                  setSettings((current) => ({ ...current, mode: "video" }));
-                  setCompactPanel(null);
-                }}
-                className={optionClass(!selectedWebsiteRecipe)}
-              >
-                Auto
-              </button>
-              {WEBSITE_RECIPES.map((recipe) => (
-                <button
-                  key={recipe.mode}
-                  type="button"
-                  title={recipe.helper}
-                  onClick={() => {
-                    setSelectedWebsiteRecipe(recipe.mode);
-                    setSettings((current) => ({ ...current, mode: recipe.mode }));
-                    setCompactPanel(null);
-                  }}
-                  className={optionClass(selectedWebsiteRecipe === recipe.mode)}
-                >
-                  {recipe.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {compactPanel === "ideas" && (
-          <div className="mt-2 rounded-2xl border border-violet/15 bg-violet/[.035] p-2.5 sm:p-3">
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[10px] font-semibold text-white">Pick a creative direction</p>
-                <p className="mt-0.5 text-[8px] text-text-dim">It only fills your prompt. You can change anything before generating.</p>
-              </div>
-              <div className="flex shrink-0 items-center gap-1.5">
-                <span className="rounded-full border border-mint/15 bg-mint/[.06] px-2 py-1 text-[7px] font-semibold text-mint">FREE</span>
-                <button type="button" onClick={() => setCompactPanel(null)} aria-label="Close ideas" className="grid h-7 w-7 place-items-center rounded-lg text-text-dim hover:bg-white/5 hover:text-white"><X size={12} /></button>
-              </div>
-            </div>
-            <MasterIdeas ideas={masterIdeas} context={ideaContext} selectedId={selectedIdea?.id ?? null} onSelect={applyMasterIdea} />
-          </div>
-        )}
-
-        {previews.length > 0 && (
-          <div className="chat-scroll mt-3 flex gap-2 overflow-x-auto pb-1">
-            {previews.map((preview, index) => (
-              <div key={`${preview.file.name}-${preview.file.lastModified}-${index}`} className="group relative w-20 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-black sm:w-24">
-                <div className="relative h-14 overflow-hidden sm:h-16">
-                  <img src={preview.url} alt={`Reference ${index + 1}: ${preview.file.name}`} className="h-full w-full object-cover" />
-                  <button type="button" onClick={() => setFiles((current) => current.filter((_, i) => i !== index))} className="absolute right-1 top-1 grid h-7 w-7 place-items-center rounded-full bg-black/75 text-white hover:bg-pink" aria-label={`Remove ${preview.file.name}`}><X size={11} /></button>
-                </div>
-                <div className="px-2 py-1.5">
-                  <p className="truncate text-[8px] text-white/70" title={preview.file.name}>{preview.file.name}</p>
-                  <p className="mt-0.5 text-[7px] text-text-dim">{fileSize(preview.file.size)}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {settingsOpen && (
-          <div className="mt-3 rounded-2xl border border-white/[.08] bg-[#0f0b1d]/95 p-3 sm:p-4">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold text-white">Generation settings</p>
-                <p className="mt-0.5 text-[9px] text-text-dim">Choose the exact delivery format before generation.</p>
-              </div>
-              <button type="button" onClick={() => setSettingsOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg text-text-dim hover:bg-white/5 hover:text-white" aria-label="Close settings"><X size={13} /></button>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              {isVideoMode && (
-                <div className="rounded-xl border border-white/[.07] bg-white/[.02] p-3">
-                  <div className="mb-2 flex items-center justify-between gap-2"><span className="text-[11px] font-semibold text-white">Duration</span><span className="text-xs text-text-muted">8–60 sec</span></div>
-                  <div className="grid grid-cols-5 gap-1.5">
-                    {DURATION_PRESETS.map((duration) => (
-                      <button key={duration} type="button" onClick={() => { setCustomDurationDraft(null); setSettings((current) => ({ ...current, durationSeconds: duration })); }} className={optionClass(settings.durationSeconds === duration && customDurationDraft === null)}>{duration}s</button>
-                    ))}
-                    <label className="relative" title="Custom duration: 8 to 60 seconds">
-                      <input
-                        type="number"
-                        min={8}
-                        max={60}
-                        step={1}
-                        value={customDurationDraft ?? durationSeconds}
-                        onFocus={(event) => event.currentTarget.select()}
-                        onChange={(event) => {
-                          // Read the value synchronously; React clears currentTarget after this event.
-                          setCustomDurationDraft(event.currentTarget.value);
-                        }}
-                        onBlur={() => {
-                          if (customDurationDraft === null) return;
-                          const value = normalizeDuration(Number(customDurationDraft));
-                          setSettings((current) => ({ ...current, durationSeconds: value }));
-                          setCustomDurationDraft(null);
-                        }}
-                        className="h-10 w-full rounded-xl border border-white/10 bg-black/20 px-1 text-center text-[11px] font-semibold text-white outline-none focus:border-violet/45"
-                        aria-label="Custom duration in seconds"
-                      />
-                    </label>
-                  </div>
-                  <p className="mt-2 text-[9px] text-text-muted">Current: {durationLabel(durationSeconds)} · custom up to 60s</p>
-                </div>
-              )}
-
-              <div className="rounded-xl border border-white/[.07] bg-white/[.02] p-3">
-                <p className="mb-2 text-[11px] font-semibold text-white">Format</p>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {([
-                    ["9:16", Smartphone, "Portrait"],
-                    ["16:9", Monitor, "Wide"],
-                    ["1:1", ImageIcon, "Square"],
-                  ] as const).map(([ratio, Icon, label]) => (
-                    <button key={ratio} type="button" onClick={() => setSettings((current) => ({ ...current, aspectRatio: ratio }))} className={optionClass(settings.aspectRatio === ratio)}><Icon size={13} />{label}</button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-white/[.07] bg-white/[.02] p-3">
-                <p className="mb-2 text-[11px] font-semibold text-white">Quality</p>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {(["1080p", "4k"] as const).map((quality) => (
-                    <button key={quality} type="button" onClick={() => setSettings((current) => ({ ...current, outputQuality: quality }))} className={optionClass(settings.outputQuality === quality)}>{quality === "4k" ? "4K" : "1080p"}</button>
-                  ))}
-                </div>
-              </div>
-
-              {isVideoMode && (
-                <div className="rounded-xl border border-white/[.07] bg-white/[.02] p-3">
-                  <p className="mb-2 text-[11px] font-semibold text-white">Audio</p>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <button type="button" onClick={() => setSettings((current) => ({ ...current, audioMode: "native_audio" }))} className={optionClass(settings.audioMode === "native_audio")}>Scene audio</button>
-                    <button type="button" onClick={() => setSettings((current) => ({ ...current, audioMode: "voice_music" }))} className={optionClass(settings.audioMode === "voice_music")}><Volume2 size={12} />Narration</button>
-                    <button type="button" onClick={() => setSettings((current) => ({ ...current, audioMode: "music_only" }))} className={optionClass(settings.audioMode === "music_only")}>Music only</button>
-                    <button type="button" onClick={() => setSettings((current) => ({ ...current, audioMode: "silent" }))} className={optionClass(settings.audioMode === "silent")}>Silent</button>
-                  </div>
-                  {settings.audioMode === "voice_music" && (
-                    <select
-                      value={settings.narrationLanguage}
-                      onChange={(event) => setSettings((current) => ({ ...current, narrationLanguage: event.currentTarget.value }))}
-                      className="mt-2 h-10 w-full rounded-xl border border-white/10 bg-[#151027] px-3 text-[10px] font-semibold text-white outline-none focus:border-violet/45"
-                    >
-                      {NARRATION_LANGUAGES.map(([code, label]) => <option key={code} value={code}>{label}</option>)}
-                    </select>
-                  )}
-                  <p className="mt-2 text-[8px] text-text-dim">{audioSummary}</p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {error && <p role="alert" className="mt-3 rounded-xl border border-pink/20 bg-pink/5 px-3 py-2 text-xs text-pink">{error}</p>}
-
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
-          {!compactLayout && (
-            <div className="flex-1 text-[9px] text-text-dim">
-              {isProductMode && !files.length ? "Add a real product photo before generating." : activeMode === "interior" && !files.length ? "Add space references before generating." : `Your setup: ${isVideoMode ? `${durationSeconds}s · ` : ""}${formatSummary} · ${settings.outputQuality}`}
-            </div>
-          )}
-          <button
-            type="button"
-            onClick={submit}
-            disabled={submitDisabled}
-            className="premium-button creator-primary-button flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-signature px-5 text-sm font-bold text-white shadow-violet transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45 sm:flex-none sm:min-w-[260px]"
-          >
-            <span>{landingWebsitePreview && activeMode === "website" ? "Capture website" : createLabel}</span>
-            {showCreditPricing && <span className="rounded-full border border-white/15 bg-black/15 px-2 py-1 text-[9px] font-semibold text-white/90">{exactCredits} credits</span>}
-            <ArrowRight size={15} />
-          </button>
-        </div>
-      </div>
+      <button type="button" title={landingWebsitePreview && activeMode === "website" ? "Capture website" : createLabel} aria-label={landingWebsitePreview && activeMode === "website" ? "Capture website" : createLabel} onClick={submit} disabled={submitDisabled} className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-signature text-white transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-35">{disabled ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-t-white" /> : <ArrowRight size={20} className="-rotate-45" />}</button>
     </div>
-  );
+    {previews.length > 0 && <div className="mt-3 flex gap-2 overflow-x-auto pb-1">{previews.map((preview, index) => <div key={`${preview.file.name}-${index}`} className="relative h-14 w-14 shrink-0"><img src={preview.url} alt={preview.file.name} className="h-full w-full rounded-xl object-cover" /><button type="button" onClick={() => setFiles((current) => current.filter((_, i) => i !== index))} aria-label={`Remove ${preview.file.name}`} className="absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-[#37303f] text-white"><X size={11} /></button></div>)}</div>}
+    {activeMode === "interior" && <div className="mt-3 flex flex-wrap gap-2"><select value={roomType} onChange={(event) => setRoomType(event.target.value)} aria-label="Room type" className="rounded-full border border-white/10 bg-[#201b29] px-3 py-2 text-xs text-white">{["Living Room","Bedroom","Kitchen","Office","Other Space"].map((room) => <option key={room}>{room}</option>)}</select><div className="flex rounded-full border border-white/10 p-1"><button type="button" onClick={() => setInteriorOutput("images")} className={segmented(interiorOutput === "images")}>Images</button><button type="button" onClick={() => setInteriorOutput("video")} className={segmented(interiorOutput === "video")}>Walkthrough</button></div></div>}
+    {activeMode === "scenario" && <div className="mt-3 flex gap-2 overflow-x-auto">{["Natural", "Warm", "Narrator", "Dialogue"].map((voice) => <button type="button" key={voice} onClick={() => setVoicePreset(voice)} className={segmented(voicePreset === voice)}>{voice}</button>)}</div>}
+    {activeMode === "photo" && <div className="mt-3 flex items-center gap-2 text-xs text-white/55"><span>Images</span><div className="flex rounded-full border border-white/10 p-1">{([1,4,9] as const).map((count) => <button type="button" key={count} aria-pressed={photoCount === count} onClick={() => setPhotoCount(count)} className={segmented(photoCount === count)}>{count}</button>)}</div></div>}
+    <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1">{styles[activeMode].map((style) => <button type="button" key={style} onClick={() => setStylePreset(style)} aria-pressed={stylePreset === style} className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] transition ${stylePreset === style ? "border-white/40 bg-white/10 text-white" : "border-white/10 text-white/50 hover:text-white"}`}>{style}</button>)}</div>
+    <div className="mt-2 flex gap-2 overflow-x-auto pb-1" aria-label="Prompt ideas">{masterIdeas.slice(0,4).map((idea) => <button key={idea.id} type="button" onClick={() => applyMasterIdea(idea)} className="shrink-0 rounded-full px-3 py-1.5 text-[11px] text-white/45 transition hover:bg-white/[.06] hover:text-white">{idea.displayText}</button>)}</div>
+    {selectedExample && <p className="mt-2 text-xs text-white/55">Your version of {selectedExample} · attach your own subject.</p>}
+    {error && <p role="alert" className="mt-2 text-xs text-[#f3a9bd]">{error}</p>}
+    {showCreditPricing && <p className="mt-2 text-right text-[10px] text-white/45">Estimate: {photoCount === 4 || activeMode !== "photo" ? exactCredits : Math.ceil(exactCredits * photoCount / 4)} credits before generation</p>}
+  </div>;
 }

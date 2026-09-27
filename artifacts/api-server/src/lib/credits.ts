@@ -34,9 +34,10 @@ export interface VideoCreditQuote {
   totalCredits: number;
 }
 
-export function videoCreditQuote(mode: string, skipVoiceover: boolean, durationSeconds = 8, outputQuality: '1080p' | '4k' = '1080p'): VideoCreditQuote {
+export function videoCreditQuote(mode: string, skipVoiceover: boolean, durationSeconds = 8, outputQuality: '1080p' | '4k' = '1080p', photoCount = 4): VideoCreditQuote {
   if (mode === 'photos' || mode === 'icon') {
-    return { generatedSeconds: 0, perSecondCredits: 0, videoCredits: 0, photoCredits: CREDIT_COSTS.PHOTO_SET_4, narrationCredits: 0, totalCredits: CREDIT_COSTS.PHOTO_SET_4 };
+    const photoCredits = mode === 'photos' ? [1, 4, 9].includes(photoCount) ? photoCount * CREDIT_COSTS.PHOTO_SINGLE : CREDIT_COSTS.PHOTO_SET_4 : CREDIT_COSTS.PHOTO_SET_4;
+    return { generatedSeconds: 0, perSecondCredits: 0, videoCredits: 0, photoCredits, narrationCredits: 0, totalCredits: photoCredits };
   }
   const generatedSeconds = normalizedGeneratedSeconds(durationSeconds);
   // Customer credit pricing is a product rule, not a provider-model rule.
@@ -64,6 +65,6 @@ export function videoCreditQuote(mode: string, skipVoiceover: boolean, durationS
  * - Customer pricing is fixed at the Standard 1080p/4K rates regardless of
  *   which internal provider/model an operator uses to fulfill the render.
  */
-export function videoCreditCost(mode: string, skipVoiceover: boolean, durationSeconds = 8, outputQuality: '1080p' | '4k' = '1080p'): number {
-  return videoCreditQuote(mode, skipVoiceover, durationSeconds, outputQuality).totalCredits;
+export function videoCreditCost(mode: string, skipVoiceover: boolean, durationSeconds = 8, outputQuality: '1080p' | '4k' = '1080p', photoCount = 4): number {
+  return videoCreditQuote(mode, skipVoiceover, durationSeconds, outputQuality, photoCount).totalCredits;
 }

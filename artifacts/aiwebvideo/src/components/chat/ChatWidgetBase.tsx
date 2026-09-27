@@ -44,7 +44,7 @@ import {
 } from "./types";
 import { normalizeWebsiteUrl } from "@/lib/websiteUrl";
 import { INTERIOR_MASTER_PROMPT } from "@/lib/creativeIdeas";
-import { estimateRenderCredits } from "@/lib/credits";
+import { estimateRenderCredits, estimateInternalRenderCredits } from "@/lib/credits";
 import {
   clearLocalJobWorkflow,
   loadLocalJobWorkflow,
@@ -1277,7 +1277,9 @@ export function ChatWidget({
       saveLocalJobWorkflow(activeJobId, workflow);
       await saveJobWorkflow(activeJobId, workflow);
       setActiveJobId(activeJobId);
-      window.location.assign(`/dashboard?job=${encodeURIComponent(activeJobId)}&from=preview`);
+      setActiveCaptureMetadata(metadata);
+      setBusy(false);
+      await startWebsiteStoryboard(activeJobId, metadata);
     } catch (error) {
       pushBot(errorMessage(error));
       setBusy(false);
@@ -1294,9 +1296,7 @@ export function ChatWidget({
   }
 
   function handlePublicIntentRequest(intent: CreationIntent) {
-    if (!isPublicCreatorPath() || intent === "website") return true;
-    window.location.assign(`/dashboard?create=${encodeURIComponent(intent)}`);
-    return false;
+    return true;
   }
 
   async function redirectStudioSubmitToWorkspace(request: StudioGenerationRequest) {
@@ -1370,7 +1370,7 @@ export function ChatWidget({
     }
     if (isPublicCreatorPath()) {
       if (isSignedIn) {
-        void redirectSignedInWebsiteSetupToWorkspace(url, brief, settings, referenceFiles);
+        void performWebsiteSubmit(url, brief, settings, referenceFiles);
         return;
       }
       // The landing page deliberately proves the product before asking for an
@@ -1454,7 +1454,7 @@ Promotion direction: ${brief}` : normalized);
           ? `I’m opening ${hostname} now. You’ll see the real favicon and the strongest distinct pages before I ask you to create an account.`
           : `I’m opening ${hostname} now. I’ll keep only the strongest distinct pages, learn the visual identity and prepare the promotion automatically.`,
       );
-      if (isSignedIn && (window.location.pathname === "/" || window.location.pathname.startsWith("/studio"))) {
+      if (!compactLanding && isSignedIn && (window.location.pathname === "/" || window.location.pathname.startsWith("/studio"))) {
         window.location.assign(`/dashboard?job=${encodeURIComponent(res.jobId)}`);
         return;
       }
@@ -1587,7 +1587,7 @@ Promotion direction: ${brief}` : normalized);
       pushBot("Reference images added securely. I’m folding them into the same website production now.");
       if (metadata) {
         await startWebsiteStoryboard(activeJobId, metadata);
-        if (redirectAfterAuthRef.current) {
+        if (redirectAfterAuthRef.current && !compactLanding) {
           redirectAfterAuthRef.current = false;
           window.location.assign(`/dashboard?job=${encodeURIComponent(activeJobId)}`);
         }
@@ -1630,7 +1630,7 @@ Promotion direction: ${brief}` : normalized);
       pushUser(`Added ${result.added} private-page screenshot${result.added === 1 ? "" : "s"}`);
       pushBot("Private pages added to this project. What do you want to generate?");
       setStage("awaiting_mode");
-      if (redirectAfterAuthRef.current) {
+      if (redirectAfterAuthRef.current && !compactLanding) {
         redirectAfterAuthRef.current = false;
         window.location.assign(`/dashboard?job=${encodeURIComponent(jobId)}`);
       }
@@ -1727,12 +1727,12 @@ ${request.prompt}`
       setIsSignedIn(true);
       setIsAdmin(account.isAdmin);
       setCreditBalance(account.creditsBalance);
-      const required = estimateRenderCredits(
+      const required = estimateInternalRenderCredits(
         request.mode,
         request.audioMode !== "voice_music",
         request.durationSeconds,
         request.outputQuality,
-      );
+      ) + (request.mode === "photos" && request.photoCount ? (request.photoCount - 4) * 2 : 0);
       if (account.creditsBalance < required) {
         setPaywallContext(`Add ${required - account.creditsBalance} credits to start this AI production`);
         setShowPaywall(true);
@@ -1748,6 +1748,7 @@ ${request.prompt}`
         aspectRatio: request.aspectRatio,
         outputQuality: request.outputQuality,
         ideaPrompt: effectiveStudioPrompt || undefined,
+        photoCount: request.photoCount,
       });
       selectJobId(upload.jobId);
       onJobCreated?.(upload.jobId);
@@ -1778,11 +1779,11 @@ ${request.prompt}`
         },
       );
       if (storyboardResponse.creditsRemaining !== undefined) setCreditBalance(storyboardResponse.creditsRemaining);
-      if (window.location.pathname === "/" || window.location.pathname.startsWith("/studio")) {
+      if (!compactLanding && (window.location.pathname === "/" || window.location.pathname.startsWith("/studio"))) {
         window.location.assign(`/dashboard?job=${encodeURIComponent(upload.jobId)}`);
         return;
       }
-      if (redirectAfterAuthRef.current) {
+      if (redirectAfterAuthRef.current && !compactLanding) {
         redirectAfterAuthRef.current = false;
         window.location.assign(`/dashboard?job=${encodeURIComponent(upload.jobId)}`);
       }
@@ -1795,15 +1796,6 @@ ${request.prompt}`
   }
 
   function handleStudioSubmit(request: StudioGenerationRequest) {
-    if (isPublicCreatorPath()) {
-      if (!isSignedIn) {
-        pendingActionRef.current = () => redirectStudioSubmitToWorkspace(request);
-        setShowAuthModal(true);
-        return;
-      }
-      void redirectStudioSubmitToWorkspace(request);
-      return;
-    }
     if (!isSignedIn) {
       pendingActionRef.current = () => performStudioSubmit(request);
       setShowAuthModal(true);
@@ -2089,7 +2081,7 @@ ${request.prompt}`
       if (typeof renderResponse.creditsRemaining === "number") {
         setCreditBalance(renderResponse.creditsRemaining);
       }
-      if (redirectAfterAuthRef.current) {
+      if (redirectAfterAuthRef.current && !compactLanding) {
         redirectAfterAuthRef.current = false;
         window.location.assign(`/dashboard?job=${encodeURIComponent(jobId)}`);
       }
@@ -2638,7 +2630,7 @@ ${request.prompt}`
                 onStudioSubmit={handleStudioSubmit}
                 initialCreationIntent={initialCreationIntent}
                 disabled={busy}
-                showCreditPricing={!isPublicCreatorPath() && isSignedIn}
+                showCreditPricing={isSignedIn}
                 landingWebsitePreview={isPublicCreatorPath() || !isSignedIn}
                 onIntentRequest={handlePublicIntentRequest}
                 compactLayout={streamlinedInitialComposer}
@@ -2694,7 +2686,7 @@ ${request.prompt}`
                   size="lg"
                   className="w-full"
                   onClick={() => {
-                    if (!isPublicCreatorPath() && isSignedIn && jobId) {
+                    if (isSignedIn && jobId) {
                       void startWebsiteStoryboard(jobId, activeCaptureMetadata ?? job?.captureMetadata ?? null);
                     } else {
                       continueLandingPreview();
@@ -2702,7 +2694,7 @@ ${request.prompt}`
                   }}
                   disabled={busy}
                 >
-                  {!isPublicCreatorPath() && isSignedIn ? "Continue to AI production" : "Continue with this campaign"}
+                  {isSignedIn ? "Continue to AI production" : "Continue with this campaign"}
                 </Button>
                 <p className="text-center text-[10px] text-text-dim">
                   Website analysis and screenshots are free. No AI generation provider has started and nothing has been charged.
@@ -3158,7 +3150,7 @@ ${request.prompt}`
             // A pending action owns its own destination (preview continuation,
             // non-website creator handoff, upload, etc.). Do not overwrite it
             // with an older active-job redirect from localStorage.
-            if (!hadPendingAction && isPublicCreator && getActiveJobId()) {
+            if (!compactLanding && !hadPendingAction && isPublicCreator && getActiveJobId()) {
               window.location.assign(resolveDashboardDestination());
             }
           }}

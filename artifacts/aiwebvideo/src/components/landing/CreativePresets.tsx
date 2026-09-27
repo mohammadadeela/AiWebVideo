@@ -33,21 +33,21 @@ function Preview({ item }: { item: MarketingVideo }) {
   return <video ref={videoRef} src={item.url ?? ""} poster={item.posterUrl ?? undefined} muted loop playsInline preload="metadata" aria-hidden="true" className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.035]" />;
 }
 
-export function CreativePresets({ inWorkspace = false }: { inWorkspace?: boolean }) {
+export function CreativePresets({ inWorkspace = false, feature }: { inWorkspace?: boolean; feature?: CreationIntent }) {
   const [kind, setKind] = useState<"All" | "Image" | "Video">("All");
   const [category, setCategory] = useState<"All" | "Product" | "People" | "Interior">("All");
   const [items, setItems] = useState<MarketingVideo[]>([]);
   useEffect(() => {
     let active = true;
     void fetchMarketingSettings().then((settings) => {
-      if (active) setItems(settings.videos.showcase.filter((item) => item.url && item.templateMode));
+      if (active) setItems(settings.videos.showcase.filter((item) => item.url && item.templateMode && item.published !== false));
     }).catch(() => {});
     return () => { active = false; };
   }, []);
   const visible = items.filter((item) => {
     const itemKind = item.kind === "image" ? "Image" : "Video";
     const itemCategory = item.templateMode === "scenario" ? "People" : item.templateMode === "interior" ? "Interior" : "Product";
-    return (kind === "All" || kind === itemKind) && (category === "All" || category === itemCategory);
+    return (!feature || item.templateMode === feature) && (kind === "All" || kind === itemKind) && (category === "All" || category === itemCategory);
   });
   function choose(item: MarketingVideo) {
     const intent = (item.templateMode || (item.kind === "image" ? "photo" : "product-video")) as CreationIntent;
@@ -66,17 +66,17 @@ export function CreativePresets({ inWorkspace = false }: { inWorkspace?: boolean
     if (inWorkspace) {
       window.dispatchEvent(new CustomEvent("aiwebvideo:creative-preset", { detail: preset }));
       document.getElementById("workspace-creator")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    } else window.location.assign(`/dashboard?create=${encodeURIComponent(intent)}&preset=${encodeURIComponent(item.id)}`);
+    } else window.location.assign(`/?create=${encodeURIComponent(intent)}&preset=${encodeURIComponent(item.id)}#generate`);
   }
-  if (!items.length) return null;
+  if (!items.length || (feature && !visible.length)) return null;
   return <section className={`mx-auto w-full max-w-7xl px-4 py-12 sm:px-5 lg:px-8 ${inWorkspace ? "!px-0 !py-8" : ""}`} aria-labelledby="presets-title">
     <div className="mb-5 flex flex-wrap items-end justify-between gap-5">
       <h2 id="presets-title" className="font-display text-2xl font-semibold tracking-[-.04em] text-white sm:text-3xl">See what it creates.</h2>
-      <div className="flex max-w-full gap-1.5 overflow-x-auto pb-1" aria-label="Filter gallery">
+      {!feature && <div className="flex max-w-full gap-1.5 overflow-x-auto pb-1" aria-label="Filter gallery">
         {(["All", "Product", "People", "Interior"] as const).map((value) => <button key={value} type="button" aria-pressed={category === value} onClick={() => setCategory(value)} className={`shrink-0 rounded-full px-3 py-2 text-xs transition ${category === value ? "bg-white text-[#171125]" : "bg-white/[.07] text-white/70 hover:bg-white/[.13]"}`}>{value}</button>)}
         <span className="mx-1 w-px shrink-0 bg-white/10" />
         {(["All", "Image", "Video"] as const).map((value) => <button key={value} type="button" aria-pressed={kind === value} onClick={() => setKind(value)} className={`shrink-0 rounded-full px-3 py-2 text-xs transition ${kind === value ? "bg-white text-[#171125]" : "bg-white/[.07] text-white/70 hover:bg-white/[.13]"}`}>{value === "All" ? "All media" : `${value}s`}</button>)}
-      </div>
+      </div>}
     </div>
     {visible.length ? <div className="grid grid-cols-2 gap-1 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
       {visible.map((item) => <button key={item.id} type="button" onClick={() => choose(item)} aria-label={`Create your version of ${item.caption || "this example"}`} className="group relative aspect-[3/4] overflow-hidden bg-[#20192d] text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-mint">

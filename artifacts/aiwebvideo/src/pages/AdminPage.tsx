@@ -7,7 +7,7 @@ import { Wordmark } from '@/components/ui/Wordmark';
 import { AdminReports } from '@/components/admin/AdminReports';
 import {
   fetchAdminAudit, fetchAdminJobs, fetchAdminOverview, fetchAdminReports, fetchAdminUsers, fetchAdminUserDetails, fetchMe,
-  saveAdminSettings, updateAdminJob, updateAdminUser, saveMarketingSettings, uploadMarketingAsset,
+  saveAdminSettings, updateAdminJob, updateAdminUser, saveMarketingSettings, uploadMarketingAsset, uploadMarketingAssetWithProgress,
   type AdminReportRange, type AdminSettings, type MarketingSettings, type MarketingVideo,
 } from '@/lib/api-client';
 import { watchAuthState } from '@/lib/firebase/client';
@@ -17,6 +17,11 @@ type Tab = 'overview' | 'reports' | 'landing' | 'users' | 'jobs' | 'providers' |
 type Row = Record<string, unknown>;
 type MetricCard = [label: string, value: string, icon: ComponentType<LucideProps>, hint: string];
 const LANDING_VIDEO_LIMIT = 60;
+const MEDIA_FEATURES = [
+  ['website', 'Website Video'], ['video', 'AI Video'], ['photo', 'Product Photos'],
+  ['product-video', 'Product Video'], ['scenario', 'Talking Person'], ['interior', 'Interior Design'],
+] as const;
+type MediaFeature = typeof MEDIA_FEATURES[number][0];
 const tabs: Array<{ id: Tab; label: string; icon: typeof LayoutDashboard }> = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'reports', label: 'Money reports', icon: BarChart3 },
@@ -284,6 +289,9 @@ export function AdminPage() {
   const [audit, setAudit] = useState<Row[]>([]);
   const [settings, setSettings] = useState<AdminSettings | null>(null);
   const [marketing, setMarketing] = useState<MarketingSettings | null>(null);
+  const [mediaFeature, setMediaFeature] = useState<MediaFeature>('website');
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
+  const reorderStart = useRef<number | null>(null);
   const [dirty, setDirty] = useState(false);
   const [userSearch, setUserSearch] = useState('');
   const [jobSearch, setJobSearch] = useState('');
@@ -464,7 +472,8 @@ export function AdminPage() {
       const uploads: Array<{ url: string; kind: 'image' | 'video'; name: string }> = [];
       for (let index = 0; index < accepted.length; index += 1) {
         setMessage(`Uploading ${index + 1} of ${accepted.length} files…`);
-        const uploaded = await uploadMarketingAsset(accepted[index]);
+        const progressKey = `${index}-${accepted[index].name}`;
+        const uploaded = await uploadMarketingAssetWithProgress(accepted[index], (percent) => setUploadProgress((current) => ({ ...current, [progressKey]: percent })));
         uploads.push({ url: uploaded.url, kind: uploaded.kind, name: accepted[index].name });
       }
 
@@ -476,8 +485,8 @@ export function AdminPage() {
           url: uploaded.url, kind: uploaded.kind, posterUrl: null,
           caption: uploaded.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').slice(0, 80),
           overlayText: null, eyebrow: null,
-          templateMode: uploaded.kind === 'image' ? 'photo' : 'product-video',
-          templatePrompt: null,
+          templateMode: mediaFeature,
+          templatePrompt: null, tags: [], published: true,
         };
         if (emptyIndex >= 0) showcase[emptyIndex] = entry;
         else showcase.push(entry);
@@ -493,6 +502,7 @@ export function AdminPage() {
       setMessage(error instanceof Error ? error.message : 'The media could not be uploaded.');
     } finally {
       setBusy(false);
+      setUploadProgress({});
     }
   }
 
@@ -594,12 +604,12 @@ export function AdminPage() {
       </div>}
 
       {tab === 'landing' && marketing && <section className="mt-7 space-y-5">
-        <div className="rounded-3xl border border-violet/25 bg-gradient-to-br from-violet/10 to-gold/5 p-5">
+        <div className="rounded-3xl border border-white/10 bg-panel p-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[.16em] text-violet">Gallery library</p>
               <h2 className="mt-2 font-display text-2xl font-bold text-text-primary">Publish images and videos</h2>
-              <p className="mt-2 max-w-2xl text-sm text-text-muted">Upload images and videos together. Each item appears in the gallery and opens a creator flow where visitors add their own product, person or room.</p>
+              <p className="mt-2 max-w-2xl text-sm text-text-muted">Upload images and videos for the selected tool, then set their title and display order.</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <label className={`premium-button inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-violet/30 bg-violet/10 px-4 text-sm font-semibold text-violet transition hover:bg-violet/15 ${busy ? 'pointer-events-none opacity-50' : ''}`}>
@@ -628,7 +638,7 @@ export function AdminPage() {
                     videos: {
                       showcase: [
                         ...marketing.videos.showcase,
-                        { id: `example-${Date.now()}-${nextIndex}`, url: null, posterUrl: null, caption: null, overlayText: null, eyebrow: null },
+                        { id: `example-${Date.now()}-${nextIndex}`, url: null, posterUrl: null, caption: null, overlayText: null, eyebrow: null, templateMode: mediaFeature, published: true, tags: [] },
                       ],
                     },
                   });
@@ -639,27 +649,26 @@ export function AdminPage() {
               </Button>
             </div>
           </div>
-          <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            <label className="text-xs font-semibold text-text-primary">Section heading<input value={marketing.heading} onChange={(event) => { setMarketing({ ...marketing, heading: event.target.value }); setDirty(true); }} className="mt-2 w-full rounded-xl border border-border bg-bg px-3 py-2.5 text-sm" /></label>
-            <label className="text-xs font-semibold text-text-primary">Section description<textarea rows={2} value={marketing.description} onChange={(event) => { setMarketing({ ...marketing, description: event.target.value }); setDirty(true); }} className="mt-2 w-full resize-none rounded-xl border border-border bg-bg px-3 py-2.5 text-sm" /></label>
-          </div>
+          <div onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const files = Array.from(event.dataTransfer.files).filter((file) => /^(image\/(jpeg|png|webp)|video\/(mp4|webm|quicktime))$/i.test(file.type)); if (files.length) void uploadLandingFiles(files); }} className="mt-5 rounded-[22px] border border-dashed border-white/20 bg-black/10 px-5 py-8 text-center text-sm text-text-muted">Drop images and videos here, or use Upload above.</div>
+          {Object.entries(uploadProgress).length > 0 && <div className="mt-4 space-y-2" aria-live="polite">{Object.entries(uploadProgress).map(([file, percent]) => <div key={file}><div className="mb-1 flex justify-between text-xs text-text-muted"><span className="truncate">{file.replace(/^\d+-/, '')}</span><span>{percent}%</span></div><div className="h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-mint transition-all" style={{ width: `${percent}%` }} /></div></div>)}</div>}
         </div>
+        <div className="flex gap-2 overflow-x-auto pb-2" role="tablist" aria-label="Media by feature">{MEDIA_FEATURES.map(([id, label]) => { const count = marketing.videos.showcase.filter((item) => item.templateMode === id && item.url && item.published !== false).length; return <button key={id} type="button" role="tab" aria-selected={mediaFeature === id} onClick={() => setMediaFeature(id)} className={`shrink-0 rounded-full border px-4 py-2.5 text-xs transition ${mediaFeature === id ? 'border-white/40 bg-white text-[#17131f]' : 'border-white/10 text-white/65 hover:bg-white/[.05]'}`}>{label} <span className="ml-1 opacity-60">{count}</span></button>; })}</div>
 
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-xs text-text-muted"><span className="font-semibold text-text-primary">{marketing.videos.showcase.length}</span> landing video slot{marketing.videos.showcase.length === 1 ? '' : 's'} · all saved videos are returned by the public landing API.</p>
+          <p className="text-xs text-text-muted"><span className="font-semibold text-text-primary">{marketing.videos.showcase.length}</span> items saved · {marketing.videos.showcase.filter((item) => item.templateMode === mediaFeature && item.url && item.published !== false).length} published for this tool</p>
           <span className="rounded-full border border-violet/20 bg-violet/10 px-2.5 py-1 text-[10px] font-semibold text-violet">Up to {LANDING_VIDEO_LIMIT} · multi-upload supported</span>
         </div>
 
         <div className="grid gap-5 xl:grid-cols-3">
-          {marketing.videos.showcase.map((video, index) => <article key={video.id} className="rounded-3xl border border-border bg-panel p-5">
+          {marketing.videos.showcase.map((video, index) => video.templateMode === mediaFeature && <article key={video.id} draggable onDragStart={(event) => { reorderStart.current = index; event.dataTransfer.effectAllowed = 'move'; }} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const from = reorderStart.current; reorderStart.current = null; if (from === null || from === index) return; const next = [...marketing.videos.showcase]; const [moved] = next.splice(from, 1); next.splice(index, 0, moved); setMarketing({ ...marketing, videos: { showcase: next } }); setDirty(true); }} className="rounded-3xl border border-border bg-panel p-5">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="font-semibold text-text-primary">{`Gallery item ${index + 1}`}</p>
-                <p className="text-[10px] text-text-dim">Choose the creation mode below</p>
+                <p className="font-semibold text-text-primary">{video.caption || `Gallery item ${index + 1}`}</p>
+                <p className="text-[10px] text-text-dim">Drag to reorder · {video.published === false ? "Unpublished" : "Published"}</p>
               </div>
               <button
                 type="button"
-                disabled={busy || marketing.videos.showcase.length <= 1}
+                disabled={busy}
                 onClick={() => {
                   setMarketing({ ...marketing, videos: { showcase: marketing.videos.showcase.filter((_, i) => i !== index) } });
                   setDirty(true);
@@ -673,6 +682,8 @@ export function AdminPage() {
             {video.url ? video.kind === 'image' ? <img src={video.url} alt={video.caption ?? 'Gallery preview'} className="mx-auto mt-4 aspect-[3/4] max-h-60 rounded-2xl object-cover" /> : <video src={video.url} poster={video.posterUrl ?? undefined} controls preload="metadata" className="mx-auto mt-4 aspect-[3/4] max-h-60 rounded-2xl bg-black object-cover" /> : <div className="mt-4 flex aspect-[3/4] max-h-60 items-center justify-center rounded-2xl border border-dashed border-violet/30 bg-bg/50 text-xs text-text-dim">No media yet</div>}
 
             <div className="mt-4 space-y-3">
+              <label className="flex items-center gap-2 text-xs text-text-muted"><input type="checkbox" checked={video.published !== false} onChange={(event) => { setMarketing({ ...marketing, videos: { showcase: marketing.videos.showcase.map((item, i) => i === index ? { ...item, published: event.target.checked } : item) } }); setDirty(true); }} /> Published</label>
+              <label className="block text-xs text-text-muted">Tags (comma separated)<input key={video.id} defaultValue={(video.tags ?? []).join(', ')} onBlur={(event) => { const tags = event.target.value.split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 8); setMarketing((current) => current ? { ...current, videos: { showcase: current.videos.showcase.map((item) => item.id === video.id ? { ...item, tags } : item) } } : current); setDirty(true); }} placeholder="campaign, studio" className="mt-1.5 w-full rounded-xl border border-border bg-bg px-3 py-2.5 text-xs" /></label>
               <label className="block text-xs text-text-muted">Media URL<input value={video.url ?? ''} placeholder="Direct image or video URL" onChange={(event) => { setMarketing({ ...marketing, videos: { showcase: marketing.videos.showcase.map((item, i) => i === index ? { ...item, url: event.target.value || null } : item) } }); setDirty(true); }} className="mt-1.5 w-full rounded-xl border border-border bg-bg px-3 py-2.5 text-xs" /></label>
               <label className="block text-xs text-text-muted">Media type
                 <select value={video.kind ?? 'video'} onChange={(event) => { setMarketing({ ...marketing, videos: { showcase: marketing.videos.showcase.map((item, i) => i === index ? { ...item, kind: event.target.value as 'image' | 'video' } : item) } }); setDirty(true); }} className="mt-1.5 w-full rounded-xl border border-border bg-bg px-3 py-2.5 text-xs text-white"><option value="image">Image</option><option value="video">Video</option></select>
@@ -685,7 +696,7 @@ export function AdminPage() {
               <div className="border-t border-white/10 pt-3">
                 <label className="block text-xs font-semibold text-white">What visitors can recreate
                   <select value={video.templateMode ?? ''} onChange={(event) => { const value = event.currentTarget.value as NonNullable<typeof video.templateMode> | ''; setMarketing({ ...marketing, videos: { showcase: marketing.videos.showcase.map((item, i) => i === index ? { ...item, templateMode: value || null } : item) } }); setDirty(true); }} className="mt-2 w-full rounded-xl border border-border bg-bg px-3 py-2.5 text-xs text-white">
-                    <option value="">Hide from gallery</option><option value="photo">Product image</option><option value="product-video">Product video</option><option value="scenario">Talking person / portrait</option><option value="video">AI video</option><option value="interior">Interior</option>
+                    <option value="">Hide from gallery</option><option value="website">Website Video</option><option value="photo">Product image</option><option value="product-video">Product video</option><option value="scenario">Talking person / portrait</option><option value="video">AI video</option><option value="interior">Interior</option>
                   </select>
                 </label>
                 {video.templateMode && <label className="mt-3 block text-xs text-text-muted">Optional creative direction

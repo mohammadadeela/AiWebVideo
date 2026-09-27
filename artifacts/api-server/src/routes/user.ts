@@ -117,15 +117,22 @@ router.post('/logout', (_req, res) => {
 router.get('/jobs', requireAuth, async (req, res) => {
   try {
     const jobs = await getJobsByUser(req.user!.id, 100);
-    const photos = jobs.length
-      ? await query<{ job_id: string; storage_url: string }>(
-          `SELECT DISTINCT ON (job_id) job_id,storage_url FROM assets
-           WHERE job_id=ANY($1::uuid[]) AND type='photo'
-           ORDER BY job_id,created_at ASC`,
-          [jobs.map((job) => job.id)],
-        )
-      : { rows: [] };
-    const previewByJob = new Map(photos.rows.map((asset) => [asset.job_id, asset.storage_url]));
+    const ids = jobs.map((job) => job.id);
+    const [assets, prompts] = jobs.length ? await Promise.all([
+      query<{ job_id: string; type: string; storage_url: string }>(
+        `SELECT DISTINCT ON (job_id,type) job_id,type,storage_url FROM assets
+         WHERE job_id=ANY($1::uuid[]) AND type IN ('photo','video')
+         ORDER BY job_id,type,created_at ASC`, [ids],
+      ),
+      query<{ job_id: string; content: string }>(
+        `SELECT DISTINCT ON (job_id) job_id,content FROM job_messages
+         WHERE job_id=ANY($1::uuid[]) AND role='user' AND content<>''
+         ORDER BY job_id,created_at ASC`, [ids],
+      ),
+    ]) : [{ rows: [] as Array<{ job_id: string; type: string; storage_url: string }> }, { rows: [] as Array<{ job_id: string; content: string }> }];
+    const previewByJob = new Map(assets.rows.filter((asset) => asset.type === 'photo').map((asset) => [asset.job_id, asset.storage_url]));
+    const videoByJob = new Map(assets.rows.filter((asset) => asset.type === 'video').map((asset) => [asset.job_id, asset.storage_url]));
+    const promptByJob = new Map(prompts.rows.map((message) => [message.job_id, message.content]));
     res.json({
       jobs: jobs.map((job) => {
         const metadata = job.capture_metadata as { title?: string; screenshotUrl?: string } | null;
@@ -143,6 +150,8 @@ router.get('/jobs', requireAuth, async (req, res) => {
           featureLabel: feature.label,
           screenshotUrl: metadata?.screenshotUrl ? signPrivateAssetUrl(metadata.screenshotUrl) : null,
           previewUrl: previewByJob.has(job.id) ? signPrivateAssetUrl(previewByJob.get(job.id)!) : null,
+          downloadUrl: videoByJob.has(job.id) ? signPrivateAssetUrl(videoByJob.get(job.id)!) : previewByJob.has(job.id) ? signPrivateAssetUrl(previewByJob.get(job.id)!) : null,
+          prompt: promptByJob.get(job.id) ?? null,
           pinned: job.pinned,
           updatedAt: job.updated_at,
           createdAt: job.created_at,

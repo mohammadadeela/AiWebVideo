@@ -8,8 +8,10 @@ export interface MarketingVideo {
   caption: string | null;
   overlayText: string | null;
   eyebrow: string | null;
-  templateMode?: 'video' | 'photo' | 'product-video' | 'scenario' | 'interior' | null;
+  templateMode?: 'website' | 'video' | 'photo' | 'product-video' | 'scenario' | 'interior' | null;
   templatePrompt?: string | null;
+  tags?: string[];
+  published?: boolean;
 }
 
 export interface MarketingSettings {
@@ -51,6 +53,8 @@ export async function getMarketingSettings(): Promise<MarketingSettings> {
           ...(item ?? {}),
           id: String(item?.id ?? `example-${index + 1}`),
           kind: item?.kind === 'image' ? 'image' : 'video',
+          tags: Array.isArray(item?.tags) ? item.tags.slice(0, 8) : [],
+          published: item?.published !== false,
         })),
     },
   };

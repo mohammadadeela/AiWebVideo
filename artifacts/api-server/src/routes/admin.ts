@@ -356,8 +356,10 @@ router.put('/marketing', async (req, res) => {
       caption: nullableText,
       overlayText: nullableText,
       eyebrow: z.string().trim().max(60).nullable(),
-      templateMode: z.enum(['video', 'photo', 'product-video', 'scenario', 'interior']).nullable().optional(),
+      templateMode: z.enum(['website', 'video', 'photo', 'product-video', 'scenario', 'interior']).nullable().optional(),
       templatePrompt: z.string().trim().max(2000).nullable().optional(),
+      tags: z.array(z.string().trim().min(1).max(30)).max(8).optional(),
+      published: z.boolean().optional(),
     });
     const body = z.object({
       heading: z.string().trim().min(1).max(100),

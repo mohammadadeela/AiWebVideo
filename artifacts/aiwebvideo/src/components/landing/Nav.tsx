@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Link, useLocation } from "wouter";
 import {
   ChevronDown,
+  Clock3,
   Film,
   Globe2,
   Image as ImageIcon,
@@ -18,6 +19,7 @@ import { Wordmark } from "@/components/ui/Wordmark";
 import { Button } from "@/components/ui/app-button";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { UserMenu, formatCredits } from "@/components/account/UserMenu";
+import { HistoryDrawer } from "@/components/landing/HistoryDrawer";
 import { fetchMe } from "@/lib/api-client";
 import { watchAuthState } from "@/lib/firebase/client";
 import { resolveDashboardDestination } from "@/lib/guestSession";
@@ -46,6 +48,7 @@ export function Nav() {
   const [authChecked, setAuthChecked] = useState(false);
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [productOpen, setProductOpen] = useState(false);
@@ -209,18 +212,13 @@ export function Nav() {
                   <span>Admin</span>
                 </Link>
               )}
-              <Link
-                href="/dashboard"
-                className="hidden h-10 min-w-[112px] items-center justify-center whitespace-nowrap rounded-xl bg-signature px-4 text-xs font-bold text-white shadow-[0_14px_30px_-20px_rgba(236,72,153,.75)] transition hover:-translate-y-0.5 hover:brightness-110 sm:inline-flex"
-              >
-                Workspace
-              </Link>
+              <button type="button" onClick={() => setHistoryOpen(true)} title="My creations" aria-label="My creations" className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/[.04] text-white/75 transition hover:bg-white/10 hover:text-white"><Clock3 size={18} /></button>
               {me && <UserMenu email={me.email} plan={me.plan} creditsBalance={me.creditsBalance} isAdmin={me.isAdmin} />}
             </>
           ) : (
             <>
               <Button className="hidden sm:inline-flex" variant="ghost" size="sm" onClick={() => setShowAuthModal(true)}>Log in</Button>
-              <Button variant="primary" size="sm" className="px-3 text-xs" asChild><a href="/dashboard" className="hidden sm:inline-flex">Open workspace</a></Button>
+              <Button variant="primary" size="sm" className="px-3 text-xs" asChild><a href="/#generate" className="hidden sm:inline-flex">Start creating</a></Button>
             </>
           )}
           <button
@@ -311,7 +309,7 @@ export function Nav() {
                 </div>
               ) : isSignedIn ? (
                 <div className="flex items-center gap-2">
-                  <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="flex min-h-11 flex-1 items-center justify-center rounded-xl bg-signature px-4 text-xs font-bold text-white shadow-[0_14px_28px_-20px_rgba(236,72,153,.72)]">Workspace</Link>
+                  <button type="button" onClick={() => { setMobileOpen(false); setHistoryOpen(true); }} className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-white/10 px-4 text-xs font-bold text-white"><Clock3 size={15} /> My creations</button>
                   <Link href="/pricing" onClick={() => setMobileOpen(false)} className="flex min-h-11 min-w-[96px] items-center justify-center rounded-xl border border-white/[.08] bg-white/[.025] px-3 font-utility text-[9px] font-semibold text-mint">{formatCredits(me?.creditsBalance)} credits</Link>
                   {me?.isAdmin && (
                     <Link href="/admin" onClick={() => setMobileOpen(false)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-violet/25 bg-violet/10 text-violet" aria-label="Admin"><ShieldCheck size={15} /></Link>
@@ -320,7 +318,7 @@ export function Nav() {
               ) : (
                 <div className="grid grid-cols-2 gap-2">
                   <Button variant="secondary" size="md" onClick={() => { setMobileOpen(false); setShowAuthModal(true); }}>Log in</Button>
-                  <Button className="w-full" variant="primary" size="md" asChild><a href="/dashboard" onClick={() => setMobileOpen(false)}>Workspace</a></Button>
+                  <Button className="w-full" variant="primary" size="md" asChild><a href="/#generate" onClick={() => setMobileOpen(false)}>Start creating</a></Button>
                 </div>
               )}
             </div>
@@ -338,6 +336,7 @@ export function Nav() {
           }}
         />
       )}
+      <HistoryDrawer open={historyOpen && isSignedIn} onClose={() => setHistoryOpen(false)} />
     </header>
   );
 }
