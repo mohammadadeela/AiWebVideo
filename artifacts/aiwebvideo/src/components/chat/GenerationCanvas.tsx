@@ -20,7 +20,8 @@ export type ProductionKind =
   | "campaign-photos"
   | "product-video"
   | "talking-scene"
-  | "interior-design";
+  | "interior-design"
+  | "architecture-design";
 
 type Settings = {
   quality: string | null;
@@ -100,6 +101,15 @@ const KIND: Record<ProductionKind, {
     accentSoft: "bg-gold/[.07]",
     accentBorder: "border-gold/20",
     accentBar: "bg-gold",
+  },
+  "architecture-design": {
+    label: "Architecture design",
+    Icon: Image,
+    accentText: "text-violet",
+    accentDot: "bg-violet shadow-[0_0_16px_rgba(139,92,246,.8)]",
+    accentSoft: "bg-violet/[.08]",
+    accentBorder: "border-violet/20",
+    accentBar: "bg-violet",
   },
 };
 
