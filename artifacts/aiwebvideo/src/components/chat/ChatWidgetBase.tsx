@@ -1337,16 +1337,21 @@ export function ChatWidget({
       },
       attachmentDraftKey,
     });
+    const isArchitectureRequest =
+      request.studioKind === "interior" &&
+      /real satellite reference|concept visualization|construction plan|real site/i.test(request.prompt);
     const mappedCreate =
       request.studioKind === "idea"
         ? "video"
         : request.studioKind === "scenario"
           ? "scenario"
-          : request.studioKind === "interior"
-            ? "interior"
-            : request.mode === "photos"
-              ? "photo"
-              : "product-video";
+          : isArchitectureRequest
+            ? "architecture"
+            : request.studioKind === "interior"
+              ? "interior"
+              : request.mode === "photos"
+                ? "photo"
+                : "product-video";
     window.location.assign(`/dashboard?create=${encodeURIComponent(mappedCreate)}&handoff=1`);
   }
 
@@ -1703,6 +1708,9 @@ Promotion direction: ${brief}` : normalized);
   }
 
   async function performStudioSubmit(request: StudioGenerationRequest) {
+    const architectureRequest =
+      request.studioKind === "interior" &&
+      /real satellite reference|concept visualization|construction plan|real site/i.test(request.prompt);
     const effectiveStudioPrompt = request.studioKind === "interior"
       ? `${INTERIOR_MASTER_PROMPT}
 
@@ -1722,8 +1730,10 @@ ${request.prompt}`
     storyboardedRef.current = false;
     renderedRef.current = false;
     pushUser(
-      request.studioKind === "interior"
-        ? `Create an interior design${request.prompt ? ` · ${request.prompt}` : ""}`
+      architectureRequest
+        ? `Create an architecture preview${request.prompt ? ` · ${request.prompt}` : ""}`
+        : request.studioKind === "interior"
+          ? `Create an interior design${request.prompt ? ` · ${request.prompt}` : ""}`
         : request.studioKind === "product"
         ? request.mode === "photos"
           ? `Create a product photo campaign${request.prompt ? ` · ${request.prompt}` : ""}`
@@ -1731,7 +1741,11 @@ ${request.prompt}`
         : request.prompt,
     );
     pushBot(
-      request.studioKind === "interior"
+      architectureRequest
+        ? request.mode === "photos"
+          ? "I’m grounding the concept in the real site reference first, then designing within the visible plot orientation and surrounding context."
+          : "I’m grounding the site video in the real location reference, then planning a camera path that preserves the visible site orientation and context."
+        : request.studioKind === "interior"
         ? request.mode === "photos"
           ? "I’m cross-checking your space references, measurements and architectural constraints before creating the interior concept. The result will stay grounded in the supplied geometry."
           : "I’m building a continuous architectural walkthrough from your references, measurements and design direction. The camera path will stay consistent with the supplied space."
