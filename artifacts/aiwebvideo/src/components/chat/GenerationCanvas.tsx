@@ -554,8 +554,7 @@ export function GenerationCanvas({
                   )}
 
                   <p className="border-t border-white/[.05] pt-2 text-[8px] leading-4 text-white/30">
-                    {statusMessage ? `Live stage: ${statusMessage}. ` : ""}
-                    Provider timing can vary; the stage and elapsed time above are live.
+                    Live stage: {statusText}. Timing can vary; the stage and elapsed time above are live.
                     {eta ? ` Current estimate: ${eta}.` : ""}
                   </p>
                 </div>
