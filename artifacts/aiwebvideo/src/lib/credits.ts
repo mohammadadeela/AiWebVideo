@@ -1,3 +1,5 @@
+import { IMAGE_MODEL_OPTIONS, VIDEO_MODEL_OPTIONS, markedUpInternalCredits, type ModelTier } from './modelTiers';
+
 export const CREDIT_COSTS = {
   PHOTO_SET_4: 8,
   VIDEO_PER_SECOND_1080P: 4,
@@ -5,11 +7,6 @@ export const CREDIT_COSTS = {
   NARRATION: 6,
 } as const;
 
-/**
- * Customer-facing denomination only. Billing, reservations and provider gates
- * continue to use the smaller internal credit unit, so this never changes
- * what a generation costs us or whether a provider call is authorized.
- */
 export const CREDIT_DISPLAY_MULTIPLIER = 5;
 
 export function displayCredits(value: number | null | undefined): number {
@@ -31,30 +28,42 @@ export function normalizedGeneratedSeconds(durationSeconds = MIN_VIDEO_SECONDS) 
   return Math.max(MIN_VIDEO_SECONDS, Math.min(MAX_VIDEO_SECONDS, wholeSeconds));
 }
 
-/** Mirrors the server's internal quote before the customer-facing x5 denomination. */
 export function estimateInternalRenderCredits(
   mode: string,
   skipVoiceover: boolean,
   durationSeconds = 8,
   outputQuality: '1080p' | '4k' = '1080p',
+  modelTier?: ModelTier | null,
 ) {
-  if (mode === 'photos' || mode === 'icon') return CREDIT_COSTS.PHOTO_SET_4;
+  if (mode === 'photos' || mode === 'icon') {
+    const imageTier = IMAGE_MODEL_OPTIONS.find((option) => option.id === modelTier);
+    return imageTier
+      ? markedUpInternalCredits(imageTier.providerCostPerImage) * 4
+      : CREDIT_COSTS.PHOTO_SET_4;
+  }
+
   const generatedSeconds = normalizedGeneratedSeconds(durationSeconds);
-  const video = generatedSeconds * (outputQuality === '4k' ? CREDIT_COSTS.VIDEO_PER_SECOND_4K : CREDIT_COSTS.VIDEO_PER_SECOND_1080P);
+  const videoTier = VIDEO_MODEL_OPTIONS.find((option) => option.id === modelTier);
+  const perSecond = videoTier
+    ? markedUpInternalCredits(
+        outputQuality === '4k' && videoTier.providerCost4k
+          ? videoTier.providerCost4k
+          : videoTier.providerCost1080,
+      )
+    : outputQuality === '4k'
+      ? CREDIT_COSTS.VIDEO_PER_SECOND_4K
+      : CREDIT_COSTS.VIDEO_PER_SECOND_1080P;
+  const video = generatedSeconds * perSecond;
   const narration = skipVoiceover ? 0 : CREDIT_COSTS.NARRATION;
   return video + (mode === 'both' ? CREDIT_COSTS.PHOTO_SET_4 : 0) + narration;
 }
 
-/**
- * Customer-facing quote used everywhere in the web app. API responses expose
- * credit quantities in the same x5 denomination, while the server keeps all
- * authorization and accounting in internal units.
- */
 export function estimateRenderCredits(
   mode: string,
   skipVoiceover: boolean,
   durationSeconds = 8,
   outputQuality: '1080p' | '4k' = '1080p',
+  modelTier?: ModelTier | null,
 ) {
-  return displayCredits(estimateInternalRenderCredits(mode, skipVoiceover, durationSeconds, outputQuality));
+  return displayCredits(estimateInternalRenderCredits(mode, skipVoiceover, durationSeconds, outputQuality, modelTier));
 }
