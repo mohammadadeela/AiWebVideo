@@ -128,7 +128,13 @@ router.get('/jobs', requireAuth, async (req, res) => {
     const previewByJob = new Map(photos.rows.map((asset) => [asset.job_id, asset.storage_url]));
     res.json({
       jobs: jobs.map((job) => {
-        const metadata = job.capture_metadata as { title?: string; screenshotUrl?: string } | null;
+        const metadata = job.capture_metadata as {
+          title?: string;
+          screenshotUrl?: string;
+          studioKind?: string | null;
+          ideaPrompt?: string | null;
+        } | null;
+        const workflow = job.workflow_state as { creativeBrief?: string | null } | null;
         const feature = classifyAdminProduction({ mode: job.mode, captureMetadata: metadata, workflowState: job.workflow_state });
         let fallbackTitle = job.source_url;
         try { fallbackTitle = new URL(job.source_url).hostname.replace(/^www\./, ''); } catch { /* keep URL */ }
@@ -143,6 +149,8 @@ router.get('/jobs', requireAuth, async (req, res) => {
           featureLabel: feature.label,
           screenshotUrl: metadata?.screenshotUrl ? signPrivateAssetUrl(metadata.screenshotUrl) : null,
           previewUrl: previewByJob.has(job.id) ? signPrivateAssetUrl(previewByJob.get(job.id)!) : null,
+          originalPrompt: workflow?.creativeBrief || metadata?.ideaPrompt || job.vibe_brief || null,
+          studioKind: metadata?.studioKind ?? null,
           pinned: job.pinned,
           updatedAt: job.updated_at,
           createdAt: job.created_at,
