@@ -524,7 +524,15 @@ export function WebsiteBriefForm({
       : normalizeDuration(Number(customDurationDraft));
     setError(null);
     void onStudioSubmit({
-      studioKind: isProduct ? "product" : activeMode === "scenario" ? "scenario" : isArchitecture ? "architecture" : "interior",
+      studioKind: isProduct
+        ? "product"
+        : activeMode === "scenario"
+          ? "scenario"
+          : isArchitecture
+            ? "architecture"
+            : isInterior
+              ? "interior"
+              : "idea",
       prompt: activePrompt,
       files,
       mode: activeMode === "photo" ? "photos" : activeMode === "product-video" ? "video" : isInterior ? (interiorOutput === "video" ? "custom" : "photos") : "custom",
