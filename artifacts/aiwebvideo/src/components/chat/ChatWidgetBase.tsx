@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { ArrowDown } from "lucide-react";
 import { ChatBubble } from "./ChatBubble";
 import { QuickReplyChips } from "./QuickReplyChips";
 import { ChatInputBar } from "./ChatInputBar";
@@ -183,6 +184,7 @@ function doneResultMessage(
   onUnlock: () => void,
   onGeneratedPhotoSelectionChange?: (assetIds: string[]) => void,
   selectedGeneratedPhotoIds: string[] = [],
+  generatedInSeconds: number | null = null,
 ): ReactNode {
   const label =
     job.mode === "photos"
@@ -198,6 +200,10 @@ function doneResultMessage(
 
   return (
     <div data-generated-result="true" className="space-y-3 scroll-mt-3">
+      <div className="flex items-center gap-2 text-[10px] text-text-dim">
+        <span className="grid h-5 w-5 place-items-center rounded-full border border-mint/20 bg-mint/[.07] text-[10px] text-mint">✓</span>
+        <span>{generatedInSeconds ? `Generated in ${generatedInSeconds < 60 ? `${generatedInSeconds}s` : `${Math.floor(generatedInSeconds / 60)}m ${String(generatedInSeconds % 60).padStart(2, "0")}s`}` : "Generated successfully"}</span>
+      </div>
       <p>{label}</p>
       {job.errorMessage && (
         <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
@@ -248,6 +254,10 @@ function restoredMessageContent(
   if (message.kind === "result" && assets.length > 0) {
     return (
       <div data-generated-result="true" className="space-y-3 scroll-mt-3">
+        <div className="flex items-center gap-2 text-[10px] text-text-dim">
+          <span className="grid h-5 w-5 place-items-center rounded-full border border-mint/20 bg-mint/[.07] text-[10px] text-mint">✓</span>
+          <span>Generated successfully</span>
+        </div>
         <p>{message.content}</p>
         <ResultGrid assets={assets} onUnlock={onUnlock} sourceKind={sourceKind}
           onGeneratedPhotoSelectionChange={onGeneratedPhotoSelectionChange}
@@ -386,6 +396,12 @@ export function ChatWidget({
   const generationProcessRef = useRef<HTMLDivElement>(null);
   const finishedResultFocusRef = useRef<string | null>(null);
   const previousPollingActiveRef = useRef(false);
+  const lastAlignedGenerationJobRef = useRef<string | null>(null);
+  const followLatestRef = useRef(true);
+  const programmaticScrollRef = useRef(false);
+  const programmaticScrollTimerRef = useRef<number | null>(null);
+  const generationClockRef = useRef<{ jobId: string; startedAt: number } | null>(null);
+  const [showJumpToLatest, setShowJumpToLatest] = useState(false);
   const pendingActionRef = useRef<(() => unknown | Promise<unknown>) | null>(null);
   const redirectAfterAuthRef = useRef(false);
   const pendingWebsiteAttachmentsRef = useRef<File[]>([]);
@@ -427,9 +443,11 @@ export function ChatWidget({
         ? "product-video"
         : isStudioProject && projectCaptureMetadata?.studioKind === "scenario"
           ? "talking-scene"
-          : isStudioProject
-            ? "ai-video"
-            : "website-video";
+          : isStudioProject && projectCaptureMetadata?.studioKind === "interior"
+            ? "interior-design"
+            : isStudioProject
+              ? "ai-video"
+              : "website-video";
   const liveReferenceItems = captureMediaItems(projectCaptureMetadata);
   const activeSceneCount = Math.max(1, Math.ceil((job?.storyboard?.targetDurationSeconds || durationSeconds) / 8));
   const sceneAssignments = useMemo(() => {
@@ -615,13 +633,63 @@ export function ChatWidget({
   }, [jobId, job?.captureMetadata, activeCaptureMetadata]);
 
   useEffect(() => {
-    if (pollingActive) return;
-    if (scrollRef.current)
-      scrollRef.current.scrollTo({
-        top: scrollRef.current.scrollHeight,
-        behavior: "smooth",
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+
+    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    let frame = 0;
+
+    const distanceFromBottom = () =>
+      Math.max(0, scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight);
+
+    const markProgrammatic = () => {
+      programmaticScrollRef.current = true;
+      if (programmaticScrollTimerRef.current) window.clearTimeout(programmaticScrollTimerRef.current);
+      programmaticScrollTimerRef.current = window.setTimeout(() => {
+        programmaticScrollRef.current = false;
+      }, reducedMotion ? 60 : 420);
+    };
+
+    const scrollToLatest = () => {
+      markProgrammatic();
+      scroller.scrollTo({
+        top: scroller.scrollHeight,
+        behavior: reducedMotion ? "auto" : "smooth",
       });
-  }, [messages, stage, pollingActive]);
+      setShowJumpToLatest(false);
+    };
+
+    const syncForNewContent = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const distance = distanceFromBottom();
+        if (followLatestRef.current || distance <= 100) {
+          followLatestRef.current = true;
+          scrollToLatest();
+        } else {
+          setShowJumpToLatest(true);
+        }
+      });
+    };
+
+    const content = scroller.firstElementChild;
+    const resizeObserver = typeof ResizeObserver !== "undefined" ? new ResizeObserver(syncForNewContent) : null;
+    if (content instanceof Element) resizeObserver?.observe(content);
+    resizeObserver?.observe(scroller);
+
+    const mutationObserver = new MutationObserver(syncForNewContent);
+    mutationObserver.observe(scroller, { childList: true, subtree: true, characterData: true });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      resizeObserver?.disconnect();
+      mutationObserver.disconnect();
+      if (programmaticScrollTimerRef.current) {
+        window.clearTimeout(programmaticScrollTimerRef.current);
+        programmaticScrollTimerRef.current = null;
+      }
+    };
+  }, [stage, jobId]);
 
   // A finished video/photo must become the visible focus of the conversation.
   // Align to the START of the final result instead of the generic bottom of the
@@ -643,6 +711,10 @@ export function ChatWidget({
     const alignFinishedResult = () => {
       const scroller = scrollRef.current;
       if (!scroller) return;
+      if (!followLatestRef.current) {
+        setShowJumpToLatest(true);
+        return;
+      }
       const results = scroller.querySelectorAll<HTMLElement>('[data-generated-result="true"]');
       const target = results[results.length - 1];
       if (!target) return;
@@ -666,14 +738,21 @@ export function ChatWidget({
     };
   }, [stage, jobId, messages.length]);
 
-  // When a generation actually starts, move the outer page and the chat to the
-  // live production canvas automatically. This makes the click on Generate feel
-  // connected to the visible work instead of leaving the visitor up at the form.
+  // Start-follow happens once per production. After that, scroll intent belongs
+  // entirely to the user: scrolling up disengages follow mode and no polling
+  // update is allowed to pull the conversation back down.
   useEffect(() => {
     const justStarted = pollingActive && !previousPollingActiveRef.current;
     previousPollingActiveRef.current = pollingActive;
-    const jobAttached = pollingActive && Boolean(jobId);
-    if (!justStarted && !jobAttached) return;
+    if (!pollingActive || !jobId) return;
+
+    if (!generationClockRef.current || generationClockRef.current.jobId !== jobId) {
+      generationClockRef.current = { jobId, startedAt: Date.now() };
+    }
+
+    if (!justStarted && lastAlignedGenerationJobRef.current === jobId) return;
+    if (lastAlignedGenerationJobRef.current === jobId) return;
+    lastAlignedGenerationJobRef.current = jobId;
 
     const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     const behavior: ScrollBehavior = reducedMotion ? "auto" : "smooth";
@@ -683,20 +762,19 @@ export function ChatWidget({
     const alignProductionPanel = () => {
       const root = chatRootRef.current;
       const scroller = scrollRef.current;
-      const target = generationProcessRef.current;
-      if (!root || !scroller || !target) return;
+      if (!root || !scroller) return;
 
-      // First bring the Director itself to the top of its page/workspace
-      // viewport so its fixed header remains visible, as in the live view.
+      followLatestRef.current = true;
+      setShowJumpToLatest(false);
+      programmaticScrollRef.current = true;
       root.scrollIntoView({ behavior, block: "start" });
+      scroller.scrollTo({ top: scroller.scrollHeight, behavior });
 
-      const scrollerRect = scroller.getBoundingClientRect();
-      const targetRect = target.getBoundingClientRect();
-      const targetTop = Math.max(0, scroller.scrollTop + targetRect.top - scrollerRect.top);
-      scroller.scrollTo({ top: targetTop, behavior });
+      if (programmaticScrollTimerRef.current) window.clearTimeout(programmaticScrollTimerRef.current);
+      programmaticScrollTimerRef.current = window.setTimeout(() => {
+        programmaticScrollRef.current = false;
+      }, reducedMotion ? 60 : 420);
 
-      // Outside Workspace, keep the Director header visible and place the
-      // live production panel directly beneath it and the sticky site nav.
       if (!window.location.pathname.startsWith("/dashboard")) {
         const stickyHeaderOffset = window.matchMedia?.("(max-width: 767px)").matches ? 64 : 82;
         const pageTop = Math.max(0, window.scrollY + root.getBoundingClientRect().top - stickyHeaderOffset);
@@ -707,9 +785,6 @@ export function ChatWidget({
     const firstFrame = window.requestAnimationFrame(() => {
       secondFrame = window.requestAnimationFrame(() => {
         alignProductionPanel();
-        // The dashboard changes from the tall composer layout to its fixed
-        // project viewport after the job ID arrives. Correct once more after
-        // that layout settles so the panel remains exactly at the top.
         settleTimer = window.setTimeout(alignProductionPanel, 180);
       });
     });
@@ -1104,7 +1179,9 @@ export function ChatWidget({
       storyboardedRef.current = true;
       const usedSceneIds = Array.from(new Set((job.storyboard.sceneCaptureIds ?? []).flat().filter(Boolean)));
       if (usedSceneIds.length) setSelectedCaptureIds(usedSceneIds);
-      pushBot(storyboardSummaryMessage(job, mode, aspectRatio, frameRate));
+      if (!isSignedIn || manualRenderAfterPlan) {
+        pushBot(storyboardSummaryMessage(job, mode, aspectRatio, frameRate));
+      }
       if (!isSignedIn) {
         pushBot(
           "Your production plan is ready. Sign in to continue automatically into final generation, or unlock when you’re ready.",
@@ -1123,7 +1200,6 @@ export function ChatWidget({
       }
       if (!autoRenderRef.current) {
         autoRenderRef.current = true;
-        pushBot("Storyboard locked. Starting final generation automatically in this same chat.");
         void handleGenerate();
         return;
       }
@@ -1140,7 +1216,9 @@ export function ChatWidget({
       void fetchMe()
         .then((account) => setCreditBalance(account.creditsBalance))
         .catch(() => {});
-      pushBot(doneResultMessage(job, () => setShowAuthModal(true), handleGeneratedPhotoSelectionChange, selectedGeneratedPhotoIds));
+      const activeClock = generationClockRef.current?.jobId === job.id ? generationClockRef.current : null;
+      const generatedInSeconds = activeClock ? Math.max(1, Math.round((Date.now() - activeClock.startedAt) / 1000)) : null;
+      pushBot(doneResultMessage(job, () => setShowAuthModal(true), handleGeneratedPhotoSelectionChange, selectedGeneratedPhotoIds, generatedInSeconds));
       setStage("done");
     } else if (job.status === "cancelled") {
       renderedRef.current = true;
@@ -2062,28 +2140,6 @@ ${request.prompt}`
     autoRenderRef.current = true;
     renderedRef.current = false;
     setStage("rendering");
-    const isVideo = !isImageMode(mode);
-    pushBot(
-      productionKind === "product-photos"
-        ? "Generating the product photo campaign now. The real references stay grounded while the campaign styling follows your direction."
-        : productionKind === "product-video"
-          ? `Generating the ${durationLabel(durationSeconds)} product film now, with the selected format and product references locked to this production.`
-          : productionKind === "talking-scene"
-            ? `Generating the ${durationLabel(durationSeconds)} talking scene now, including performance, camera and selected audio direction.`
-            : productionKind === "ai-video"
-              ? `Generating the ${durationLabel(durationSeconds)} AI video now from the approved scene direction.`
-              : mode === "photos"
-                ? "Generating the website campaign image set now, grounded in the captured brand and product references."
-                : mode === "icon"
-                  ? "Creating four polished square website-icon concepts. Each one uses a different professional direction while staying grounded in the real site, brand colors and captured mark."
-                  : mode === "both"
-                    ? `Creating both deliverables in parallel: a true AI-generated ${durationLabel(durationSeconds)} website video grounded in the selected site states, plus four AI marketing photos based on the captured brand/products.`
-                    : mode === "demo"
-                      ? `Directing a ${durationLabel(durationSeconds)} cinematic brand film from your real logo, products, UI and captured brand content. Longer productions are rendered as connected premium shots with consistent visual direction and continuity.`
-                      : isVideo && durationSeconds > 8
-                        ? `Generating a ${durationLabel(durationSeconds)} AI video from your selected real website references. Important actions resolve naturally, and longer productions use connected premium shots with consistent subjects, camera language and visual direction.`
-                        : "Generating a complete short AI-video beat from the strongest real website state. The key action is planned to finish inside the clip instead of being cut off, while visible UI text and brand details must stay faithful to the reference.",
-    );
     try {
       const renderResponse = await requestRender(jobId, audioMode, narrationLanguage);
       if (typeof renderResponse.creditsRemaining === "number") {
@@ -2572,6 +2628,35 @@ ${request.prompt}`
         <div
           ref={scrollRef}
           data-chat-messages
+          onWheel={(event) => {
+            if (event.deltaY >= 0) return;
+            followLatestRef.current = false;
+            programmaticScrollRef.current = false;
+            setShowJumpToLatest(true);
+          }}
+          onTouchMove={() => {
+            const scroller = scrollRef.current;
+            if (!scroller) return;
+            const distance = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
+            if (distance > 40) {
+              followLatestRef.current = false;
+              programmaticScrollRef.current = false;
+              setShowJumpToLatest(true);
+            }
+          }}
+          onScroll={(event) => {
+            const scroller = event.currentTarget;
+            const distance = Math.max(0, scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight);
+            if (distance <= 100) {
+              followLatestRef.current = true;
+              setShowJumpToLatest(false);
+              return;
+            }
+            if (!programmaticScrollRef.current) {
+              followLatestRef.current = false;
+              setShowJumpToLatest(true);
+            }
+          }}
           className={`chat-scroll relative min-h-0 flex-1 overflow-y-auto ${immersive ? "bg-bg px-3 py-5 sm:px-8 sm:py-8" : "bg-[linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,0))] px-4 py-5 sm:px-5"}`}
         >
           <div className={`${immersive ? "mx-auto w-full max-w-5xl space-y-6" : "w-full space-y-3"}`}>
@@ -2622,6 +2707,35 @@ ${request.prompt}`
               </div>
             )}
           </div>
+          {showJumpToLatest && (
+            <div className="pointer-events-none sticky bottom-3 z-30 mt-3 flex justify-center">
+              <button
+                type="button"
+                onClick={() => {
+                  const scroller = scrollRef.current;
+                  if (!scroller) return;
+                  const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+                  followLatestRef.current = true;
+                  programmaticScrollRef.current = true;
+                  setShowJumpToLatest(false);
+                  scroller.scrollTo({
+                    top: scroller.scrollHeight,
+                    behavior: reducedMotion ? "auto" : "smooth",
+                  });
+                  if (programmaticScrollTimerRef.current) window.clearTimeout(programmaticScrollTimerRef.current);
+                  programmaticScrollTimerRef.current = window.setTimeout(() => {
+                    programmaticScrollRef.current = false;
+                  }, reducedMotion ? 60 : 420);
+                }}
+                className="pointer-events-auto inline-flex min-h-9 items-center gap-1.5 rounded-full border border-white/10 bg-[#171225]/94 px-3 text-[10px] font-semibold text-white/75 shadow-[0_12px_36px_-14px_rgba(0,0,0,.9)] backdrop-blur-xl transition hover:border-violet/30 hover:text-white"
+                aria-label="Jump to latest"
+              >
+                <ArrowDown size={13} />
+                Latest
+                {pollingActive && <span className="ml-0.5 h-1.5 w-1.5 animate-pulse rounded-full bg-mint" aria-hidden="true" />}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
