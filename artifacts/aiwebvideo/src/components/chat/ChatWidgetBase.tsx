@@ -43,7 +43,7 @@ import {
   type WorkflowStage,
 } from "./types";
 import { normalizeWebsiteUrl } from "@/lib/websiteUrl";
-import { INTERIOR_MASTER_PROMPT } from "@/lib/creativeIdeas";
+import { ARCHITECTURE_MASTER_PROMPT, INTERIOR_MASTER_PROMPT } from "@/lib/creativeIdeas";
 import { estimateRenderCredits, estimateInternalRenderCredits } from "@/lib/credits";
 import {
   clearLocalJobWorkflow,
@@ -1712,7 +1712,7 @@ Promotion direction: ${brief}` : normalized);
       request.studioKind === "interior" &&
       /real satellite reference|concept visualization|construction plan|real site/i.test(request.prompt);
     const effectiveStudioPrompt = request.studioKind === "interior"
-      ? `${INTERIOR_MASTER_PROMPT}
+      ? `${architectureRequest ? ARCHITECTURE_MASTER_PROMPT : INTERIOR_MASTER_PROMPT}
 
 USER DESIGN BRIEF (highest-priority creative direction):
 ${request.prompt}`
