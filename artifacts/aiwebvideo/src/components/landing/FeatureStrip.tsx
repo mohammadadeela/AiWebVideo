@@ -11,7 +11,7 @@ const FEATURES = [
   },
   {
     title: 'Professional delivery formats',
-    body: 'Choose landscape or portrait, with 1080p or 4K mastered delivery. Eight-second Veo generations can be native at the selected size; longer continuous films use Veo continuity extension before final mastering.',
+    body: 'Choose landscape or portrait with 1080p or 4K delivery. Select the AiWebVideo quality tier that matches the speed and fidelity you need.',
     icon: <><rect x="4" y="4" width="9" height="9" rx="1.5" /><path d="M17 8v9a2 2 0 0 1-2 2H8" /></>,
   },
   {
@@ -26,7 +26,7 @@ const FEATURES = [
   },
   {
     title: 'Clear per-second billing',
-    body: 'One credit equals one generated video second. Failed scenes are refunded and paid-plan credits roll over.',
+    body: 'See the exact credit estimate for your selected quality tier before generation. Failed production work is settled automatically.',
     icon: <><path d="M12 22C6.48 22 2 17.52 2 12S6.48 2 12 2s10 4.48 10 10-4.48 10-10 10z" /><path d="M12 6v6l4 2" /></>,
   },
 ];
