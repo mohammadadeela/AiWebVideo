@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ComponentProps } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowDown, ChevronDown, ChevronUp } from "lucide-react";
 import { ChatWidget as ChatWidgetBase } from "./ChatWidgetBase";
 
 type ChatWidgetProps = ComponentProps<typeof ChatWidgetBase>;
@@ -52,8 +52,10 @@ export function ChatWidget({
   const [actionTray, setActionTray] = useState<HTMLElement | null>(null);
   const [startOverButton, setStartOverButton] = useState<HTMLButtonElement | null>(null);
   const [startOverDisabled, setStartOverDisabled] = useState(false);
+  const [showJumpToLatest, setShowJumpToLatest] = useState(false);
   const shellRef = useRef<HTMLDivElement>(null);
   const openedChatAutoScrollRef = useRef<string | null>(null);
+  const followLatestRef = useRef(true);
 
   useEffect(() => {
     const nextChatId = resumeJobId ?? initialJobId ?? null;
@@ -143,6 +145,60 @@ export function ChatWidget({
       if (fallbackTimer) window.clearTimeout(fallbackTimer);
     };
   }, [initialJobId, resumeJobId]);
+
+  useLayoutEffect(() => {
+    const shell = shellRef.current;
+    if (!shell) return;
+    const messages = shell.querySelector<HTMLElement>("[data-chat-messages]");
+    if (!messages) return;
+
+    const reduceMotion = () => Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
+    const isNearBottom = () => messages.scrollHeight - messages.scrollTop - messages.clientHeight <= 120;
+    const scrollLatest = (behavior: ScrollBehavior = "smooth") => {
+      messages.scrollTo({ top: messages.scrollHeight, behavior: reduceMotion() ? "auto" : behavior });
+      followLatestRef.current = true;
+      setShowJumpToLatest(false);
+    };
+
+    const onScroll = () => {
+      const nearBottom = isNearBottom();
+      followLatestRef.current = nearBottom;
+      if (nearBottom) setShowJumpToLatest(false);
+    };
+
+    let scheduled = 0;
+    const onMutation = () => {
+      if (scheduled) window.cancelAnimationFrame(scheduled);
+      scheduled = window.requestAnimationFrame(() => {
+        if (followLatestRef.current || isNearBottom()) {
+          scrollLatest("smooth");
+        } else {
+          setShowJumpToLatest(true);
+        }
+      });
+    };
+
+    messages.addEventListener("scroll", onScroll, { passive: true });
+    const observer = new MutationObserver(onMutation);
+    observer.observe(messages, { childList: true, subtree: true, characterData: true, attributes: true });
+
+    return () => {
+      messages.removeEventListener("scroll", onScroll);
+      observer.disconnect();
+      if (scheduled) window.cancelAnimationFrame(scheduled);
+    };
+  }, [activeChatId]);
+
+  function jumpToLatest() {
+    const messages = shellRef.current?.querySelector<HTMLElement>("[data-chat-messages]");
+    if (!messages) return;
+    messages.scrollTo({
+      top: messages.scrollHeight,
+      behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+    });
+    followLatestRef.current = true;
+    setShowJumpToLatest(false);
+  }
 
   useLayoutEffect(() => {
     const shell = shellRef.current;
@@ -294,6 +350,22 @@ export function ChatWidget({
       ref={shellRef}
       className={`chat-widget-shell relative min-h-0 w-full ${finishControlsCollapsed ? "chat-finish-collapsed" : ""} ${className ?? ""}`}
     >
+      {showJumpToLatest && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-[6.75rem] z-50 flex justify-center px-3 sm:bottom-[7.25rem]">
+          <button
+            type="button"
+            onClick={jumpToLatest}
+            className="pointer-events-auto inline-flex min-h-10 items-center gap-2 rounded-full border border-white/[.12] bg-[#171220]/95 px-3.5 text-[11px] font-semibold text-white shadow-[0_14px_42px_-18px_rgba(0,0,0,.9)] backdrop-blur-xl transition hover:border-violet/35 hover:bg-[#21182d]"
+            aria-label="Jump to latest message"
+          >
+            <span className="relative flex h-5 w-5 items-center justify-center rounded-full bg-violet/[.15] text-violet">
+              <ArrowDown size={12} />
+              <span className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 animate-pulse rounded-full bg-mint" />
+            </span>
+            Jump to latest
+          </button>
+        </div>
+      )}
       <ChatWidgetBase
         {...props}
         initialJobId={initialJobId}

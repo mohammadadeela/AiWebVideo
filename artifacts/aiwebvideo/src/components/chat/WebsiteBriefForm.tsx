@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent } from "react";
 import {
   ArrowRight,
   Check,
@@ -7,11 +7,15 @@ import {
   Globe2,
   Image as ImageIcon,
   House,
+  Link2,
+  LoaderCircle,
+  MapPinned,
   MessageCircleMore,
   Monitor,
   PackageOpen,
   Paperclip,
   Settings2,
+  TimerReset,
   Sparkles,
   Smartphone,
   Volume2,
@@ -233,11 +237,18 @@ export function WebsiteBriefForm({
   const [brief, setBrief] = useState("");
   const [prompt, setPrompt] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [durationQuickOpen, setDurationQuickOpen] = useState(false);
   const settingsAnchorRef = useRef<HTMLDivElement>(null);
   const [stylePreset, setStylePreset] = useState("Auto");
   const [roomType, setRoomType] = useState("Living Room");
   const [voicePreset, setVoicePreset] = useState("Natural");
   const [photoCount, setPhotoCount] = useState<1 | 4 | 9>(4);
+  const [productLinkOpen, setProductLinkOpen] = useState(false);
+  const [productLink, setProductLink] = useState("");
+  const [productLinkLoading, setProductLinkLoading] = useState(false);
+  const [architectureOpen, setArchitectureOpen] = useState(false);
+  const [architectureLocation, setArchitectureLocation] = useState("");
+  const [locationLoading, setLocationLoading] = useState(false);
   const [compactPanel, setCompactPanel] = useState<"style" | "ideas" | null>(null);
   const [settings, setSettings] = useState<WebsiteGenerationSettings>(DEFAULT_SETTINGS);
   const [customDurationDraft, setCustomDurationDraft] = useState<string | null>(null);
@@ -268,6 +279,9 @@ export function WebsiteBriefForm({
     setPersonReferenceRequired(false);
     setCompactPanel(null);
     setSettingsOpen(false);
+    setDurationQuickOpen(false);
+    setProductLinkOpen(false);
+    setArchitectureOpen(false);
     setStylePreset(intent === "website" ? "Auto" : "");
     setError(null);
     setSettings((current) => {
@@ -344,13 +358,37 @@ export function WebsiteBriefForm({
   }, []);
 
   useEffect(() => {
-    if (!settingsOpen) return;
-    const onPointer = (event: PointerEvent) => { if (!settingsAnchorRef.current?.contains(event.target as Node)) setSettingsOpen(false); };
-    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") setSettingsOpen(false); };
+    if (!settingsOpen && !durationQuickOpen) return;
+    const onPointer = (event: PointerEvent) => {
+      if (!settingsAnchorRef.current?.contains(event.target as Node)) {
+        setSettingsOpen(false);
+        setDurationQuickOpen(false);
+      }
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setSettingsOpen(false);
+        setDurationQuickOpen(false);
+      }
+    };
     document.addEventListener("pointerdown", onPointer);
     document.addEventListener("keydown", onKey);
     return () => { document.removeEventListener("pointerdown", onPointer); document.removeEventListener("keydown", onKey); };
-  }, [settingsOpen]);
+  }, [durationQuickOpen, settingsOpen]);
+
+  const growPrompt = (element: HTMLTextAreaElement) => {
+    element.style.height = "auto";
+    const viewportCap = typeof window === "undefined" ? 220 : Math.max(132, Math.min(220, Math.round(window.innerHeight * 0.38)));
+    element.style.height = `${Math.min(viewportCap, Math.max(44, element.scrollHeight))}px`;
+    element.style.overflowY = element.scrollHeight > viewportCap ? "auto" : "hidden";
+  };
+
+  useEffect(() => {
+    const active = activeMode === "website" ? websiteBriefRef.current : studioPromptRef.current;
+    if (!active) return;
+    const frame = window.requestAnimationFrame(() => growPrompt(active));
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeMode, brief, prompt]);
 
   const previews = useMemo(
     () => files.map((file) => ({ file, url: URL.createObjectURL(file) })),
@@ -414,6 +452,65 @@ export function WebsiteBriefForm({
     dragDepthRef.current = 0;
     setDragging(false);
     if (!disabled) addFiles(event.dataTransfer.files);
+  }
+
+  async function fileFromDataUrl(dataUrl: string, name: string) {
+    const response = await fetch(dataUrl);
+    const blob = await response.blob();
+    return new File([blob], name, { type: blob.type || "image/png" });
+  }
+
+  async function importProductLink() {
+    const value = productLink.trim();
+    if (!value || productLinkLoading) return;
+    setProductLinkLoading(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/discovery/product", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: value }),
+      });
+      const payload = await response.json() as { product?: { title?: string; description?: string; imageData?: string | null; sourceUrl?: string }; error?: string };
+      if (!response.ok || !payload.product) throw new Error(payload.error || "We could not import that product.");
+      if (payload.product.imageData) {
+        const imported = await fileFromDataUrl(payload.product.imageData, "product-link-reference.png");
+        setFiles([imported]);
+      }
+      const importedPrompt = [payload.product.title, payload.product.description].filter(Boolean).join(". ");
+      if (!brief.trim() && importedPrompt) setBrief(importedPrompt.slice(0, 2200));
+      setProductLinkOpen(false);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "We could not import that product.");
+    } finally {
+      setProductLinkLoading(false);
+    }
+  }
+
+  async function fetchArchitectureSite() {
+    const value = architectureLocation.trim();
+    if (!value || locationLoading) return;
+    setLocationLoading(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/discovery/location-preview", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ location: value }),
+      });
+      const payload = await response.json() as { preview?: { label?: string; imageData?: string; disclaimer?: string }; error?: string };
+      if (!response.ok || !payload.preview?.imageData) throw new Error(payload.error || "We could not fetch that site.");
+      const siteReference = await fileFromDataUrl(payload.preview.imageData, "real-site-reference.png");
+      setFiles((current) => [siteReference, ...current.filter((file) => file.name !== "real-site-reference.png")].slice(0, 10));
+      if (!brief.trim()) setBrief(`Create a concept visualization for this exact site while preserving the real plot orientation, visible surroundings and reference geometry. Location: ${payload.preview.label || value}.`);
+      setArchitectureOpen(false);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "We could not fetch that site.");
+    } finally {
+      setLocationLoading(false);
+    }
   }
 
   function applyMasterIdea(idea: CreativeIdea) {
@@ -571,12 +668,18 @@ export function WebsiteBriefForm({
       {url ? <img src={`https://${url.replace(/^https?:\/\//, "").split("/")[0]}/favicon.ico`} alt="" className="h-5 w-5 rounded-md object-contain" onError={(event) => { event.currentTarget.style.display = "none"; }} /> : <Globe2 size={16} className="text-white/55" />}
       <input value={url} onChange={(event) => setUrl(event.currentTarget.value)} type="url" inputMode="url" autoComplete="url" placeholder="Paste a website URL" disabled={disabled} className="min-w-0 flex-1 bg-transparent py-3 text-sm text-white outline-none placeholder:text-white/40" />
     </div>}
-    <div className="relative flex min-h-16 items-center gap-2 rounded-[30px] border border-white/[.16] bg-[#191522] px-3 py-2 shadow-[0_20px_55px_-40px_rgba(0,0,0,.9)] focus-within:border-white/35 sm:px-4">
+    <div className="relative flex min-h-16 flex-wrap items-end gap-2 rounded-[30px] border border-white/[.16] bg-[#191522] px-3 py-2 shadow-[0_20px_55px_-40px_rgba(0,0,0,.9)] transition-[border-color,box-shadow] duration-200 focus-within:border-white/35 focus-within:shadow-[0_0_0_1px_var(--composer-accent,rgba(181,154,255,.36)),0_24px_70px_-42px_var(--composer-accent,rgba(181,154,255,.72))] max-sm:[&>textarea]:min-w-[calc(100%-3.25rem)] max-sm:[&>textarea]:flex-[1_1_calc(100%-3.25rem)] sm:flex-nowrap sm:px-4" style={{ "--composer-accent": accents[activeMode] } as CSSProperties}>
       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[15px] border border-white/10 bg-black/20" style={{ color: accents[activeMode] }}><ToolIcon size={19} /></span>
-      <textarea ref={activeMode === "website" ? websiteBriefRef : studioPromptRef} value={activeMode === "video" || activeMode === "scenario" ? prompt : brief} onChange={(event) => { if (activeMode === "video" || activeMode === "scenario") setPrompt(event.currentTarget.value); else setBrief(event.currentTarget.value); event.currentTarget.style.height = "auto"; event.currentTarget.style.height = `${Math.min(160, event.currentTarget.scrollHeight)}px`; }} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); submit(); } }} placeholder={toolPlaceholder[activeMode]} rows={1} disabled={disabled} aria-label={activeMode === "scenario" ? "Script and scene" : "Creative prompt"} className={`max-h-40 min-h-10 min-w-0 flex-1 resize-none bg-transparent px-1 py-2.5 text-sm leading-5 text-white outline-none placeholder:text-white/40 ${activeMode === "scenario" ? "font-mono" : ""}`} />
+      <textarea ref={activeMode === "website" ? websiteBriefRef : studioPromptRef} value={activeMode === "video" || activeMode === "scenario" ? prompt : brief} onChange={(event) => { if (activeMode === "video" || activeMode === "scenario") setPrompt(event.currentTarget.value); else setBrief(event.currentTarget.value); growPrompt(event.currentTarget); }} onInput={(event) => growPrompt(event.currentTarget)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); submit(); } }} placeholder={toolPlaceholder[activeMode]} rows={2} disabled={disabled} aria-label={activeMode === "scenario" ? "Script and scene" : "Creative prompt"} className={`min-h-11 min-w-0 flex-1 resize-none overflow-hidden bg-transparent px-1 py-2.5 text-sm leading-5 text-white outline-none placeholder:text-white/40 ${activeMode === "scenario" ? "font-mono" : ""}`} />
+      {isProductMode && <button type="button" title="Import product from link" aria-label="Import product from link" onClick={() => setProductLinkOpen(true)} className="hidden h-10 shrink-0 items-center gap-1.5 rounded-full border border-white/[.10] bg-white/[.035] px-2.5 text-[10px] font-semibold text-white/70 transition hover:border-white/20 hover:bg-white/[.07] hover:text-white sm:inline-flex"><Link2 size={14} />Product</button>}
+      {activeMode === "interior" && <button type="button" title="Use a real site from Google Maps or an address" aria-label="Use a real site" onClick={() => setArchitectureOpen(true)} className="hidden h-10 shrink-0 items-center gap-1.5 rounded-full border border-white/[.10] bg-white/[.035] px-2.5 text-[10px] font-semibold text-white/70 transition hover:border-white/20 hover:bg-white/[.07] hover:text-white sm:inline-flex"><MapPinned size={14} />Site</button>}
       <button type="button" title="Attach images" aria-label={files.length ? `${files.length} images attached. Add more` : "Attach images"} onClick={() => inputRef.current?.click()} disabled={disabled || files.length >= 10} className={iconButton}>{files.length ? <><img src={previews[0]?.url} alt="" className="h-7 w-7 rounded-full object-cover" />{files.length > 1 && <span className="absolute -right-1 -top-1 rounded-full bg-white px-1 text-[9px] font-semibold text-black">+{files.length - 1}</span>}</> : <Paperclip size={18} />}</button>
-      <div ref={settingsAnchorRef} className="relative">
-        <button type="button" title="Settings" aria-label="Settings" aria-expanded={settingsOpen} onClick={() => setSettingsOpen((current) => !current)} className={iconButton}><Settings2 size={18} /></button>
+      {isVideoMode && <div ref={settingsAnchorRef} className="relative">
+        <button type="button" title="Duration" aria-label={`Duration ${durationSeconds} seconds`} aria-expanded={durationQuickOpen} onClick={() => { setSettingsOpen(false); setDurationQuickOpen((current) => !current); }} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-white/[.10] bg-white/[.035] px-2.5 text-[10px] font-semibold text-white/75 transition hover:border-white/20 hover:bg-white/[.07] hover:text-white"><TimerReset size={14} /><span>{durationSeconds}s</span></button>
+        {durationQuickOpen && <div className="absolute bottom-[calc(100%+12px)] right-0 z-40 flex w-[min(320px,calc(100vw-2rem))] gap-1.5 overflow-x-auto rounded-2xl border border-white/[.14] bg-[#211b2c] p-2 shadow-2xl" role="group" aria-label="Choose duration">{[8,16,24,32,60].map((value) => <button key={value} type="button" onClick={() => { setSettings((current) => ({ ...current, durationSeconds: value })); setCustomDurationDraft(null); setDurationQuickOpen(false); }} className={`min-h-9 min-w-12 rounded-xl px-3 text-[11px] font-semibold transition ${durationSeconds === value ? "bg-white text-[#17131f]" : "bg-white/[.04] text-white/65 hover:bg-white/[.09] hover:text-white"}`}>{value}s</button>)}</div>}
+      </div>}
+      <div ref={!isVideoMode ? settingsAnchorRef : undefined} className="relative">
+        <button type="button" title="Settings" aria-label="Settings" aria-expanded={settingsOpen} onClick={() => { setDurationQuickOpen(false); setSettingsOpen((current) => !current); }} className={iconButton}><Settings2 size={18} /></button>
         {settingsOpen && <div className="absolute bottom-[calc(100%+14px)] right-[-3.5rem] z-40 w-[min(355px,calc(100vw-2.5rem))] origin-bottom-right animate-fade-in-up rounded-[24px] border border-white/[.14] bg-[#211b2c] p-4 shadow-2xl sm:right-0" role="group" aria-label="Generation settings">
           {isVideoMode && <div><div className="mb-2 flex items-center justify-between text-xs text-white/70"><span>Duration</span><span className="rounded-full border border-white/20 px-2 py-0.5 font-semibold text-white">{durationSeconds}s</span></div><input type="range" min={0} max={4} step={1} value={Math.max(0, [8,16,24,32,60].indexOf(durationSeconds))} onChange={(event) => setSettings((current) => ({ ...current, durationSeconds: [8,16,24,32,60][Number(event.target.value)] }))} className="w-full accent-white" aria-label="Duration" /><div className="flex justify-between text-[10px] text-white/45">{[8,16,24,32,60].map((value) => <span key={value}>{value}s</span>)}</div></div>}
           <div className="mt-4"><p className="mb-2 text-xs text-white/70">Format</p><div className="flex rounded-full border border-white/10 bg-black/20 p-1">{([ ["9:16", Smartphone, "Portrait"], ["16:9", Monitor, "Wide"], ["1:1", ImageIcon, "Square"] ] as const).map(([ratio, Icon, label]) => <button key={ratio} type="button" title={label} aria-label={label} aria-pressed={settings.aspectRatio === ratio} onClick={() => setSettings((current) => ({ ...current, aspectRatio: ratio }))} className={`${segmented(settings.aspectRatio === ratio)} flex flex-1 items-center justify-center gap-1.5`}><Icon size={14} /><span className="hidden sm:inline">{label}</span></button>)}</div></div>
@@ -587,13 +690,54 @@ export function WebsiteBriefForm({
       <button type="button" title={landingWebsitePreview && activeMode === "website" ? "Capture website" : createLabel} aria-label={landingWebsitePreview && activeMode === "website" ? "Capture website" : createLabel} onClick={submit} disabled={submitDisabled} className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-signature text-white transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-35">{disabled ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-t-white" /> : <ArrowRight size={20} className="-rotate-45" />}</button>
     </div>
     {previews.length > 0 && <div className="mt-3 flex gap-2 overflow-x-auto pb-1">{previews.map((preview, index) => <div key={`${preview.file.name}-${index}`} className="relative h-14 w-14 shrink-0"><img src={preview.url} alt={preview.file.name} className="h-full w-full rounded-xl object-cover" /><button type="button" onClick={() => setFiles((current) => current.filter((_, i) => i !== index))} aria-label={`Remove ${preview.file.name}`} className="absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-[#37303f] text-white"><X size={11} /></button></div>)}</div>}
+    {(isProductMode || activeMode === "interior") && <div className="mt-2 flex gap-2 sm:hidden">
+      {isProductMode && <button type="button" onClick={() => setProductLinkOpen(true)} className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-full border border-white/[.10] bg-white/[.035] px-3 text-[11px] font-semibold text-white/70"><Link2 size={14} />Import product link</button>}
+      {activeMode === "interior" && <button type="button" onClick={() => setArchitectureOpen(true)} className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-full border border-white/[.10] bg-white/[.035] px-3 text-[11px] font-semibold text-white/70"><MapPinned size={14} />Use real site</button>}
+    </div>}
     {activeMode === "interior" && <div className="mt-3 flex flex-wrap gap-2"><select value={roomType} onChange={(event) => setRoomType(event.target.value)} aria-label="Room type" className="rounded-full border border-white/10 bg-[#201b29] px-3 py-2 text-xs text-white">{["Living Room","Bedroom","Kitchen","Office","Other Space"].map((room) => <option key={room}>{room}</option>)}</select><div className="flex rounded-full border border-white/10 p-1"><button type="button" onClick={() => setInteriorOutput("images")} className={segmented(interiorOutput === "images")}>Images</button><button type="button" onClick={() => setInteriorOutput("video")} className={segmented(interiorOutput === "video")}>Walkthrough</button></div></div>}
     {activeMode === "scenario" && <div className="mt-3 flex gap-2 overflow-x-auto">{["Natural", "Warm", "Narrator", "Dialogue"].map((voice) => <button type="button" key={voice} onClick={() => setVoicePreset(voice)} className={segmented(voicePreset === voice)}>{voice}</button>)}</div>}
     {activeMode === "photo" && <div className="mt-3 flex items-center gap-2 text-xs text-white/55"><span>Images</span><div className="flex rounded-full border border-white/10 p-1">{([1,4,9] as const).map((count) => <button type="button" key={count} aria-pressed={photoCount === count} onClick={() => setPhotoCount(count)} className={segmented(photoCount === count)}>{count}</button>)}</div></div>}
     <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1">{styles[activeMode].map((style) => <button type="button" key={style} onClick={() => setStylePreset(style)} aria-pressed={stylePreset === style} className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] transition ${stylePreset === style ? "border-white/40 bg-white/10 text-white" : "border-white/10 text-white/50 hover:text-white"}`}>{style}</button>)}</div>
-    <div className="mt-2 flex gap-2 overflow-x-auto pb-1" aria-label="Prompt ideas">{masterIdeas.slice(0,4).map((idea) => <button key={idea.id} type="button" onClick={() => applyMasterIdea(idea)} className="shrink-0 rounded-full px-3 py-1.5 text-[11px] text-white/45 transition hover:bg-white/[.06] hover:text-white">{idea.displayText}</button>)}</div>
+    <div className="mt-2 flex gap-2 overflow-x-auto pb-1 pr-8 [mask-image:linear-gradient(to_right,#000_0%,#000_88%,transparent_100%)]" aria-label="Prompt ideas">{masterIdeas.slice(0,4).map((idea) => <button key={idea.id} type="button" onClick={() => applyMasterIdea(idea)} className={`group w-[180px] shrink-0 rounded-2xl border px-3 py-2.5 text-left transition ${selectedIdea?.id === idea.id ? "border-white/35 bg-white/[.10]" : "border-white/[.09] bg-white/[.025] hover:border-white/20 hover:bg-white/[.055]"}`}><span className="flex items-center gap-2 text-[9px] font-semibold uppercase tracking-[.08em]" style={{ color: accents[activeMode] }}><Sparkles size={11} />Idea</span><span className="mt-1.5 block text-[11px] leading-4 text-white/72 group-hover:text-white">{idea.displayText}</span></button>)}</div>
     {selectedExample && <p className="mt-2 text-xs text-white/55">Your version of {selectedExample} · attach your own subject.</p>}
     {error && <p role="alert" className="mt-2 text-xs text-[#f3a9bd]">{error}</p>}
-    {showCreditPricing && <p className="mt-2 text-right text-[10px] text-white/45">Estimate: {photoCount === 4 || activeMode !== "photo" ? exactCredits : Math.ceil(exactCredits * photoCount / 4)} credits before generation</p>}
+    <div className="mt-2 flex items-center justify-between gap-3 px-1">
+      <p className="text-[10px] text-white/35">{(activeMode === "video" || activeMode === "scenario" ? prompt : brief).trim().length > 180 ? "Detailed prompts help preserve your direction." : "Shift + Enter for a new line."}</p>
+      {showCreditPricing && <p className="shrink-0 text-right text-[10px] text-white/45">Estimate: {photoCount === 4 || activeMode !== "photo" ? exactCredits : Math.ceil(exactCredits * photoCount / 4)} credits</p>}
+    </div>
+
+    {productLinkOpen && <div className="fixed inset-0 z-[80] grid place-items-center bg-black/65 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Import product link" onMouseDown={(event) => { if (event.target === event.currentTarget && !productLinkLoading) setProductLinkOpen(false); }}>
+      <div className="w-full max-w-[760px] overflow-hidden rounded-[26px] border border-white/[.12] bg-[#15101f] shadow-2xl">
+        <div className="grid gap-0 md:grid-cols-[1.2fr_.8fr]">
+          <div className="p-5 sm:p-7">
+            <div className="flex items-center justify-between gap-3"><span className="grid h-10 w-10 place-items-center rounded-2xl bg-[#f55d93]/15 text-[#ff8cb5]"><Link2 size={18} /></span><button type="button" onClick={() => !productLinkLoading && setProductLinkOpen(false)} className={iconButton} aria-label="Close product link"><X size={17} /></button></div>
+            <p className="mt-5 text-[11px] font-semibold uppercase tracking-[.12em] text-[#ff8cb5]">Product Link</p>
+            <h3 className="mt-1 text-2xl font-semibold tracking-[-.03em] text-white">Make the product ready to create with.</h3>
+            <p className="mt-2 max-w-lg text-sm leading-6 text-white/50">Paste a public product page. AiWebVideo extracts the real title, description and main product image, then fills the creator for you. Nothing generates or charges until you press Create.</p>
+            <div className="mt-5 flex gap-2 rounded-2xl border border-white/[.10] bg-black/20 p-2 focus-within:border-white/25">
+              <input value={productLink} onChange={(event) => setProductLink(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void importProductLink(); }} placeholder="https://store.com/products/..." inputMode="url" autoFocus className="min-w-0 flex-1 bg-transparent px-2 text-sm text-white outline-none placeholder:text-white/28" />
+              <button type="button" onClick={() => void importProductLink()} disabled={!productLink.trim() || productLinkLoading} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-signature px-4 text-xs font-semibold text-white disabled:opacity-40">{productLinkLoading ? <LoaderCircle size={14} className="animate-spin" /> : <ArrowRight size={14} />}Continue</button>
+            </div>
+          </div>
+          <div className="relative min-h-[210px] border-t border-white/[.08] bg-[radial-gradient(circle_at_35%_30%,rgba(244,114,182,.24),transparent_35%),radial-gradient(circle_at_75%_65%,rgba(139,92,246,.24),transparent_36%),#0d0a14] md:border-l md:border-t-0">
+            <div className="absolute inset-0 grid place-items-center p-8"><div className="relative h-28 w-28 rounded-[28px] border border-white/[.14] bg-[linear-gradient(145deg,#dbff63,#78c98b)] shadow-[0_24px_55px_-22px_rgba(174,255,102,.65)]"><div className="absolute inset-4 rounded-2xl border border-black/10 bg-white/15" /><span className="absolute -bottom-3 -right-3 grid h-12 w-12 place-items-center rounded-full border border-white/20 bg-[#191421] text-white"><Sparkles size={18} /></span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>}
+
+    {architectureOpen && <div className="fixed inset-0 z-[80] grid place-items-center bg-black/65 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Use a real architecture site" onMouseDown={(event) => { if (event.target === event.currentTarget && !locationLoading) setArchitectureOpen(false); }}>
+      <div className="w-full max-w-[650px] rounded-[26px] border border-white/[.12] bg-[#15101f] p-5 shadow-2xl sm:p-7">
+        <div className="flex items-center justify-between gap-3"><span className="grid h-10 w-10 place-items-center rounded-2xl bg-[#bdcba6]/15 text-[#bdcba6]"><MapPinned size={18} /></span><button type="button" onClick={() => !locationLoading && setArchitectureOpen(false)} className={iconButton} aria-label="Close site picker"><X size={17} /></button></div>
+        <p className="mt-5 text-[11px] font-semibold uppercase tracking-[.12em] text-[#bdcba6]">Architecture Preview</p>
+        <h3 className="mt-1 text-2xl font-semibold tracking-[-.03em] text-white">Ground the concept in a real site.</h3>
+        <p className="mt-2 text-sm leading-6 text-white/50">Paste a Google Maps link, coordinates, or an address. We fetch a real satellite reference and attach it to the generation so the concept starts from the real plot and surroundings.</p>
+        <div className="mt-5 flex gap-2 rounded-2xl border border-white/[.10] bg-black/20 p-2 focus-within:border-white/25">
+          <input value={architectureLocation} onChange={(event) => setArchitectureLocation(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void fetchArchitectureSite(); }} placeholder="Google Maps link, coordinates, or address" autoFocus className="min-w-0 flex-1 bg-transparent px-2 text-sm text-white outline-none placeholder:text-white/28" />
+          <button type="button" onClick={() => void fetchArchitectureSite()} disabled={!architectureLocation.trim() || locationLoading} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-signature px-4 text-xs font-semibold text-white disabled:opacity-40">{locationLoading ? <LoaderCircle size={14} className="animate-spin" /> : <MapPinned size={14} />}Fetch site</button>
+        </div>
+        <p className="mt-3 rounded-xl border border-amber-200/10 bg-amber-200/[.04] px-3 py-2 text-[10px] leading-5 text-amber-100/55">AI visualization for concept purposes — not a surveyed or construction-accurate plan. Add measurements, plans and reference photos when dimensional accuracy matters.</p>
+      </div>
+    </div>}
   </div>;
 }

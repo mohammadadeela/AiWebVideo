@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Check, Clock3, Film, Globe2, Image, LoaderCircle, PackageOpen, ShieldCheck, X } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, Clock3, Film, Globe2, Image, LoaderCircle, PackageOpen, ShieldCheck, X } from "lucide-react";
 import { fetchJob, request } from "@/lib/api-client";
 import { getActiveJobId } from "@/lib/guestSession";
 import type { JobAsset, JobStatus } from "./types";
@@ -99,6 +99,7 @@ export function GenerationCanvas({
   const [stopSubmitting, setStopSubmitting] = useState(false);
   const [stopRequested, setStopRequested] = useState(false);
   const [stopError, setStopError] = useState<string | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const panelRef = useRef<HTMLElement>(null);
   const lastActivityRef = useRef("");
   const copy = KIND[productionKind];
@@ -116,15 +117,17 @@ export function GenerationCanvas({
   const progressIsEstimated = !settled && status === "rendering" && !generatedVideo;
   const liveStage = useMemo(() => {
     const message = (statusMessage ?? "").toLowerCase();
-    if (message.includes("veo is generating") || message.includes("veo is starting")) return "Veo rendering";
-    if (message.includes("premium scene") && message.includes("ready")) return "Scene completed";
-    if (message.includes("assembling")) return "Assembling";
-    if (message.includes("finishing")) return "Finalizing";
-    if (message.includes("starting")) return "Starting";
-    if (status === "storyboarding") return "Creative planning";
-    if (status === "capturing") return "Reading references";
+    if (message.includes("generating") || message.includes("starting")) return "Rendering your scene";
+    if (message.includes("premium scene") && message.includes("ready")) return "Checking the finished scene";
+    if (message.includes("assembling")) return "Assembling your result";
+    if (message.includes("finishing") || message.includes("final")) return "Finishing touches";
+    if (status === "storyboarding") return "Choosing the strongest story beats";
+    if (status === "capturing") return productionKind === "website-video" ? "Reading your website" : "Reading your references";
+    if (status === "queued") return "Preparing your production";
+    if (status === "rendering") return "Directing camera movement";
+    if (status === "done") return "Generated";
     return phase(status);
-  }, [status, statusMessage]);
+  }, [productionKind, status, statusMessage]);
   const elapsedLabel = useMemo(() => {
     const match = statusMessage?.match(/(\d+)s elapsed/i);
     if (!match) return null;
@@ -187,6 +190,7 @@ export function GenerationCanvas({
     setStopSubmitting(false);
     setStopRequested(false);
     setStopError(null);
+    setDetailsOpen(false);
     setLiveAssets([]);
   }, [jobId]);
 
@@ -313,7 +317,10 @@ export function GenerationCanvas({
                     </span>
                   )}
                 </div>
-                <p className="mt-0.5 truncate text-[9px] text-text-dim">{statusMessage || phase(status)}</p>
+                <p className="mt-0.5 flex min-h-4 items-center gap-1.5 truncate text-[10px] text-white/55">
+                  <span className="truncate">{settled ? (status === "done" ? "Generated successfully" : phase(status)) : liveStage}</span>
+                  {!settled && <span className="inline-flex w-5 items-center justify-start text-mint/75" aria-hidden="true"><span className="animate-pulse">•••</span></span>}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-2.5">
@@ -391,7 +398,7 @@ export function GenerationCanvas({
                 <div className="rounded-xl border border-white/[.07] bg-white/[.025] p-2.5">
                   <p className="font-utility text-[7px] uppercase tracking-[.13em] text-text-dim">Current stage</p>
                   <p className="mt-1 text-[10px] font-semibold text-white">{liveStage}</p>
-                  <p className="mt-1 line-clamp-2 text-[8px] leading-4 text-white/45">{statusMessage || "Production is progressing."}</p>
+                  <p className="mt-1 line-clamp-2 text-[8px] leading-4 text-white/45">{liveStage}</p>
                   {elapsedLabel && <p className="mt-1 text-[7px] font-medium text-mint/75">{elapsedLabel}</p>}
                 </div>
                 <div className="rounded-xl border border-white/[.07] bg-white/[.025] p-2.5">
@@ -416,52 +423,47 @@ export function GenerationCanvas({
             {eta && !settled && <span className="shrink-0 text-[8px] text-text-dim sm:hidden">{eta}</span>}
           </div>
 
-          <div className="mt-2.5 flex flex-wrap gap-1.5">
-            {chips.map((chip) => (
-              <span
-                key={chip}
-                className="rounded-full border border-white/[.07] bg-white/[.025] px-2 py-1 text-[8px] capitalize text-white/75"
-              >
-                {chip}
-              </span>
-            ))}
-          </div>
-
-          {visibleReferences.length > 0 && (
-            <div className="mt-3 border-t border-white/[.055] pt-2.5">
-              <div className="mb-1.5 flex items-center justify-between gap-2">
-                <p className="text-[8px] font-semibold text-white/65">Live inputs</p>
-                <p className="text-[7px] text-text-dim">Using your real references</p>
-              </div>
-              <div className="chat-scroll flex gap-1.5 overflow-x-auto pb-0.5">
-                {visibleReferences.map((item) => (
-                  <div
-                    key={item.id}
-                    className="relative w-20 shrink-0 overflow-hidden rounded-lg border border-white/[.07] bg-black/20"
-                  >
-                    <div className="aspect-video overflow-hidden">
-                      <img
-                        src={item.url}
-                        alt={item.title}
-                        loading="eager"
-                        decoding="async"
-                        className="h-full w-full object-cover object-top"
-                      />
+          <div className="mt-2.5">
+            <button
+              type="button"
+              onClick={() => setDetailsOpen((open) => !open)}
+              className="inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2 text-[9px] font-semibold text-white/45 transition hover:bg-white/[.04] hover:text-white/75"
+              aria-expanded={detailsOpen}
+            >
+              <ChevronDown size={12} className={`transition-transform ${detailsOpen ? "rotate-180" : ""}`} />
+              {detailsOpen ? "Hide details" : "Show details"}
+            </button>
+            {detailsOpen && (
+              <div className="mt-2 rounded-2xl border border-white/[.06] bg-black/15 p-2.5">
+                <div className="flex flex-wrap gap-1.5">
+                  {chips.map((chip) => (
+                    <span key={chip} className="rounded-full border border-white/[.07] bg-white/[.025] px-2 py-1 text-[8px] capitalize text-white/75">{chip}</span>
+                  ))}
+                </div>
+                {statusMessage && <p className="mt-2 text-[8px] leading-4 text-white/38">{statusMessage}</p>}
+                {visibleReferences.length > 0 && (
+                  <div className="mt-2.5 border-t border-white/[.055] pt-2.5">
+                    <div className="mb-1.5 flex items-center justify-between gap-2">
+                      <p className="text-[8px] font-semibold text-white/65">References</p>
+                      <p className="text-[7px] text-text-dim">Using your real inputs</p>
                     </div>
-                    {sceneAssignments[item.id] ? (
-                      <span className="absolute right-1 top-1 rounded-full bg-violet px-1 py-0.5 text-[6px] font-bold text-white">
-                        R{sceneAssignments[item.id]}
-                      </span>
-                    ) : null}
+                    <div className="chat-scroll flex gap-1.5 overflow-x-auto pb-0.5">
+                      {visibleReferences.map((item) => (
+                        <div key={item.id} className="relative w-20 shrink-0 overflow-hidden rounded-lg border border-white/[.07] bg-black/20">
+                          <div className="aspect-video overflow-hidden"><img src={item.url} alt={item.title} loading="eager" decoding="async" className="h-full w-full object-cover object-top" /></div>
+                          {sceneAssignments[item.id] ? <span className="absolute right-1 top-1 rounded-full bg-violet px-1 py-0.5 text-[6px] font-bold text-white">R{sceneAssignments[item.id]}</span> : null}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                ))}
+                )}
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           <div className="mt-3 flex items-center justify-between gap-2.5 border-t border-white/[.06] pt-2.5">
             <p className="min-w-0 flex-1 truncate text-[8px] text-text-dim">
-              {progressIsEstimated ? "Estimated progress · provider generation time varies. Live stage and elapsed time are real." : "Live progress is saved. You can leave this chat and return without stopping generation."}
+              {settled ? (status === "done" ? "Generation complete." : phase(status)) : elapsedLabel ? `Still working · ${elapsedLabel}` : "Your progress is saved. You can leave this chat and come back."}
             </p>
             {onCancel && !settled && (
               <button
