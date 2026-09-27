@@ -1,4 +1,4 @@
-import { ArrowRight, Film, Globe2, House, Image as ImageIcon, MessageCircleMore, PackageOpen } from "lucide-react";
+import { ArrowRight, Building2, Film, Globe2, House, Image as ImageIcon, MessageCircleMore, PackageOpen } from "lucide-react";
 import type { CreationIntent } from "@/components/chat/WebsiteBriefForm";
 
 const modes = [
@@ -8,6 +8,7 @@ const modes = [
   { intent: "product-video", title: "Product video", source: "From your product", detail: "Bring product images into motion.", path: "/product-video-generator", icon: PackageOpen, accent: "text-gold", glow: "from-gold/[.09]" },
   { intent: "scenario", title: "Talking scenes", source: "From a script", detail: "Set the scene, dialogue, and camera direction.", path: "/talking-video-generator", icon: MessageCircleMore, accent: "text-mint", glow: "from-mint/[.09]" },
   { intent: "interior", title: "Interior design", source: "From your space", detail: "Use room photos, plans, and measurements for designs or a walkthrough.", path: "/ai-interior-design-generator", icon: House, accent: "text-violet", glow: "from-violet/[.12]" },
+  { intent: "architecture", title: "Architecture design", source: "From a real location", detail: "Start from a Maps link or address and visualize a concept on the actual plot.", path: "/?create=architecture#generate", icon: Building2, accent: "text-gold", glow: "from-gold/[.09]" },
 ] as const;
 
 function selectMode(intent: CreationIntent) {
