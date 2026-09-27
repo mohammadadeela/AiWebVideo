@@ -311,7 +311,7 @@ export function ProfilePage() {
                   >
                     <FolderClock size={18} className="text-violet" aria-hidden="true" />
                     <span>
-                      <span className="block text-xs font-semibold text-text-primary">Production workspace</span>
+                      <span className="block text-xs font-semibold text-text-primary">Creative history</span>
                       <span className="mt-1 block text-[10px] text-text-dim">History, active jobs and results</span>
                     </span>
                   </Link>
@@ -341,7 +341,7 @@ export function ProfilePage() {
                   <p className="mt-1 text-xs text-text-dim">available production credits</p>
                 </div>
                 <p className="mt-5 text-xs leading-5 text-text-muted">
-                  The workspace checks the required production balance before a paid generation starts. Failed paid renders use the existing credit-restoration flow.
+                  The creator checks the required production balance before a paid generation starts. Failed paid renders use the existing credit-restoration flow.
                 </p>
                 <Button variant="secondary" className="mt-5 w-full" asChild><Link href="/pricing">Compare plans and credit use</Link></Button>
               </section>
