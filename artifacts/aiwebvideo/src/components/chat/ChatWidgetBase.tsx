@@ -41,6 +41,7 @@ import {
   type JobMode,
   type JobStatusResponse,
   type JobWorkflowState,
+  type ModelTier,
   type WorkflowStage,
 } from "./types";
 import { normalizeWebsiteUrl } from "@/lib/websiteUrl";
@@ -217,6 +218,11 @@ function doneResultMessage(
         selectedGeneratedPhotoIds={selectedGeneratedPhotoIds}
         onGeneratedPhotoSelectionChange={onGeneratedPhotoSelectionChange}
       />
+      {job.captureMetadata?.studioKind === "architecture" && (
+        <p className="text-[9px] leading-4 text-text-dim">
+          AI visualization for concept purposes — not a surveyed or construction-accurate plan.
+        </p>
+      )}
       {hasPhotoSelection && (
         <div className="rounded-xl border border-white/10 bg-white/[.025] p-3">
           <p className="text-xs font-medium text-text-primary">Choose images for your next video or edit</p>
@@ -247,6 +253,7 @@ function restoredMessageContent(
   fallbackAssets: JobAsset[] = [],
   onGeneratedPhotoSelectionChange?: (assetIds: string[]) => void,
   selectedGeneratedPhotoIds: string[] = [],
+  architectureDisclaimer = false,
 ): ReactNode {
   const assets = Array.isArray(message.payload?.resultAssets) && message.payload.resultAssets.length
     ? (message.payload.resultAssets as JobAsset[])
@@ -262,6 +269,11 @@ function restoredMessageContent(
         <ResultGrid assets={assets} onUnlock={onUnlock} sourceKind={sourceKind}
           onGeneratedPhotoSelectionChange={onGeneratedPhotoSelectionChange}
           selectedGeneratedPhotoIds={selectedGeneratedPhotoIds} />
+        {architectureDisclaimer && (
+          <p className="text-[9px] leading-4 text-text-dim">
+            AI visualization for concept purposes — not a surveyed or construction-accurate plan.
+          </p>
+        )}
       </div>
     );
   }
@@ -385,6 +397,7 @@ export function ChatWidget({
   const [manualRenderAfterPlan, setManualRenderAfterPlan] = useState(false);
   const [aspectRatio, setAspectRatio] = useState<"16:9" | "9:16" | "1:1">("16:9");
   const [outputQuality, setOutputQuality] = useState<"1080p" | "4k">("1080p");
+  const [modelTier, setModelTier] = useState<ModelTier>("cinema2");
   const [frameRate, setFrameRate] = useState<24 | 30 | 60>(24);
   const [activeCaptureMetadata, setActiveCaptureMetadata] = useState<CaptureMetadata | null>(null);
   const [selectedCaptureIds, setSelectedCaptureIds] = useState<string[]>([]);
@@ -415,6 +428,7 @@ export function ChatWidget({
     durationSeconds: number | "auto";
     aspectRatio: "16:9" | "9:16" | "1:1";
     outputQuality: "1080p" | "4k";
+    modelTier: ModelTier;
     audioMode: AudioMode;
     narrationLanguage: string;
   } | null>(null);
@@ -426,6 +440,7 @@ export function ChatWidget({
     skipVoiceover,
     job?.storyboard?.targetDurationSeconds || durationSeconds,
     job?.storyboard?.outputQuality ?? outputQuality,
+    modelTier,
   );
   const currentReservedCredits =
     stage === "ready_to_render" || stage === "rendering" ? Math.max(0, job?.creditsSpent ?? 0) : 0;
@@ -445,9 +460,11 @@ export function ChatWidget({
           ? "talking-scene"
           : isStudioProject && projectCaptureMetadata?.studioKind === "interior"
             ? "interior-design"
-            : isStudioProject
-              ? "ai-video"
-              : "website-video";
+            : isStudioProject && projectCaptureMetadata?.studioKind === "architecture"
+              ? "architecture-design"
+              : isStudioProject
+                ? "ai-video"
+                : "website-video";
   const liveReferenceItems = captureMediaItems(projectCaptureMetadata);
   const activeSceneCount = Math.max(1, Math.ceil((job?.storyboard?.targetDurationSeconds || durationSeconds) / 8));
   const sceneAssignments = useMemo(() => {
@@ -544,6 +561,7 @@ export function ChatWidget({
       setManualRenderAfterPlan(workflow.manualRenderAfterPlan === true);
       setAspectRatio(workflow.aspectRatio);
       setOutputQuality(workflow.outputQuality);
+      setModelTier(workflow.modelTier ?? (workflow.mode === "photos" || workflow.mode === "icon" ? "graphic1" : "cinema2"));
       setFrameRate(workflow.frameRate);
       setSelectedCaptureIds(workflow.selectedCaptureIds);
       setAudioMode(workflow.audioMode);
@@ -558,6 +576,7 @@ export function ChatWidget({
           durationSeconds: workflow.requestedDurationSeconds ?? "auto",
           aspectRatio: workflow.aspectRatio,
           outputQuality: workflow.outputQuality,
+          modelTier: workflow.modelTier ?? "cinema2",
           audioMode: workflow.audioMode,
           narrationLanguage: workflow.narrationLanguage,
         };
@@ -565,6 +584,7 @@ export function ChatWidget({
     } else {
       setManualRenderAfterPlan(false);
       setMode(saved.mode);
+      setModelTier(saved.mode === "photos" || saved.mode === "icon" ? "graphic1" : "cinema2");
       if (saved.storyboard?.targetDurationSeconds) setDurationSeconds(saved.storyboard.targetDurationSeconds);
       if (saved.storyboard?.aspectRatio) setAspectRatio(saved.storyboard.aspectRatio);
       if (saved.storyboard?.outputQuality) setOutputQuality(saved.storyboard.outputQuality);
@@ -595,6 +615,7 @@ export function ChatWidget({
       creativeBrief,
       aspectRatio,
       outputQuality,
+      modelTier,
       frameRate,
       selectedCaptureIds,
       audioMode,
@@ -616,6 +637,7 @@ export function ChatWidget({
     manualRenderAfterPlan,
     aspectRatio,
     outputQuality,
+    modelTier,
     frameRate,
     selectedCaptureIds,
     audioMode,
@@ -828,7 +850,15 @@ export function ChatWidget({
           .map((message) => ({
             id: message.id,
             role: message.role === "user" ? "user" : "bot",
-            content: restoredMessageContent(message, () => setShowAuthModal(true), resultSourceKind(saved)),
+            content: restoredMessageContent(
+              message,
+              () => setShowAuthModal(true),
+              resultSourceKind(saved),
+              [],
+              undefined,
+              [],
+              saved.captureMetadata?.studioKind === "architecture",
+            ),
           }));
         const reopenedMessages: Message[] = [
           ...transcript,
@@ -973,6 +1003,7 @@ export function ChatWidget({
                     saved.assets,
                     handleGeneratedPhotoSelectionChange,
                     selectedGeneratedPhotoIds,
+                    saved.captureMetadata?.studioKind === "architecture",
                   ),
                 }
               : {
@@ -1287,6 +1318,7 @@ export function ChatWidget({
       durationSeconds: settings.durationSeconds,
       aspectRatio: settings.aspectRatio,
       outputQuality: settings.outputQuality,
+      modelTier: settings.modelTier,
       audioMode: settings.audioMode,
       narrationLanguage: settings.narrationLanguage,
     };
@@ -1294,6 +1326,7 @@ export function ChatWidget({
     setCreativeBrief(brief);
     setAspectRatio(settings.aspectRatio);
     setOutputQuality(settings.outputQuality);
+    setModelTier(settings.modelTier);
     setAudioMode(settings.audioMode);
     setNarrationLanguage(settings.narrationLanguage);
     if (settings.durationSeconds !== "auto") setDurationSeconds(settings.durationSeconds);
@@ -1344,6 +1377,7 @@ export function ChatWidget({
         creativeBrief: request.brief,
         aspectRatio: request.aspectRatio,
         outputQuality: request.outputQuality,
+        modelTier: request.modelTier,
         frameRate: 24,
         selectedCaptureIds: ids,
         audioMode: request.audioMode,
@@ -1392,6 +1426,8 @@ export function ChatWidget({
         durationSeconds: request.durationSeconds,
         aspectRatio: request.aspectRatio,
         outputQuality: request.outputQuality,
+        modelTier: request.modelTier,
+        architectureLocation: request.architectureLocation,
         audioMode: request.audioMode,
       },
       attachmentDraftKey,
@@ -1403,7 +1439,9 @@ export function ChatWidget({
           ? "scenario"
           : request.studioKind === "interior"
             ? "interior"
-            : request.mode === "photos"
+            : request.studioKind === "architecture"
+              ? "architecture"
+              : request.mode === "photos"
               ? "photo"
               : "product-video";
     window.location.assign(`/dashboard?create=${encodeURIComponent(mappedCreate)}&handoff=1`);
@@ -1421,6 +1459,7 @@ export function ChatWidget({
       durationSeconds: settings.durationSeconds,
       aspectRatio: settings.aspectRatio,
       outputQuality: settings.outputQuality,
+      modelTier: settings.modelTier,
       audioMode: settings.audioMode,
       narrationLanguage: settings.narrationLanguage,
     };
@@ -1428,6 +1467,7 @@ export function ChatWidget({
     setCreativeBrief(brief || null);
     setAspectRatio(settings.aspectRatio);
     setOutputQuality(settings.outputQuality);
+    setModelTier(settings.modelTier);
     setFrameRate(24);
     setAudioMode(settings.audioMode);
     setNarrationLanguage(settings.narrationLanguage);
@@ -1507,6 +1547,7 @@ Promotion direction: ${brief}` : normalized);
           creativeBrief: pendingRequest.brief || null,
           aspectRatio: pendingRequest.aspectRatio,
           outputQuality: pendingRequest.outputQuality,
+          modelTier: pendingRequest.modelTier,
           frameRate: 24,
           selectedCaptureIds: [],
           audioMode: pendingRequest.audioMode,
@@ -1550,6 +1591,7 @@ Promotion direction: ${brief}` : normalized);
     plannedDuration: number,
     plannedQuality: "1080p" | "4k",
     plannedAudioMode: AudioMode,
+    plannedModelTier: ModelTier = modelTier,
   ) {
     try {
       const quote = await requestGenerationPreflight(
@@ -1558,6 +1600,7 @@ Promotion direction: ${brief}` : normalized);
         plannedDuration,
         plannedQuality,
         plannedAudioMode,
+        plannedModelTier,
       );
       setCreditBalance(quote.balance);
       if (!quote.affordable) {
@@ -1592,6 +1635,7 @@ Promotion direction: ${brief}` : normalized);
       durationSeconds,
       aspectRatio,
       outputQuality,
+      modelTier,
       audioMode,
       narrationLanguage,
     };
@@ -1608,6 +1652,7 @@ Promotion direction: ${brief}` : normalized);
       smartDuration,
       request.outputQuality,
       request.audioMode,
+      request.modelTier,
     );
     if (!canStartPaidPlanning) {
       setStage("preview_ready");
@@ -1618,6 +1663,7 @@ Promotion direction: ${brief}` : normalized);
     setCreativeBrief(request.brief || null);
     setAspectRatio(request.aspectRatio);
     setOutputQuality(request.outputQuality);
+    setModelTier(request.modelTier);
     setFrameRate(24);
     setSelectedCaptureIds(captureIds);
     setAudioMode(request.audioMode);
@@ -1635,6 +1681,7 @@ Promotion direction: ${brief}` : normalized);
           creativeBrief: request.brief || undefined,
           aspectRatio: request.aspectRatio,
           outputQuality: request.outputQuality,
+          modelTier: request.modelTier,
           audioMode: request.audioMode,
           frameRate: 24,
           selectedCaptureIds: captureIds,
@@ -1772,6 +1819,7 @@ ${request.prompt}`
     setDurationSeconds(request.durationSeconds);
     setAspectRatio(request.aspectRatio);
     setOutputQuality(request.outputQuality);
+    setModelTier(request.modelTier);
     setAudioMode(request.audioMode);
     setCreativeBrief(request.prompt || null);
     capturedRef.current = true;
@@ -1807,6 +1855,7 @@ ${request.prompt}`
         request.audioMode !== "voice_music",
         request.durationSeconds,
         request.outputQuality,
+        request.modelTier,
       );
       if (account.creditsBalance < required) {
         setPaywallContext(`Add ${required - account.creditsBalance} credits to start this AI production`);
@@ -1822,6 +1871,8 @@ ${request.prompt}`
         audioMode: request.audioMode,
         aspectRatio: request.aspectRatio,
         outputQuality: request.outputQuality,
+        modelTier: request.modelTier,
+        architectureLocation: request.architectureLocation,
         ideaPrompt: effectiveStudioPrompt || undefined,
       });
       selectJobId(upload.jobId);
@@ -1832,6 +1883,7 @@ ${request.prompt}`
         request.durationSeconds,
         request.outputQuality,
         request.audioMode,
+        request.modelTier,
       );
       if (!canStartPaidPlanning) {
         setStage("awaiting_url");
@@ -1848,6 +1900,7 @@ ${request.prompt}`
           creativeBrief: effectiveStudioPrompt || undefined,
           aspectRatio: request.aspectRatio,
           outputQuality: request.outputQuality,
+          modelTier: request.modelTier,
           audioMode: request.audioMode,
           frameRate: 24,
         },
@@ -2006,6 +2059,7 @@ ${request.prompt}`
       durationSeconds,
       outputQuality,
       audioMode,
+      modelTier,
     );
     if (!canStartPaidPlanning) return;
     setBusy(true);
@@ -2017,6 +2071,7 @@ ${request.prompt}`
         creativeBrief: (briefOverride === undefined ? creativeBrief : briefOverride) ?? undefined,
         aspectRatio,
         outputQuality,
+        modelTier,
         audioMode,
         frameRate,
         selectedCaptureIds,
@@ -2169,6 +2224,7 @@ ${request.prompt}`
     setPaywallContext(undefined);
     setAspectRatio("16:9");
     setOutputQuality("1080p");
+    setModelTier("cinema2");
     setFrameRate(24);
     setStage("awaiting_url");
     setMessages([
@@ -2190,6 +2246,7 @@ ${request.prompt}`
       durationSeconds,
       outputQuality,
       audioMode,
+      modelTier,
     );
     if (!canStartPaidPlanning) return;
     const label =
@@ -2215,6 +2272,7 @@ ${request.prompt}`
         creativeBrief: creativeBrief ?? undefined,
         aspectRatio,
         outputQuality,
+        modelTier,
         audioMode,
         frameRate,
         selectedCaptureIds,
@@ -2346,6 +2404,9 @@ ${request.prompt}`
     }
     const nextAspectRatio = nextMode === "photos" ? "1:1" as const : aspectRatio;
     const nextAudioMode = nextMode === "photos" ? "silent" as AudioMode : audioMode;
+    const nextModelTier: ModelTier = nextMode === "photos"
+      ? (modelTier === "graphic_pro" ? "graphic_pro" : "graphic1")
+      : (modelTier === "cinema1" || modelTier === "cinema_pro" ? modelTier : "cinema2");
     const vibe = MODE_DEFAULT_VIBES[nextMode];
 
     // The user's message is normal chat and costs nothing. Only after we
@@ -2359,12 +2420,14 @@ ${request.prompt}`
       durationSeconds,
       outputQuality,
       nextAudioMode,
+      nextModelTier,
     );
     if (!canStartPaidPlanning) return;
     if (nextMode !== mode) {
       setMode(nextMode);
       setAspectRatio(nextAspectRatio);
       setAudioMode(nextAudioMode);
+      setModelTier(nextModelTier);
       pushBot(understood.explanation);
     } else {
       pushBot(understood.explanation);
@@ -2379,6 +2442,7 @@ ${request.prompt}`
         creativeBrief: generationBrief,
         aspectRatio: nextAspectRatio,
         outputQuality,
+        modelTier: nextModelTier,
         audioMode: nextAudioMode,
         frameRate,
         selectedCaptureIds,
@@ -2417,6 +2481,7 @@ ${request.prompt}`
       if (nextMode === "photos") {
         setAspectRatio("1:1");
         setOutputQuality("1080p");
+        setModelTier("graphic1");
         setFrameRate(24);
         setAudioMode("silent");
         pushUser("Create product photos");
@@ -2425,6 +2490,7 @@ ${request.prompt}`
         );
         setStage("awaiting_brief");
       } else {
+        setModelTier("cinema2");
         if (audioMode === "silent") setAudioMode("native_audio");
         pushUser("Create a product video");
         pushBot("Product references are ready. Choose the video length, then the delivery format.");
@@ -2565,9 +2631,11 @@ ${request.prompt}`
                   ? "Talking scene · one conversation"
                   : productionKind === "interior-design"
                     ? "Interior design · one conversation"
-                    : productionKind === "ai-video"
-                      ? "AI video · one conversation"
-                      : "Website campaign · one conversation"}
+                    : productionKind === "architecture-design"
+                      ? "Architecture design · one conversation"
+                      : productionKind === "ai-video"
+                        ? "AI video · one conversation"
+                        : "Website campaign · one conversation"}
           </p>
         </div>
         {jobId && (
@@ -2582,7 +2650,9 @@ ${request.prompt}`
                     ? "Talking scene"
                     : projectCaptureMetadata?.studioKind === "interior"
                       ? "Interior design"
-                      : "Original AI video"
+                      : projectCaptureMetadata?.studioKind === "architecture"
+                        ? "Architecture design"
+                        : "Original AI video"
               : mode === "photos"
                 ? "Creative photo edits"
                 : mode === "icon"
