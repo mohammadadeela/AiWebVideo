@@ -5,7 +5,7 @@ export interface WebsiteHandoffSettings {
   durationSeconds: number | "auto";
   aspectRatio: "16:9" | "9:16" | "1:1";
   outputQuality: "1080p" | "4k";
-  modelTier?: ModelTier;
+  modelTier: ModelTier;
   audioMode: AudioMode;
   narrationLanguage: string;
 }
@@ -27,7 +27,7 @@ export interface StudioCreatorHandoff {
     durationSeconds: number;
     aspectRatio: "16:9" | "9:16" | "1:1";
     outputQuality: "1080p" | "4k";
-    modelTier?: ModelTier;
+    modelTier: ModelTier;
     architectureLocation?: string;
     audioMode: AudioMode;
   };
@@ -50,6 +50,12 @@ export function loadPublicCreatorHandoff(): PublicCreatorHandoff | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as (PublicCreatorHandoff & { savedAt?: number }) | null;
     if (!parsed || (parsed.kind !== "website" && parsed.kind !== "studio")) return null;
+    if (parsed.kind === "website" && !parsed.settings.modelTier) {
+      parsed.settings.modelTier = "cinema2";
+    }
+    if (parsed.kind === "studio" && !parsed.request.modelTier) {
+      parsed.request.modelTier = parsed.request.mode === "photos" ? "graphic1" : "cinema2";
+    }
     return parsed;
   } catch {
     return null;
