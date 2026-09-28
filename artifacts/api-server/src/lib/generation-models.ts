@@ -25,6 +25,8 @@ export interface GenerationModelDefinition {
   providerCostUsd: number;
   creditUnit: 'second' | 'image';
   internalCredits: number;
+  internalCredits4k?: number;
+  providerCost4kUsd?: number;
 }
 
 /**
@@ -105,8 +107,10 @@ export const GENERATION_MODELS: Record<PublicGenerationModelId, GenerationModelD
     outputQuality: '1080p',
     providerImageSize: '2K',
     providerCostUsd: 0.101,
+    providerCost4kUsd: 0.151,
     creditUnit: 'image',
     internalCredits: 1,
+    internalCredits4k: 2,
   },
   'graphic-pro': {
     id: 'graphic-pro',
@@ -150,8 +154,10 @@ export const GENERATION_MODELS: Record<PublicGenerationModelId, GenerationModelD
     outputQuality: '1080p',
     providerImageSize: '2K',
     providerCostUsd: 0.101,
+    providerCost4kUsd: 0.151,
     creditUnit: 'image',
     internalCredits: 1,
+    internalCredits4k: 2,
   },
   'space-pro': {
     id: 'space-pro',
@@ -207,6 +213,11 @@ export function videoModelProviderCostPerSecond(model: GenerationModelDefinition
   return model.providerCostUsd;
 }
 
-export function imageModelCreditsPerImage(model: GenerationModelDefinition): number {
-  return model.creditUnit === 'image' ? model.internalCredits : 1;
+export function imageModelCreditsPerImage(model: GenerationModelDefinition, quality: '1080p' | '4k' = '1080p'): number {
+  if (model.creditUnit !== 'image') return 1;
+  return quality === '4k' ? (model.internalCredits4k ?? model.internalCredits) : model.internalCredits;
+}
+
+export function imageModelProviderCostPerImage(model: GenerationModelDefinition, quality: '1080p' | '4k' = '1080p'): number {
+  return quality === '4k' ? (model.providerCost4kUsd ?? model.providerCostUsd) : model.providerCostUsd;
 }
