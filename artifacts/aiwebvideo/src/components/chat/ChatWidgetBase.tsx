@@ -38,6 +38,7 @@ import {
   type CaptureMetadata,
   type JobAsset,
   type JobMode,
+  type ModelTier,
   type JobStatusResponse,
   type JobWorkflowState,
   type WorkflowStage,
@@ -375,6 +376,7 @@ export function ChatWidget({
   const [manualRenderAfterPlan, setManualRenderAfterPlan] = useState(false);
   const [aspectRatio, setAspectRatio] = useState<"16:9" | "9:16" | "1:1">("16:9");
   const [outputQuality, setOutputQuality] = useState<"1080p" | "4k">("1080p");
+  const [modelTier, setModelTier] = useState<ModelTier>("cinema2");
   const [frameRate, setFrameRate] = useState<24 | 30 | 60>(24);
   const [activeCaptureMetadata, setActiveCaptureMetadata] = useState<CaptureMetadata | null>(null);
   const [selectedCaptureIds, setSelectedCaptureIds] = useState<string[]>([]);
@@ -399,6 +401,7 @@ export function ChatWidget({
     durationSeconds: number | "auto";
     aspectRatio: "16:9" | "9:16" | "1:1";
     outputQuality: "1080p" | "4k";
+    modelTier: ModelTier;
     audioMode: AudioMode;
     narrationLanguage: string;
   } | null>(null);
@@ -410,6 +413,7 @@ export function ChatWidget({
     skipVoiceover,
     job?.storyboard?.targetDurationSeconds || durationSeconds,
     job?.storyboard?.outputQuality ?? outputQuality,
+    modelTier,
   );
   const currentReservedCredits =
     stage === "ready_to_render" || stage === "rendering" ? Math.max(0, job?.creditsSpent ?? 0) : 0;
@@ -526,6 +530,7 @@ export function ChatWidget({
       setManualRenderAfterPlan(workflow.manualRenderAfterPlan === true);
       setAspectRatio(workflow.aspectRatio);
       setOutputQuality(workflow.outputQuality);
+      setModelTier(workflow.modelTier ?? (workflow.mode === "photos" || workflow.mode === "icon" ? "graphic2" : "cinema2"));
       setFrameRate(workflow.frameRate);
       setSelectedCaptureIds(workflow.selectedCaptureIds);
       setAudioMode(workflow.audioMode);
@@ -540,6 +545,7 @@ export function ChatWidget({
           durationSeconds: workflow.requestedDurationSeconds ?? "auto",
           aspectRatio: workflow.aspectRatio,
           outputQuality: workflow.outputQuality,
+          modelTier: workflow.modelTier ?? "cinema2",
           audioMode: workflow.audioMode,
           narrationLanguage: workflow.narrationLanguage,
         };
@@ -547,6 +553,7 @@ export function ChatWidget({
     } else {
       setManualRenderAfterPlan(false);
       setMode(saved.mode);
+      setModelTier(saved.mode === "photos" || saved.mode === "icon" ? "graphic2" : "cinema2");
       if (saved.storyboard?.targetDurationSeconds) setDurationSeconds(saved.storyboard.targetDurationSeconds);
       if (saved.storyboard?.aspectRatio) setAspectRatio(saved.storyboard.aspectRatio);
       if (saved.storyboard?.outputQuality) setOutputQuality(saved.storyboard.outputQuality);
@@ -577,6 +584,7 @@ export function ChatWidget({
       creativeBrief,
       aspectRatio,
       outputQuality,
+      modelTier,
       frameRate,
       selectedCaptureIds,
       audioMode,
@@ -598,6 +606,7 @@ export function ChatWidget({
     manualRenderAfterPlan,
     aspectRatio,
     outputQuality,
+    modelTier,
     frameRate,
     selectedCaptureIds,
     audioMode,
@@ -1023,6 +1032,7 @@ export function ChatWidget({
         creativeBrief: request?.brief ?? creativeBrief ?? "",
         aspectRatio: request?.aspectRatio ?? aspectRatio,
         outputQuality: request?.outputQuality ?? outputQuality,
+        modelTier: request?.modelTier ?? modelTier,
         frameRate: 24,
         selectedCaptureIds: ids,
         audioMode: request?.audioMode ?? audioMode,
