@@ -1219,6 +1219,7 @@ export function ChatWidget({
       durationSeconds: settings.durationSeconds,
       aspectRatio: settings.aspectRatio,
       outputQuality: settings.outputQuality,
+      modelTier: settings.modelTier,
       audioMode: settings.audioMode,
       narrationLanguage: settings.narrationLanguage,
     };
@@ -1226,6 +1227,7 @@ export function ChatWidget({
     setCreativeBrief(brief);
     setAspectRatio(settings.aspectRatio);
     setOutputQuality(settings.outputQuality);
+    setModelTier(settings.modelTier);
     setAudioMode(settings.audioMode);
     setNarrationLanguage(settings.narrationLanguage);
     if (settings.durationSeconds !== "auto") setDurationSeconds(settings.durationSeconds);
@@ -1276,6 +1278,7 @@ export function ChatWidget({
         creativeBrief: request.brief,
         aspectRatio: request.aspectRatio,
         outputQuality: request.outputQuality,
+        modelTier: request.modelTier,
         frameRate: 24,
         selectedCaptureIds: ids,
         audioMode: request.audioMode,
@@ -1332,6 +1335,7 @@ export function ChatWidget({
         durationSeconds: request.durationSeconds,
         aspectRatio: request.aspectRatio,
         outputQuality: request.outputQuality,
+        modelTier: request.modelTier,
         audioMode: request.audioMode,
       },
       attachmentDraftKey,
@@ -1361,6 +1365,7 @@ export function ChatWidget({
       durationSeconds: settings.durationSeconds,
       aspectRatio: settings.aspectRatio,
       outputQuality: settings.outputQuality,
+      modelTier: settings.modelTier,
       audioMode: settings.audioMode,
       narrationLanguage: settings.narrationLanguage,
     };
@@ -1368,6 +1373,7 @@ export function ChatWidget({
     setCreativeBrief(brief || null);
     setAspectRatio(settings.aspectRatio);
     setOutputQuality(settings.outputQuality);
+    setModelTier(settings.modelTier);
     setFrameRate(24);
     setAudioMode(settings.audioMode);
     setNarrationLanguage(settings.narrationLanguage);
@@ -1443,6 +1449,7 @@ Promotion direction: ${brief}` : normalized);
           creativeBrief: pendingRequest.brief || null,
           aspectRatio: pendingRequest.aspectRatio,
           outputQuality: pendingRequest.outputQuality,
+          modelTier: pendingRequest.modelTier,
           frameRate: 24,
           selectedCaptureIds: [],
           audioMode: pendingRequest.audioMode,
@@ -1486,6 +1493,7 @@ Promotion direction: ${brief}` : normalized);
     plannedDuration: number,
     plannedQuality: "1080p" | "4k",
     plannedAudioMode: AudioMode,
+    plannedModelTier: ModelTier = modelTier,
   ) {
     try {
       const quote = await requestGenerationPreflight(
@@ -1494,6 +1502,7 @@ Promotion direction: ${brief}` : normalized);
         plannedDuration,
         plannedQuality,
         plannedAudioMode,
+        plannedModelTier,
       );
       setCreditBalance(quote.balance);
       if (!quote.affordable) {
@@ -1528,6 +1537,7 @@ Promotion direction: ${brief}` : normalized);
       durationSeconds,
       aspectRatio,
       outputQuality,
+      modelTier,
       audioMode,
       narrationLanguage,
     };
@@ -1544,6 +1554,7 @@ Promotion direction: ${brief}` : normalized);
       smartDuration,
       request.outputQuality,
       request.audioMode,
+      request.modelTier,
     );
     if (!canStartPaidPlanning) {
       setStage("preview_ready");
@@ -1554,6 +1565,7 @@ Promotion direction: ${brief}` : normalized);
     setCreativeBrief(request.brief || null);
     setAspectRatio(request.aspectRatio);
     setOutputQuality(request.outputQuality);
+    setModelTier(request.modelTier);
     setFrameRate(24);
     setSelectedCaptureIds(captureIds);
     setAudioMode(request.audioMode);
@@ -1574,6 +1586,7 @@ Promotion direction: ${brief}` : normalized);
           creativeBrief: request.brief || undefined,
           aspectRatio: request.aspectRatio,
           outputQuality: request.outputQuality,
+          modelTier: request.modelTier,
           audioMode: request.audioMode,
           frameRate: 24,
           selectedCaptureIds: captureIds,
@@ -1711,6 +1724,7 @@ ${request.prompt}`
     setDurationSeconds(request.durationSeconds);
     setAspectRatio(request.aspectRatio);
     setOutputQuality(request.outputQuality);
+    setModelTier(request.modelTier);
     setAudioMode(request.audioMode);
     setCreativeBrief(request.prompt || null);
     capturedRef.current = true;
@@ -1746,6 +1760,7 @@ ${request.prompt}`
         request.audioMode !== "voice_music",
         request.durationSeconds,
         request.outputQuality,
+        request.modelTier,
       );
       if (account.creditsBalance < required) {
         setPaywallContext(`Add ${required - account.creditsBalance} credits to start this AI production`);
@@ -1761,6 +1776,7 @@ ${request.prompt}`
         audioMode: request.audioMode,
         aspectRatio: request.aspectRatio,
         outputQuality: request.outputQuality,
+        modelTier: request.modelTier,
         ideaPrompt: effectiveStudioPrompt || undefined,
       });
       selectJobId(upload.jobId);
@@ -1771,6 +1787,7 @@ ${request.prompt}`
         request.durationSeconds,
         request.outputQuality,
         request.audioMode,
+        request.modelTier,
       );
       if (!canStartPaidPlanning) {
         setStage("awaiting_url");
@@ -1787,6 +1804,7 @@ ${request.prompt}`
           creativeBrief: effectiveStudioPrompt || undefined,
           aspectRatio: request.aspectRatio,
           outputQuality: request.outputQuality,
+          modelTier: request.modelTier,
           audioMode: request.audioMode,
           frameRate: 24,
         },
