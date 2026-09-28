@@ -306,7 +306,7 @@ export function ProfilePage() {
 
                 <div className="mt-6 grid gap-3 sm:grid-cols-2">
                   <Link
-                    href="/dashboard"
+                    href="/#generate"
                     className="group flex items-center gap-3 rounded-2xl border border-border bg-bg/25 p-4 transition hover:border-violet/30 hover:bg-white/[.035]"
                   >
                     <FolderClock size={18} className="text-violet" aria-hidden="true" />
@@ -543,7 +543,7 @@ export function ProfilePage() {
                   <h2 className="font-display text-lg font-semibold text-text-primary">Recent projects</h2>
                   <p className="mt-1 text-xs text-text-muted">Your latest saved production history.</p>
                 </div>
-                <Link href="/dashboard" className="text-xs font-semibold text-violet transition hover:text-mint">
+                <Link href="/#generate" className="text-xs font-semibold text-violet transition hover:text-mint">
                   View all
                 </Link>
               </div>
@@ -551,7 +551,7 @@ export function ProfilePage() {
                 {jobs.slice(0, 6).map((job) => (
                   <Link
                     key={job.id}
-                    href={`/dashboard?job=${encodeURIComponent(job.id)}`}
+                    href={`/?job=${encodeURIComponent(job.id)}#generate`}
                     className="flex min-h-16 items-center gap-4 py-3"
                   >
                     <div className="h-11 w-16 shrink-0 overflow-hidden rounded-xl border border-border bg-panel-alt">
@@ -575,7 +575,7 @@ export function ProfilePage() {
                   <div className="py-10 text-center">
                     <p className="text-sm font-semibold text-text-primary">No projects yet</p>
                     <p className="mt-1 text-xs text-text-dim">Your first production will appear here.</p>
-                    <Button variant="ghost" className="mt-3" asChild><Link href="/dashboard">Create your first project</Link></Button>
+                    <Button variant="ghost" className="mt-3" asChild><Link href="/#generate">Create your first project</Link></Button>
                   </div>
                 )}
               </div>
@@ -660,7 +660,7 @@ export function ProfilePage() {
           onClose={() => setShowAuthModal(false)}
           onSignedIn={() => {
             setShowAuthModal(false);
-            window.location.assign("/dashboard");
+            window.location.assign("/#generate");
           }}
         />
       )}

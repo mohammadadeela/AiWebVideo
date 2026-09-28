@@ -411,6 +411,9 @@ export function ChatWidget({
   const previousPollingActiveRef = useRef(false);
   const lastAlignedGenerationJobRef = useRef<string | null>(null);
   const followLatestRef = useRef(true);
+  const userPausedFollowRef = useRef(false);
+  const lastScrollTopRef = useRef(0);
+  const touchYRef = useRef<number | null>(null);
   const programmaticScrollRef = useRef(false);
   const programmaticScrollTimerRef = useRef<number | null>(null);
   const generationClockRef = useRef<{ jobId: string; startedAt: number } | null>(null);
@@ -514,7 +517,7 @@ export function ChatWidget({
   useEffect(() => {
     if (publicHandoffStartedRef.current) return;
     if (!isSignedIn || restoring || busy || jobId) return;
-    if (window.location.pathname !== "/dashboard") return;
+    if (window.location.pathname !== "/dashboard" && window.location.pathname !== "/") return;
     const handoff = loadPublicCreatorHandoff();
     if (!handoff) return;
     publicHandoffStartedRef.current = true;
@@ -530,7 +533,7 @@ export function ChatWidget({
 
         clearPublicCreatorHandoff();
         if (window.location.search.includes("handoff=1") || window.location.search.includes("create=")) {
-          window.history.replaceState({}, "", "/dashboard");
+          window.history.replaceState({}, "", window.location.pathname === "/" ? "/#generate" : "/dashboard");
         }
 
         if (handoff.kind === "website") {
@@ -669,14 +672,16 @@ export function ChatWidget({
       if (programmaticScrollTimerRef.current) window.clearTimeout(programmaticScrollTimerRef.current);
       programmaticScrollTimerRef.current = window.setTimeout(() => {
         programmaticScrollRef.current = false;
-      }, reducedMotion ? 60 : 420);
+      }, 50);
     };
 
     const scrollToLatest = () => {
       markProgrammatic();
       scroller.scrollTo({
         top: scroller.scrollHeight,
-        behavior: reducedMotion ? "auto" : "smooth",
+        // Streaming updates must not queue smooth animations that continue
+        // after a person starts scrolling in the opposite direction.
+        behavior: "instant",
       });
       setShowJumpToLatest(false);
     };
@@ -684,11 +689,9 @@ export function ChatWidget({
     const syncForNewContent = () => {
       window.cancelAnimationFrame(frame);
       frame = window.requestAnimationFrame(() => {
-        const distance = distanceFromBottom();
-        if (followLatestRef.current || distance <= 100) {
-          followLatestRef.current = true;
+        if (followLatestRef.current && !userPausedFollowRef.current) {
           scrollToLatest();
-        } else {
+        } else if (distanceFromBottom() > 8) {
           setShowJumpToLatest(true);
         }
       });
@@ -776,6 +779,7 @@ export function ChatWidget({
     if (lastAlignedGenerationJobRef.current === jobId) return;
     lastAlignedGenerationJobRef.current = jobId;
     followLatestRef.current = true;
+    userPausedFollowRef.current = false;
     setShowJumpToLatest(false);
 
     const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -971,7 +975,7 @@ export function ChatWidget({
             content: <SiteCard sourceUrl={saved.sourceUrl} metadata={saved.captureMetadata} />,
           });
         }
-        if (saved.storyboard) {
+        if (saved.storyboard && resumedStage === "ready_to_render") {
           rebuilt.push({
             id: nextId(),
             role: "bot",
@@ -1414,6 +1418,7 @@ export function ChatWidget({
   }
 
   function handlePublicIntentRequest(intent: CreationIntent) {
+    if (isSignedIn) return true;
     if (!isPublicCreatorPath() || intent === "website") return true;
     window.location.assign(`/dashboard?create=${encodeURIComponent(intent)}`);
     return false;
@@ -1494,11 +1499,7 @@ export function ChatWidget({
       void performLandingWebsitePreview(url, brief, settings, referenceFiles);
       return;
     }
-    if (isPublicCreatorPath()) {
-      if (isSignedIn) {
-        void redirectSignedInWebsiteSetupToWorkspace(url, brief, settings, referenceFiles);
-        return;
-      }
+    if (isPublicCreatorPath() && !isSignedIn) {
       // The landing page deliberately proves the product before asking for an
       // account: capture the website now, then stop at preview_ready.
       void performLandingWebsitePreview(url, brief, settings, referenceFiles);
@@ -1581,10 +1582,7 @@ Promotion direction: ${brief}` : normalized);
           ? `I’m opening ${hostname} now. You’ll see the real favicon and the strongest distinct pages before I ask you to create an account.`
           : `I’m opening ${hostname} now. I’ll keep only the strongest distinct pages, learn the visual identity and prepare the promotion automatically.`,
       );
-      if (isSignedIn && (window.location.pathname === "/" || window.location.pathname.startsWith("/studio"))) {
-        window.location.assign(`/dashboard?job=${encodeURIComponent(res.jobId)}`);
-        return;
-      }
+      if (isSignedIn && window.location.pathname.startsWith("/studio")) window.location.assign(`/?job=${encodeURIComponent(res.jobId)}#generate`);
     } catch (err) {
       pushBot(errorMessage(err));
       setStage("awaiting_url");
@@ -1920,8 +1918,8 @@ ${request.prompt}`
         },
       );
       if (storyboardResponse.creditsRemaining !== undefined) setCreditBalance(storyboardResponse.creditsRemaining);
-      if (window.location.pathname === "/" || window.location.pathname.startsWith("/studio")) {
-        window.location.assign(`/dashboard?job=${encodeURIComponent(upload.jobId)}`);
+      if (window.location.pathname.startsWith("/studio")) {
+        window.location.assign(`/?job=${encodeURIComponent(upload.jobId)}#generate`);
         return;
       }
       if (redirectAfterAuthRef.current) {
@@ -1937,13 +1935,9 @@ ${request.prompt}`
   }
 
   function handleStudioSubmit(request: StudioGenerationRequest) {
-    if (isPublicCreatorPath()) {
-      if (!isSignedIn) {
-        pendingActionRef.current = () => redirectStudioSubmitToWorkspace(request);
-        setShowAuthModal(true);
-        return;
-      }
-      void redirectStudioSubmitToWorkspace(request);
+    if (isPublicCreatorPath() && !isSignedIn) {
+      pendingActionRef.current = () => redirectStudioSubmitToWorkspace(request);
+      setShowAuthModal(true);
       return;
     }
     if (!isSignedIn) {
@@ -2688,29 +2682,43 @@ ${request.prompt}`
           onWheel={(event) => {
             if (event.deltaY >= 0) return;
             followLatestRef.current = false;
+            userPausedFollowRef.current = true;
             programmaticScrollRef.current = false;
             setShowJumpToLatest(true);
           }}
-          onTouchMove={() => {
-            const scroller = scrollRef.current;
-            if (!scroller) return;
-            const distance = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
-            if (distance > 40) {
+          onTouchStart={(event) => { touchYRef.current = event.touches[0]?.clientY ?? null; }}
+          onTouchMove={(event) => {
+            const nextY = event.touches[0]?.clientY;
+            if (nextY !== undefined && touchYRef.current !== null && nextY > touchYRef.current + 2) {
               followLatestRef.current = false;
+              userPausedFollowRef.current = true;
               programmaticScrollRef.current = false;
               setShowJumpToLatest(true);
             }
+            touchYRef.current = nextY ?? null;
           }}
+          onTouchEnd={() => { touchYRef.current = null; }}
           onScroll={(event) => {
             const scroller = event.currentTarget;
             const distance = Math.max(0, scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight);
-            if (distance <= 100) {
+            const movingDown = scroller.scrollTop > lastScrollTopRef.current;
+            const movingUp = scroller.scrollTop < lastScrollTopRef.current;
+            lastScrollTopRef.current = scroller.scrollTop;
+            if (movingUp && !programmaticScrollRef.current) {
+              followLatestRef.current = false;
+              userPausedFollowRef.current = true;
+              setShowJumpToLatest(true);
+              return;
+            }
+            if (distance <= 8 && (!userPausedFollowRef.current || (movingDown && !programmaticScrollRef.current))) {
               followLatestRef.current = true;
+              userPausedFollowRef.current = false;
               setShowJumpToLatest(false);
               return;
             }
-            if (!programmaticScrollRef.current) {
+            if (!programmaticScrollRef.current && distance > 100) {
               followLatestRef.current = false;
+              userPausedFollowRef.current = true;
               setShowJumpToLatest(true);
             }
           }}
@@ -2773,6 +2781,7 @@ ${request.prompt}`
                   if (!scroller) return;
                   const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
                   followLatestRef.current = true;
+                  userPausedFollowRef.current = false;
                   programmaticScrollRef.current = true;
                   setShowJumpToLatest(false);
                   scroller.scrollTo({
@@ -2809,9 +2818,14 @@ ${request.prompt}`
                 onStudioSubmit={handleStudioSubmit}
                 initialCreationIntent={initialCreationIntent}
                 disabled={busy}
-                showCreditPricing={!isPublicCreatorPath() && isSignedIn}
-                landingWebsitePreview={isPublicCreatorPath() || !isSignedIn}
+                showCreditPricing={isSignedIn}
+                landingWebsitePreview={!isSignedIn}
                 onIntentRequest={handlePublicIntentRequest}
+                onPricingRequest={() => {
+                  if (!isSignedIn) { setShowAuthModal(true); return; }
+                  setPaywallContext("Choose a video pack, credits, or a plan for your next production.");
+                  setShowPaywall(true);
+                }}
                 compactLayout={streamlinedInitialComposer}
               />
             )}

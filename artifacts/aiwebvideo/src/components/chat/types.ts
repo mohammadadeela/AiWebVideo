@@ -78,6 +78,7 @@ export interface CaptureMetadata {
   logoUrl: string | null;
   brandColors: string[];
   pageCount: number;
+  description?: string | null;
   /** Mirrors the API capture metadata so shared workspace UI can stay source-aware. */
   sourceType?: "website" | "upload" | "studio";
   studioKind?: "product" | "idea" | "scenario" | "interior" | "architecture" | null;

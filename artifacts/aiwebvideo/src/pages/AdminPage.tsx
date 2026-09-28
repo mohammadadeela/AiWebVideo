@@ -8,7 +8,7 @@ import { AdminReports } from '@/components/admin/AdminReports';
 import {
   fetchAdminAudit, fetchAdminJobs, fetchAdminOverview, fetchAdminReports, fetchAdminUsers, fetchAdminUserDetails, fetchMe,
   saveAdminSettings, updateAdminJob, updateAdminUser, saveMarketingSettings, uploadMarketingAsset,
-  type AdminReportRange, type AdminSettings, type MarketingSettings,
+  type AdminReportRange, type AdminSettings, type MarketingFeature, type MarketingSettings,
 } from '@/lib/api-client';
 import { watchAuthState } from '@/lib/firebase/client';
 import { useSeo } from '@/lib/useSeo';
@@ -20,7 +20,7 @@ const LANDING_VIDEO_LIMIT = 30;
 const tabs: Array<{ id: Tab; label: string; icon: typeof LayoutDashboard }> = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'reports', label: 'Money reports', icon: BarChart3 },
-  { id: 'landing', label: 'Homepage videos', icon: GalleryVerticalEnd },
+  { id: 'landing', label: 'Homepage media', icon: GalleryVerticalEnd },
   { id: 'users', label: 'Users', icon: Users },
   { id: 'jobs', label: 'Productions', icon: FileVideo },
   { id: 'providers', label: 'AI & controls', icon: SlidersHorizontal },
@@ -35,6 +35,11 @@ const adminPathByTab: Record<Tab, string> = {
   providers: '/admin/controls',
   audit: '/admin/audit',
 };
+const FEATURE_BACKGROUNDS: Array<[MarketingFeature, string]> = [
+  ['website', 'Website Video'], ['video', 'AI Video'], ['photo', 'Product Photos'],
+  ['product-video', 'Product Video'], ['scenario', 'Talking Person'],
+  ['interior', 'Interior Design'], ['architecture', 'Architecture Design'],
+];
 function adminTabFromPath(pathname: string): Tab {
   return (Object.entries(adminPathByTab).find(([, path]) => path === pathname)?.[0] as Tab | undefined) ?? 'overview';
 }
@@ -423,8 +428,8 @@ export function AdminPage() {
   async function saveLanding() {
     if (!marketing) return;
     setBusy(true); setMessage(null);
-    try { const saved = await saveMarketingSettings(marketing); setMarketing(saved); setDirty(false); setMessage('Homepage videos are live.'); }
-    catch (error) { setMessage(error instanceof Error ? error.message : 'Homepage video settings could not be saved.'); }
+    try { const saved = await saveMarketingSettings(marketing); setMarketing(saved); setDirty(false); setMessage('Homepage media is live.'); }
+    catch (error) { setMessage(error instanceof Error ? error.message : 'Homepage media settings could not be saved.'); }
     finally { setBusy(false); }
   }
 
@@ -436,7 +441,14 @@ export function AdminPage() {
       const next: MarketingSettings = {
         ...marketing,
         videos: {
-          showcase: marketing.videos.showcase.map((video, i) => i === index ? { ...video, [target]: uploaded.url } : video),
+          showcase: marketing.videos.showcase.map((video, i) => i === index ? {
+            ...video, [target]: uploaded.url,
+            ...(target === 'url' ? {
+              kind: uploaded.kind,
+              templateMode: video.templateMode ?? (uploaded.kind === 'image' ? 'photo' : 'product-video'),
+              templatePrompt: video.templatePrompt ?? 'Use this example as visual direction. Adapt the subject using my own references and written instructions.',
+            } : {}),
+          } : video),
         },
       };
       // Publish the upload immediately. This avoids the confusing state where
@@ -445,7 +457,7 @@ export function AdminPage() {
       const saved = await saveMarketingSettings(next);
       setMarketing(saved);
       setDirty(false);
-      setMessage('Landing video uploaded and published.');
+      setMessage('Landing media uploaded and published.');
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Upload failed.'); }
     finally { setBusy(false); }
   }
@@ -455,31 +467,40 @@ export function AdminPage() {
     const room = Math.max(0, LANDING_VIDEO_LIMIT - marketing.videos.showcase.filter((video) => video.url).length);
     const accepted = files.slice(0, room);
     if (!accepted.length) {
-      setMessage(`The landing gallery already contains the maximum of ${LANDING_VIDEO_LIMIT} videos.`);
+      setMessage(`The landing gallery already contains the maximum of ${LANDING_VIDEO_LIMIT} items.`);
       return;
     }
     setBusy(true);
-    setMessage(`Uploading 1 of ${accepted.length} videos…`);
+    setMessage(`Uploading 1 of ${accepted.length} items…`);
     try {
-      const urls: string[] = [];
+      const uploads: Array<{ url: string; kind: 'image' | 'video'; name: string }> = [];
+      const failures: string[] = [];
       for (let index = 0; index < accepted.length; index += 1) {
-        setMessage(`Uploading ${index + 1} of ${accepted.length} videos…`);
-        const uploaded = await uploadMarketingAsset(accepted[index]);
-        if (uploaded.kind !== 'video') throw new Error(`${accepted[index].name} is not a supported video.`);
-        urls.push(uploaded.url);
+        setMessage(`Uploading ${index + 1} of ${accepted.length} items…`);
+        try {
+          const uploaded = await uploadMarketingAsset(accepted[index]);
+          uploads.push({ ...uploaded, name: accepted[index].name });
+        } catch { failures.push(accepted[index].name); }
       }
+      if (!uploads.length) throw new Error(`No media was uploaded. Check the file format and size: ${failures.slice(0, 2).join(', ')}`);
 
       const showcase = marketing.videos.showcase.map((video) => ({ ...video }));
-      for (const url of urls) {
+      for (const uploaded of uploads) {
         const emptyIndex = showcase.findIndex((video) => !video.url);
+        const defaults = {
+          url: uploaded.url,
+          kind: uploaded.kind,
+          caption: uploaded.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').slice(0, 100),
+          templateMode: uploaded.kind === 'image' ? 'photo' as const : 'product-video' as const,
+          templatePrompt: 'Use this example as visual direction. Adapt the subject using my own references and written instructions.',
+        };
         if (emptyIndex >= 0) {
-          showcase[emptyIndex] = { ...showcase[emptyIndex], url };
+          showcase[emptyIndex] = { ...showcase[emptyIndex], ...defaults };
         } else {
           showcase.push({
             id: `upload-${Date.now()}-${showcase.length + 1}`,
-            url,
+            ...defaults,
             posterUrl: null,
-            caption: null,
             overlayText: null,
             eyebrow: null,
           });
@@ -491,12 +512,24 @@ export function AdminPage() {
       setMarketing(saved);
       setDirty(false);
       const skipped = files.length - accepted.length;
-      setMessage(`${accepted.length} landing video${accepted.length === 1 ? '' : 's'} uploaded and published${skipped ? ` · ${skipped} skipped because the gallery reached ${LANDING_VIDEO_LIMIT}` : ''}.`);
+      setMessage(`${uploads.length} item${uploads.length === 1 ? '' : 's'} uploaded and published${failures.length ? ` · ${failures.length} failed: ${failures.slice(0, 2).join(', ')}` : ''}${skipped ? ` · ${skipped} skipped because the gallery reached ${LANDING_VIDEO_LIMIT}` : ''}.`);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'The videos could not be uploaded.');
+      setMessage(error instanceof Error ? error.message : 'The media could not be uploaded.');
     } finally {
       setBusy(false);
     }
+  }
+
+  async function uploadFeatureBackground(feature: MarketingFeature, file: File) {
+    if (!marketing) return;
+    setBusy(true); setMessage(`Uploading ${feature} background…`);
+    try {
+      const uploaded = await uploadMarketingAsset(file);
+      const next: MarketingSettings = { ...marketing, backgrounds: { ...marketing.backgrounds, [feature]: uploaded.url } };
+      const saved = await saveMarketingSettings(next);
+      setMarketing(saved); setDirty(false); setMessage('Feature background published.');
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Background upload failed.'); }
+    finally { setBusy(false); }
   }
 
   async function editUser(user: Row, patch: { plan?: string; creditsBalance?: number; accountStatus?: string; isAdmin?: boolean }) {
@@ -600,17 +633,17 @@ export function AdminPage() {
         <div className="rounded-3xl border border-violet/25 bg-gradient-to-br from-violet/10 to-gold/5 p-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[.16em] text-violet">Homepage video library</p>
-              <h2 className="mt-2 font-display text-2xl font-bold text-text-primary">Publish videos and creative presets</h2>
-              <p className="mt-2 max-w-2xl text-sm text-text-muted">Upload videos directly from your computer or paste YouTube, Vimeo, or direct video URLs. The first saved video is the large featured video; the rest appear in the homepage gallery.</p>
+              <p className="text-xs font-semibold uppercase tracking-[.16em] text-violet">Homepage media</p>
+              <h2 className="mt-2 font-display text-2xl font-bold text-text-primary">Publish photos and videos</h2>
+              <p className="mt-2 max-w-2xl text-sm text-text-muted">Upload your own examples, choose their feature, and write a starting prompt. Customers can open each example, add their own references, and edit the prompt before generating.</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <label className={`premium-button inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-violet/30 bg-violet/10 px-4 text-sm font-semibold text-violet transition hover:bg-violet/15 ${busy ? 'pointer-events-none opacity-50' : ''}`}>
-                <Upload size={14} /> Upload multiple
+                <Upload size={14} /> Upload photos or videos
                 <input
                   type="file"
                   multiple
-                  accept="video/mp4,video/webm,video/quicktime"
+                  accept="video/mp4,video/webm,image/jpeg,image/png,image/webp"
                   className="hidden"
                   disabled={busy}
                   onChange={(event) => {
@@ -638,7 +671,7 @@ export function AdminPage() {
                   setDirty(true);
                 }}
               >
-                <Plus size={14} /> Add URL slot
+                <Plus size={14} /> Add media URL
               </Button>
             </div>
           </div>
@@ -649,7 +682,7 @@ export function AdminPage() {
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-xs text-text-muted"><span className="font-semibold text-text-primary">{marketing.videos.showcase.length}</span> landing video slot{marketing.videos.showcase.length === 1 ? '' : 's'} · all saved videos are returned by the public landing API.</p>
+          <p className="text-xs text-text-muted"><span className="font-semibold text-text-primary">{marketing.videos.showcase.length}</span> saved examples</p>
           <span className="rounded-full border border-violet/20 bg-violet/10 px-2.5 py-1 text-[10px] font-semibold text-violet">Up to {LANDING_VIDEO_LIMIT} · multi-upload supported</span>
         </div>
 
@@ -657,12 +690,12 @@ export function AdminPage() {
           {marketing.videos.showcase.map((video, index) => <article key={video.id} className="rounded-3xl border border-border bg-panel p-5">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="font-semibold text-text-primary">{index === 0 ? 'Featured video' : `Gallery video ${index + 1}`}</p>
-                <p className="text-[10px] text-text-dim">{index === 0 ? 'Large hero film on the landing page' : 'Shown in the scrollable campaign gallery'}</p>
+                <p className="font-semibold text-text-primary">Example {index + 1}</p>
+                <p className="text-[10px] text-text-dim">{video.templateMode ? 'Clickable gallery example' : 'Featured film gallery'}</p>
               </div>
               <button
                 type="button"
-                disabled={busy || marketing.videos.showcase.length <= 1}
+                disabled={busy}
                 onClick={() => {
                   setMarketing({ ...marketing, videos: { showcase: marketing.videos.showcase.filter((_, i) => i !== index) } });
                   setDirty(true);
@@ -673,18 +706,19 @@ export function AdminPage() {
               </button>
             </div>
 
-            {video.url ? <video src={video.url} poster={video.posterUrl ?? undefined} controls preload="metadata" className="mx-auto mt-4 aspect-[9/16] max-h-60 rounded-2xl bg-black object-cover" /> : <div className="mt-4 flex aspect-[9/16] max-h-60 items-center justify-center rounded-2xl border border-dashed border-violet/30 bg-bg/50 text-xs text-text-dim">No video yet</div>}
+            {video.url ? (video.kind === 'image' || /\.(?:png|jpe?g|webp)(?:\?|$)/i.test(video.url) ? <img src={video.url} alt={video.caption ?? 'Gallery example'} className="mx-auto mt-4 aspect-[9/16] max-h-60 rounded-2xl bg-black object-cover" /> : <video src={video.url} poster={video.posterUrl ?? undefined} muted loop playsInline controls preload="metadata" className="mx-auto mt-4 aspect-[9/16] max-h-60 rounded-2xl bg-black object-cover" />) : <div className="mt-4 flex aspect-[9/16] max-h-60 items-center justify-center rounded-2xl border border-dashed border-violet/30 bg-bg/50 text-xs text-text-dim">No media yet</div>}
 
             <div className="mt-4 space-y-3">
-              <label className="block text-xs text-text-muted">Video URL<input value={video.url ?? ''} placeholder="YouTube, Vimeo, or direct MP4 URL" onChange={(event) => { setMarketing({ ...marketing, videos: { showcase: marketing.videos.showcase.map((item, i) => i === index ? { ...item, url: event.target.value || null } : item) } }); setDirty(true); }} className="mt-1.5 w-full rounded-xl border border-border bg-bg px-3 py-2.5 text-xs" /></label>
-              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-violet/30 bg-violet/10 px-3 py-2.5 text-xs font-semibold text-violet"><Upload size={14} /> Upload video<input type="file" accept="video/mp4,video/webm,video/quicktime" className="hidden" disabled={busy} onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadLandingFile(index, file, 'url'); event.currentTarget.value = ''; }} /></label>
+              <label className="block text-xs text-text-muted">Media URL<input value={video.url ?? ''} placeholder="Direct image or video URL" onChange={(event) => { setMarketing({ ...marketing, videos: { showcase: marketing.videos.showcase.map((item, i) => i === index ? { ...item, url: event.target.value || null } : item) } }); setDirty(true); }} className="mt-1.5 w-full rounded-xl border border-border bg-bg px-3 py-2.5 text-xs" /></label>
+              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-violet/30 bg-violet/10 px-3 py-2.5 text-xs font-semibold text-violet"><Upload size={14} /> Upload photo or video<input type="file" accept="video/mp4,video/webm,image/jpeg,image/png,image/webp" className="hidden" disabled={busy} onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadLandingFile(index, file, 'url'); event.currentTarget.value = ''; }} /></label>
               <label className="block text-xs text-text-muted">Small label<input value={video.eyebrow ?? ''} placeholder="Made by a customer" onChange={(event) => { setMarketing({ ...marketing, videos: { showcase: marketing.videos.showcase.map((item, i) => i === index ? { ...item, eyebrow: event.target.value || null } : item) } }); setDirty(true); }} className="mt-1.5 w-full rounded-xl border border-border bg-bg px-3 py-2.5 text-xs" /></label>
               <label className="block text-xs text-text-muted">Caption<input value={video.caption ?? ''} placeholder="Fashion store launch video" onChange={(event) => { setMarketing({ ...marketing, videos: { showcase: marketing.videos.showcase.map((item, i) => i === index ? { ...item, caption: event.target.value || null } : item) } }); setDirty(true); }} className="mt-1.5 w-full rounded-xl border border-border bg-bg px-3 py-2.5 text-xs" /></label>
               <label className="block text-xs text-text-muted">Text over the video<textarea rows={2} value={video.overlayText ?? ''} placeholder="Created from a real website in minutes" onChange={(event) => { setMarketing({ ...marketing, videos: { showcase: marketing.videos.showcase.map((item, i) => i === index ? { ...item, overlayText: event.target.value || null } : item) } }); setDirty(true); }} className="mt-1.5 w-full resize-none rounded-xl border border-border bg-bg px-3 py-2.5 text-xs" /></label>
               <div className="border-t border-white/10 pt-3">
-                <label className="block text-xs font-semibold text-white">Make this video a creator preset
+                {video.url && !video.url.startsWith('/api/assets/marketing/') && <p className="mb-2 text-[10px] text-amber-200/75">Upload the media file here to make it a clickable creator example. External video embeds cannot supply a reliable reference frame.</p>}
+                <label className="block text-xs font-semibold text-white">Feature for this example
                   <select value={video.templateMode ?? ''} onChange={(event) => { const value = event.currentTarget.value as NonNullable<typeof video.templateMode> | ''; setMarketing({ ...marketing, videos: { showcase: marketing.videos.showcase.map((item, i) => i === index ? { ...item, templateMode: value || null } : item) } }); setDirty(true); }} className="mt-2 w-full rounded-xl border border-border bg-bg px-3 py-2.5 text-xs text-white">
-                    <option value="">Showcase only</option><option value="photo">Product image</option><option value="product-video">Product video</option><option value="scenario">Talking person / portrait</option><option value="video">AI video</option><option value="interior">Interior</option>
+                    <option value="">Featured film only</option><option value="website">Website Video</option><option value="photo">Product Photos</option><option value="product-video">Product Video</option><option value="scenario">Talking Person</option><option value="video">AI Video</option><option value="interior">Interior Design</option><option value="architecture">Architecture Design</option>
                   </select>
                 </label>
                 {video.templateMode && <label className="mt-3 block text-xs text-text-muted">Starting prompt for this preset
@@ -693,6 +727,24 @@ export function AdminPage() {
               </div>
             </div>
           </article>)}
+        </div>
+        <div className="rounded-3xl border border-border bg-panel p-5">
+          <h3 className="font-display text-lg font-semibold text-white">Feature backgrounds</h3>
+          <p className="mt-1 text-xs text-text-muted">Each creator tab can show its own quiet image or muted looping video behind the existing form.</p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {FEATURE_BACKGROUNDS.map(([feature, label]) => {
+              const url = marketing.backgrounds?.[feature];
+              const image = url && /\.(?:png|jpe?g|webp)(?:\?|$)/i.test(url);
+              return <div key={feature} className="rounded-2xl border border-white/10 bg-bg/40 p-3">
+                <p className="text-xs font-semibold text-white">{label}</p>
+                <div className="mt-2 h-28 overflow-hidden rounded-xl bg-black/25">{url ? (image ? <img src={url} alt="" className="h-full w-full object-cover" /> : <video src={url} muted loop playsInline autoPlay preload="metadata" className="h-full w-full object-cover" />) : null}</div>
+                <div className="mt-2 flex items-center gap-2">
+                  <label className="inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-xl border border-violet/30 bg-violet/10 px-3 text-[10px] font-semibold text-violet"><Upload size={12} /> Upload<input type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm" className="hidden" disabled={busy} onChange={(event) => { const file = event.currentTarget.files?.[0]; if (file) void uploadFeatureBackground(feature, file); event.currentTarget.value = ''; }} /></label>
+                  {url && <button type="button" disabled={busy} className="min-h-9 rounded-xl px-2 text-[10px] text-text-muted hover:text-pink" onClick={() => { setMarketing({ ...marketing, backgrounds: { ...marketing.backgrounds, [feature]: null } }); setDirty(true); }}>Remove</button>}
+                </div>
+              </div>;
+            })}
+          </div>
         </div>
       </section>}
 

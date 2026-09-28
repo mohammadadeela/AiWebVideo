@@ -16,12 +16,12 @@ const FEATURES = [
   },
   {
     title: 'Chat interface',
-    body: 'No forms, no briefs. Tell the AI what you want in plain language. It asks the right questions.',
+    body: 'Describe the outcome in plain language, choose your references, and watch the same conversation through to the result.',
     icon: <><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></>,
   },
   {
     title: 'Brand extraction',
-    body: "We pull your colors, logo, and fonts automatically so every output looks like it came from your design team.",
+    body: "We capture your available logo and colors alongside real page imagery to guide the result.",
     icon: <><circle cx="12" cy="12" r="3" /><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" /></>,
   },
   {
@@ -36,9 +36,9 @@ export function FeatureStrip() {
     <section id="how-it-works" className="border-t border-border">
       <div className="mx-auto max-w-6xl px-5 py-16">
         <div className="mb-10 text-center">
-          <h2 className="font-display text-2xl font-bold text-text-primary">Built different</h2>
+          <h2 className="font-display text-2xl font-bold text-text-primary">How it works</h2>
           <p className="mt-2 text-sm text-text-muted max-w-lg mx-auto">
-            Every other tool uses templates. We capture your real site and turn it into professional content.
+            Start from your own site, product, idea, or location and direct the finished production.
           </p>
         </div>
         <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-3">

@@ -1,7 +1,10 @@
-import { DashboardClient } from '@/components/dashboard/DashboardClient';
+import { useEffect } from 'react';
 import { useSeo } from '@/lib/useSeo';
 
 export function DashboardPage() {
   useSeo({ title: 'Creator', description: 'Your private AiWebVideo creative session.', path: '/dashboard', noindex: true });
-  return <DashboardClient />;
+  useEffect(() => {
+    window.location.replace(`/${window.location.search}#generate`);
+  }, []);
+  return null;
 }

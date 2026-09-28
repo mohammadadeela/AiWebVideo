@@ -95,6 +95,8 @@ test('every subscription remains above 2x premium Standard provider cost when al
 test('one-time premium 1080p packs include narration credits and clear the 2x cost floor', () => {
   const packs = [
     { product: PRODUCTS.single8, seconds: 8 },
+    { product: PRODUCTS.single16, seconds: 16 },
+    { product: PRODUCTS.single32, seconds: 32 },
     { product: PRODUCTS.single48, seconds: 48 },
     { product: PRODUCTS.single144, seconds: 144 },
   ];
@@ -117,7 +119,7 @@ test('photo sets and every credit top-up clear the 2x provider-cost floor', () =
   const photoRevenue = CREDIT_COSTS.PHOTO_SET_4 * cheapestCreditUsd * (1 - PAYMENT_FEE_RESERVE);
   const photoCost = IMAGE_4K_USD * 4 + TEXT_AND_INPUT_ALLOWANCE_USD;
   assert.ok(photoRevenue >= photoCost * 2);
-  for (const topup of [PRODUCTS.topup50, PRODUCTS.topup100, PRODUCTS.topup250]) {
+  for (const topup of [PRODUCTS.topup25, PRODUCTS.topup50, PRODUCTS.topup100, PRODUCTS.topup250]) {
     const topup4kSeconds = topup.credits / CREDIT_COSTS.VIDEO_PER_SECOND_STANDARD_4K;
     assert.ok(topup.amountUsd * (1 - PAYMENT_FEE_RESERVE) >= topup4kSeconds * STANDARD_4K_USD_PER_SEC * 2);
   }

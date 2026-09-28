@@ -157,6 +157,7 @@ type CaptureMeta = {
   studioKind?: "product" | "idea" | "scenario" | "interior" | "architecture" | null;
   architectureLocation?: string | null;
   architectureCoordinates?: { lat: number; lng: number } | null;
+  architectureReferenceSource?: 'streetview' | 'satellite' | null;
   ideaPrompt?: string | null;
   generatedReferenceUrls?: string[];
 };
@@ -892,7 +893,10 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
           /* no full-page screenshot cached */
         }
 
-        const plannerCaptures = await loadReferenceCaptures(job.id, meta, aspectRatio, selectedCaptureIds, selectedGeneratedPhotoIds);
+        const requiredCaptureIds = meta?.studioKind === 'architecture' && selectedCaptureIds?.length
+          ? ['screenshot-full.jpg', ...selectedCaptureIds.filter((id) => id !== 'screenshot-full.jpg')]
+          : selectedCaptureIds;
+        const plannerCaptures = await loadReferenceCaptures(job.id, meta, aspectRatio, requiredCaptureIds, selectedGeneratedPhotoIds);
         if (
           selectedCaptureIds?.length &&
           plannerCaptures.filter((capture) => capture.id !== "website-icon.jpg").length === 0
@@ -915,6 +919,14 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
             label: capture.label,
             base64: capture.buffer.toString("base64"),
           })),
+          studioKind: meta?.studioKind,
+          architectureLocation: meta?.architectureLocation,
+          architectureReferenceSource: meta?.architectureReferenceSource,
+          websiteEvidence: meta?.sourceType === 'studio' || meta?.sourceType === 'upload' ? [] : (meta?.pages ?? []).slice(0, 12).map((page) => {
+            let pathname = '/';
+            try { pathname = new URL(page.url || job.source_url).pathname; } catch {}
+            return `${String(page.title || 'Untitled page').slice(0, 120)} (${pathname.slice(0, 120)})`;
+          }),
           mode: plannerMode,
           vibeBrief,
           targetDurationSeconds: durationSeconds,
@@ -930,6 +942,14 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
         // no direct API request or future UI path can bypass this invariant.
         await assertPaidProviderAuthorization(job.id, req.user!.id, planningQuote.totalCredits, "storyboarding");
         const { storyboard, aiError } = await generateStoryboard(plannerRequest);
+        if (meta?.studioKind === 'architecture') {
+          const locationIndex = plannerCaptures.findIndex((capture) => capture.id === 'screenshot-full.jpg');
+          if (locationIndex < 0) throw new Error('The real location image is unavailable. Please start again from the map link.');
+          storyboard.scenes = storyboard.scenes.map((scene) => ({
+            ...scene,
+            sourceIndices: [locationIndex, ...(scene.sourceIndices ?? []).filter((index) => index !== locationIndex && index >= 0 && index < plannerCaptures.length)].slice(0, 3),
+          }));
+        }
         storyboard.sceneCaptureIds = storyboard.scenes.map((scene) =>
           (scene.sourceIndices ?? [])
             .map((sourceIndex) => plannerCaptures[sourceIndex]?.id)

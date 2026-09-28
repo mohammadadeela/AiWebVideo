@@ -25,6 +25,15 @@ export function SiteCard({ sourceUrl, metadata }: { sourceUrl: string; metadata:
   }, [metadata, sourceUrl]);
 
   const preview = previewIndex === null ? null : allShots[previewIndex] ?? null;
+  const websiteSections = useMemo(() => {
+    if (isUpload) return [];
+    return (metadata.pages ?? []).map((page) => {
+      let path = '/';
+      try { path = new URL(page.url).pathname.toLowerCase(); } catch {}
+      const section = /(?:product|shop|store|catalog|collection)/.test(path) ? 'Products' : /(?:features?|services?|solutions?)/.test(path) ? 'Features' : /(?:pricing|plans?)/.test(path) ? 'Pricing' : /(?:booking|reserve)/.test(path) ? 'Booking' : /(?:about|team)/.test(path) ? 'About' : /(?:contact)/.test(path) ? 'Contact' : path === '/' ? 'Homepage' : 'Page';
+      return { section, title: page.title };
+    }).filter((page, index, pages) => pages.findIndex((item) => item.section === page.section && item.title === page.title) === index).slice(0, 8);
+  }, [isUpload, metadata.pages]);
 
   useEffect(() => {
     if (previewIndex === null) return;
@@ -55,6 +64,12 @@ export function SiteCard({ sourceUrl, metadata }: { sourceUrl: string; metadata:
           </div>
         </div>
       )}
+      {!isUpload && (metadata.description || websiteSections.length > 0) && <div className="mb-3 rounded-xl border border-white/[.08] bg-white/[.025] p-3.5">
+        <p className="text-xs font-semibold text-white">What we found on your website</p>
+        {metadata.description && <p className="mt-1.5 text-[11px] leading-5 text-white/65">{metadata.description}</p>}
+        <div className="mt-2.5 grid gap-1.5 sm:grid-cols-2">{websiteSections.map((page, index) => <div key={`${page.section}-${index}`} className="min-w-0 rounded-lg bg-black/20 px-2.5 py-2"><span className="block text-[9px] font-semibold text-mint/85">{page.section}</span><span className="block truncate text-[10px] text-white/75" title={page.title}>{page.title || 'Captured page'}</span></div>)}</div>
+        <p className="mt-2.5 text-[9px] leading-4 text-white/40">The direction uses these captured pages and their real visuals; you can leave your prompt blank.</p>
+      </div>}
       {allShots.length > 0 && (
         <div className="mb-3 rounded-xl border border-white/[.08] bg-white/[.025] p-3">
           <div className="mb-2 flex flex-wrap items-start justify-between gap-2">

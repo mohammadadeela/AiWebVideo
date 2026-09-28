@@ -279,10 +279,12 @@ export function fetchAdminAudit(filters: AdminAuditFilters = {}) {
 }
 
 // ---- Read-only landing-page videos ----
-export interface MarketingVideo { id: string; url: string | null; posterUrl: string | null; caption: string | null; overlayText: string | null; eyebrow: string | null; templateMode?: 'video' | 'photo' | 'product-video' | 'scenario' | 'interior' | null; templatePrompt?: string | null; }
+export type MarketingFeature = 'website' | 'video' | 'photo' | 'product-video' | 'scenario' | 'interior' | 'architecture';
+export interface MarketingVideo { id: string; kind?: 'image' | 'video'; url: string | null; posterUrl: string | null; caption: string | null; overlayText: string | null; eyebrow: string | null; templateMode?: MarketingFeature | null; templatePrompt?: string | null; }
 export interface MarketingSettings {
   heading: string;
   description: string;
+  backgrounds?: Partial<Record<MarketingFeature, string | null>>;
   videos: { showcase: MarketingVideo[] };
 }
 
@@ -302,7 +304,7 @@ export function fetchModelPricing() {
   return request<ModelPricingResponse>('/api/model-pricing');
 }
 
-export function fetchMarketingSettings() { return request<MarketingSettings>('/api/marketing', { cache: 'default' }); }
+export function fetchMarketingSettings() { return request<MarketingSettings>('/api/marketing', { cache: 'no-store' }); }
 export function saveMarketingSettings(settings: MarketingSettings) { return request<MarketingSettings>('/api/admin/marketing', { method: 'PUT', body: JSON.stringify(settings) }); }
 export async function uploadMarketingAsset(file: File) {
   const token = await getIdToken();
@@ -376,7 +378,7 @@ export function saveJobMessage(
   });
 }
 
-export type CheckoutId = 'creator' | 'pro' | 'agency' | 'single8' | 'single48' | 'single144' | 'topup50' | 'topup100' | 'topup250';
+export type CheckoutId = 'creator' | 'pro' | 'agency' | 'single8' | 'single16' | 'single32' | 'single48' | 'single144' | 'topup25' | 'topup50' | 'topup100' | 'topup250';
 
 export function startCheckout(plan: CheckoutId, jobId?: string | null) {
   return request<{ checkoutUrl: string }>('/api/paypal/checkout', {
