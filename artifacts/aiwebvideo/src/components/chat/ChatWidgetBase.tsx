@@ -1848,6 +1848,7 @@ ${request.prompt}`
     const selected: JobMode = MODE_OPTIONS.find((o) => o.label === label)?.mode ?? "video";
     pushUser(label);
     setMode(selected);
+    setModelTier(selected === "photos" || selected === "icon" ? "graphic2" : "cinema2");
     setFeaturesText(null);
     setCreativeBrief(null);
     if (selected === "photos") {
@@ -1997,6 +1998,7 @@ ${request.prompt}`
         creativeBrief: (briefOverride === undefined ? creativeBrief : briefOverride) ?? undefined,
         aspectRatio,
         outputQuality,
+        modelTier,
         audioMode,
         frameRate,
         selectedCaptureIds,
@@ -2130,7 +2132,7 @@ ${request.prompt}`
         setStage("ready_to_render");
         showLockedTeaser();
       } else if (err instanceof ApiError && err.code === "INSUFFICIENT_CREDITS") {
-        const required = estimateRenderCredits(mode, skipVoiceover, durationSeconds, outputQuality);
+        const required = estimateRenderCredits(mode, skipVoiceover, durationSeconds, outputQuality, modelTier);
         const shortfall = Math.max(0, required - creditBalance);
         setPaywallContext(`Add ${shortfall} credit${shortfall === 1 ? "" : "s"} to generate this saved production`);
         pushBot(
@@ -2171,6 +2173,7 @@ ${request.prompt}`
     setPaywallContext(undefined);
     setAspectRatio("16:9");
     setOutputQuality("1080p");
+    setModelTier("cinema2");
     setFrameRate(24);
     setStage("awaiting_url");
     setMessages([
@@ -2192,6 +2195,7 @@ ${request.prompt}`
       durationSeconds,
       outputQuality,
       audioMode,
+      modelTier,
     );
     if (!canStartPaidPlanning) return;
     const label =
@@ -2222,6 +2226,7 @@ ${request.prompt}`
         creativeBrief: creativeBrief ?? undefined,
         aspectRatio,
         outputQuality,
+        modelTier,
         audioMode,
         frameRate,
         selectedCaptureIds,
@@ -2353,6 +2358,16 @@ ${request.prompt}`
     }
     const nextAspectRatio = nextMode === "photos" ? "1:1" as const : aspectRatio;
     const nextAudioMode = nextMode === "photos" ? "silent" as AudioMode : audioMode;
+    const nextModelTier: ModelTier =
+      nextMode === "photos"
+        ? (modelTier.startsWith("graphic") ? modelTier : "graphic2")
+        : (modelTier.startsWith("cinema") ? modelTier : "cinema2");
+    const nextOutputQuality: "1080p" | "4k" =
+      nextModelTier === "cinema1" || nextModelTier === "graphic1" || nextModelTier === "graphic2"
+        ? "1080p"
+        : nextMode === "photos" && nextModelTier === "graphic_pro"
+          ? "4k"
+          : outputQuality;
     const vibe = MODE_DEFAULT_VIBES[nextMode];
 
     // The user's message is normal chat and costs nothing. Only after we
@@ -2364,13 +2379,16 @@ ${request.prompt}`
       sourceJobId,
       nextMode,
       durationSeconds,
-      outputQuality,
+      nextOutputQuality,
       nextAudioMode,
+      nextModelTier,
     );
     if (!canStartPaidPlanning) return;
     if (nextMode !== mode) {
       setMode(nextMode);
       setAspectRatio(nextAspectRatio);
+      setOutputQuality(nextOutputQuality);
+      setModelTier(nextModelTier);
       setAudioMode(nextAudioMode);
       pushBot(understood.explanation);
     } else {
@@ -2385,7 +2403,8 @@ ${request.prompt}`
       const response = await requestStoryboard(sourceJobId, nextMode, vibe, durationSeconds, featuresText ?? undefined, {
         creativeBrief: generationBrief,
         aspectRatio: nextAspectRatio,
-        outputQuality,
+        outputQuality: nextOutputQuality,
+        modelTier: nextModelTier,
         audioMode: nextAudioMode,
         frameRate,
         selectedCaptureIds,
@@ -2421,6 +2440,7 @@ ${request.prompt}`
       renderedRef.current = false;
       setCreativeBrief(null);
       setMode(nextMode);
+      setModelTier(nextMode === "photos" ? "graphic2" : "cinema2");
       if (nextMode === "photos") {
         setAspectRatio("1:1");
         setOutputQuality("1080p");
@@ -3166,6 +3186,7 @@ ${request.prompt}`
           durationSeconds={job?.storyboard?.targetDurationSeconds || durationSeconds}
           mode={mode}
           outputQuality={job?.storyboard?.outputQuality ?? outputQuality}
+          modelTier={modelTier}
           skipVoiceover={skipVoiceover}
           currentBalance={creditBalance}
           reservedCredits={job?.creditsSpent ?? 0}
