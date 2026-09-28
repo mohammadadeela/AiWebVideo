@@ -225,7 +225,6 @@ export function GenerationCanvas({
   const productionStartedAtRef = useRef(Date.now());
   const stageStartedAtRef = useRef(Date.now());
   const lastPhaseKeyRef = useRef("");
-  const lastStatusTextRef = useRef("");
 
   const copy = KIND[productionKind];
   const settled = ["done", "failed", "cancelled"].includes(status);
@@ -276,20 +275,6 @@ export function GenerationCanvas({
     const timer = window.setInterval(tick, 1000);
     return () => window.clearInterval(timer);
   }, [settled, jobId]);
-
-  useEffect(() => {
-    if (lastStatusTextRef.current && lastStatusTextRef.current !== statusText) {
-      const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-      if (!reducedMotion && typeof navigator !== "undefined" && "vibrate" in navigator) {
-        try {
-          navigator.vibrate(status === "done" ? 18 : 5);
-        } catch {
-          // Haptics are best-effort and must never affect generation.
-        }
-      }
-    }
-    lastStatusTextRef.current = statusText;
-  }, [status, statusText]);
 
   useEffect(() => {
     const id = jobId ?? getActiveJobId();
@@ -425,7 +410,6 @@ export function GenerationCanvas({
                       {statusText}{!settled && <AnimatedDots />}
                     </p>
                   </div>
-                  <p className="mt-0.5 text-[9px] text-white/38">{copy.label}</p>
                 </div>
               </div>
 
