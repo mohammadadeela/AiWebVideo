@@ -8,6 +8,7 @@ export const BILLING_CREDIT_PRODUCTS = {
   pro: { credits: 400, plan: 'pro' },
   agency: { credits: 1000, plan: 'agency' },
   single8: { credits: 38, plan: 'creator' },
+  single32: { credits: 134, plan: 'creator' },
   single48: { credits: 198, plan: 'creator' },
   single144: { credits: 582, plan: 'creator' },
   topup50: { credits: 50, plan: 'creator' },
