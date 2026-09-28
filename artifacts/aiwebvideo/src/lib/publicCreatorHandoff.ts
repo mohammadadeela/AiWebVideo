@@ -1,4 +1,5 @@
 import type { AudioMode } from "@/components/chat/types";
+import type { PublicModelId } from "@/lib/generationModels";
 
 export interface WebsiteHandoffSettings {
   mode: "video" | "tutorial" | "buy" | "tour" | "linkedin" | "demo";
@@ -7,6 +8,7 @@ export interface WebsiteHandoffSettings {
   outputQuality: "1080p" | "4k";
   audioMode: AudioMode;
   narrationLanguage: string;
+  modelId: PublicModelId;
 }
 
 export interface WebsiteCreatorHandoff {
@@ -27,6 +29,7 @@ export interface StudioCreatorHandoff {
     aspectRatio: "16:9" | "9:16" | "1:1";
     outputQuality: "1080p" | "4k";
     audioMode: AudioMode;
+    modelId: PublicModelId;
   };
   attachmentDraftKey?: string;
 }
