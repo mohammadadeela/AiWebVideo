@@ -6,6 +6,7 @@ import * as path from 'node:path';
 import { promisify } from 'node:util';
 import { query } from './pool.js';
 import { GEMINI_COST_CATALOG, recordGenerationCost } from './costs.js';
+import { GENERATION_MODELS } from './generation-models.js';
 import { runQueuedProviderCall } from './provider-queue.js';
 
 const execFileAsync = promisify(execFile);
@@ -123,9 +124,14 @@ async function runImageGeneration(
   referenceImages: Buffer[],
   aspectRatio: '16:9' | '9:16' | '1:1',
   outputQuality: '1080p' | '4k',
-  operation = 'marketing_image'
+  operation = 'marketing_image',
+  publicModelId?: string | null
 ): Promise<GeneratedImage> {
-  const geminiImageModel = process.env.GEMINI_IMAGE_MODEL ?? 'gemini-3.1-flash-image';
+  const selected = publicModelId && GENERATION_MODELS[publicModelId as keyof typeof GENERATION_MODELS]?.creditUnit === 'image'
+    ? GENERATION_MODELS[publicModelId as keyof typeof GENERATION_MODELS]
+    : GENERATION_MODELS['graphic-2'];
+  const geminiImageModel = selected.providerModel || process.env.GEMINI_IMAGE_MODEL || 'gemini-3.1-flash-image';
+  const providerImageSize = selected.providerImageSize ?? (outputQuality === '4k' ? '4K' : '2K');
   console.info(
     `[${logLabel}] job=${jobId} scene=${sceneIndex} provider=gemini ` +
       `model=${geminiImageModel} reference_assets=${referenceImages.length}`
@@ -157,7 +163,7 @@ async function runImageGeneration(
         response_format: {
           type: 'image',
           aspect_ratio: aspectRatio,
-          image_size: outputQuality === '4k' ? '4K' : '2K'
+          image_size: providerImageSize
         }
       })
   });
@@ -171,10 +177,8 @@ async function runImageGeneration(
   // the exact delivery canvas selected by the user so 1:1/9:16/16:9 are true
   // pixel dimensions in the downloaded result.
   const url = await masterGeneratedImage(jobId, rawFilename, filename, aspectRatio, outputQuality);
-  const defaultCost = outputQuality === '4k' ? GEMINI_COST_CATALOG.image.fourK : GEMINI_COST_CATALOG.image.twoK;
-  const configuredCost = Number(
-    process.env[outputQuality === '4k' ? 'GEMINI_IMAGE_COST_4K_USD' : 'GEMINI_IMAGE_COST_2K_USD'] ?? defaultCost
-  );
+  const defaultCost = selected.providerCostUsd || (outputQuality === '4k' ? GEMINI_COST_CATALOG.image.fourK : GEMINI_COST_CATALOG.image.twoK);
+  const configuredCost = Number(defaultCost);
   await recordGenerationCost({
     jobId,
     provider: 'gemini',
@@ -307,7 +311,8 @@ export async function generateMarketingPhoto(
   aspectRatio: '16:9' | '9:16' | '1:1',
   outputQuality: '1080p' | '4k',
   customBrief?: string | null,
-  featureKind: MarketingPhotoKind = 'website-photos'
+  featureKind: MarketingPhotoKind = 'website-photos',
+  publicModelId?: string | null
 ): Promise<GeneratedImage> {
   if (!referenceImages.length) {
     throw new Error('No captured website images are available to use as references for the marketing photo.');
@@ -365,7 +370,9 @@ Premium commercial art direction, realistic materials and fabric, accurate produ
     prompt,
     selectMarketingPhotoReferences(referenceImages, sceneIndex),
     aspectRatio,
-    outputQuality
+    outputQuality,
+    'marketing_image',
+    publicModelId
   );
 }
 
