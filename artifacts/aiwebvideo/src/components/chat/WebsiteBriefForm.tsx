@@ -18,7 +18,8 @@ import {
   X,
 } from "lucide-react";
 import { normalizeWebsiteUrl } from "@/lib/websiteUrl";
-import { estimateRenderCredits } from "@/lib/credits";
+import { displayCredits, estimateRenderCredits } from "@/lib/credits";
+import { defaultModelFor, modelsFor, publicModel, type PublicModelId } from "@/lib/generationModels";
 import {
   getIdeasForIntent,
   referenceHintForIdea,
@@ -48,6 +49,7 @@ export interface WebsiteGenerationSettings {
   outputQuality: "1080p" | "4k";
   audioMode: AudioMode;
   narrationLanguage: string;
+  modelId: PublicModelId;
 }
 
 export interface StudioGenerationRequest {
@@ -59,6 +61,7 @@ export interface StudioGenerationRequest {
   aspectRatio: "16:9" | "9:16" | "1:1";
   outputQuality: "1080p" | "4k";
   audioMode: AudioMode;
+  modelId: PublicModelId;
 }
 
 const DEFAULT_SETTINGS: WebsiteGenerationSettings = {
@@ -68,6 +71,7 @@ const DEFAULT_SETTINGS: WebsiteGenerationSettings = {
   outputQuality: "1080p",
   audioMode: "native_audio",
   narrationLanguage: "en",
+  modelId: "cinema-2",
 };
 
 const WEBSITE_RECIPES: Array<{
@@ -254,9 +258,19 @@ export function WebsiteBriefForm({
     setSettingsOpen(false);
     setError(null);
     setSettings((current) => {
-      if (intent === "photo" || intent === "interior") return { ...current, aspectRatio: intent === "interior" ? "16:9" : "1:1", audioMode: "silent" };
+      if (intent === "photo") {
+        return { ...current, aspectRatio: "1:1", audioMode: "silent", outputQuality: "1080p", modelId: defaultModelFor("image") };
+      }
+      if (intent === "interior") {
+        return { ...current, aspectRatio: "16:9", audioMode: "silent", outputQuality: "1080p", modelId: defaultModelFor("interior") };
+      }
       const leavingPhotoDefaults = (previousIntent === "photo" || previousIntent === "interior") && current.audioMode === "silent";
-      return leavingPhotoDefaults ? { ...current, aspectRatio: "9:16", audioMode: "native_audio" } : current;
+      return {
+        ...current,
+        ...(leavingPhotoDefaults ? { aspectRatio: "9:16" as const, audioMode: "native_audio" as const } : {}),
+        outputQuality: "1080p",
+        modelId: defaultModelFor("video"),
+      };
     });
   }
 
@@ -428,6 +442,7 @@ export function WebsiteBriefForm({
       aspectRatio: settings.aspectRatio,
       outputQuality: settings.outputQuality,
       audioMode: activeMode === "photo" || isInterior ? "silent" : settings.audioMode,
+      modelId: settings.modelId,
     });
   }
 
@@ -443,9 +458,12 @@ export function WebsiteBriefForm({
       : settings.audioMode === "music_only"
         ? "Music only"
         : "Silent";
+  const modelFamily = isVideoMode ? "video" : activeMode === "interior" ? "interior" : "image";
+  const availableModels = modelsFor(modelFamily);
+  const selectedModel = publicModel(settings.modelId);
   const exactCredits = activeMode === "photo" || (activeMode === "interior" && interiorOutput === "images")
-    ? estimateRenderCredits("photos", true, 8, "1080p")
-    : estimateRenderCredits("video", settings.audioMode !== "voice_music", durationSeconds, settings.outputQuality);
+    ? estimateRenderCredits("photos", true, 8, settings.outputQuality, settings.modelId)
+    : estimateRenderCredits("video", settings.audioMode !== "voice_music", durationSeconds, settings.outputQuality, settings.modelId);
   const submitDisabled = disabled || (
     activeMode === "website"
       ? !url.trim() || !brief.trim()
@@ -741,6 +759,58 @@ export function WebsiteBriefForm({
               <button type="button" onClick={() => setSettingsOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg text-text-dim hover:bg-white/5 hover:text-white" aria-label="Close settings"><X size={13} /></button>
             </div>
 
+            <div className="mb-3 rounded-xl border border-violet/20 bg-violet/[.035] p-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-[11px] font-semibold text-white">AiWebVideo model</p>
+                  <p className="mt-0.5 text-[8px] text-text-dim">Choose speed, quality and price. Recommended is selected by default.</p>
+                </div>
+                <span className="rounded-full border border-white/10 bg-white/[.04] px-2 py-1 text-[8px] text-text-muted">{selectedModel.name}</span>
+              </div>
+              <div className="chat-scroll flex gap-2 overflow-x-auto pb-1">
+                {availableModels.map((model) => {
+                  const selected = settings.modelId === model.id;
+                  const modelPrice = model.family === "video"
+                    ? displayCredits(settings.outputQuality === "4k"
+                        ? (model.internalCredits4k ?? model.internalCredits1080p ?? 1)
+                        : (model.internalCredits1080p ?? 1))
+                    : displayCredits(model.internalCreditsPerImage ?? 1);
+                  return (
+                    <button
+                      key={model.id}
+                      type="button"
+                      onClick={() => {
+                        const force1080 = !model.supports4k;
+                        const force4k = (model.id === "graphic-pro" || model.id === "space-pro");
+                        setSettings((current) => ({
+                          ...current,
+                          modelId: model.id,
+                          outputQuality: force4k ? "4k" : force1080 ? "1080p" : current.outputQuality,
+                        }));
+                      }}
+                      className={`min-w-[190px] flex-1 rounded-xl border p-3 text-left transition ${selected ? "border-mint/50 bg-mint/[.08]" : "border-white/[.08] bg-black/15 hover:border-violet/30"}`}
+                    >
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="text-[11px] font-bold text-white">{model.name}</span>
+                        {model.recommended && <span className="rounded-full bg-mint/10 px-2 py-0.5 text-[7px] font-bold text-mint">RECOMMENDED</span>}
+                      </span>
+                      <span className="mt-1 block text-[8px] leading-3.5 text-text-dim">{model.tagline}</span>
+                      <span className="mt-2 flex flex-wrap gap-1">
+                        <span className="rounded-md border border-white/10 px-1.5 py-0.5 text-[7px] text-white/70">{model.quality}</span>
+                        <span className="rounded-md border border-white/10 px-1.5 py-0.5 text-[7px] text-white/70">{model.speed}</span>
+                        {model.nativeAudio && <span className="rounded-md border border-white/10 px-1.5 py-0.5 text-[7px] text-white/70">Sound</span>}
+                        {model.supports4k && <span className="rounded-md border border-white/10 px-1.5 py-0.5 text-[7px] text-white/70">4K</span>}
+                      </span>
+                      <span className="mt-2 block text-[8px] font-semibold text-mint">
+                        {model.family === "video" ? `${modelPrice} credits / sec` : `${modelPrice} credits / image`}
+                      </span>
+                      <span className="mt-1 block text-[7px] leading-3 text-white/40">Best for: {model.bestFor}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="grid gap-3 sm:grid-cols-2">
               {isVideoMode && (
                 <div className="rounded-xl border border-white/[.07] bg-white/[.02] p-3">
@@ -782,9 +852,20 @@ export function WebsiteBriefForm({
               <div className="rounded-xl border border-white/[.07] bg-white/[.02] p-3">
                 <p className="mb-2 text-[11px] font-semibold text-white">Quality</p>
                 <div className="grid grid-cols-2 gap-1.5">
-                  {(["1080p", "4k"] as const).map((quality) => (
-                    <button key={quality} type="button" onClick={() => setSettings((current) => ({ ...current, outputQuality: quality }))} className={optionClass(settings.outputQuality === quality)}>{quality === "4k" ? "4K" : "1080p"}</button>
-                  ))}
+                  {(["1080p", "4k"] as const).map((quality) => {
+                    const disabledQuality = quality === "4k" && !selectedModel.supports4k;
+                    return (
+                      <button
+                        key={quality}
+                        type="button"
+                        disabled={disabledQuality}
+                        onClick={() => setSettings((current) => ({ ...current, outputQuality: quality }))}
+                        className={`${optionClass(settings.outputQuality === quality)} disabled:cursor-not-allowed disabled:opacity-35`}
+                      >
+                        {quality === "4k" ? "4K" : "1080p"}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
