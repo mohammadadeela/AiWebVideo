@@ -103,9 +103,11 @@ function reportRangeLabel(range: z.infer<typeof reportRangeSchema>) {
 const inferredProductSql = `COALESCE(product_id, CASE
   WHEN kind LIKE 'subscription_%' AND plan IN ('creator','pro','agency') THEN plan
   WHEN kind='one_time' AND credits_granted=38 THEN 'single8'
+  WHEN kind='one_time' AND credits_granted=70 THEN 'single16'
   WHEN kind='one_time' AND credits_granted=134 THEN 'single32'
   WHEN kind='one_time' AND credits_granted=198 THEN 'single48'
   WHEN kind='one_time' AND credits_granted=582 THEN 'single144'
+  WHEN kind='one_time' AND credits_granted=25 THEN 'topup25'
   WHEN kind='one_time' AND credits_granted=50 THEN 'topup50'
   WHEN kind='one_time' AND credits_granted=100 THEN 'topup100'
   WHEN kind='one_time' AND credits_granted=250 THEN 'topup250'
@@ -352,17 +354,27 @@ router.put('/marketing', async (req, res) => {
     const nullableText = z.string().trim().max(200).nullable();
     const video = z.object({
       id: z.string().trim().min(1).max(40),
+      kind: z.enum(['image', 'video']).optional(),
       url: z.string().trim().max(2000).nullable(),
       posterUrl: z.string().trim().max(2000).nullable(),
       caption: nullableText,
       overlayText: nullableText,
       eyebrow: z.string().trim().max(60).nullable(),
-      templateMode: z.enum(['video', 'photo', 'product-video', 'scenario', 'interior']).nullable().optional(),
+      templateMode: z.enum(['website', 'video', 'photo', 'product-video', 'scenario', 'interior', 'architecture']).nullable().optional(),
       templatePrompt: z.string().trim().max(2000).nullable().optional(),
     });
     const body = z.object({
       heading: z.string().trim().min(1).max(100),
       description: z.string().trim().min(1).max(300),
+      backgrounds: z.object({
+        website: z.string().trim().max(2000).nullable().optional(),
+        video: z.string().trim().max(2000).nullable().optional(),
+        photo: z.string().trim().max(2000).nullable().optional(),
+        'product-video': z.string().trim().max(2000).nullable().optional(),
+        scenario: z.string().trim().max(2000).nullable().optional(),
+        interior: z.string().trim().max(2000).nullable().optional(),
+        architecture: z.string().trim().max(2000).nullable().optional(),
+      }).optional(),
       videos: z.object({ showcase: z.array(video).max(MAX_MARKETING_VIDEOS) }),
     }).parse(req.body);
     await query(`INSERT INTO system_settings(key,value,updated_by) VALUES ('marketing',$1,$2) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value,updated_by=EXCLUDED.updated_by,updated_at=NOW()`, [JSON.stringify(body), req.user!.id]);
