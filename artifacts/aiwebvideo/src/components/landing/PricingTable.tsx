@@ -257,6 +257,57 @@ export function PricingTable() {
 
   return (
     <div>
+      <section id="buy-credits" className="mb-8 sm:mb-10 scroll-mt-24 rounded-2xl border border-violet/40 bg-signature-soft p-5 sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-xs font-semibold uppercase tracking-[.16em] text-violet">No subscription</p>
+              {activeOffer && (
+                <span className="rounded-full border border-mint/30 bg-mint/10 px-2.5 py-1 text-[10px] font-bold text-mint">
+                  {activeOffer.discountPercent}% OFF · {formatWelcomeCountdown(activeOffer.expiresAt, now)} left
+                </span>
+              )}
+            </div>
+            <h3 className="mt-1 font-display text-xl font-bold text-text-primary">Buy production credits</h3>
+          </div>
+        </div>
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {CREDIT_PACKS.map((pack) => {
+            const packCredits = displayCredits(pack.credits);
+            const discounted = activeOffer && activeOffer.eligibleProducts.includes(pack.id)
+              ? discountedPrice(pack.amountUsd, activeOffer.discountPercent)
+              : pack.amountUsd;
+            const hasDiscount = discounted < pack.amountUsd;
+            return (
+              <div key={pack.id} className={`rounded-2xl border p-4 ${hasDiscount ? "border-mint/30 bg-mint/[.055]" : "border-white/10 bg-bg/35"}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-display text-lg font-bold text-text-primary">{packCredits.toLocaleString()} credits</p>
+                    <p className="mt-1 text-xs text-text-muted">{pack.note}</p>
+                  </div>
+                  {hasDiscount && activeOffer && <span className="rounded-full bg-mint px-2 py-1 text-[9px] font-black text-[#08211b]">{activeOffer.discountPercent}% OFF</span>}
+                </div>
+                <div className="mt-3 flex items-end gap-2">
+                  <p className="font-display text-2xl font-bold text-text-primary">{formatUsd(discounted)}</p>
+                  {hasDiscount && <p className="pb-0.5 text-xs text-text-dim line-through">{formatUsd(pack.amountUsd)}</p>}
+                </div>
+                {hasDiscount && activeOffer && <p className="mt-1 text-[10px] font-semibold text-mint">Offer ends in {formatWelcomeCountdown(activeOffer.expiresAt, now)}</p>}
+                <PurchaseButton
+                  primary={pack.id === "topup250" || hasDiscount}
+                  onBuy={() => setDirectCheckout({
+                    plan: pack.id,
+                    productName: `${packCredits.toLocaleString()} production credits`,
+                    amountUsd: discounted,
+                    originalAmountUsd: pack.amountUsd,
+                    credits: packCredits,
+                  })}
+                />
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
       <div
         id="plans"
         className="scroll-mt-24 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4"
@@ -393,57 +444,6 @@ export function PricingTable() {
         </div>
       </div>
 
-      <section id="buy-credits" className="mt-10 scroll-mt-24 rounded-2xl border border-violet/40 bg-signature-soft p-5 sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-xs font-semibold uppercase tracking-[.16em] text-violet">No subscription</p>
-              {activeOffer && (
-                <span className="rounded-full border border-mint/30 bg-mint/10 px-2.5 py-1 text-[10px] font-bold text-mint">
-                  {activeOffer.discountPercent}% OFF · {formatWelcomeCountdown(activeOffer.expiresAt, now)} left
-                </span>
-              )}
-            </div>
-            <h3 className="mt-1 font-display text-xl font-bold text-text-primary">Buy production credits</h3>
-            <p className="mt-2 max-w-2xl text-sm text-text-muted">Pay once, keep the credits until you use them, and choose only the balance you need. Top-ups never change your subscription plan.</p>
-          </div>
-        </div>
-        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {CREDIT_PACKS.map((pack) => {
-            const packCredits = displayCredits(pack.credits);
-            const discounted = activeOffer && activeOffer.eligibleProducts.includes(pack.id)
-              ? discountedPrice(pack.amountUsd, activeOffer.discountPercent)
-              : pack.amountUsd;
-            const hasDiscount = discounted < pack.amountUsd;
-            return (
-              <div key={pack.id} className={`rounded-2xl border p-4 ${hasDiscount ? "border-mint/30 bg-mint/[.055]" : "border-white/10 bg-bg/35"}`}>
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="font-display text-lg font-bold text-text-primary">{packCredits.toLocaleString()} credits</p>
-                    <p className="mt-1 text-xs text-text-muted">{pack.note}</p>
-                  </div>
-                  {hasDiscount && activeOffer && <span className="rounded-full bg-mint px-2 py-1 text-[9px] font-black text-[#08211b]">{activeOffer.discountPercent}% OFF</span>}
-                </div>
-                <div className="mt-3 flex items-end gap-2">
-                  <p className="font-display text-2xl font-bold text-text-primary">{formatUsd(discounted)}</p>
-                  {hasDiscount && <p className="pb-0.5 text-xs text-text-dim line-through">{formatUsd(pack.amountUsd)}</p>}
-                </div>
-                {hasDiscount && activeOffer && <p className="mt-1 text-[10px] font-semibold text-mint">Offer ends in {formatWelcomeCountdown(activeOffer.expiresAt, now)}</p>}
-                <PurchaseButton
-                  primary={pack.id === "topup250" || hasDiscount}
-                  onBuy={() => setDirectCheckout({
-                    plan: pack.id,
-                    productName: `${packCredits.toLocaleString()} production credits`,
-                    amountUsd: discounted,
-                    originalAmountUsd: pack.amountUsd,
-                    credits: packCredits,
-                  })}
-                />
-              </div>
-            );
-          })}
-        </div>
-      </section>
 
       <div className="mt-10 overflow-x-auto rounded-xl border border-border">
         <table className="w-full text-left text-sm">
