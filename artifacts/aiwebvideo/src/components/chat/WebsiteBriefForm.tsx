@@ -14,7 +14,6 @@ import {
   Link2,
   Loader2,
   Paperclip,
-  Settings2,
   Sparkles,
   Smartphone,
   Volume2,
@@ -163,7 +162,7 @@ function durationLabel(seconds: number) {
 }
 
 function optionClass(active: boolean) {
-  return `flex min-h-10 items-center justify-center gap-1.5 rounded-xl border px-2.5 text-[11px] font-semibold transition ${
+  return `flex min-h-8 items-center justify-center gap-1 rounded-lg border px-2 text-[10px] font-semibold transition ${
     active
       ? "border-mint/55 bg-mint text-[#10231f]"
       : "border-white/10 bg-white/[.035] text-text-muted hover:border-mint/30 hover:bg-mint/[.07] hover:text-white"
@@ -171,7 +170,7 @@ function optionClass(active: boolean) {
 }
 
 function controlClass(active: boolean) {
-  return `creator-secondary-button inline-flex min-h-10 items-center gap-2 rounded-xl border px-3 text-[10px] font-semibold transition sm:text-[11px] ${
+  return `creator-secondary-button inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-2.5 text-[10px] font-semibold transition sm:text-[11px] ${
     active
       ? "border-violet/40 bg-violet/[.10] text-white"
       : "border-white/[.10] bg-white/[.035] text-text-muted hover:border-violet/30 hover:bg-violet/[.07] hover:text-white"
@@ -253,7 +252,6 @@ export function WebsiteBriefForm({
   const [url, setUrl] = useState("");
   const [brief, setBrief] = useState("");
   const [prompt, setPrompt] = useState("");
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [compactPanel, setCompactPanel] = useState<"style" | "ideas" | null>(null);
   const [settings, setSettings] = useState<WebsiteGenerationSettings>(DEFAULT_SETTINGS);
   const [liveModelPricing, setLiveModelPricing] = useState<ModelPricingResponse | null>(null);
@@ -264,6 +262,7 @@ export function WebsiteBriefForm({
   const [personReferenceRequired, setPersonReferenceRequired] = useState(false);
   const [interiorOutput, setInteriorOutput] = useState<"images" | "video">("images");
   const [architectureLocation, setArchitectureLocation] = useState("");
+  const [architectureDimensions, setArchitectureDimensions] = useState("");
   const [productLinkOpen, setProductLinkOpen] = useState(false);
   const [productLinkUrl, setProductLinkUrl] = useState("");
   const [productLinkLoading, setProductLinkLoading] = useState(false);
@@ -332,7 +331,6 @@ export function WebsiteBriefForm({
     setSelectedIdea(null);
     setPersonReferenceRequired(false);
     setCompactPanel(null);
-    setSettingsOpen(false);
     setError(null);
     setSettings((current) => {
       if (intent === "photo" || intent === "interior") {
@@ -484,7 +482,6 @@ export function WebsiteBriefForm({
   }
 
   function toggleIdeas() {
-    setSettingsOpen(false);
     setCompactPanel((current) => {
       const next = current === "ideas" ? null : "ideas";
       if (next === "ideas") void trackStudioEvent({ event: "ideas_opened", feature: masterIdeas[0]?.feature });
@@ -590,7 +587,9 @@ export function WebsiteBriefForm({
             : isInterior
               ? "interior"
               : "idea",
-      prompt: activePrompt,
+      prompt: isArchitecture && architectureDimensions.trim()
+        ? `${activePrompt}\n\nUSER-SUPPLIED SITE MEASUREMENTS: ${architectureDimensions.trim()}`
+        : activePrompt,
       files,
       mode: activeMode === "photo" ? "photos" : activeMode === "product-video" ? "video" : isInterior ? (interiorOutput === "video" ? "custom" : "photos") : "custom",
       durationSeconds: activeMode === "photo" ? 8 : durationSeconds,
@@ -720,7 +719,7 @@ export function WebsiteBriefForm({
         </div>
       )}
 
-      <div className={`relative border-b border-white/[.08] ${compactLayout ? "p-2" : "p-2.5 sm:p-3"}`}>
+      {window.location.pathname !== "/" && <div className={`relative border-b border-white/[.08] ${compactLayout ? "p-2" : "p-2.5 sm:p-3"}`}>
         <div className="chat-scroll flex gap-1 overflow-x-auto pb-0.5" role="tablist" aria-label="Creation mode">
           {CREATION_MODES.map(({ id, label, short, icon: Icon }) => (
             <button
@@ -741,7 +740,7 @@ export function WebsiteBriefForm({
             </button>
           ))}
         </div>
-      </div>
+      </div>}
 
       <div className={`relative ${compactLayout ? "p-3 sm:p-4" : "p-4 sm:p-5"}`}>
         {activeMode === "interior" && (
@@ -786,6 +785,7 @@ export function WebsiteBriefForm({
           )}
 
           {activeMode === "architecture" && (
+            <div>
             <label className="block">
               <span className="mb-1.5 block text-[11px] font-semibold text-white">Google Maps link or address</span>
               <div className="flex items-center gap-3 rounded-2xl border border-mint/30 bg-[#0b0818] px-3 transition focus-within:border-mint/60 focus-within:ring-2 focus-within:ring-mint/10">
@@ -800,8 +800,12 @@ export function WebsiteBriefForm({
                   className="h-13 min-w-0 flex-1 bg-transparent py-3.5 text-sm text-white outline-none placeholder:text-white/40"
                 />
               </div>
-              <p className="mt-1.5 text-[8px] text-text-dim">The real Street View or satellite reference is captured before AI planning.</p>
+              <p className="mt-1.5 text-[9px] text-text-dim">The real Street View or satellite reference is captured before AI planning.</p>
             </label>
+            <label className="mt-2 block text-[10px] text-white/65">Site measurements, if you have a survey or plan
+              <input value={architectureDimensions} onChange={(event) => setArchitectureDimensions(event.currentTarget.value.slice(0, 200))} placeholder="Example: plot 18m × 24m, 4m setback, north-facing entrance" disabled={disabled} className="mt-1.5 h-10 w-full rounded-xl border border-white/10 bg-[#0b0818] px-3 text-xs text-white outline-none placeholder:text-white/35 focus:border-violet/55" />
+            </label>
+            </div>
           )}
 
           <label className="block">
@@ -842,8 +846,7 @@ export function WebsiteBriefForm({
             <button
               type="button"
               onClick={() => {
-                setSettingsOpen(false);
-                setCompactPanel((current) => current === "style" ? null : "style");
+                            setCompactPanel((current) => current === "style" ? null : "style");
               }}
               aria-expanded={compactPanel === "style"}
               className={controlClass(compactPanel === "style")}
@@ -883,19 +886,6 @@ export function WebsiteBriefForm({
             </button>
           )}
 
-          <button
-            type="button"
-            onClick={() => {
-              setCompactPanel(null);
-              setSettingsOpen((current) => !current);
-            }}
-            aria-expanded={settingsOpen}
-            className={controlClass(settingsOpen)}
-          >
-            <Settings2 size={13} />
-            {isVideoMode ? `${durationSeconds}s · ${formatSummary} · ${settings.outputQuality}` : `${formatSummary} · ${settings.outputQuality}`}
-            <ChevronDown size={12} className={settingsOpen ? "rotate-180" : ""} />
-          </button>
         </div>
 
         {compactPanel === "style" && activeMode === "website" && (
@@ -964,21 +954,12 @@ export function WebsiteBriefForm({
           </div>
         )}
 
-        {settingsOpen && (
-          <div className="mt-3 rounded-2xl border border-white/[.08] bg-[#0f0b1d]/95 p-3 sm:p-4">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold text-white">Generation settings</p>
-                <p className="mt-0.5 text-[9px] text-text-dim">Choose the exact delivery format before generation.</p>
-              </div>
-              <button type="button" onClick={() => setSettingsOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg text-text-dim hover:bg-white/5 hover:text-white" aria-label="Close settings"><X size={13} /></button>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
+        <div className="mt-3 border-t border-white/[.08] pt-3" aria-label="Generation options">
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
               {isVideoMode && (
-                <div className="rounded-xl border border-white/[.07] bg-white/[.02] p-3">
+                <div className="rounded-xl border border-white/[.07] bg-white/[.02] p-2.5">
                   <div className="mb-2 flex items-center justify-between gap-2"><span className="text-[11px] font-semibold text-white">Duration</span><span className="text-xs text-text-muted">8–60 sec</span></div>
-                  <div className="grid grid-cols-5 gap-1.5">
+                  <div className="grid grid-cols-5 gap-1">
                     {DURATION_PRESETS.map((duration) => (
                       <button key={duration} type="button" onClick={() => { setCustomDurationDraft(null); setSettings((current) => ({ ...current, durationSeconds: duration })); }} className={optionClass(settings.durationSeconds === duration && customDurationDraft === null)}>{duration}s</button>
                     ))}
@@ -1009,9 +990,9 @@ export function WebsiteBriefForm({
                 </div>
               )}
 
-              <div className="rounded-xl border border-white/[.07] bg-white/[.02] p-3">
+              <div className="rounded-xl border border-white/[.07] bg-white/[.02] p-2.5">
                 <p className="mb-2 text-[11px] font-semibold text-white">Format</p>
-                <div className="grid grid-cols-3 gap-1.5">
+                <div className="grid grid-cols-3 gap-1">
                   {([
                     ["9:16", Smartphone, "Portrait"],
                     ["16:9", Monitor, "Wide"],
@@ -1022,7 +1003,7 @@ export function WebsiteBriefForm({
                 </div>
               </div>
 
-              <div className="rounded-xl border border-white/[.07] bg-white/[.02] p-3">
+              <div className="rounded-xl border border-white/[.07] bg-white/[.02] p-2.5">
                 <p className="mb-2 text-[11px] font-semibold text-white">Quality</p>
                 <div className="grid grid-cols-2 gap-1.5">
                   {(["1080p", "4k"] as const).map((quality) => (
@@ -1041,7 +1022,7 @@ export function WebsiteBriefForm({
                 </div>
               </div>
 
-              <div className="rounded-xl border border-white/[.07] bg-white/[.02] p-3 sm:col-span-2">
+              <div className="rounded-xl border border-white/[.07] bg-white/[.02] p-2.5 sm:col-span-2">
                 <p className="mb-2 text-[11px] font-semibold text-white">Quality Tier</p>
                 <div className={`grid gap-1.5 ${isImageMode ? "grid-cols-2" : "sm:grid-cols-3"}`}>
                   {(isImageMode ? IMAGE_MODEL_OPTIONS : VIDEO_MODEL_OPTIONS).map((option) => (
@@ -1068,7 +1049,7 @@ export function WebsiteBriefForm({
               </div>
 
               {isVideoMode && (
-                <div className="rounded-xl border border-white/[.07] bg-white/[.02] p-3">
+                <div className="rounded-xl border border-white/[.07] bg-white/[.02] p-2.5">
                   <p className="mb-2 text-[11px] font-semibold text-white">Audio</p>
                   <div className="grid grid-cols-2 gap-1.5">
                     <button type="button" onClick={() => setSettings((current) => ({ ...current, audioMode: "native_audio" }))} className={optionClass(settings.audioMode === "native_audio")}>Scene audio</button>
@@ -1090,11 +1071,10 @@ export function WebsiteBriefForm({
               )}
             </div>
           </div>
-        )}
 
         {error && <p role="alert" className="mt-3 rounded-xl border border-pink/20 bg-pink/5 px-3 py-2 text-xs text-pink">{error}</p>}
 
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="mt-3 flex flex-col gap-2 border-t border-white/[.08] pt-3 sm:flex-row sm:items-center">
           {!compactLayout && (
             <div className="flex-1 text-[9px] text-text-dim">
               {isProductMode && !files.length ? "Add a real product photo before generating." : activeMode === "interior" && !files.length ? "Add space references before generating." : activeMode === "architecture" && !architectureLocation.trim() ? "Add a Maps link or address before generating." : `Your setup: ${isVideoMode ? `${durationSeconds}s · ` : ""}${formatSummary} · ${settings.outputQuality}`}
@@ -1105,11 +1085,10 @@ export function WebsiteBriefForm({
             type="button"
             onClick={submit}
             disabled={submitDisabled}
-            className="premium-button creator-primary-button flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-signature px-5 text-sm font-bold text-white shadow-violet transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45 sm:flex-none sm:min-w-[260px]"
+            className="premium-button creator-primary-button flex min-h-[58px] flex-1 items-center justify-center gap-3 rounded-[16px] bg-signature px-4 text-sm font-bold text-white shadow-violet transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45 sm:flex-none sm:min-w-[216px]"
           >
-            <span>{exampleLoading ? "Preparing example…" : landingWebsitePreview && activeMode === "website" ? "Capture website" : createLabel}</span>
-            {showCreditPricing && <span className="rounded-full border border-white/15 bg-black/15 px-2 py-1 text-[9px] font-semibold text-white/90">Estimate: {exactCredits} credits</span>}
-            <ArrowRight size={15} />
+            <span className="flex flex-col items-start leading-tight"><span>{exampleLoading ? "Preparing example…" : landingWebsitePreview && activeMode === "website" ? "Analyze website" : createLabel}</span><span className="mt-1 text-[10px] font-medium text-white/80">{landingWebsitePreview && activeMode === "website" ? `Free preview · render ~${exactCredits} credits` : `Estimated cost · ${exactCredits} credits`}</span></span>
+            <ArrowRight size={16} className="ml-auto" />
           </button>
         </div>
       </div>
