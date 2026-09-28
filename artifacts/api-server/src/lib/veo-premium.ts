@@ -286,7 +286,7 @@ async function waitForSceneOperation({
   const started = Date.now();
   let lastPollLogAt = 0;
   console.info(`[ai-video] job=${jobId} premium_scene=${sceneIndex + 1} submitted operation=${operationName} resolution=${quality}`);
-  onStatus?.(`Veo is generating premium scene ${sceneIndex + 1}`, 0);
+  onStatus?.(`Cinema is generating scene ${sceneIndex + 1}`, 0);
 
   while (!operation.done) {
     const now = Date.now();
@@ -300,7 +300,7 @@ async function waitForSceneOperation({
     if (now - lastPollLogAt >= POLL_LOG_MS) {
       lastPollLogAt = now;
       const elapsedSeconds = Math.round((now - started) / 1000);
-      onStatus?.(`Veo is generating premium scene ${sceneIndex + 1} · ${elapsedSeconds}s elapsed`, elapsedSeconds);
+      onStatus?.(`Cinema is generating scene ${sceneIndex + 1} · ${elapsedSeconds}s elapsed`, elapsedSeconds);
     }
     await new Promise((resolve) => setTimeout(resolve, POLL_MS));
     try {
