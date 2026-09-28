@@ -1,16 +1,22 @@
-import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import {
   ArrowRight,
   Check,
   ChevronDown,
+  Clock,
   Film,
   Globe2,
   Image as ImageIcon,
   House,
+  Languages,
+  Maximize2,
   MessageCircleMore,
+  Monitor,
   PackageOpen,
   Paperclip,
   Sparkles,
+  Video,
+  Volume2,
   X,
 } from "lucide-react";
 import { normalizeWebsiteUrl } from "@/lib/websiteUrl";
@@ -151,9 +157,92 @@ function optionClass(active: boolean) {
 function controlClass(active: boolean) {
   return `creator-secondary-button inline-flex min-h-10 items-center gap-2 rounded-xl border px-3 text-[10px] font-semibold transition sm:text-[11px] ${
     active
-      ? "border-violet/40 bg-violet/[.10] text-white"
+      ? "border-violet/45 bg-violet/[.12] text-white shadow-[0_12px_30px_-24px_rgba(139,92,246,.95)]"
       : "border-white/[.10] bg-white/[.035] text-text-muted hover:border-violet/30 hover:bg-violet/[.07] hover:text-white"
   }`;
+}
+
+type CompactDropdownOption = {
+  value: string;
+  label: string;
+  helper?: string;
+};
+
+function CompactDropdown({
+  value,
+  options,
+  open,
+  onToggle,
+  onChange,
+  icon,
+  ariaLabel,
+  align = "left",
+}: {
+  value: string;
+  options: CompactDropdownOption[];
+  open: boolean;
+  onToggle: () => void;
+  onChange: (value: string) => void;
+  icon: ReactNode;
+  ariaLabel: string;
+  align?: "left" | "right";
+}) {
+  const selected = options.find((option) => option.value === value) ?? options[0];
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        aria-label={ariaLabel}
+        className={controlClass(open)}
+      >
+        <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-white/[.045] text-mint">
+          {icon}
+        </span>
+        <span className="whitespace-nowrap">{selected?.label ?? value}</span>
+        <ChevronDown size={12} className={`transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div
+          role="listbox"
+          aria-label={ariaLabel}
+          className={`absolute top-[calc(100%+8px)] z-[90] min-w-[190px] overflow-hidden rounded-2xl border border-white/[.11] bg-[#100c20]/[.99] p-1.5 shadow-[0_26px_70px_-28px_rgba(0,0,0,.98)] backdrop-blur-2xl ${
+            align === "right" ? "right-0" : "left-0"
+          }`}
+        >
+          {options.map((option) => {
+            const active = option.value === value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="option"
+                aria-selected={active}
+                onClick={() => onChange(option.value)}
+                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition ${
+                  active ? "bg-violet/[.14] text-white" : "text-white/70 hover:bg-white/[.055] hover:text-white"
+                }`}
+              >
+                <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border ${
+                  active ? "border-mint/35 bg-mint/10 text-mint" : "border-white/10 text-transparent"
+                }`}>
+                  {active && <Check size={11} />}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[11px] font-semibold">{option.label}</span>
+                  {option.helper && <span className="mt-0.5 block text-[8px] leading-3.5 text-white/38">{option.helper}</span>}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function MasterIdeas({
@@ -230,6 +319,7 @@ export function WebsiteBriefForm({
   const [brief, setBrief] = useState("");
   const [prompt, setPrompt] = useState("");
   const [compactPanel, setCompactPanel] = useState<"style" | "ideas" | "model" | null>(null);
+  const [openSettingMenu, setOpenSettingMenu] = useState<"aspect" | "quality" | "audio" | "language" | null>(null);
   const [settings, setSettings] = useState<WebsiteGenerationSettings>(DEFAULT_SETTINGS);
   const [selectedWebsiteRecipe, setSelectedWebsiteRecipe] = useState<WebsiteProductionMode | null>(null);
   const [selectedIdea, setSelectedIdea] = useState<CreativeIdea | null>(null);
@@ -250,6 +340,7 @@ export function WebsiteBriefForm({
     setActiveMode(intent);
     setSelectedIdea(null);
     setCompactPanel(null);
+    setOpenSettingMenu(null);
     setError(null);
     setSettings((current) => {
       if (intent === "photo") {
@@ -388,7 +479,20 @@ export function WebsiteBriefForm({
       };
     });
     setCompactPanel(null);
+    setOpenSettingMenu(null);
   }
+
+  useEffect(() => {
+    if (!openSettingMenu && compactPanel !== "model") return;
+    const closeFloatingMenus = (event: PointerEvent) => {
+      const root = composerRootRef.current;
+      if (!root || !(event.target instanceof Node) || root.contains(event.target)) return;
+      setOpenSettingMenu(null);
+      setCompactPanel((current) => current === "model" ? null : current);
+    };
+    document.addEventListener("pointerdown", closeFloatingMenus);
+    return () => document.removeEventListener("pointerdown", closeFloatingMenus);
+  }, [compactPanel, openSettingMenu]);
 
   function submit() {
     if (disabled) return;
@@ -512,7 +616,7 @@ export function WebsiteBriefForm({
   return (
     <div
       ref={composerRootRef}
-      className={`creator-composer relative overflow-hidden ${compactLayout ? "rounded-[22px]" : "rounded-[28px]"} border bg-[#151027]/95 shadow-[0_28px_90px_-48px_rgba(139,92,246,.72)] backdrop-blur-2xl transition ${dragging ? "border-mint/60 ring-2 ring-mint/15" : "border-white/10"}`}
+      className={`creator-composer relative overflow-visible ${compactLayout ? "rounded-[22px]" : "rounded-[28px]"} border bg-[#151027]/95 shadow-[0_28px_90px_-48px_rgba(139,92,246,.72)] backdrop-blur-2xl transition ${dragging ? "border-mint/60 ring-2 ring-mint/15" : "border-white/10"}`}
       onPaste={(event) => {
         if (disabled) return;
         const pasted = Array.from(event.clipboardData.files ?? []).filter((file) => file.type.startsWith("image/"));
@@ -553,7 +657,7 @@ export function WebsiteBriefForm({
       />
 
       {dragging && (
-        <div className="pointer-events-none absolute inset-0 z-30 grid place-items-center bg-[#0b0818]/90 backdrop-blur-sm">
+        <div className="pointer-events-none absolute inset-0 z-30 grid place-items-center rounded-[inherit] bg-[#0b0818]/90 backdrop-blur-sm">
           <div className="rounded-2xl border border-mint/30 bg-panel px-6 py-5 text-center shadow-2xl">
             <Paperclip className="mx-auto text-mint" size={22} />
             <p className="mt-2 text-sm font-semibold text-white">Drop your references here</p>
@@ -675,27 +779,39 @@ export function WebsiteBriefForm({
             <button
               type="button"
               onClick={() => {
-                            setCompactPanel((current) => current === "style" ? null : "style");
+                setOpenSettingMenu(null);
+                setCompactPanel((current) => current === "style" ? null : "style");
               }}
               aria-expanded={compactPanel === "style"}
               className={controlClass(compactPanel === "style")}
             >
               <Film size={13} className="text-mint" />
               Style: {selectedWebsiteRecipe ? WEBSITE_RECIPES.find((recipe) => recipe.mode === selectedWebsiteRecipe)?.label : "Auto"}
-              <ChevronDown size={12} className={compactPanel === "style" ? "rotate-180" : ""} />
+              <ChevronDown size={12} className={`transition-transform ${compactPanel === "style" ? "rotate-180" : ""}`} />
             </button>
           )}
 
-          <button type="button" onClick={toggleIdeas} aria-expanded={compactPanel === "ideas"} className={controlClass(compactPanel === "ideas")}>
+          <button
+            type="button"
+            onClick={() => {
+              setOpenSettingMenu(null);
+              toggleIdeas();
+            }}
+            aria-expanded={compactPanel === "ideas"}
+            className={controlClass(compactPanel === "ideas")}
+          >
             <Sparkles size={13} className="text-violet" />
             Ideas
             {selectedIdea && <span className="rounded-full bg-mint/10 px-1.5 py-0.5 text-[8px] text-mint">Added</span>}
-            <ChevronDown size={12} className={compactPanel === "ideas" ? "rotate-180" : ""} />
+            <ChevronDown size={12} className={`transition-transform ${compactPanel === "ideas" ? "rotate-180" : ""}`} />
           </button>
 
           <button
             type="button"
-            onClick={() => inputRef.current?.click()}
+            onClick={() => {
+              setOpenSettingMenu(null);
+              inputRef.current?.click();
+            }}
             disabled={disabled || files.length >= 10}
             className={controlClass(false)}
           >
@@ -703,139 +819,210 @@ export function WebsiteBriefForm({
             {files.length ? `References ${files.length}` : isProductMode ? "Add product photo" : activeMode === "interior" ? "Add space references" : "References"}
           </button>
 
-          <button
-            type="button"
-            onClick={() => setCompactPanel((current) => current === "model" ? null : "model")}
-            aria-expanded={compactPanel === "model"}
-            className={controlClass(compactPanel === "model")}
-          >
-            <Sparkles size={13} className="text-mint" />
-            <span className="max-w-[150px] truncate">{selectedModel.name.replace("AiWebVideo ", "")}</span>
-            <ChevronDown size={12} className={compactPanel === "model" ? "rotate-180" : ""} />
-          </button>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setOpenSettingMenu(null);
+                setCompactPanel((current) => current === "model" ? null : "model");
+              }}
+              aria-expanded={compactPanel === "model"}
+              aria-haspopup="listbox"
+              className={controlClass(compactPanel === "model")}
+            >
+              <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-mint/[.08] text-mint">
+                {modelFamily === "video" ? <Video size={13} /> : modelFamily === "interior" ? <House size={13} /> : <ImageIcon size={13} />}
+              </span>
+              <span className="max-w-[150px] truncate">{selectedModel.name.replace("AiWebVideo ", "")}</span>
+              <ChevronDown size={12} className={`transition-transform ${compactPanel === "model" ? "rotate-180" : ""}`} />
+            </button>
+
+            {compactPanel === "model" && (
+              <div
+                role="listbox"
+                aria-label="Generation model"
+                className="absolute left-0 top-[calc(100%+8px)] z-[95] w-[min(390px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-white/[.11] bg-[#100c20]/[.99] p-1.5 shadow-[0_28px_80px_-30px_rgba(0,0,0,.98)] backdrop-blur-2xl"
+              >
+                <div className="flex items-center justify-between gap-3 px-2.5 pb-1.5 pt-1">
+                  <div>
+                    <p className="text-[10px] font-semibold text-white">Choose model</p>
+                    <p className="mt-0.5 text-[8px] text-white/35">Only compatible options are shown.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCompactPanel(null)}
+                    aria-label="Close model menu"
+                    className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-white/35 transition hover:bg-white/[.06] hover:text-white"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+
+                {availableModels.map((model) => {
+                  const selected = settings.modelId === model.id;
+                  const effectiveQuality = model.supportedQualities.includes(settings.outputQuality)
+                    ? settings.outputQuality
+                    : (model.supportedQualities[0] ?? "1080p");
+                  const modelPrice = model.family === "video"
+                    ? displayCredits(effectiveQuality === "4k"
+                        ? (model.internalCredits4k ?? model.internalCredits1080p ?? 1)
+                        : (model.internalCredits1080p ?? 1))
+                    : displayCredits(effectiveQuality === "4k"
+                        ? (model.internalCredits4k ?? model.internalCreditsPerImage ?? 1)
+                        : (model.internalCreditsPerImage ?? 1));
+                  return (
+                    <button
+                      key={model.id}
+                      type="button"
+                      role="option"
+                      aria-selected={selected}
+                      onClick={() => chooseModel(model.id)}
+                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition ${
+                        selected ? "bg-violet/[.13]" : "hover:bg-white/[.055]"
+                      }`}
+                    >
+                      <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl border ${
+                        selected ? "border-mint/30 bg-mint/10 text-mint" : "border-white/10 bg-white/[.035] text-white/55"
+                      }`}>
+                        {model.family === "video" ? <Video size={16} /> : model.family === "interior" ? <House size={16} /> : <ImageIcon size={16} />}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-2">
+                          <span className="truncate text-[11px] font-semibold text-white">{model.name}</span>
+                          {model.recommended && <span className="rounded-md bg-mint/10 px-1.5 py-0.5 text-[7px] font-bold text-mint">BEST</span>}
+                        </span>
+                        <span className="mt-1 flex flex-wrap items-center gap-1 text-[8px] text-white/42">
+                          <span>{model.speed}</span>
+                          <span>·</span>
+                          <span>{model.quality}</span>
+                          {model.nativeAudio && <><span>·</span><span>Sound</span></>}
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-right">
+                        <span className="block text-[9px] font-semibold text-white/75">{modelPrice}</span>
+                        <span className="block text-[7px] text-white/35">{model.family === "video" ? "cr/sec" : "cr/image"}</span>
+                      </span>
+                      <span className="grid h-5 w-5 shrink-0 place-items-center">
+                        {selected && <Check size={13} className="text-mint" />}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
           {selectedModel.supportsDuration && (
-            <label className="creator-secondary-button inline-flex min-h-10 items-center gap-1 rounded-xl border border-white/[.10] bg-white/[.035] px-2.5 text-[10px] font-semibold text-text-muted transition hover:border-violet/30 hover:text-white sm:text-[11px]">
+            <label className="creator-secondary-button inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-white/[.10] bg-white/[.035] px-2.5 text-[10px] font-semibold text-text-muted transition hover:border-violet/30 hover:text-white sm:text-[11px]">
+              <Clock size={13} className="text-mint" />
               <input
                 type="number"
                 min={8}
                 max={144}
                 step={1}
-                list="aiwebvideo-duration-presets"
                 value={durationSeconds}
+                onFocus={() => {
+                  setCompactPanel(null);
+                  setOpenSettingMenu(null);
+                }}
                 onChange={(event) => setSettings((current) => ({ ...current, durationSeconds: normalizeDuration(Number(event.currentTarget.value)) }))}
-                className="w-9 bg-transparent text-right font-semibold text-inherit outline-none"
+                className="w-8 bg-transparent text-right font-semibold text-inherit outline-none"
                 aria-label="Duration in seconds"
               />
               <span>s</span>
-              <datalist id="aiwebvideo-duration-presets">
-                {DURATION_PRESETS.map((duration) => <option key={duration} value={duration} />)}
-              </datalist>
             </label>
           )}
 
-          <select
+          <CompactDropdown
             value={settings.aspectRatio}
-            onChange={(event) => setSettings((current) => ({ ...current, aspectRatio: event.currentTarget.value as "16:9" | "9:16" | "1:1" }))}
-            className="creator-secondary-button min-h-10 rounded-xl border border-white/[.10] bg-white/[.035] px-3 text-[10px] font-semibold text-text-muted outline-none hover:border-violet/30 hover:text-white sm:text-[11px]"
-            aria-label="Aspect ratio"
-          >
-            <option value="9:16">9:16</option>
-            <option value="16:9">16:9</option>
-            <option value="1:1">1:1</option>
-          </select>
+            options={[
+              { value: "9:16", label: "9:16", helper: "Portrait" },
+              { value: "16:9", label: "16:9", helper: "Landscape" },
+              { value: "1:1", label: "1:1", helper: "Square" },
+            ]}
+            open={openSettingMenu === "aspect"}
+            onToggle={() => {
+              setCompactPanel(null);
+              setOpenSettingMenu((current) => current === "aspect" ? null : "aspect");
+            }}
+            onChange={(value) => {
+              setSettings((current) => ({ ...current, aspectRatio: value as "16:9" | "9:16" | "1:1" }));
+              setOpenSettingMenu(null);
+            }}
+            icon={<Maximize2 size={12} />}
+            ariaLabel="Aspect ratio"
+          />
 
           {selectedModel.supportedQualities.length > 1 ? (
-            <select
+            <CompactDropdown
               value={settings.outputQuality}
-              onChange={(event) => setSettings((current) => ({ ...current, outputQuality: event.currentTarget.value as "1080p" | "4k" }))}
-              className="creator-secondary-button min-h-10 rounded-xl border border-white/[.10] bg-white/[.035] px-3 text-[10px] font-semibold text-text-muted outline-none hover:border-violet/30 hover:text-white sm:text-[11px]"
-              aria-label="Quality"
-            >
-              {selectedModel.supportedQualities.map((quality) => (
-                <option key={quality} value={quality}>{quality === "4k" ? "4K" : "1080p"}</option>
-              ))}
-            </select>
+              options={selectedModel.supportedQualities.map((quality) => ({
+                value: quality,
+                label: quality === "4k" ? "4K" : "1080p",
+                helper: quality === "4k" ? "Maximum detail" : "Standard HD",
+              }))}
+              open={openSettingMenu === "quality"}
+              onToggle={() => {
+                setCompactPanel(null);
+                setOpenSettingMenu((current) => current === "quality" ? null : "quality");
+              }}
+              onChange={(value) => {
+                setSettings((current) => ({ ...current, outputQuality: value as "1080p" | "4k" }));
+                setOpenSettingMenu(null);
+              }}
+              icon={<Monitor size={12} />}
+              ariaLabel="Quality"
+            />
           ) : (
-            <span className="creator-secondary-button inline-flex min-h-10 items-center rounded-xl border border-white/[.08] bg-white/[.025] px-3 text-[10px] font-semibold text-white/55 sm:text-[11px]">
+            <span className="creator-secondary-button inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.025] px-3 text-[10px] font-semibold text-white/55 sm:text-[11px]">
+              <span className="grid h-5 w-5 place-items-center rounded-md bg-white/[.04] text-mint"><Monitor size={12} /></span>
               {selectedModel.quality}
             </span>
           )}
 
           {selectedModel.audioModes.length > 0 && (
-            <select
+            <CompactDropdown
               value={settings.audioMode}
-              onChange={(event) => setSettings((current) => ({ ...current, audioMode: event.currentTarget.value as AudioMode }))}
-              className="creator-secondary-button min-h-10 rounded-xl border border-white/[.10] bg-white/[.035] px-3 text-[10px] font-semibold text-text-muted outline-none hover:border-violet/30 hover:text-white sm:text-[11px]"
-              aria-label="Audio"
-            >
-              {selectedModel.audioModes.includes("native_audio") && <option value="native_audio">Sound</option>}
-              {selectedModel.audioModes.includes("voice_music") && <option value="voice_music">Narration</option>}
-              {selectedModel.audioModes.includes("music_only") && <option value="music_only">Music</option>}
-              {selectedModel.audioModes.includes("silent") && <option value="silent">Silent</option>}
-            </select>
+              options={[
+                ...(selectedModel.audioModes.includes("native_audio") ? [{ value: "native_audio", label: "Sound", helper: "Native scene audio" }] : []),
+                ...(selectedModel.audioModes.includes("voice_music") ? [{ value: "voice_music", label: "Narration", helper: "Voice + soundtrack" }] : []),
+                ...(selectedModel.audioModes.includes("music_only") ? [{ value: "music_only", label: "Music", helper: "Soundtrack only" }] : []),
+                ...(selectedModel.audioModes.includes("silent") ? [{ value: "silent", label: "Silent", helper: "No audio" }] : []),
+              ]}
+              open={openSettingMenu === "audio"}
+              onToggle={() => {
+                setCompactPanel(null);
+                setOpenSettingMenu((current) => current === "audio" ? null : "audio");
+              }}
+              onChange={(value) => {
+                setSettings((current) => ({ ...current, audioMode: value as AudioMode }));
+                setOpenSettingMenu(null);
+              }}
+              icon={<Volume2 size={12} />}
+              ariaLabel="Audio"
+              align="right"
+            />
           )}
         </div>
 
         {selectedModel.audioModes.includes("voice_music") && settings.audioMode === "voice_music" && (
           <div className="mt-2 flex justify-end">
-            <select
+            <CompactDropdown
               value={settings.narrationLanguage}
-              onChange={(event) => setSettings((current) => ({ ...current, narrationLanguage: event.currentTarget.value }))}
-              className="h-9 rounded-xl border border-white/[.10] bg-white/[.035] px-3 text-[10px] font-semibold text-text-muted outline-none hover:border-violet/30 hover:text-white"
-              aria-label="Narration language"
-            >
-              {NARRATION_LANGUAGES.map(([code, label]) => <option key={code} value={code}>{label}</option>)}
-            </select>
-          </div>
-        )}
-
-        {compactPanel === "model" && (
-          <div className="absolute z-40 mt-2 w-[calc(100%-1.5rem)] max-w-[390px] overflow-hidden rounded-2xl border border-white/[.10] bg-[#0f0b1d]/98 p-1.5 shadow-2xl backdrop-blur-2xl sm:w-[390px]">
-            {availableModels.map((model) => {
-              const selected = settings.modelId === model.id;
-              const effectiveQuality = model.supportedQualities.includes(settings.outputQuality)
-                ? settings.outputQuality
-                : (model.supportedQualities[0] ?? "1080p");
-              const modelPrice = model.family === "video"
-                ? displayCredits(effectiveQuality === "4k"
-                    ? (model.internalCredits4k ?? model.internalCredits1080p ?? 1)
-                    : (model.internalCredits1080p ?? 1))
-                : displayCredits(effectiveQuality === "4k"
-                    ? (model.internalCredits4k ?? model.internalCreditsPerImage ?? 1)
-                    : (model.internalCreditsPerImage ?? 1));
-              return (
-                <button
-                  key={model.id}
-                  type="button"
-                  onClick={() => chooseModel(model.id)}
-                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition ${selected ? "bg-white/[.08]" : "hover:bg-white/[.05]"}`}
-                >
-                  <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg border text-[10px] font-black ${selected ? "border-mint/30 bg-mint/10 text-mint" : "border-white/10 bg-white/[.03] text-white/65"}`}>
-                    {model.family === "video" ? "C" : model.family === "interior" ? "S" : "G"}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-2">
-                      <span className="truncate text-[11px] font-semibold text-white">{model.name}</span>
-                      {model.recommended && <span className="rounded-md bg-mint/10 px-1.5 py-0.5 text-[7px] font-bold text-mint">BEST</span>}
-                    </span>
-                    <span className="mt-1 flex flex-wrap items-center gap-1 text-[8px] text-white/45">
-                      <span>{model.speed}</span>
-                      <span>·</span>
-                      <span>{model.quality}</span>
-                      {model.nativeAudio && <><span>·</span><span>Sound</span></>}
-                    </span>
-                  </span>
-                  <span className="shrink-0 text-right">
-                    <span className="block text-[9px] font-semibold text-white/75">{modelPrice}</span>
-                    <span className="block text-[7px] text-white/35">{model.family === "video" ? "cr/sec" : "cr/image"}</span>
-                  </span>
-                  <span className="grid h-5 w-5 shrink-0 place-items-center">
-                    {selected && <Check size={13} className="text-mint" />}
-                  </span>
-                </button>
-              );
-            })}
+              options={NARRATION_LANGUAGES.map(([code, label]) => ({ value: code, label }))}
+              open={openSettingMenu === "language"}
+              onToggle={() => {
+                setCompactPanel(null);
+                setOpenSettingMenu((current) => current === "language" ? null : "language");
+              }}
+              onChange={(value) => {
+                setSettings((current) => ({ ...current, narrationLanguage: value }));
+                setOpenSettingMenu(null);
+              }}
+              icon={<Languages size={12} />}
+              ariaLabel="Narration language"
+              align="right"
+            />
           </div>
         )}
 
