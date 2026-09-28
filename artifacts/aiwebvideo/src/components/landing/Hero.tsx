@@ -1,6 +1,10 @@
 import { ChatWidget } from "@/components/chat/ChatWidget";
 
 export function Hero() {
+  const params = new URLSearchParams(window.location.search);
+  const savedJob = params.get("job");
+  const requested = params.get("create");
+  const creationIntent = requested === "video" || requested === "photo" || requested === "product-video" || requested === "scenario" || requested === "interior" || requested === "architecture" || requested === "website" ? requested : "website";
   return (
     <section id="generate" className="relative scroll-mt-20 overflow-hidden border-b border-white/[.06] bg-black/10">
       <div className="pointer-events-none absolute left-1/2 top-0 h-[420px] w-[980px] -translate-x-1/2 rounded-full bg-violet/[.09] blur-[120px]" />
@@ -14,7 +18,9 @@ export function Hero() {
 
         <div className="relative w-full">
           <div className="pointer-events-none absolute -inset-x-6 -inset-y-4 rounded-[44px] bg-gradient-to-r from-violet/[.08] via-pink/[.06] to-gold/[.04] blur-3xl" />
-          <ChatWidget compactLanding className="relative w-full" />
+          <ChatWidget compactLanding className="relative w-full" resumeJobId={savedJob} initialCreationIntent={creationIntent} onJobCreated={(id) => {
+            if (window.location.pathname === "/") window.history.replaceState({}, "", `/?job=${encodeURIComponent(id)}#generate`);
+          }} />
         </div>
       </div>
     </section>
