@@ -1583,7 +1583,6 @@ Promotion direction: ${brief}` : normalized);
           frameRate: 24,
           selectedCaptureIds: captureIds,
           modelId: request.modelId,
-          modelId: request.modelId,
         },
       );
       if (storyboardResponse.creditsRemaining !== undefined) setCreditBalance(storyboardResponse.creditsRemaining);
@@ -1754,6 +1753,7 @@ ${request.prompt}`
         request.audioMode !== "voice_music",
         request.durationSeconds,
         request.outputQuality,
+        request.modelId,
       );
       if (account.creditsBalance < required) {
         setPaywallContext(`Add ${required - account.creditsBalance} credits to start this AI production`);
@@ -1769,6 +1769,7 @@ ${request.prompt}`
         audioMode: request.audioMode,
         aspectRatio: request.aspectRatio,
         outputQuality: request.outputQuality,
+        modelId: request.modelId,
         ideaPrompt: effectiveStudioPrompt || undefined,
       });
       selectJobId(upload.jobId);
@@ -1779,6 +1780,7 @@ ${request.prompt}`
         request.durationSeconds,
         request.outputQuality,
         request.audioMode,
+        request.modelId,
       );
       if (!canStartPaidPlanning) {
         setStage("awaiting_url");
@@ -1797,6 +1799,7 @@ ${request.prompt}`
           outputQuality: request.outputQuality,
           audioMode: request.audioMode,
           frameRate: 24,
+          modelId: request.modelId,
         },
       );
       if (storyboardResponse.creditsRemaining !== undefined) setCreditBalance(storyboardResponse.creditsRemaining);
