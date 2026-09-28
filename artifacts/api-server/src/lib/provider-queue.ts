@@ -188,6 +188,11 @@ function maxRateLimitWaitMs(kind: ProviderQueueKind) {
 }
 
 function maxRateLimitRetries(kind: ProviderQueueKind) {
+  // Image/video starts can be billable. Never automatically submit a second
+  // generation after a quota/rate-limit response: the provider may have
+  // accepted the first request before the response was lost. Polling an
+  // already-created video operation remains safe and is handled elsewhere.
+  if (kind === 'video' || kind === 'image') return 0;
   const generic = envNumber('GEMINI_QUEUE_RATE_LIMIT_RETRIES', 5, 0, 10);
   if (kind === 'storyboard') {
     // Repeating the same multimodal storyboard request five times does not fix
@@ -266,8 +271,8 @@ async function publishProviderThrottleStatus(item: QueueItem<unknown>, waitMs: n
   if (!item.jobId) return;
   const seconds = Math.max(1, Math.ceil(waitMs / 1000));
   const message = item.kind === 'storyboard'
-    ? `Gemini temporarily limited AI planning · retrying in ${seconds}s`
-    : `Provider temporarily limited ${item.kind} capacity · retrying in ${seconds}s`;
+    ? `AI planning capacity is temporarily limited · retrying in ${seconds}s`
+    : `Generation capacity is temporarily limited · retrying in ${seconds}s`;
   await query(
     `UPDATE jobs
      SET status_message=$2, eta_seconds=GREATEST(COALESCE(eta_seconds,0),$3), updated_at=NOW()
@@ -280,7 +285,7 @@ async function publishStoryboardFallbackStatus(item: QueueItem<unknown>) {
   if (!item.jobId || item.kind !== 'storyboard') return;
   await query(
     `UPDATE jobs
-     SET status_message='Gemini planning capacity is limited · continuing with the backup plan',
+     SET status_message='AI planning capacity is limited · continuing with the backup plan',
          eta_seconds=LEAST(GREATEST(COALESCE(eta_seconds,0),5),15),
          updated_at=NOW()
      WHERE id=$1 AND status NOT IN ('done','failed','cancelled')`,
