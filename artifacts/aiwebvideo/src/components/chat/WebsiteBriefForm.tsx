@@ -434,7 +434,13 @@ export function WebsiteBriefForm({
     const durationSeconds = settings.durationSeconds === "auto" ? 8 : settings.durationSeconds;
     setError(null);
     void onStudioSubmit({
-      studioKind: isProduct ? "product" : activeMode === "scenario" ? "scenario" : "interior",
+      studioKind: isProduct
+        ? "product"
+        : activeMode === "scenario"
+          ? "scenario"
+          : activeMode === "interior"
+            ? "interior"
+            : "idea",
       prompt: activePrompt,
       files,
       mode: activeMode === "photo" ? "photos" : activeMode === "product-video" ? "video" : isInterior ? (interiorOutput === "video" ? "custom" : "photos") : "custom",
