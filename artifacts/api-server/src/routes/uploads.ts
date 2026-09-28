@@ -7,6 +7,7 @@ import { requireAuth, tryAuth } from '../lib/auth.js';
 import { AppError, sendError } from '../lib/errors.js';
 import { saveImageFile } from '../lib/capture.js';
 import { MAX_VIDEO_SECONDS, MIN_VIDEO_SECONDS, videoCreditCost } from '../lib/credits.js';
+import { isImageModelTier, isModelTier, isVideoModelTier, type ModelTier } from '../lib/model-tiers.js';
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_PHOTOS, normalizeUploadToJpeg, sanitizeUploadTitle, uploadPhotoLabel } from '../lib/uploads.js';
 
 const router = Router();
@@ -83,6 +84,7 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
       ? req.body.audioMode as 'voice_music' | 'native_audio' | 'music_only' | 'silent'
       : 'native_audio';
     const studioQuality = req.body?.outputQuality === '4k' ? '4k' as const : '1080p' as const;
+    const requestedModelTier: ModelTier | undefined = isModelTier(req.body?.modelTier) ? req.body.modelTier : undefined;
     const requestedDuration = Number(req.body?.durationSeconds ?? MIN_VIDEO_SECONDS);
     const studioDuration = Number.isInteger(requestedDuration)
       && requestedDuration >= MIN_VIDEO_SECONDS
@@ -109,7 +111,30 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
       if (studioKind === 'product' && !files.length) {
         throw new AppError('Upload at least one real product photo before generating a product campaign.', 400, 'PRODUCT_PHOTO_REQUIRED');
       }
-      const requiredCredits = videoCreditCost(studioMode, studioAudioMode !== 'voice_music', studioDuration, studioQuality);
+      const imageMode = studioMode === 'photos';
+      const effectiveModelTier: ModelTier = requestedModelTier ?? (imageMode ? 'graphic2' : 'cinema2');
+      if (imageMode && !isImageModelTier(effectiveModelTier)) {
+        throw new AppError('Choose a Graphic model for image generation.', 400, 'INVALID_MODEL_TIER');
+      }
+      if (!imageMode && !isVideoModelTier(effectiveModelTier)) {
+        throw new AppError('Choose a Cinema model for video generation.', 400, 'INVALID_MODEL_TIER');
+      }
+      if (effectiveModelTier === 'cinema1' && studioQuality === '4k') {
+        throw new AppError('Cinema 1 supports up to 1080p. Choose Cinema 2 or Cinema Pro for 4K.', 400, 'MODEL_QUALITY_UNSUPPORTED');
+      }
+      if (imageMode && effectiveModelTier !== 'graphic_pro' && studioQuality === '4k') {
+        throw new AppError('4K images use Graphic Pro. Choose Graphic Pro or standard image quality.', 400, 'MODEL_QUALITY_UNSUPPORTED');
+      }
+      if (imageMode && effectiveModelTier === 'graphic_pro' && studioQuality !== '4k') {
+        throw new AppError('Graphic Pro is the 4K image tier. Choose 4K quality or Graphic 1/2.', 400, 'MODEL_QUALITY_UNSUPPORTED');
+      }
+      const requiredCredits = videoCreditCost(
+        studioMode,
+        studioAudioMode !== 'voice_music',
+        studioDuration,
+        studioQuality,
+        effectiveModelTier,
+      );
       if (req.user.creditsBalance < requiredCredits) {
         throw new AppError(`This production needs ${requiredCredits} credits. Add credits before generation starts.`, 402, 'INSUFFICIENT_CREDITS');
       }
@@ -202,6 +227,7 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
         recordingUrl: null,
         pages,
         pageCount: pages.length,
+        modelTier: requestedModelTier ?? null,
       } as never,
     });
 
