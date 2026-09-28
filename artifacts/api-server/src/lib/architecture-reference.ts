@@ -4,6 +4,7 @@ export interface ArchitectureReference {
   lng: number;
   formattedAddress: string;
   source: 'streetview' | 'satellite';
+  streetBuffer?: Buffer;
 }
 
 function mapsKey() {
@@ -35,25 +36,27 @@ async function expandGoogleMapsUrl(raw: string) {
   let parsed: URL;
   try { parsed = new URL(raw); } catch { return raw; }
   const hostname = parsed.hostname.toLowerCase();
-  const allowed = hostname === 'maps.app.goo.gl'
-    || hostname === 'goo.gl'
-    || hostname === 'maps.google.com'
-    || hostname.endsWith('.google.com');
+  const allowed = hostname === 'maps.app.goo.gl' || hostname === 'goo.gl';
   if (!allowed) return raw;
-  if (hostname !== 'maps.app.goo.gl' && hostname !== 'goo.gl') return raw;
-  const response = await fetch(parsed.toString(), {
-    method: 'HEAD',
-    redirect: 'follow',
-    signal: AbortSignal.timeout(8_000),
-  }).catch(() => null);
-  const finalUrl = response?.url;
-  if (!finalUrl) return raw;
-  try {
-    const finalHost = new URL(finalUrl).hostname.toLowerCase();
-    return finalHost === 'google.com' || finalHost.endsWith('.google.com') ? finalUrl : raw;
-  } catch {
-    return raw;
+  // Shared Maps links often reject HEAD. Follow GET redirects one hop at a
+  // time so an unexpected redirect cannot send this server to another host.
+  let current = parsed;
+  for (let hop = 0; hop < 5; hop++) {
+    const response = await fetch(current, { method: 'GET', redirect: 'manual', signal: AbortSignal.timeout(8_000) }).catch(() => null);
+    if (!response) return raw;
+    void response.body?.cancel().catch(() => {});
+    const location = response.headers.get('location');
+    if (!location || ![301, 302, 303, 307, 308].includes(response.status)) {
+      return current.hostname === 'google.com' || current.hostname.endsWith('.google.com') ? current.toString() : raw;
+    }
+    try {
+      const next = new URL(location, current);
+      const host = next.hostname.toLowerCase();
+      if (next.protocol !== 'https:' || !(host === 'google.com' || host.endsWith('.google.com') || host === 'maps.app.goo.gl' || host === 'goo.gl')) return raw;
+      current = next;
+    } catch { return raw; }
   }
+  return raw;
 }
 
 async function geocode(input: string, key: string) {
@@ -68,7 +71,9 @@ async function geocode(input: string, key: string) {
   if (/^https?:\/\//i.test(expanded)) {
     try {
       const url = new URL(expanded);
-      const query = url.searchParams.get('query') || url.searchParams.get('q');
+      const query = url.searchParams.get('query') || url.searchParams.get('q') || url.searchParams.get('ll');
+      const fromQuery = query ? coordinatesFromText(query) : null;
+      if (fromQuery) return { ...fromQuery, formattedAddress: input.trim() };
       const placeMatch = url.pathname.match(/\/place\/([^/]+)/i);
       address = query || (placeMatch?.[1] ? decodeURIComponent(placeMatch[1].replace(/\+/g, ' ')) : '');
     } catch {}
@@ -111,12 +116,22 @@ export async function resolveArchitectureReference(input: string): Promise<Archi
   const { lat, lng, formattedAddress } = await geocode(location, key);
   const point = lat.toFixed(7) + ',' + lng.toFixed(7);
 
+  const satellite = new URL('https://maps.googleapis.com/maps/api/staticmap');
+  satellite.searchParams.set('center', point);
+  satellite.searchParams.set('zoom', '19');
+  satellite.searchParams.set('size', '640x640');
+  satellite.searchParams.set('scale', '2');
+  satellite.searchParams.set('maptype', 'satellite');
+  satellite.searchParams.set('format', 'jpg');
+  satellite.searchParams.set('key', key);
+
   const metadata = new URL('https://maps.googleapis.com/maps/api/streetview/metadata');
   metadata.searchParams.set('location', point);
   metadata.searchParams.set('key', key);
   const metaResponse = await fetch(metadata, { signal: AbortSignal.timeout(8_000) }).catch(() => null);
   const meta = metaResponse?.ok ? await metaResponse.json().catch(() => null) as { status?: string } | null : null;
 
+  let streetBuffer: Buffer | undefined;
   if (meta?.status === 'OK') {
     const street = new URL('https://maps.googleapis.com/maps/api/streetview');
     street.searchParams.set('size', '640x640');
@@ -125,16 +140,12 @@ export async function resolveArchitectureReference(input: string): Promise<Archi
     street.searchParams.set('fov', '90');
     street.searchParams.set('pitch', '0');
     street.searchParams.set('key', key);
-    return { buffer: await fetchImage(street), lat, lng, formattedAddress, source: 'streetview' };
+    streetBuffer = await fetchImage(street).catch(() => undefined);
   }
-
-  const satellite = new URL('https://maps.googleapis.com/maps/api/staticmap');
-  satellite.searchParams.set('center', point);
-  satellite.searchParams.set('zoom', '19');
-  satellite.searchParams.set('size', '640x640');
-  satellite.searchParams.set('scale', '2');
-  satellite.searchParams.set('maptype', 'satellite');
-  satellite.searchParams.set('markers', 'color:0x8b5cf6|' + point);
-  satellite.searchParams.set('key', key);
-  return { buffer: await fetchImage(satellite), lat, lng, formattedAddress, source: 'satellite' };
+  // Satellite is centered on the submitted coordinates. A nearby Street View
+  // panorama can be useful context, but must never replace the site anchor.
+  const satelliteBuffer = await fetchImage(satellite).catch(() => undefined);
+  if (satelliteBuffer) return { buffer: satelliteBuffer, streetBuffer, lat, lng, formattedAddress, source: 'satellite' };
+  if (streetBuffer) return { buffer: streetBuffer, lat, lng, formattedAddress, source: 'streetview' };
+  throw new Error('Maps imagery is unavailable for this address. Check that Maps Static API and Street View Static API are enabled for the server key.');
 }
