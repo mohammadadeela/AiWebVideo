@@ -58,7 +58,7 @@ export const PUBLIC_MODELS: PublicModelCard[] = [
     id: 'graphic-2', name: 'AiWebVideo Graphic 2', family: 'image',
     tagline: 'Sharper campaign imagery with stronger detail.',
     bestFor: 'Product photos and polished marketing creatives',
-    speed: 'Fast', quality: '2K', nativeAudio: false, supports4k: true, recommended: true,
+    speed: 'Fast', quality: '2K / 4K', nativeAudio: false, supports4k: true, recommended: true,
     internalCreditsPerImage: 1, internalCredits4k: 2,
   },
   {
@@ -79,7 +79,7 @@ export const PUBLIC_MODELS: PublicModelCard[] = [
     id: 'space-2', name: 'AiWebVideo Space 2', family: 'interior',
     tagline: 'Detailed visualization with stronger spatial fidelity.',
     bestFor: 'Retail, residential and architectural concepts',
-    speed: 'Fast', quality: '2K', nativeAudio: false, supports4k: true, recommended: true,
+    speed: 'Fast', quality: '2K / 4K', nativeAudio: false, supports4k: true, recommended: true,
     internalCreditsPerImage: 1, internalCredits4k: 2,
   },
   {
