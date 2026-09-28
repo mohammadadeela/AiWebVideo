@@ -95,6 +95,7 @@ test('every subscription remains above 2x premium Standard provider cost when al
 test('one-time premium 1080p packs include narration credits and clear the 2x cost floor', () => {
   const packs = [
     { product: PRODUCTS.single8, seconds: 8 },
+    { product: PRODUCTS.single32, seconds: 32 },
     { product: PRODUCTS.single48, seconds: 48 },
     { product: PRODUCTS.single144, seconds: 144 },
   ];
