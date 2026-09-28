@@ -101,16 +101,13 @@ function CampaignMedia({ video, eager = false }: { video: MarketingVideo; eager?
   );
 }
 
-function SupportingFilm({ video, index }: { video: MarketingVideo; index: number }) {
+function SupportingFilm({ video }: { video: MarketingVideo }) {
   return (
     <article className="relative h-full overflow-hidden rounded-[20px] border border-white/10 bg-[#0d0919] transition duration-300 hover:-translate-y-1 hover:border-violet/40">
       <div className="relative aspect-[9/16] overflow-hidden bg-black">
         <CampaignMedia video={video} />
       </div>
-      <div className="p-3">
-        <p className="font-utility text-[8px] uppercase tracking-[.16em] text-violet">{video.eyebrow || `Campaign ${index + 1}`}</p>
-        <p className="mt-1 line-clamp-2 text-xs font-semibold leading-5 text-white">{video.caption || "AI-directed campaign film"}</p>
-      </div>
+      {video.caption && <p className="p-3 text-xs font-semibold leading-5 text-white">{video.caption}</p>}
     </article>
   );
 }
@@ -133,7 +130,7 @@ export function VideoShowcase() {
     };
   }, []);
 
-  const videos = settings?.videos.showcase.filter((video) => video.url && !(video.templateMode && video.templatePrompt)) ?? [];
+  const videos = settings?.videos.showcase.filter((video) => video.url && !video.templateMode && video.kind !== "image" && !/\.(?:png|jpe?g|webp)(?:\?|$)/i.test(video.url)) ?? [];
   const featured = videos[0];
   const supporting = videos.slice(1);
 
@@ -199,15 +196,13 @@ export function VideoShowcase() {
               <div className="relative aspect-video w-full min-w-0 overflow-hidden rounded-[20px] border border-white/12 bg-black shadow-[0_34px_100px_-48px_rgba(139,92,246,.85)] sm:rounded-[24px]">
                 <CampaignMedia video={featured} eager />
               </div>
-              {featured && (
+              {featured.caption && (
                 <div className="mt-3 px-1">
-                  <p className="font-utility text-[8px] uppercase tracking-[.16em] text-mint">{featured.eyebrow || "Featured campaign"}</p>
-                  <p className="mt-1 text-sm font-semibold leading-5 text-white">{featured.caption || featured.overlayText || "AI-directed campaign film"}</p>
+                  <p className="text-sm font-semibold leading-5 text-white">{featured.caption}</p>
                 </div>
               )}
-              <div ref={sliderRef} onScroll={syncActiveSlide} role="region" aria-roledescription="carousel" aria-label="Portrait campaign video slider" className="landing-video-slider chat-scroll mt-4 flex w-full max-w-full snap-x snap-mandatory gap-3 overflow-x-auto pb-2 scroll-smooth overscroll-x-contain touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-1 sm:w-auto sm:snap-none sm:px-1">
-                {supporting.length ? (
-                  supporting.map((video, index) => (
+              {supporting.length > 0 && <div ref={sliderRef} onScroll={syncActiveSlide} role="region" aria-roledescription="carousel" aria-label="Portrait campaign video slider" className="landing-video-slider chat-scroll mt-4 flex w-full max-w-full snap-x snap-mandatory gap-3 overflow-x-auto pb-2 scroll-smooth overscroll-x-contain touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-1 sm:w-auto sm:snap-none sm:px-1">
+                {supporting.map((video, index) => (
                     <div
                       key={video.id}
                       data-video-slide="true"
@@ -215,16 +210,10 @@ export function VideoShowcase() {
                       aria-label={`Campaign video ${index + 1} of ${supporting.length}`}
                       className="min-w-[calc((100%_-_0.75rem)/2)] basis-[calc((100%_-_0.75rem)/2)] shrink-0 snap-start sm:min-w-[145px] sm:basis-[calc((100%_-_0.75rem)/2)] lg:min-w-0 lg:basis-[calc((100%_-_2.25rem)/4)]"
                     >
-                      <SupportingFilm video={video} index={index + 1} />
+                      <SupportingFilm video={video} />
                     </div>
-                  ))
-                ) : (
-                  <div className="flex min-h-[240px] min-w-[145px] basis-[44%] shrink-0 flex-col justify-end rounded-[20px] border border-dashed border-white/15 bg-white/[.025] p-4 sm:basis-[calc((100%_-_0.75rem)/2)] lg:min-w-0 lg:basis-[calc((100%_-_2.25rem)/4)]">
-                    <p className="font-utility text-[8px] uppercase tracking-[.18em] text-mint">Generated for the brand</p>
-                    <p className="mt-2 text-xs leading-5 text-text-muted">Campaign examples load here from the existing marketing-video settings.</p>
-                  </div>
-                )}
-              </div>
+                  ))}
+              </div>}
               {supporting.length > 1 && (
                 <div className="mt-2 flex items-center justify-between gap-3 px-1 sm:hidden">
                   <button type="button" onClick={() => scrollToSlide(activeSlide - 1)} disabled={activeSlide === 0} aria-label="Previous campaign video" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[.045] text-white transition active:scale-95 disabled:opacity-30">
