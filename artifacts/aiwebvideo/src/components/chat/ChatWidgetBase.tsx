@@ -358,6 +358,7 @@ export function ChatWidget({
     if (value) setActiveJobId(value);
   };
   const [mode, setMode] = useState<JobMode>("video");
+  const [modelId, setModelId] = useState("cinema-2");
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -401,6 +402,7 @@ export function ChatWidget({
     outputQuality: "1080p" | "4k";
     audioMode: AudioMode;
     narrationLanguage: string;
+    modelId: string;
   } | null>(null);
 
   const pollingActive = stage === "capturing" || stage === "storyboarding" || stage === "rendering";
@@ -410,6 +412,7 @@ export function ChatWidget({
     skipVoiceover,
     job?.storyboard?.targetDurationSeconds || durationSeconds,
     job?.storyboard?.outputQuality ?? outputQuality,
+    modelId,
   );
   const currentReservedCredits =
     stage === "ready_to_render" || stage === "rendering" ? Math.max(0, job?.creditsSpent ?? 0) : 0;
@@ -520,6 +523,7 @@ export function ChatWidget({
         : (serverWorkflow ?? localWorkflow);
     if (workflow) {
       setMode(workflow.mode);
+      setModelId(workflow.modelId ?? (workflow.mode === "photos" || workflow.mode === "icon" ? "graphic-2" : "cinema-2"));
       setDurationSeconds(workflow.durationSeconds);
       setFeaturesText(workflow.featuresText);
       setCreativeBrief(workflow.creativeBrief);
@@ -542,6 +546,7 @@ export function ChatWidget({
           outputQuality: workflow.outputQuality,
           audioMode: workflow.audioMode,
           narrationLanguage: workflow.narrationLanguage,
+          modelId: workflow.modelId ?? "cinema-2",
         };
       }
     } else {
@@ -572,6 +577,7 @@ export function ChatWidget({
       savedAt: Date.now(),
       stage,
       mode,
+      modelId,
       durationSeconds,
       featuresText,
       creativeBrief,
@@ -592,6 +598,7 @@ export function ChatWidget({
     jobId,
     stage,
     mode,
+    modelId,
     durationSeconds,
     featuresText,
     creativeBrief,
@@ -1211,6 +1218,7 @@ export function ChatWidget({
       outputQuality: settings.outputQuality,
       audioMode: settings.audioMode,
       narrationLanguage: settings.narrationLanguage,
+      modelId: settings.modelId,
     };
     setMode(settings.mode);
     setCreativeBrief(brief);
@@ -1355,6 +1363,7 @@ export function ChatWidget({
       narrationLanguage: settings.narrationLanguage,
     };
     setMode(settings.mode);
+    setModelId(settings.modelId);
     setCreativeBrief(brief || null);
     setAspectRatio(settings.aspectRatio);
     setOutputQuality(settings.outputQuality);
@@ -1428,6 +1437,7 @@ Promotion direction: ${brief}` : normalized);
           savedAt: Date.now(),
           stage: "capturing",
           mode: pendingRequest.mode,
+          modelId: pendingRequest.modelId,
           durationSeconds: initialDuration,
           featuresText: null,
           creativeBrief: pendingRequest.brief || null,
@@ -1476,6 +1486,7 @@ Promotion direction: ${brief}` : normalized);
     plannedDuration: number,
     plannedQuality: "1080p" | "4k",
     plannedAudioMode: AudioMode,
+    plannedModelId: string,
   ) {
     try {
       const quote = await requestGenerationPreflight(
@@ -1484,6 +1495,7 @@ Promotion direction: ${brief}` : normalized);
         plannedDuration,
         plannedQuality,
         plannedAudioMode,
+        plannedModelId,
       );
       setCreditBalance(quote.balance);
       if (!quote.affordable) {
@@ -1520,6 +1532,7 @@ Promotion direction: ${brief}` : normalized);
       outputQuality,
       audioMode,
       narrationLanguage,
+      modelId,
     };
     websiteRequestRef.current = request;
     const usefulPageCount = Math.max(1, Math.min(4, metadata.pageCount || captureMediaItems(metadata).length || 1));
@@ -1534,12 +1547,14 @@ Promotion direction: ${brief}` : normalized);
       smartDuration,
       request.outputQuality,
       request.audioMode,
+      request.modelId,
     );
     if (!canStartPaidPlanning) {
       setStage("preview_ready");
       return;
     }
     setMode(request.mode);
+    setModelId(request.modelId);
     setDurationSeconds(smartDuration);
     setCreativeBrief(request.brief || null);
     setAspectRatio(request.aspectRatio);
@@ -1567,6 +1582,8 @@ Promotion direction: ${brief}` : normalized);
           audioMode: request.audioMode,
           frameRate: 24,
           selectedCaptureIds: captureIds,
+          modelId: request.modelId,
+          modelId: request.modelId,
         },
       );
       if (storyboardResponse.creditsRemaining !== undefined) setCreditBalance(storyboardResponse.creditsRemaining);
@@ -1698,6 +1715,7 @@ ${request.prompt}`
     setActiveCaptureMetadata(null);
     setSelectedCaptureIds([]);
     setMode(request.mode);
+    setModelId(request.modelId);
     setDurationSeconds(request.durationSeconds);
     setAspectRatio(request.aspectRatio);
     setOutputQuality(request.outputQuality);
