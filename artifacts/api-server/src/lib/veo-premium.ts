@@ -20,6 +20,7 @@ import {
 } from './veo-base.js';
 import { getJob, refundJobCredits, updateJob } from './queries.js';
 import { videoCreditQuote } from './credits.js';
+import { GENERATION_MODELS } from './generation-models.js';
 import { buildPartialDeliveryMetadata, type PartialDeliveryMetadata } from './partial-delivery.js';
 
 const execFileAsync = promisify(execFile);
@@ -583,16 +584,25 @@ async function settlePartialDelivery({
   deliveredSeconds,
   outputQuality,
   audioMode,
+  publicModelId,
 }: {
   jobId: string;
   requestedSeconds: number;
   deliveredSeconds: number;
   outputQuality: '1080p' | '4k';
   audioMode: AudioMode;
+  publicModelId?: string | null;
 }): Promise<PartialDeliveryMetadata | null> {
   const job = await getJob(jobId);
   if (!job?.user_id) throw new Error('Could not settle partial video billing because the production owner was unavailable.');
-  const quote = videoCreditQuote(job.mode, audioMode !== 'voice_music', requestedSeconds, outputQuality);
+  const workflow = job.workflow_state && typeof job.workflow_state === 'object' ? job.workflow_state as Record<string, unknown> : {};
+  const quote = videoCreditQuote(
+    job.mode,
+    audioMode !== 'voice_music',
+    requestedSeconds,
+    outputQuality,
+    publicModelId ?? (typeof workflow.modelId === 'string' ? workflow.modelId : undefined),
+  );
   const metadata = buildPartialDeliveryMetadata(requestedSeconds, deliveredSeconds, quote.perSecondCredits);
   if (!metadata) return null;
 
@@ -668,6 +678,7 @@ export async function generateMarketingVideo(
   narrationAudioPath?: Promise<string | null> | string | null,
   referenceLabels: string[] = [],
   shouldCancel?: () => Promise<boolean>,
+  publicModelId?: string | null,
 ): Promise<GeneratedVideo> {
   try {
     const sourceScenes = (storyboard.scenes ?? []).slice(0, 30);
@@ -690,8 +701,14 @@ export async function generateMarketingVideo(
     const segments = buildPremiumScenePlan(sourceScenes, targetDurationSeconds, referenceImages.length, mode);
     if (segments.length > 18) throw new Error(`Premium scene renderer supports up to 144 seconds. Requested ${targetDurationSeconds}s.`);
 
-    const model = geminiModelChain()[0];
-    if (!model) throw new Error('No Gemini video model is configured.');
+    const selectedPublicModel = publicModelId && GENERATION_MODELS[publicModelId as keyof typeof GENERATION_MODELS]?.kind === 'video'
+      ? GENERATION_MODELS[publicModelId as keyof typeof GENERATION_MODELS]
+      : GENERATION_MODELS['cinema-2'];
+    if (outputQuality === '4k' && !selectedPublicModel.supports4k) {
+      throw new Error('The selected AiWebVideo model does not support 4K output. Choose 1080p or a higher model.');
+    }
+    const model = selectedPublicModel.providerModel;
+    if (!model) throw new Error('No video generation model is configured.');
     const deadlineAt = Date.now() + totalGenerationTimeoutMs(segments.length, 1);
     const useAssetReferences = isStudioMode(mode);
     const completedClips: string[] = [];
@@ -832,6 +849,7 @@ export async function generateMarketingVideo(
       deliveredSeconds: safeDeliveredSeconds,
       outputQuality,
       audioMode,
+      publicModelId: selectedPublicModel.id,
     });
 
     console.info(
