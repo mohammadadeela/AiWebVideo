@@ -46,6 +46,7 @@ const productItems = [
 ] as const;
 
 export function Nav() {
+  const [activeIntent, setActiveIntent] = useState(() => new URLSearchParams(window.location.search).get("create") || "website");
   const [authChecked, setAuthChecked] = useState(false);
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -86,7 +87,16 @@ export function Nav() {
   useEffect(() => {
     setMobileOpen(false);
     setProductOpen(false);
+    setActiveIntent(new URLSearchParams(window.location.search).get("create") || "website");
   }, [location]);
+
+  useEffect(() => {
+    const update = () => setActiveIntent(new URLSearchParams(window.location.search).get("create") || "website");
+    const onIntent = (event: Event) => setActiveIntent((event as CustomEvent<string>).detail || "website");
+    window.addEventListener("popstate", update);
+    window.addEventListener("aiwebvideo:creation-intent", onIntent);
+    return () => { window.removeEventListener("popstate", update); window.removeEventListener("aiwebvideo:creation-intent", onIntent); };
+  }, []);
 
   useEffect(() => {
     if (!mobileOpen) return;
@@ -234,6 +244,16 @@ export function Nav() {
           </button>
         </div>
       </nav>
+
+      {location === "/" && <div className="border-t border-white/[.06] bg-[#100c1e]/75">
+        <div className="chat-scroll mx-auto flex max-w-[1500px] gap-1 overflow-x-auto px-3 py-1.5 sm:gap-2 sm:px-5 lg:px-8" role="tablist" aria-label="Create a project">
+          {productItems.map(([label, , href, Icon]) => {
+            const mode = new URL(href, window.location.origin).searchParams.get("create") || "website";
+            const active = activeIntent === mode;
+            return <Link key={mode} href={href} onClick={(event) => handleCreatorNavigation(event, href)} role="tab" aria-selected={active} className={`flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-[10px] font-semibold transition sm:px-3 sm:text-[11px] ${active ? "bg-mint text-[#10231f] shadow-[0_6px_22px_-15px_rgba(45,212,191,.9)]" : "text-white/55 hover:bg-white/[.07] hover:text-white"}`}><Icon size={14} aria-hidden="true" />{label}</Link>;
+          })}
+        </div>
+      </div>}
 
       {portalReady && mobileOpen && createPortal(
         <div className="fixed inset-0 z-[10000] md:hidden" role="dialog" aria-modal="true" aria-label="Mobile navigation">
