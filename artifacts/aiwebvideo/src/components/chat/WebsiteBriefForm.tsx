@@ -791,7 +791,7 @@ export function WebsiteBriefForm({
         )}
 
         {compactPanel === "model" && (
-          <div className="mt-2 overflow-hidden rounded-2xl border border-white/[.10] bg-[#0f0b1d]/98 p-1.5 shadow-2xl backdrop-blur-2xl">
+          <div className="absolute z-40 mt-2 w-[calc(100%-1.5rem)] max-w-[390px] overflow-hidden rounded-2xl border border-white/[.10] bg-[#0f0b1d]/98 p-1.5 shadow-2xl backdrop-blur-2xl sm:w-[390px]">
             {availableModels.map((model) => {
               const selected = settings.modelId === model.id;
               const effectiveQuality = model.supportedQualities.includes(settings.outputQuality)
