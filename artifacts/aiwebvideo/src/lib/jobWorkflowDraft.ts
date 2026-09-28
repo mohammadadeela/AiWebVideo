@@ -40,6 +40,14 @@ const ASPECT_RATIOS = new Set<JobWorkflowState["aspectRatio"]>([
   "9:16",
   "1:1",
 ]);
+const MODEL_TIERS = new Set([
+  "cinema1",
+  "cinema2",
+  "cinema_pro",
+  "graphic1",
+  "graphic2",
+  "graphic_pro",
+] as const);
 
 function enumValue<T extends string>(
   value: unknown,
@@ -96,6 +104,10 @@ export function normalizeJobWorkflow(value: unknown): JobWorkflowState | null {
         : null,
     aspectRatio: enumValue(raw.aspectRatio, ASPECT_RATIOS, "16:9"),
     outputQuality: raw.outputQuality === "4k" ? "4k" : "1080p",
+    modelTier:
+      typeof raw.modelTier === "string" && MODEL_TIERS.has(raw.modelTier as never)
+        ? raw.modelTier as JobWorkflowState["modelTier"]
+        : undefined,
     frameRate: raw.frameRate === 60 ? 60 : raw.frameRate === 30 ? 30 : 24,
     selectedCaptureIds,
     audioMode: enumValue(raw.audioMode, AUDIO_MODES, "voice_music"),
