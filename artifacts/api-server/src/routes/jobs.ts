@@ -1547,7 +1547,10 @@ router.post("/:id/render", requireAuth, async (req, res) => {
         // video portion of the charge and surface a partial note.
         let completionError: string | null = shortDeliveryNote;
         if (wantsVideo && !hasVideo && photoCount > 0) {
-          const videoPortion = cost - CREDIT_COSTS.PHOTO_SET_4;
+          const combinedPhotoCredits = job.mode === "both"
+            ? imageModelCreditsPerImage(generationModelForMode("graphic-2", "photos", meta?.studioKind), renderQuality) * 4
+            : 0;
+          const videoPortion = Math.max(0, cost - combinedPhotoCredits);
           await refund(videoPortion, `Video failure refund ${job.id}`);
           const videoReason = (videoResult as PromiseRejectedResult).reason as Error | undefined;
           completionError = `Video generation failed — photos were delivered instead and the video credits were refunded. Exact error: ${videoReason?.message ?? "unknown error"}. Please try again for video.${shortDeliveryNote ? ` ${shortDeliveryNote}` : ""}`;
