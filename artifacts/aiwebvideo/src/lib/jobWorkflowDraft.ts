@@ -85,6 +85,7 @@ export function normalizeJobWorkflow(value: unknown): JobWorkflowState | null {
         : 0,
     stage: raw.stage as JobWorkflowState["stage"],
     mode: raw.mode as JobWorkflowState["mode"],
+    modelId: typeof raw.modelId === "string" ? raw.modelId.slice(0, 40) : undefined,
     durationSeconds: seconds,
     featuresText:
       typeof raw.featuresText === "string"
