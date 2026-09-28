@@ -7,6 +7,12 @@ import { promisify } from 'node:util';
 import { query } from './pool.js';
 import { GEMINI_COST_CATALOG, recordGenerationCost } from './costs.js';
 import { runQueuedProviderCall } from './provider-queue.js';
+import {
+  imageModelForTier,
+  imageProviderCostPerImage,
+  imageProviderSizeForTier,
+  type ImageModelTier,
+} from './model-tiers.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -123,9 +129,12 @@ async function runImageGeneration(
   referenceImages: Buffer[],
   aspectRatio: '16:9' | '9:16' | '1:1',
   outputQuality: '1080p' | '4k',
-  operation = 'marketing_image'
+  operation = 'marketing_image',
+  imageModelTier?: ImageModelTier,
 ): Promise<GeneratedImage> {
-  const geminiImageModel = process.env.GEMINI_IMAGE_MODEL ?? 'gemini-3.1-flash-image';
+  const geminiImageModel = imageModelTier
+    ? imageModelForTier(imageModelTier)
+    : process.env.GEMINI_IMAGE_MODEL ?? 'gemini-3.1-flash-image';
   console.info(
     `[${logLabel}] job=${jobId} scene=${sceneIndex} provider=gemini ` +
       `model=${geminiImageModel} reference_assets=${referenceImages.length}`
@@ -157,7 +166,7 @@ async function runImageGeneration(
         response_format: {
           type: 'image',
           aspect_ratio: aspectRatio,
-          image_size: outputQuality === '4k' ? '4K' : '2K'
+          image_size: imageModelTier ? imageProviderSizeForTier(imageModelTier) : (outputQuality === '4k' ? '4K' : '2K')
         }
       })
   });
@@ -171,10 +180,16 @@ async function runImageGeneration(
   // the exact delivery canvas selected by the user so 1:1/9:16/16:9 are true
   // pixel dimensions in the downloaded result.
   const url = await masterGeneratedImage(jobId, rawFilename, filename, aspectRatio, outputQuality);
-  const defaultCost = outputQuality === '4k' ? GEMINI_COST_CATALOG.image.fourK : GEMINI_COST_CATALOG.image.twoK;
-  const configuredCost = Number(
-    process.env[outputQuality === '4k' ? 'GEMINI_IMAGE_COST_4K_USD' : 'GEMINI_IMAGE_COST_2K_USD'] ?? defaultCost
-  );
+  const defaultCost = imageModelTier
+    ? imageProviderCostPerImage(imageModelTier)
+    : outputQuality === '4k'
+      ? GEMINI_COST_CATALOG.image.fourK
+      : GEMINI_COST_CATALOG.image.twoK;
+  const configuredCost = imageModelTier
+    ? defaultCost
+    : Number(
+        process.env[outputQuality === '4k' ? 'GEMINI_IMAGE_COST_4K_USD' : 'GEMINI_IMAGE_COST_2K_USD'] ?? defaultCost
+      );
   await recordGenerationCost({
     jobId,
     provider: 'gemini',
@@ -183,7 +198,7 @@ async function runImageGeneration(
     quantity: 1,
     unit: 'image',
     unitCostUsd: Math.max(0, configuredCost),
-    metadata: { image: sceneIndex + 1, quality: outputQuality }
+    metadata: { image: sceneIndex + 1, quality: outputQuality, modelTier: imageModelTier ?? null }
   });
   return { url, aspectRatio };
 }
@@ -243,7 +258,8 @@ export async function generateWebsiteIcon(
   vibe: string,
   referenceImages: Buffer[],
   outputQuality: '1080p' | '4k',
-  customBrief?: string | null
+  customBrief?: string | null,
+  imageModelTier?: ImageModelTier,
 ): Promise<GeneratedImage> {
   if (!referenceImages.length)
     throw new Error('No captured website brand references are available for icon generation.');
@@ -285,7 +301,8 @@ ${vibe}`;
     referenceImages,
     '1:1',
     outputQuality,
-    'website_icon_generation'
+    'website_icon_generation',
+    imageModelTier,
   );
 }
 
@@ -307,7 +324,8 @@ export async function generateMarketingPhoto(
   aspectRatio: '16:9' | '9:16' | '1:1',
   outputQuality: '1080p' | '4k',
   customBrief?: string | null,
-  featureKind: MarketingPhotoKind = 'website-photos'
+  featureKind: MarketingPhotoKind = 'website-photos',
+  imageModelTier?: ImageModelTier,
 ): Promise<GeneratedImage> {
   if (!referenceImages.length) {
     throw new Error('No captured website images are available to use as references for the marketing photo.');
@@ -365,7 +383,9 @@ Premium commercial art direction, realistic materials and fabric, accurate produ
     prompt,
     selectMarketingPhotoReferences(referenceImages, sceneIndex),
     aspectRatio,
-    outputQuality
+    outputQuality,
+    'marketing_image',
+    imageModelTier,
   );
 }
 
