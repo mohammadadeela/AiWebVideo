@@ -44,9 +44,41 @@ import { signAssetTree, signPrivateAssetUrl } from "../lib/asset-access.js";
 import { ensureLocalAsset, uploadFileToR2 } from "../lib/r2-storage.js";
 import type { JobStatusResponse, JobWorkflowState } from "../types.js";
 import type { Storyboard } from "../lib/gemini.js";
+import {
+  isImageModelTier,
+  isModelTier,
+  isVideoModelTier,
+  type ModelTier,
+} from "../lib/model-tiers.js";
 
 const router = Router();
 const MAX_REFERENCE_CAPTURES = MAX_VIDEO_SECONDS / VIDEO_SCENE_SECONDS;
+const MODEL_TIER_SCHEMA = z.enum(["cinema1", "cinema2", "cinema_pro", "graphic1", "graphic2", "graphic_pro"]);
+
+function resolveModelTierForRequest(
+  mode: string,
+  requested: ModelTier | undefined,
+  outputQuality: "1080p" | "4k",
+): ModelTier {
+  const imageMode = mode === "photos" || mode === "icon";
+  const tier: ModelTier = requested ?? (imageMode ? "graphic2" : "cinema2");
+  if (imageMode && !isImageModelTier(tier)) {
+    throw new AppError("Choose a Graphic model for image generation.", 400, "INVALID_MODEL_TIER");
+  }
+  if (!imageMode && !isVideoModelTier(tier)) {
+    throw new AppError("Choose a Cinema model for video generation.", 400, "INVALID_MODEL_TIER");
+  }
+  if (tier === "cinema1" && outputQuality === "4k") {
+    throw new AppError("Cinema 1 supports up to 1080p. Choose Cinema 2 or Cinema Pro for 4K.", 400, "MODEL_QUALITY_UNSUPPORTED");
+  }
+  if (imageMode && tier !== "graphic_pro" && outputQuality === "4k") {
+    throw new AppError("4K images use Graphic Pro. Choose Graphic Pro or standard image quality.", 400, "MODEL_QUALITY_UNSUPPORTED");
+  }
+  if (imageMode && tier === "graphic_pro" && outputQuality !== "4k") {
+    throw new AppError("Graphic Pro is the 4K image tier. Choose 4K quality or Graphic 1/2.", 400, "MODEL_QUALITY_UNSUPPORTED");
+  }
+  return tier;
+}
 
 type ActionWindow = { count: number; resetAt: number };
 const generationActionWindows = new Map<string, ActionWindow>();
@@ -459,6 +491,7 @@ router.patch("/:id/workflow", tryAuth, async (req, res) => {
         creativeBrief: z.string().max(8000).nullable(),
         aspectRatio: z.enum(["16:9", "9:16", "1:1"]),
         outputQuality: z.enum(["1080p", "4k"]),
+        modelTier: MODEL_TIER_SCHEMA.optional(),
         frameRate: z.union([z.literal(24), z.literal(30), z.literal(60)]),
         selectedCaptureIds: z.array(z.string().max(180)).max(30),
         audioMode: z.enum(["voice_music", "native_audio", "music_only", "silent"]),
@@ -586,6 +619,7 @@ router.post("/:id/preflight", requireAuth, async (req, res) => {
         ]),
         durationSeconds: z.number().int().min(MIN_VIDEO_SECONDS).max(MAX_VIDEO_SECONDS),
         outputQuality: z.enum(["1080p", "4k"]).optional().default("1080p"),
+        modelTier: MODEL_TIER_SCHEMA.optional(),
         audioMode: z.enum(["voice_music", "native_audio", "music_only", "silent"]).optional().default("native_audio"),
       })
       .parse(req.body);
@@ -593,11 +627,13 @@ router.post("/:id/preflight", requireAuth, async (req, res) => {
     if (!job || job.deleted_at || job.user_id !== req.user!.id) {
       throw new AppError("Job not found.", 404, "NOT_FOUND");
     }
+    const requestedModelTier = resolveModelTierForRequest(input.mode, input.modelTier, input.outputQuality);
     const quote = videoCreditQuote(
       input.mode,
       input.audioMode !== "voice_music",
       input.durationSeconds,
       input.outputQuality,
+      requestedModelTier,
     );
     const balance = req.user!.creditsBalance;
     res.json({
@@ -652,6 +688,7 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
         creativeBrief: z.string().max(8000).optional(),
         aspectRatio: z.enum(["16:9", "9:16", "1:1"]).optional().default("16:9"),
         outputQuality: z.enum(["1080p", "4k"]).optional().default("1080p"),
+        modelTier: MODEL_TIER_SCHEMA.optional(),
         audioMode: z.enum(["voice_music", "native_audio", "music_only", "silent"]).optional(),
         frameRate: z
           .union([z.literal(24), z.literal(30), z.literal(60)])
@@ -680,6 +717,7 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
       featuresText,
       creativeBrief,
       outputQuality,
+      modelTier: requestedModelTierInput,
       audioMode: requestedAudioMode,
       frameRate,
       selectedCaptureIds,
@@ -695,7 +733,18 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
 
     const savedWorkflowForCredit = job.workflow_state as Partial<JobWorkflowState> | null;
     const planningAudioMode = requestedAudioMode ?? savedWorkflowForCredit?.audioMode ?? "native_audio";
-    const planningQuote = videoCreditQuote(mode, planningAudioMode !== "voice_music", durationSeconds, outputQuality);
+    const requestedModelTier = resolveModelTierForRequest(
+      mode,
+      requestedModelTierInput ?? (isModelTier(savedWorkflowForCredit?.modelTier) ? savedWorkflowForCredit.modelTier : undefined),
+      outputQuality,
+    );
+    const planningQuote = videoCreditQuote(
+      mode,
+      planningAudioMode !== "voice_music",
+      durationSeconds,
+      outputQuality,
+      requestedModelTier,
+    );
     if (!req.user!.isAdmin && req.user!.creditsBalance < planningQuote.totalCredits) {
       const shortfall = planningQuote.totalCredits - req.user!.creditsBalance;
       throw new AppError(
@@ -791,6 +840,7 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
       creativeBrief: creativeBrief ?? null,
       aspectRatio,
       outputQuality,
+      modelTier: requestedModelTier,
       frameRate,
       selectedCaptureIds: selectedCaptureIds ?? [],
       audioMode: planningAudioMode,
@@ -821,6 +871,7 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
         creativeBrief,
         aspectRatio,
         outputQuality,
+        modelTier: requestedModelTier,
         frameRate,
         selectedCaptureIds,
         selectedGeneratedPhotoIds,
@@ -1006,11 +1057,13 @@ router.post("/:id/quote", requireAuth, async (req, res) => {
     if (!job || job.deleted_at || job.user_id !== req.user!.id) throw new AppError("Job not found.", 404, "NOT_FOUND");
     const storyboard = job.storyboard as Storyboard | null;
     if (!storyboard) throw new AppError("Production plan is not ready yet.", 400, "STORYBOARD_NOT_READY");
+    const savedTier = (job.workflow_state as Partial<JobWorkflowState> | null)?.modelTier;
     const quote = videoCreditQuote(
       job.mode,
       input.audioMode !== "voice_music",
       storyboard.targetDurationSeconds || 8,
       storyboard.outputQuality ?? "1080p",
+      isModelTier(savedTier) ? savedTier : undefined,
     );
     const balance = req.user!.creditsBalance;
     const reservedCredits = Math.max(0, job.credits_spent || 0);
@@ -1083,6 +1136,7 @@ router.post("/:id/render", requireAuth, async (req, res) => {
       creativeBrief: storyboard.creativeBrief ?? existingWorkflow?.creativeBrief ?? null,
       aspectRatio: storyboard.aspectRatio ?? existingWorkflow?.aspectRatio ?? "16:9",
       outputQuality: storyboard.outputQuality ?? existingWorkflow?.outputQuality ?? "1080p",
+      modelTier: existingWorkflow?.modelTier,
       frameRate: storyboard.frameRate ?? existingWorkflow?.frameRate ?? 24,
       selectedCaptureIds: storyboard.selectedCaptureIds ?? existingWorkflow?.selectedCaptureIds ?? [],
       audioMode,
@@ -1095,7 +1149,16 @@ router.post("/:id/render", requireAuth, async (req, res) => {
     // Generation is balance-based. One-time credit buyers can render without
     // being mislabeled as subscribers; the atomic claim below is the paywall.
     const targetDuration = storyboard.targetDurationSeconds || 8;
-    const cost = videoCreditCost(job.mode, skipVoiceover, targetDuration, storyboard.outputQuality ?? "1080p");
+    const renderModelTier: ModelTier | undefined = isModelTier(existingWorkflow?.modelTier)
+      ? existingWorkflow.modelTier
+      : undefined;
+    const cost = videoCreditCost(
+      job.mode,
+      skipVoiceover,
+      targetDuration,
+      storyboard.outputQuality ?? "1080p",
+      renderModelTier,
+    );
     const claim = await claimRenderAndSpend(job.id, req.user!.id, cost);
     if (!claim.ok && claim.reason === "already_started") {
       throw new AppError("This job is already rendering or has finished.", 409, "RENDER_ALREADY_STARTED");
@@ -1299,6 +1362,7 @@ router.post("/:id/render", requireAuth, async (req, res) => {
                   iconReferences,
                   storyboard.outputQuality ?? "1080p",
                   storyboard.creativeBrief ?? null,
+                  isImageModelTier(renderModelTier) ? renderModelTier : "graphic2",
                 );
               }
               return await generateMarketingPhoto(
@@ -1318,6 +1382,7 @@ router.post("/:id/render", requireAuth, async (req, res) => {
                   : job.mode === "both"
                     ? "mixed-campaign"
                     : "website-photos",
+                isImageModelTier(renderModelTier) ? renderModelTier : "graphic2",
               );
             } finally {
               completedPhotos++;
@@ -1397,6 +1462,7 @@ router.post("/:id/render", requireAuth, async (req, res) => {
                 narrationPromise,
                 loadedCaptures.map((capture) => capture.label),
                 () => isCancelRequested(job.id),
+                isVideoModelTier(renderModelTier) ? renderModelTier : undefined,
               ).then(
                 (value) => ({ status: "fulfilled" as const, value }),
                 (reason) => ({ status: "rejected" as const, reason }),
