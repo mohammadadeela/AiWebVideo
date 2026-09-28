@@ -117,6 +117,15 @@ const ONE_TIME_PACKS = [
     note: "One punchy promo, ready in minutes",
   },
   {
+    id: "single16" as const,
+    name: "Short Video",
+    length: "16 seconds",
+    price: "$18.99",
+    amountUsd: 18.99,
+    credits: 70,
+    note: "A little more room for your idea",
+  },
+  {
     id: "single32" as const,
     name: "Standard Video",
     length: "32 seconds",
@@ -138,6 +147,7 @@ const ONE_TIME_PACKS = [
 ];
 
 const CREDIT_PACKS = [
+  { id: "topup25" as const, credits: 25, amountUsd: 7.99, note: "A small top-up" },
   { id: "topup50" as const, credits: 50, amountUsd: 14.99, note: "Quick refill" },
   { id: "topup100" as const, credits: 100, amountUsd: 28.99, note: "Small production balance" },
   { id: "topup250" as const, credits: 250, amountUsd: 69.99, note: "For several productions" },
@@ -248,14 +258,14 @@ export function PricingTable() {
         <p className="mt-1 text-xs sm:text-sm text-text-muted">
           Pay once, no subscription. Your video is yours forever.
         </p>
-        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
           {ONE_TIME_PACKS.map((pack) => (
             <div
               key={pack.id}
               className={`relative flex flex-col rounded-2xl border p-3 sm:p-5 transition-all duration-200 hover:-translate-y-1 ${
                 pack.popular
-                  ? "border-mint/50 bg-panel shadow-[0_0_40px_-12px_rgba(52,211,153,0.35)]"
-                  : "border-border bg-panel hover:border-mint/30"
+                  ? "border-mint/50 bg-[linear-gradient(145deg,rgba(52,211,153,.12),rgba(28,23,48,.96))] shadow-[0_0_40px_-12px_rgba(52,211,153,0.35)]"
+                  : "border-violet/20 bg-[linear-gradient(145deg,rgba(139,92,246,.13),rgba(28,23,48,.96),rgba(236,72,153,.05))] hover:border-violet/40"
               }`}
             >
               {pack.popular && (
@@ -268,9 +278,6 @@ export function PricingTable() {
               <h4 className="font-display text-sm sm:text-base font-bold text-text-primary">
                 {pack.name}
               </h4>
-              <p className="mt-0.5 text-[10px] sm:text-xs text-text-muted line-clamp-2 sm:line-clamp-none">
-                {pack.note}
-              </p>
               <div className="mt-2 sm:mt-3 flex items-baseline gap-1 sm:gap-2">
                 <span className="font-display text-xl sm:text-3xl font-bold text-text-primary">
                   {pack.price}
@@ -280,10 +287,10 @@ export function PricingTable() {
                 </span>
               </div>
               <p className="font-utility mt-1 text-[10px] sm:text-xs text-mint">
-                {displayCredits(pack.credits).toLocaleString()} credits · {pack.length} · 1080p · sound + narration
+                {displayCredits(pack.credits).toLocaleString()} credits · {pack.length}
               </p>
               <PurchaseButton
-                primary={pack.popular}
+                primary
                 onBuy={() => setDirectCheckout({
                   plan: pack.id,
                   productName: pack.name,
@@ -312,7 +319,7 @@ export function PricingTable() {
             <p className="mt-2 max-w-2xl text-sm text-text-muted">Pay once, keep the credits until you use them, and choose only the balance you need. Top-ups never change your subscription plan.</p>
           </div>
         </div>
-        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {CREDIT_PACKS.map((pack) => {
             const packCredits = displayCredits(pack.credits);
             const discounted = activeOffer && activeOffer.eligibleProducts.includes(pack.id)
@@ -320,7 +327,7 @@ export function PricingTable() {
               : pack.amountUsd;
             const hasDiscount = discounted < pack.amountUsd;
             return (
-              <div key={pack.id} className={`rounded-2xl border p-4 ${hasDiscount ? "border-mint/30 bg-mint/[.055]" : "border-white/10 bg-bg/35"}`}>
+              <div key={pack.id} className={`rounded-2xl border p-4 ${hasDiscount ? "border-mint/30 bg-mint/[.055]" : "border-violet/20 bg-[linear-gradient(145deg,rgba(139,92,246,.10),rgba(20,16,37,.7))]"}`}>
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="font-display text-lg font-bold text-text-primary">{packCredits.toLocaleString()} credits</p>
@@ -334,7 +341,7 @@ export function PricingTable() {
                 </div>
                 {hasDiscount && activeOffer && <p className="mt-1 text-[10px] font-semibold text-mint">Offer ends in {formatWelcomeCountdown(activeOffer.expiresAt, now)}</p>}
                 <PurchaseButton
-                  primary={pack.id === "topup250" || hasDiscount}
+                  primary
                   onBuy={() => setDirectCheckout({
                     plan: pack.id,
                     productName: `${packCredits.toLocaleString()} production credits`,
@@ -421,7 +428,7 @@ export function PricingTable() {
               </Button>
             ) : (
               <PurchaseButton
-                primary={plan.highlight}
+                primary
                 onBuy={() => handleChoose(plan.id)}
               />
             )}
