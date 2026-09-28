@@ -1,10 +1,11 @@
-import type { AudioMode } from "@/components/chat/types";
+import type { AudioMode, ModelTier } from "@/components/chat/types";
 
 export interface WebsiteHandoffSettings {
   mode: "video" | "tutorial" | "buy" | "tour" | "linkedin" | "demo";
   durationSeconds: number | "auto";
   aspectRatio: "16:9" | "9:16" | "1:1";
   outputQuality: "1080p" | "4k";
+  modelTier: ModelTier;
   audioMode: AudioMode;
   narrationLanguage: string;
 }
@@ -26,6 +27,7 @@ export interface StudioCreatorHandoff {
     durationSeconds: number;
     aspectRatio: "16:9" | "9:16" | "1:1";
     outputQuality: "1080p" | "4k";
+    modelTier: ModelTier;
     audioMode: AudioMode;
   };
   attachmentDraftKey?: string;
