@@ -1868,11 +1868,11 @@ ${request.prompt}`
       setStage("awaiting_brief");
     } else {
       const mediaCount = captureMediaItems(activeCaptureMetadata ?? job?.captureMetadata).length;
-      const recommended = Math.min(144, Math.max(8, mediaCount * 8));
+      const recommended = Math.min(60, Math.max(8, mediaCount * 8));
       pushBot(
         mediaCount > 1
-          ? `I found ${mediaCount} usable photos/pages. For one complete scene per item, I recommend ${durationLabel(recommended)}. You can use that length, choose a shorter focus selection, or set any custom whole-second duration from 8 to 144 seconds.`
-          : "Choose the video length. You can use a preset or set a custom duration from 8 seconds to 2 minutes 24 seconds as one continuous film.",
+          ? `I found ${mediaCount} usable photos/pages. For the clearest coverage, I recommend ${durationLabel(recommended)}. Choose a preset or set any custom whole-second duration from 8 to 60 seconds.`
+          : "Choose the video length. Use a preset or set any custom whole-second duration from 8 to 60 seconds.",
       );
       setStage("awaiting_duration");
     }
