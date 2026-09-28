@@ -247,7 +247,8 @@ export async function generateWebsiteIcon(
   vibe: string,
   referenceImages: Buffer[],
   outputQuality: '1080p' | '4k',
-  customBrief?: string | null
+  customBrief?: string | null,
+  publicModelId?: string | null
 ): Promise<GeneratedImage> {
   if (!referenceImages.length)
     throw new Error('No captured website brand references are available for icon generation.');
@@ -289,7 +290,8 @@ ${vibe}`;
     referenceImages,
     '1:1',
     outputQuality,
-    'website_icon_generation'
+    'website_icon_generation',
+    publicModelId
   );
 }
 
