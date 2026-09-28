@@ -6,7 +6,7 @@ import * as path from 'node:path';
 import { promisify } from 'node:util';
 import { query } from './pool.js';
 import { GEMINI_COST_CATALOG, recordGenerationCost } from './costs.js';
-import { GENERATION_MODELS } from './generation-models.js';
+import { GENERATION_MODELS, imageModelProviderCostPerImage } from './generation-models.js';
 import { runQueuedProviderCall } from './provider-queue.js';
 
 const execFileAsync = promisify(execFile);
@@ -131,7 +131,10 @@ async function runImageGeneration(
     ? GENERATION_MODELS[publicModelId as keyof typeof GENERATION_MODELS]
     : GENERATION_MODELS['graphic-2'];
   const geminiImageModel = selected.providerModel || process.env.GEMINI_IMAGE_MODEL || 'gemini-3.1-flash-image';
-  const providerImageSize = selected.providerImageSize ?? (outputQuality === '4k' ? '4K' : '2K');
+  const providerImageSize =
+    outputQuality === '4k' && selected.supports4k
+      ? '4K'
+      : selected.providerImageSize ?? '2K';
   console.info(
     `[${logLabel}] job=${jobId} scene=${sceneIndex} provider=gemini ` +
       `model=${geminiImageModel} reference_assets=${referenceImages.length}`
@@ -177,7 +180,8 @@ async function runImageGeneration(
   // the exact delivery canvas selected by the user so 1:1/9:16/16:9 are true
   // pixel dimensions in the downloaded result.
   const url = await masterGeneratedImage(jobId, rawFilename, filename, aspectRatio, outputQuality);
-  const defaultCost = selected.providerCostUsd || (outputQuality === '4k' ? GEMINI_COST_CATALOG.image.fourK : GEMINI_COST_CATALOG.image.twoK);
+  const defaultCost = imageModelProviderCostPerImage(selected, outputQuality)
+    || (outputQuality === '4k' ? GEMINI_COST_CATALOG.image.fourK : GEMINI_COST_CATALOG.image.twoK);
   const configuredCost = Number(defaultCost);
   await recordGenerationCost({
     jobId,
