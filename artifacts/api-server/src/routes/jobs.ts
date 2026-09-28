@@ -1338,6 +1338,7 @@ router.post("/:id/render", requireAuth, async (req, res) => {
                   iconReferences,
                   storyboard.outputQuality ?? "1080p",
                   storyboard.creativeBrief ?? null,
+                  selectedRenderModel.creditUnit === "image" ? selectedRenderModel.id : "graphic-2",
                 );
               }
               return await generateMarketingPhoto(
@@ -1535,6 +1536,7 @@ router.post("/:id/render", requireAuth, async (req, res) => {
             selectedRenderModel.creditUnit === "image"
               ? selectedRenderModel
               : generationModelForMode("graphic-2", "photos", meta?.studioKind),
+            renderQuality,
           );
           const photoRefund = missingPhotos * photoUnitCredits;
           await refund(photoRefund, `Partial photo refund ${job.id}`);
