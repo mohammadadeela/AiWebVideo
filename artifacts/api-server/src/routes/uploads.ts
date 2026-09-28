@@ -199,6 +199,25 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
     }
 
     await updateJob(job.id, {
+      ...(studioKind && studioMode && studioDuration
+        ? {
+            workflow_state: {
+              savedAt: Date.now(),
+              stage: 'preview_ready',
+              mode: studioMode,
+              modelId: generationModelForMode(publicModelId, studioMode, studioKind).id,
+              durationSeconds: studioDuration,
+              featuresText: null,
+              creativeBrief: ideaPrompt || null,
+              aspectRatio,
+              outputQuality: studioQuality,
+              frameRate: 24,
+              selectedCaptureIds: [],
+              audioMode: studioAudioMode,
+              narrationLanguage: 'en',
+            } as never,
+          }
+        : {}),
       capture_metadata: {
         title,
         sourceType: studioKind ? 'studio' : 'upload',
