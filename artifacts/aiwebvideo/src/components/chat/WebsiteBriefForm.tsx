@@ -100,8 +100,6 @@ const CREATION_MODES = [
 
 const ACCEPTED_IMAGES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
-const DURATION_PRESETS = [8, 16, 24, 32] as const;
-
 const NARRATION_LANGUAGES = [
   ["en", "English"],
   ["ar", "Arabic"],
@@ -210,7 +208,7 @@ function CompactDropdown({
         <div
           role="listbox"
           aria-label={ariaLabel}
-          className={`absolute top-[calc(100%+8px)] z-[90] min-w-[190px] overflow-hidden rounded-2xl border border-white/[.11] bg-[#100c20]/[.99] p-1.5 shadow-[0_26px_70px_-28px_rgba(0,0,0,.98)] backdrop-blur-2xl ${
+          className={`absolute bottom-[calc(100%+8px)] z-[90] min-w-[190px] overflow-hidden rounded-2xl border border-white/[.11] bg-[#100c20]/[.99] p-1.5 shadow-[0_26px_70px_-28px_rgba(0,0,0,.98)] backdrop-blur-2xl ${
             align === "right" ? "right-0" : "left-0"
           }`}
         >
@@ -496,6 +494,8 @@ export function WebsiteBriefForm({
 
   function submit() {
     if (disabled) return;
+    setOpenSettingMenu(null);
+    setCompactPanel(null);
     if (selectedIdea) {
       void trackStudioEvent({
         event: "idea_to_generate_conversion",
@@ -841,7 +841,7 @@ export function WebsiteBriefForm({
               <div
                 role="listbox"
                 aria-label="Generation model"
-                className="absolute left-0 top-[calc(100%+8px)] z-[95] w-[min(390px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-white/[.11] bg-[#100c20]/[.99] p-1.5 shadow-[0_28px_80px_-30px_rgba(0,0,0,.98)] backdrop-blur-2xl"
+                className="absolute bottom-[calc(100%+8px)] left-0 z-[95] w-[min(390px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-white/[.11] bg-[#100c20]/[.99] p-1.5 shadow-[0_28px_80px_-30px_rgba(0,0,0,.98)] backdrop-blur-2xl"
               >
                 <div className="flex items-center justify-between gap-3 px-2.5 pb-1.5 pt-1">
                   <div>
