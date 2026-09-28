@@ -195,7 +195,7 @@ test("website icon mode plans four square brand-grounded concepts", () => {
   const fallback = buildFallbackStoryboard(plannerInput({ mode: "icon", aspectRatio: "1:1" }));
   assert.equal(fallback.scenes.length, 4);
   assert.ok(fallback.scenes.every((scene) => scene.durationSeconds === 0 && scene.sourceIndices?.length === 0));
-  assert.equal(videoCreditCost("icon", true, 56), 8);
+  assert.equal(videoCreditCost("icon", true, 56), 4);
 });
 
 test("video + photos keeps true AI video and creative AI photos separate", () => {
@@ -585,16 +585,17 @@ test("eighteen selected references can plan the maximum 2m24s continuous product
 
 test("video quotes preserve exact whole-second customer durations up to 2m24s", () => {
   assert.equal(normalizedGeneratedSeconds(10), 10, "continuous mastering preserves the exact requested whole second");
-  const exact1080 = videoCreditQuote("video", false, 37, "1080p");
+  const exact1080 = videoCreditQuote("video", false, 37, "1080p", "cinema-2");
   assert.deepEqual(exact1080, {
     generatedSeconds: 37,
-    perSecondCredits: 4,
-    videoCredits: 148,
+    perSecondCredits: 2,
+    videoCredits: 74,
     photoCredits: 0,
     narrationCredits: 6,
-    totalCredits: 154,
+    totalCredits: 80,
+    modelId: "cinema-2",
   });
-  const max4k = videoCreditQuote("video", true, 144, "4k");
+  const max4k = videoCreditQuote("video", true, 144, "4k", "cinema-pro");
   assert.equal(max4k.generatedSeconds, 144);
   assert.equal(max4k.totalCredits, 864);
   assert.equal(buildFallbackStoryboard(plannerInput({ targetDurationSeconds: 144 })).scenes.length, 18);
