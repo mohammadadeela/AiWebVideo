@@ -19,7 +19,6 @@ import { Wordmark } from "@/components/ui/Wordmark";
 import { Button } from "@/components/ui/app-button";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { UserMenu, formatCredits } from "@/components/account/UserMenu";
-import { GenerationHistoryButton } from "@/components/account/GenerationHistoryButton";
 import { fetchMe } from "@/lib/api-client";
 import { watchAuthState } from "@/lib/firebase/client";
 import { resolveDashboardDestination } from "@/lib/guestSession";
@@ -42,11 +41,10 @@ const productItems = [
   ["Product Video", "Generated product film from references", "/?create=product-video#generate", PackageOpen],
   ["Talking Scenes", "Dialogue and scenario-driven video", "/?create=scenario#generate", MessageCircleMore],
   ["Interior Design", "Redesign rooms, homes and spaces", "/?create=interior#generate", House],
-  ["Architecture Design", "Visualize a real plot from Maps or an address", "/?create=architecture#generate", Building2],
+  ["Architecture Design", "Visualize a concept from a real Maps location", "/?create=architecture#generate", Building2],
 ] as const;
 
 export function Nav() {
-  const [activeIntent, setActiveIntent] = useState(() => new URLSearchParams(window.location.search).get("create") || "website");
   const [authChecked, setAuthChecked] = useState(false);
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -87,16 +85,7 @@ export function Nav() {
   useEffect(() => {
     setMobileOpen(false);
     setProductOpen(false);
-    setActiveIntent(new URLSearchParams(window.location.search).get("create") || "website");
   }, [location]);
-
-  useEffect(() => {
-    const update = () => setActiveIntent(new URLSearchParams(window.location.search).get("create") || "website");
-    const onIntent = (event: Event) => setActiveIntent((event as CustomEvent<string>).detail || "website");
-    window.addEventListener("popstate", update);
-    window.addEventListener("aiwebvideo:creation-intent", onIntent);
-    return () => { window.removeEventListener("popstate", update); window.removeEventListener("aiwebvideo:creation-intent", onIntent); };
-  }, []);
 
   useEffect(() => {
     if (!mobileOpen) return;
@@ -222,13 +211,18 @@ export function Nav() {
                   <span>Admin</span>
                 </Link>
               )}
-              <GenerationHistoryButton />
+              <Link
+                href="/dashboard"
+                className="hidden h-10 min-w-[112px] items-center justify-center whitespace-nowrap rounded-xl bg-signature px-4 text-xs font-bold text-white shadow-[0_14px_30px_-20px_rgba(236,72,153,.75)] transition hover:-translate-y-0.5 hover:brightness-110 sm:inline-flex"
+              >
+                Workspace
+              </Link>
               {me && <UserMenu email={me.email} plan={me.plan} creditsBalance={me.creditsBalance} isAdmin={me.isAdmin} />}
             </>
           ) : (
             <>
               <Button className="hidden sm:inline-flex" variant="ghost" size="sm" onClick={() => setShowAuthModal(true)}>Log in</Button>
-              <Button variant="primary" size="sm" className="px-3 text-xs" asChild><a href="/?create=website#generate" className="hidden sm:inline-flex">Create</a></Button>
+              <Button variant="primary" size="sm" className="px-3 text-xs" asChild><a href="/#generate" className="hidden sm:inline-flex">Start creating</a></Button>
             </>
           )}
           <button
@@ -244,16 +238,6 @@ export function Nav() {
           </button>
         </div>
       </nav>
-
-      {location === "/" && <div className="border-t border-white/[.06] bg-[#100c1e]/75">
-        <div className="chat-scroll mx-auto flex max-w-[1500px] gap-1 overflow-x-auto px-3 py-1.5 sm:gap-2 sm:px-5 lg:px-8" role="tablist" aria-label="Create a project">
-          {productItems.map(([label, , href, Icon]) => {
-            const mode = new URL(href, window.location.origin).searchParams.get("create") || "website";
-            const active = activeIntent === mode;
-            return <Link key={mode} href={href} onClick={(event) => handleCreatorNavigation(event, href)} role="tab" aria-selected={active} className={`flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-[10px] font-semibold transition sm:px-3 sm:text-[11px] ${active ? "bg-mint text-[#10231f] shadow-[0_6px_22px_-15px_rgba(45,212,191,.9)]" : "text-white/55 hover:bg-white/[.07] hover:text-white"}`}><Icon size={14} aria-hidden="true" />{label}</Link>;
-          })}
-        </div>
-      </div>}
 
       {portalReady && mobileOpen && createPortal(
         <div className="fixed inset-0 z-[10000] md:hidden" role="dialog" aria-modal="true" aria-label="Mobile navigation">
@@ -329,7 +313,7 @@ export function Nav() {
                 </div>
               ) : isSignedIn ? (
                 <div className="flex items-center gap-2">
-                  <Link href="/?create=website#generate" onClick={() => setMobileOpen(false)} className="flex min-h-11 flex-1 items-center justify-center rounded-xl bg-signature px-4 text-xs font-bold text-white shadow-[0_14px_28px_-20px_rgba(236,72,153,.72)]">Create</Link>
+                  <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="flex min-h-11 flex-1 items-center justify-center rounded-xl bg-signature px-4 text-xs font-bold text-white shadow-[0_14px_28px_-20px_rgba(236,72,153,.72)]">Workspace</Link>
                   <Link href="/pricing" onClick={() => setMobileOpen(false)} className="flex min-h-11 min-w-[96px] items-center justify-center rounded-xl border border-white/[.08] bg-white/[.025] px-3 font-utility text-[9px] font-semibold text-mint">{formatCredits(me?.creditsBalance)} credits</Link>
                   {me?.isAdmin && (
                     <Link href="/admin" onClick={() => setMobileOpen(false)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-violet/25 bg-violet/10 text-violet" aria-label="Admin"><ShieldCheck size={15} /></Link>
@@ -338,7 +322,7 @@ export function Nav() {
               ) : (
                 <div className="grid grid-cols-2 gap-2">
                   <Button variant="secondary" size="md" onClick={() => { setMobileOpen(false); setShowAuthModal(true); }}>Log in</Button>
-                  <Button className="w-full" variant="primary" size="md" asChild><a href="/?create=website#generate" onClick={() => setMobileOpen(false)}>Create</a></Button>
+                  <Button className="w-full" variant="primary" size="md" asChild><a href="/#generate" onClick={() => setMobileOpen(false)}>Start creating</a></Button>
                 </div>
               )}
             </div>
