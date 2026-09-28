@@ -720,15 +720,23 @@ export function WebsiteBriefForm({
           </button>
 
           {selectedModel.supportsDuration && (
-            <select
-              value={durationSeconds}
-              onChange={(event) => setSettings((current) => ({ ...current, durationSeconds: normalizeDuration(Number(event.currentTarget.value)) }))}
-              className="creator-secondary-button min-h-10 rounded-xl border border-white/[.10] bg-white/[.035] px-3 text-[10px] font-semibold text-text-muted outline-none hover:border-violet/30 hover:text-white sm:text-[11px]"
-              aria-label="Duration"
-            >
-              {DURATION_PRESETS.map((duration) => <option key={duration} value={duration}>{duration}s</option>)}
-              {!DURATION_PRESETS.includes(durationSeconds as typeof DURATION_PRESETS[number]) && <option value={durationSeconds}>{durationSeconds}s</option>}
-            </select>
+            <label className="creator-secondary-button inline-flex min-h-10 items-center gap-1 rounded-xl border border-white/[.10] bg-white/[.035] px-2.5 text-[10px] font-semibold text-text-muted transition hover:border-violet/30 hover:text-white sm:text-[11px]">
+              <input
+                type="number"
+                min={8}
+                max={144}
+                step={1}
+                list="aiwebvideo-duration-presets"
+                value={durationSeconds}
+                onChange={(event) => setSettings((current) => ({ ...current, durationSeconds: normalizeDuration(Number(event.currentTarget.value)) }))}
+                className="w-9 bg-transparent text-right font-semibold text-inherit outline-none"
+                aria-label="Duration in seconds"
+              />
+              <span>s</span>
+              <datalist id="aiwebvideo-duration-presets">
+                {DURATION_PRESETS.map((duration) => <option key={duration} value={duration} />)}
+              </datalist>
+            </label>
           )}
 
           <select
