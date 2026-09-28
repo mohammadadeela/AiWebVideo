@@ -11,12 +11,15 @@ import {
   Languages,
   Maximize2,
   MessageCircleMore,
+  Mic,
   Monitor,
+  Music,
   PackageOpen,
   Paperclip,
   Sparkles,
   Video,
   Volume2,
+  VolumeX,
   X,
 } from "lucide-react";
 import { normalizeWebsiteUrl } from "@/lib/websiteUrl";
@@ -100,6 +103,9 @@ const CREATION_MODES = [
 
 const ACCEPTED_IMAGES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
+const MIN_CREATOR_DURATION_SECONDS = 8;
+const MAX_CREATOR_DURATION_SECONDS = 60;
+const DURATION_PRESETS = [8, 16, 24, 32, 40, 48, 56, 60] as const;
 const NARRATION_LANGUAGES = [
   ["en", "English"],
   ["ar", "Arabic"],
@@ -118,8 +124,8 @@ const NARRATION_LANGUAGES = [
 ] as const;
 
 function normalizeDuration(value: number) {
-  if (!Number.isFinite(value)) return 8;
-  return Math.max(8, Math.min(144, Math.round(value)));
+  if (!Number.isFinite(value)) return MIN_CREATOR_DURATION_SECONDS;
+  return Math.max(MIN_CREATOR_DURATION_SECONDS, Math.min(MAX_CREATOR_DURATION_SECONDS, Math.round(value)));
 }
 
 function intentFromSearch(): CreationIntent | null {
@@ -164,6 +170,7 @@ type CompactDropdownOption = {
   value: string;
   label: string;
   helper?: string;
+  icon?: ReactNode;
 };
 
 function CompactDropdown({
@@ -198,7 +205,7 @@ function CompactDropdown({
         className={controlClass(open)}
       >
         <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-white/[.045] text-mint">
-          {icon}
+          {selected?.icon ?? icon}
         </span>
         <span className="whitespace-nowrap">{selected?.label ?? value}</span>
         <ChevronDown size={12} className={`transition-transform ${open ? "rotate-180" : ""}`} />
@@ -225,14 +232,19 @@ function CompactDropdown({
                   active ? "bg-violet/[.14] text-white" : "text-white/70 hover:bg-white/[.055] hover:text-white"
                 }`}
               >
-                <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border ${
-                  active ? "border-mint/35 bg-mint/10 text-mint" : "border-white/10 text-transparent"
+                <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg border ${
+                  active ? "border-mint/25 bg-mint/[.10] text-mint" : "border-white/[.08] bg-white/[.035] text-white/55"
                 }`}>
-                  {active && <Check size={11} />}
+                  {option.icon ?? icon}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-[11px] font-semibold">{option.label}</span>
                   {option.helper && <span className="mt-0.5 block text-[8px] leading-3.5 text-white/38">{option.helper}</span>}
+                </span>
+                <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border ${
+                  active ? "border-mint/35 bg-mint/10 text-mint" : "border-white/[.08] text-transparent"
+                }`}>
+                  {active && <Check size={11} />}
                 </span>
               </button>
             );
@@ -317,7 +329,9 @@ export function WebsiteBriefForm({
   const [brief, setBrief] = useState("");
   const [prompt, setPrompt] = useState("");
   const [compactPanel, setCompactPanel] = useState<"style" | "ideas" | "model" | null>(null);
-  const [openSettingMenu, setOpenSettingMenu] = useState<"aspect" | "quality" | "audio" | "language" | null>(null);
+  const [openSettingMenu, setOpenSettingMenu] = useState<"duration" | "aspect" | "quality" | "audio" | "language" | null>(null);
+  const [customDurationInput, setCustomDurationInput] = useState(String(DEFAULT_SETTINGS.durationSeconds));
+  const [usingCustomDuration, setUsingCustomDuration] = useState(false);
   const [settings, setSettings] = useState<WebsiteGenerationSettings>(DEFAULT_SETTINGS);
   const [selectedWebsiteRecipe, setSelectedWebsiteRecipe] = useState<WebsiteProductionMode | null>(null);
   const [selectedIdea, setSelectedIdea] = useState<CreativeIdea | null>(null);
@@ -478,6 +492,26 @@ export function WebsiteBriefForm({
     });
     setCompactPanel(null);
     setOpenSettingMenu(null);
+  }
+
+  function applyDurationPreset(seconds: number) {
+    const safe = normalizeDuration(seconds);
+    setUsingCustomDuration(false);
+    setCustomDurationInput(String(safe));
+    setSettings((current) => ({ ...current, durationSeconds: safe }));
+    setOpenSettingMenu(null);
+  }
+
+  function commitCustomDuration(raw = customDurationInput) {
+    const parsed = Number.parseInt(raw.trim(), 10);
+    const currentDuration = typeof settings.durationSeconds === "number"
+      ? settings.durationSeconds
+      : MIN_CREATOR_DURATION_SECONDS;
+    const safe = normalizeDuration(Number.isFinite(parsed) ? parsed : currentDuration);
+    setUsingCustomDuration(true);
+    setCustomDurationInput(String(safe));
+    setSettings((current) => ({ ...current, durationSeconds: safe }));
+    return safe;
   }
 
   useEffect(() => {
@@ -913,32 +947,131 @@ export function WebsiteBriefForm({
           </div>
 
           {selectedModel.supportsDuration && (
-            <label className="creator-secondary-button inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-white/[.10] bg-white/[.035] px-2.5 text-[10px] font-semibold text-text-muted transition hover:border-violet/30 hover:text-white sm:text-[11px]">
-              <Clock size={13} className="text-mint" />
-              <input
-                type="number"
-                min={8}
-                max={144}
-                step={1}
-                value={durationSeconds}
-                onFocus={() => {
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => {
                   setCompactPanel(null);
-                  setOpenSettingMenu(null);
+                  setOpenSettingMenu((current) => current === "duration" ? null : "duration");
                 }}
-                onChange={(event) => setSettings((current) => ({ ...current, durationSeconds: normalizeDuration(Number(event.currentTarget.value)) }))}
-                className="w-8 bg-transparent text-right font-semibold text-inherit outline-none"
-                aria-label="Duration in seconds"
-              />
-              <span>s</span>
-            </label>
+                aria-expanded={openSettingMenu === "duration"}
+                aria-haspopup="dialog"
+                className={controlClass(openSettingMenu === "duration")}
+              >
+                <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-white/[.045] text-mint">
+                  <Clock size={12} />
+                </span>
+                <span>{durationSeconds}s</span>
+                <ChevronDown size={12} className={`transition-transform ${openSettingMenu === "duration" ? "rotate-180" : ""}`} />
+              </button>
+
+              {openSettingMenu === "duration" && (
+                <div
+                  role="dialog"
+                  aria-label="Video duration"
+                  className="absolute bottom-[calc(100%+8px)] left-0 z-[96] w-[min(310px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-white/[.11] bg-[#100c20]/[.99] p-3 shadow-[0_28px_80px_-30px_rgba(0,0,0,.98)] backdrop-blur-2xl"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] font-semibold text-white">Video duration</p>
+                      <p className="mt-0.5 text-[8px] text-white/38">Choose a quick preset or enter any whole second from 8 to 60.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setOpenSettingMenu(null)}
+                      aria-label="Close duration menu"
+                      className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-white/35 transition hover:bg-white/[.06] hover:text-white"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-4 gap-1.5">
+                    {DURATION_PRESETS.map((seconds) => {
+                      const active = !usingCustomDuration && durationSeconds === seconds;
+                      return (
+                        <button
+                          key={seconds}
+                          type="button"
+                          onClick={() => applyDurationPreset(seconds)}
+                          className={`flex min-h-11 flex-col items-center justify-center rounded-xl border px-2 py-2 transition ${
+                            active
+                              ? "border-mint/35 bg-mint/[.10] text-mint"
+                              : "border-white/[.08] bg-white/[.035] text-white/70 hover:border-violet/30 hover:bg-white/[.055] hover:text-white"
+                          }`}
+                        >
+                          <Clock size={12} className={active ? "text-mint" : "text-white/40"} />
+                          <span className="mt-1 text-[10px] font-semibold">{seconds}s</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className={`mt-3 rounded-xl border p-2.5 transition ${
+                    usingCustomDuration ? "border-violet/35 bg-violet/[.07]" : "border-white/[.08] bg-white/[.025]"
+                  }`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5 text-[10px] font-semibold text-white">
+                        <Clock size={12} className="text-violet" />
+                        Custom
+                      </span>
+                      <span className="text-[8px] text-white/35">8–60 sec</span>
+                    </div>
+                    <div className="mt-2 flex items-center gap-2">
+                      <div className="relative min-w-0 flex-1">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={customDurationInput}
+                          onFocus={() => setUsingCustomDuration(true)}
+                          onChange={(event) => {
+                            const digits = event.currentTarget.value.replace(/\D/g, "").slice(0, 3);
+                            setUsingCustomDuration(true);
+                            setCustomDurationInput(digits);
+                          }}
+                          onBlur={() => commitCustomDuration()}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              commitCustomDuration();
+                              setOpenSettingMenu(null);
+                            }
+                            if (event.key === "Escape") {
+                              setCustomDurationInput(String(durationSeconds));
+                              setOpenSettingMenu(null);
+                            }
+                          }}
+                          placeholder="8–60"
+                          className="h-10 w-full rounded-xl border border-white/[.10] bg-[#0b0818] px-3 pr-10 text-center text-sm font-semibold text-white outline-none transition placeholder:text-white/25 focus:border-violet/55 focus:ring-2 focus:ring-violet/10"
+                          aria-label="Custom video duration in seconds"
+                        />
+                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[8px] font-semibold uppercase tracking-[.12em] text-white/30">sec</span>
+                      </div>
+                      <button
+                        type="button"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => {
+                          commitCustomDuration();
+                          setOpenSettingMenu(null);
+                        }}
+                        className="h-10 rounded-xl border border-violet/30 bg-violet/[.12] px-3 text-[10px] font-semibold text-white transition hover:bg-violet/[.18]"
+                      >
+                        Use
+                      </button>
+                    </div>
+                    <p className="mt-2 text-[8px] leading-3.5 text-white/32">Your value is saved only after you finish typing, so clearing or replacing the number no longer jumps back to 8 while you type.</p>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
           <CompactDropdown
             value={settings.aspectRatio}
             options={[
-              { value: "9:16", label: "9:16", helper: "Portrait" },
-              { value: "16:9", label: "16:9", helper: "Landscape" },
-              { value: "1:1", label: "1:1", helper: "Square" },
+              { value: "9:16", label: "9:16", helper: "Portrait", icon: <span className="h-4 w-2.5 rounded-[3px] border border-current/80" /> },
+              { value: "16:9", label: "16:9", helper: "Landscape", icon: <span className="h-2.5 w-4 rounded-[3px] border border-current/80" /> },
+              { value: "1:1", label: "1:1", helper: "Square", icon: <span className="h-3.5 w-3.5 rounded-[3px] border border-current/80" /> },
             ]}
             open={openSettingMenu === "aspect"}
             onToggle={() => {
@@ -960,6 +1093,7 @@ export function WebsiteBriefForm({
                 value: quality,
                 label: quality === "4k" ? "4K" : "1080p",
                 helper: quality === "4k" ? "Maximum detail" : "Standard HD",
+                icon: quality === "4k" ? <Sparkles size={13} /> : <Monitor size={13} />,
               }))}
               open={openSettingMenu === "quality"}
               onToggle={() => {
@@ -984,10 +1118,10 @@ export function WebsiteBriefForm({
             <CompactDropdown
               value={settings.audioMode}
               options={[
-                ...(selectedModel.audioModes.includes("native_audio") ? [{ value: "native_audio", label: "Sound", helper: "Native scene audio" }] : []),
-                ...(selectedModel.audioModes.includes("voice_music") ? [{ value: "voice_music", label: "Narration", helper: "Voice + soundtrack" }] : []),
-                ...(selectedModel.audioModes.includes("music_only") ? [{ value: "music_only", label: "Music", helper: "Soundtrack only" }] : []),
-                ...(selectedModel.audioModes.includes("silent") ? [{ value: "silent", label: "Silent", helper: "No audio" }] : []),
+                ...(selectedModel.audioModes.includes("native_audio") ? [{ value: "native_audio", label: "Sound", helper: "Native scene audio", icon: <Volume2 size={13} /> }] : []),
+                ...(selectedModel.audioModes.includes("voice_music") ? [{ value: "voice_music", label: "Narration", helper: "Voice + soundtrack", icon: <Mic size={13} /> }] : []),
+                ...(selectedModel.audioModes.includes("music_only") ? [{ value: "music_only", label: "Music", helper: "Soundtrack only", icon: <Music size={13} /> }] : []),
+                ...(selectedModel.audioModes.includes("silent") ? [{ value: "silent", label: "Silent", helper: "No audio", icon: <VolumeX size={13} /> }] : []),
               ]}
               open={openSettingMenu === "audio"}
               onToggle={() => {
@@ -1009,7 +1143,7 @@ export function WebsiteBriefForm({
           <div className="mt-2 flex justify-end">
             <CompactDropdown
               value={settings.narrationLanguage}
-              options={NARRATION_LANGUAGES.map(([code, label]) => ({ value: code, label }))}
+              options={NARRATION_LANGUAGES.map(([code, label]) => ({ value: code, label, icon: <Languages size={13} /> }))}
               open={openSettingMenu === "language"}
               onToggle={() => {
                 setCompactPanel(null);
