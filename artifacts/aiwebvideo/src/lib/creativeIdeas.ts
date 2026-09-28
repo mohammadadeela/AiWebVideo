@@ -1,4 +1,4 @@
-export type IdeaFeature = 'ai_video' | 'product_images' | 'product_video' | 'web_video' | 'scenario' | 'interior_design';
+export type IdeaFeature = 'ai_video' | 'product_images' | 'product_video' | 'web_video' | 'scenario' | 'interior_design' | 'architecture_design';
 
 export interface CreativeIdea {
   id: string;
@@ -28,6 +28,7 @@ const PRODUCT_GUARDRAIL = `Use the supplied product as exact visual ground truth
 const WEBSITE_GUARDRAIL = `Use the real captured website pages, actual interface, real branding, brand colors, copy, products/services and website structure as ground truth. Do not invent an unrelated brand, unsupported offer or fake feature. Keep visible copy short, correctly spelled and readable; favor real UI captures for critical website text. Respect the user's selected duration, aspect ratio, quality, style and references. User additions after this prompt have priority.`;
 export const INTERIOR_MASTER_PROMPT = `You are AiWebVideo's professional architectural visualization director. Treat the user's references, measurements and explicit constraints as authoritative engineering inputs. Never trade geometric accuracy for creativity. Analyze every reference together before designing, cross-check perspective, preserve the existing shell and produce consistent geometry across all outputs. Do not claim construction-ready accuracy from ordinary photos; when a dimension is not supplied or cannot be reliably verified, avoid invented precision. Optimize for professional client/engineer/architect presentation quality.\n\nTreat every supplied room/shop/property photo, floor-plan image, sketch, elevation and written measurement as engineering reference data. Preserve the existing shell, footprint, ceiling/roof geometry, curves, openings, columns, stairs, doors, windows, built-ins and visible structural constraints unless the user explicitly asks to change them. Explicit numeric measurements supplied by the user are authoritative; never silently rescale them. If a measurement cannot be reliably established from the references, do not invent precision—keep the geometry visually consistent and clearly favor the user's stated dimension. Reconstruct perspective and spatial relationships from all references together, not from one image alone. Respect the requested room type, circulation, clearances, materials, furniture scale, lighting, gypsum/ceiling details, linear or magnetic/track lighting, electrical/architectural elements and design style. Produce professional photorealistic architectural visualization suitable for an engineer, architect, interior designer or real-estate presentation. Keep walls, floor, ceiling and roof planes coherent across views. Avoid impossible furniture, floating objects, warped straight lines, inconsistent windows/doors, changing room dimensions, random fixtures, fake construction details, or decorative elements that violate the supplied geometry. If the user asks for a technical/sketch presentation, create a clean architectural concept/visualization rather than claiming it is a construction-ready drawing. User-provided constraints and measurements have priority over creative additions.`;
 const INTERIOR_GUARDRAIL = INTERIOR_MASTER_PROMPT;
+const ARCHITECTURE_GUARDRAIL = `The Maps-derived site image is the primary location reference. Preserve its terrain, street frontage, neighboring context, plot orientation and camera viewpoint. Use the user's measurements and plans when supplied; a map image alone cannot establish exact parcel dimensions or legal setbacks. Develop a plausible concept on this real site without claiming survey or construction accuracy. User design requirements take priority over optional visual styling.`;
 const SCENARIO_GUARDRAIL = `Preserve any supplied person, product, place or brand reference. Keep dialogue/performance natural, camera movement physically plausible, pacing intentional and the selected duration/aspect ratio authoritative. Never invent unsupported claims or unreadable on-screen text. User additions have priority.`;
 
 function idea(
@@ -40,6 +41,8 @@ function idea(
 ): CreativeIdea {
   const guardrail = feature === 'interior_design'
     ? INTERIOR_GUARDRAIL
+    : feature === 'architecture_design'
+    ? ARCHITECTURE_GUARDRAIL
     : feature === 'product_images' || feature === 'product_video'
     ? PRODUCT_GUARDRAIL
     : feature === 'web_video'
@@ -200,6 +203,15 @@ const SCENARIO: CreativeIdea[] = [
   idea('scenario','direct-camera','Performance','Deliver a confident direct-to-camera launch message',`Create a confident direct-to-camera launch performance with one strong opening line, two or three concise supporting points and a clean close. Use natural gestures, professional but human delivery and subtle cinematic camera movement without overacting.`,{priority:87}),
 ];
 
+const ARCHITECTURE_DESIGN: CreativeIdea[] = [
+  idea('architecture_design','street-frontage','Site concept','Design a building for this actual street frontage',`Use the real site photograph as the fixed base view. Develop the requested building massing, entrance and facade around the visible street access, neighboring scale, terrain and lighting. Match the provided footprint and dimensions if supplied; otherwise maintain plausible proportions without invented measurements.`,{priority:100,tags:['building','retail','office','house','villa']}),
+  idea('architecture_design','courtyard','Landscape','Create an inviting courtyard and landscape proposal',`Integrate a courtyard, planting and pedestrian circulation into the actual site reference. Preserve the road, adjacent buildings, landform and access direction; keep the concept feasible-looking without asserting legal boundaries.`,{priority:92,tags:['courtyard','landscape','garden']}),
+  idea('architecture_design','mixed-use','Commercial','Visualize a mixed-use building on this location',`Design a convincing mixed-use concept with legible ground-floor access and upper-level rhythm, positioned in the real plot view. Respond to nearby building heights and street geometry; use measured plans if provided and avoid invented exact dimensions.`,{priority:91,tags:['retail','mixed-use','office','shop']}),
+  idea('architecture_design','modern-home','Residential','Visualize a modern home on this exact site',`Compose a refined home concept onto the captured street or satellite reference. Coordinate entrance, privacy, landscaping, facade and sunlight with the real context. Preserve the viewed terrain and perspective and honor any supplied floor plan or measurements.`,{priority:95,tags:['home','house','villa']}),
+  idea('architecture_design','material-study','Materials','Compare facade materials for this same site',`Keep the exact same location and building composition while exploring a considered facade palette and realistic daylight response. Avoid changing surrounding geometry between alternatives; treat user material references as the chosen direction.`,{priority:84,tags:['facade','stone','wood','materials']}),
+  idea('architecture_design','approach-film','Video','Direct a site-grounded architectural reveal',`Begin from the actual captured location view, then reveal a coherent proposed architecture with restrained physically possible camera movement. Preserve access, surrounding landmarks, street direction and plausible scale across the full shot.`,{priority:89,tags:['video','tour','walkthrough']}),
+];
+
 export const CREATIVE_IDEAS: Record<IdeaFeature, CreativeIdea[]> = {
   ai_video: AI_VIDEO,
   product_images: PRODUCT_IMAGES,
@@ -207,6 +219,7 @@ export const CREATIVE_IDEAS: Record<IdeaFeature, CreativeIdea[]> = {
   web_video: WEB_VIDEO,
   scenario: SCENARIO,
   interior_design: INTERIOR_DESIGN,
+  architecture_design: ARCHITECTURE_DESIGN,
 };
 
 const INTENT_FEATURE = {
@@ -216,7 +229,7 @@ const INTENT_FEATURE = {
   'product-video': 'product_video',
   scenario: 'scenario',
   interior: 'interior_design',
-  architecture: 'interior_design',
+  architecture: 'architecture_design',
 } as const;
 
 export type IdeaIntent = keyof typeof INTENT_FEATURE;
