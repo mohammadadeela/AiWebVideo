@@ -38,6 +38,8 @@ export interface JobWorkflowState {
     | "done"
     | "failed";
   mode: JobMode;
+  /** Public AiWebVideo model id. Provider model names remain server-only. */
+  modelId?: string;
   durationSeconds: number;
   featuresText: string | null;
   creativeBrief: string | null;
