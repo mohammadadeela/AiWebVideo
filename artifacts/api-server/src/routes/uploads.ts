@@ -206,13 +206,17 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
       const screenshotUrl = await saveImageFile(
         job.id,
         'screenshot-full.jpg',
-        architectureReference.buffer,
+        await normalizeUploadToJpeg(architectureReference.buffer),
       );
       pages.push({
         url: 'architecture://' + architectureReference.lat + ',' + architectureReference.lng,
         title: architectureReference.source === 'streetview' ? 'Real location street view' : 'Real location satellite view',
         screenshotUrl,
       });
+      if (architectureReference.streetBuffer) {
+        const streetUrl = await saveImageFile(job.id, 'page-1.jpg', await normalizeUploadToJpeg(architectureReference.streetBuffer));
+        pages.push({ url: 'architecture://streetview/' + architectureReference.lat + ',' + architectureReference.lng, title: 'Nearby street-level context', screenshotUrl: streetUrl });
+      }
       await addJobMessage(
         job.id,
         'assistant',
