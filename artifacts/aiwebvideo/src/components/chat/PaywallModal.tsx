@@ -14,11 +14,13 @@ const PAYWALL_PLANS = [
 
 const VIDEO_PACKS = [
   { id: 'single8' as const, name: 'Quick Video', label: '8s video pack', amountUsd: 9.99, credits: 38 },
+  { id: 'single16' as const, name: 'Short Video', label: '16s video pack', amountUsd: 18.99, credits: 70 },
   { id: 'single32' as const, name: 'Standard Video', label: '32s video pack', amountUsd: 34.99, credits: 134 },
   { id: 'single48' as const, name: 'Full Marketing Video', label: '48s video pack', amountUsd: 52.99, credits: 198 },
 ];
 
 const CREDIT_PACKS = [
+  { id: 'topup25' as const, credits: 25, amountUsd: 7.99, note: 'A small top-up' },
   { id: 'topup50' as const, credits: 50, amountUsd: 14.99, note: 'Quick refill' },
   { id: 'topup100' as const, credits: 100, amountUsd: 28.99, note: 'Small production balance' },
   { id: 'topup250' as const, credits: 250, amountUsd: 69.99, note: 'For several productions' },
@@ -62,7 +64,7 @@ export function PaywallModal({
 }) {
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>(() =>
-    mode !== 'photos' && mode !== 'icon' && mode !== 'both' && outputQuality === '1080p' && [8, 32, 48].includes(durationSeconds)
+    mode !== 'photos' && mode !== 'icon' && mode !== 'both' && outputQuality === '1080p' && [8, 16, 32, 48].includes(durationSeconds)
       ? 'video'
       : 'credits',
   );
@@ -96,7 +98,7 @@ export function PaywallModal({
   const eligiblePlans = useMemo(() => PAYWALL_PLANS.filter((plan) => fundedCredits + displayCredits(plan.credits) >= requiredCredits), [fundedCredits, requiredCredits]);
   const exactVideoPack = useMemo(() => {
     if (mode === 'photos' || mode === 'icon' || mode === 'both' || outputQuality !== '1080p') return null;
-    const id = durationSeconds === 8 ? 'single8' : durationSeconds === 32 ? 'single32' : durationSeconds === 48 ? 'single48' : null;
+    const id = durationSeconds === 8 ? 'single8' : durationSeconds === 16 ? 'single16' : durationSeconds === 32 ? 'single32' : durationSeconds === 48 ? 'single48' : null;
     return id ? VIDEO_PACKS.find((pack) => pack.id === id) ?? null : null;
   }, [durationSeconds, mode, outputQuality]);
 
