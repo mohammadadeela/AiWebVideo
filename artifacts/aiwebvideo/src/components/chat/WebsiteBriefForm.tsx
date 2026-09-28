@@ -14,6 +14,7 @@ import {
   Link2,
   Loader2,
   Paperclip,
+  Settings2,
   Sparkles,
   Smartphone,
   Volume2,
@@ -33,14 +34,6 @@ import { LoopingMedia } from "@/components/landing/LoopingMedia";
 import { fetchMarketingSettings, fetchModelPricing, fetchProductLinkPreview, type MarketingSettings, type ModelPricingResponse } from "@/lib/api-client";
 import { IMAGE_MODEL_OPTIONS, VIDEO_MODEL_OPTIONS, type ModelTier } from "@/lib/modelTiers";
 import type { AudioMode, JobMode } from "./types";
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
 export type CreationIntent =
   | "website"
@@ -162,7 +155,7 @@ function durationLabel(seconds: number) {
 }
 
 function optionClass(active: boolean) {
-  return `flex min-h-8 items-center justify-center gap-1 rounded-lg border px-2 text-[10px] font-semibold transition ${
+  return `flex min-h-10 items-center justify-center gap-1.5 rounded-xl border px-2.5 text-[11px] font-semibold transition ${
     active
       ? "border-mint/55 bg-mint text-[#10231f]"
       : "border-white/10 bg-white/[.035] text-text-muted hover:border-mint/30 hover:bg-mint/[.07] hover:text-white"
@@ -170,7 +163,7 @@ function optionClass(active: boolean) {
 }
 
 function controlClass(active: boolean) {
-  return `creator-secondary-button inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-2.5 text-[10px] font-semibold transition sm:text-[11px] ${
+  return `creator-secondary-button inline-flex min-h-10 items-center gap-2 rounded-xl border px-3 text-[10px] font-semibold transition sm:text-[11px] ${
     active
       ? "border-violet/40 bg-violet/[.10] text-white"
       : "border-white/[.10] bg-white/[.035] text-text-muted hover:border-violet/30 hover:bg-violet/[.07] hover:text-white"
@@ -252,6 +245,7 @@ export function WebsiteBriefForm({
   const [url, setUrl] = useState("");
   const [brief, setBrief] = useState("");
   const [prompt, setPrompt] = useState("");
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [compactPanel, setCompactPanel] = useState<"style" | "ideas" | null>(null);
   const [settings, setSettings] = useState<WebsiteGenerationSettings>(DEFAULT_SETTINGS);
   const [liveModelPricing, setLiveModelPricing] = useState<ModelPricingResponse | null>(null);
@@ -263,7 +257,6 @@ export function WebsiteBriefForm({
   const [interiorOutput, setInteriorOutput] = useState<"images" | "video">("images");
   const [architectureLocation, setArchitectureLocation] = useState("");
   const [architectureDimensions, setArchitectureDimensions] = useState("");
-  const [productLinkOpen, setProductLinkOpen] = useState(false);
   const [productLinkUrl, setProductLinkUrl] = useState("");
   const [productLinkLoading, setProductLinkLoading] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
@@ -505,7 +498,6 @@ export function WebsiteBriefForm({
       setFiles((current) => [...imported, ...current].slice(0, 10));
       const suggested = [preview.title, preview.description].filter(Boolean).join(" — ");
       if (!brief.trim() && suggested) setBrief(suggested.slice(0, 1800));
-      setProductLinkOpen(false);
       setProductLinkUrl("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "We could not import that product page.");
@@ -719,7 +711,7 @@ export function WebsiteBriefForm({
         </div>
       )}
 
-      {window.location.pathname !== "/" && <div className={`relative border-b border-white/[.08] ${compactLayout ? "p-2" : "p-2.5 sm:p-3"}`}>
+      <div className={`relative border-b border-white/[.08] ${compactLayout ? "p-2" : "p-2.5 sm:p-3"}`}>
         <div className="chat-scroll flex gap-1 overflow-x-auto pb-0.5" role="tablist" aria-label="Creation mode">
           {CREATION_MODES.map(({ id, label, short, icon: Icon }) => (
             <button
@@ -740,7 +732,7 @@ export function WebsiteBriefForm({
             </button>
           ))}
         </div>
-      </div>}
+      </div>
 
       <div className={`relative ${compactLayout ? "p-3 sm:p-4" : "p-4 sm:p-5"}`}>
         {activeMode === "interior" && (
@@ -839,6 +831,15 @@ export function WebsiteBriefForm({
               className="creator-field w-full resize-none rounded-2xl border border-white/[.14] bg-[#0b0818] px-4 py-3 text-sm leading-6 text-white outline-none transition placeholder:text-white/35 focus:border-violet/55 focus:ring-2 focus:ring-violet/10"
             />
           </label>
+          {(activeMode === "photo" || activeMode === "product-video") && <div className="rounded-2xl border border-white/[.10] bg-[#0b0818] p-2.5 sm:p-3">
+            <label htmlFor="product-link-inline" className="mb-1.5 block text-[10px] font-semibold text-white/80">Or add a product link</label>
+            <div className="flex min-w-0 items-center gap-2">
+              <Link2 size={15} className="shrink-0 text-violet" aria-hidden="true" />
+              <input id="product-link-inline" type="url" inputMode="url" value={productLinkUrl} onChange={(event) => setProductLinkUrl(event.currentTarget.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void importProductLink(); } }} placeholder="https://yourstore.com/product" disabled={disabled || productLinkLoading} className="h-9 min-w-0 flex-1 bg-transparent text-xs text-white outline-none placeholder:text-white/35" />
+              <button type="button" onClick={() => void importProductLink()} disabled={disabled || productLinkLoading || !productLinkUrl.trim()} className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg bg-violet/20 px-3 text-[10px] font-semibold text-white transition hover:bg-violet/35 disabled:opacity-40">{productLinkLoading && <Loader2 size={12} className="animate-spin" />}{productLinkLoading ? "Importing" : "Use link"}</button>
+            </div>
+            <p className="mt-1.5 text-[9px] leading-4 text-text-dim">We’ll add the product images and details here for you to review before generating.</p>
+          </div>}
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -874,17 +875,11 @@ export function WebsiteBriefForm({
             {files.length ? `References ${files.length}` : isProductMode ? "Add product photo" : activeMode === "scenario" ? "Add person photo" : activeMode === "interior" ? "Add space references" : activeMode === "architecture" ? "Add site references" : "References"}
           </button>
 
-          {isProductMode && (
-            <button
-              type="button"
-              onClick={() => { setProductLinkOpen(true); setError(null); }}
-              disabled={disabled}
-              className={controlClass(false)}
-            >
-              <Link2 size={13} className="text-violet" />
-              + Link
-            </button>
-          )}
+          <button type="button" onClick={() => { setCompactPanel(null); setSettingsOpen((current) => !current); }} aria-expanded={settingsOpen} className={controlClass(settingsOpen)}>
+            <Settings2 size={13} />
+            {isVideoMode ? `${durationSeconds}s · ${formatSummary} · ${settings.outputQuality}` : `${formatSummary} · ${settings.outputQuality}`}
+            <ChevronDown size={12} className={settingsOpen ? "rotate-180" : ""} />
+          </button>
 
         </div>
 
@@ -954,8 +949,9 @@ export function WebsiteBriefForm({
           </div>
         )}
 
-        <div className="mt-3 border-t border-white/[.08] pt-3" aria-label="Generation options">
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        {settingsOpen && <div className="mt-3 rounded-2xl border border-white/[.08] bg-[#0f0b1d]/95 p-3 sm:p-4" aria-label="Generation options">
+            <div className="mb-3 flex items-center justify-between gap-3"><div><p className="text-xs font-semibold text-white">Generation settings</p><p className="mt-0.5 text-[9px] text-text-dim">Choose your format before generation.</p></div><button type="button" onClick={() => setSettingsOpen(false)} aria-label="Close settings" className="grid h-8 w-8 place-items-center rounded-lg text-text-dim hover:bg-white/5 hover:text-white"><X size={13} /></button></div>
+            <div className="grid gap-3 sm:grid-cols-2">
               {isVideoMode && (
                 <div className="rounded-xl border border-white/[.07] bg-white/[.02] p-2.5">
                   <div className="mb-2 flex items-center justify-between gap-2"><span className="text-[11px] font-semibold text-white">Duration</span><span className="text-xs text-text-muted">8–60 sec</span></div>
@@ -1070,11 +1066,11 @@ export function WebsiteBriefForm({
                 </div>
               )}
             </div>
-          </div>
+          </div>}
 
         {error && <p role="alert" className="mt-3 rounded-xl border border-pink/20 bg-pink/5 px-3 py-2 text-xs text-pink">{error}</p>}
 
-        <div className="mt-3 flex flex-col gap-2 border-t border-white/[.08] pt-3 sm:flex-row sm:items-center">
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
           {!compactLayout && (
             <div className="flex-1 text-[9px] text-text-dim">
               {isProductMode && !files.length ? "Add a real product photo before generating." : activeMode === "interior" && !files.length ? "Add space references before generating." : activeMode === "architecture" && !architectureLocation.trim() ? "Add a Maps link or address before generating." : `Your setup: ${isVideoMode ? `${durationSeconds}s · ` : ""}${formatSummary} · ${settings.outputQuality}`}
@@ -1085,50 +1081,16 @@ export function WebsiteBriefForm({
             type="button"
             onClick={submit}
             disabled={submitDisabled}
-            className="premium-button creator-primary-button flex min-h-[58px] flex-1 items-center justify-center gap-3 rounded-[16px] bg-signature px-4 text-sm font-bold text-white shadow-violet transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45 sm:flex-none sm:min-w-[216px]"
+            className="premium-button creator-primary-button flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-signature px-5 text-sm font-bold text-white shadow-violet transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45 sm:flex-none sm:min-w-[260px]"
           >
-            <span className="flex flex-col items-start leading-tight"><span>{exampleLoading ? "Preparing example…" : landingWebsitePreview && activeMode === "website" ? "Analyze website" : createLabel}</span><span className="mt-1 text-[10px] font-medium text-white/80">{landingWebsitePreview && activeMode === "website" ? `Free preview · render ~${exactCredits} credits` : `Estimated cost · ${exactCredits} credits`}</span></span>
-            <ArrowRight size={16} className="ml-auto" />
+            <span>{exampleLoading ? "Preparing example…" : landingWebsitePreview && activeMode === "website" ? "Capture website" : createLabel}</span>
+            {showCreditPricing && <span className="rounded-full border border-white/15 bg-black/15 px-2 py-1 text-[9px] font-semibold text-white/90">Estimate: {exactCredits} credits</span>}
+            <ArrowRight size={15} />
           </button>
         </div>
       </div>
     </div>
 
-    <AlertDialog open={productLinkOpen} onOpenChange={(open) => { if (!productLinkLoading) setProductLinkOpen(open); }}>
-      <AlertDialogContent className="w-[calc(100%-2rem)] max-w-[440px] rounded-[24px] border border-white/[.1] bg-[#100c1d] p-5 text-white sm:p-6">
-        <AlertDialogHeader className="text-left">
-          <AlertDialogTitle className="text-lg font-semibold">Import product link</AlertDialogTitle>
-          <AlertDialogDescription className="text-[11px] leading-5 text-white/55">
-            We’ll pull the product title, description, and best public product images. Review everything in the dock before you generate.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <label className="mt-4 block">
-          <span className="mb-1.5 block text-[10px] font-semibold text-white/80">Product URL</span>
-          <input
-            value={productLinkUrl}
-            onChange={(event) => setProductLinkUrl(event.currentTarget.value)}
-            onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void importProductLink(); } }}
-            type="url"
-            inputMode="url"
-            autoComplete="url"
-            placeholder="www.yourproduct.com"
-            className="h-11 w-full rounded-xl border border-white/10 bg-black/20 px-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-violet/45"
-          />
-        </label>
-        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <AlertDialogCancel disabled={productLinkLoading} className="m-0 rounded-xl border border-white/10 bg-white/[.03] px-4 text-[11px] text-white/75">Cancel</AlertDialogCancel>
-          <button
-            type="button"
-            onClick={() => void importProductLink()}
-            disabled={!productLinkUrl.trim() || productLinkLoading}
-            className="premium-button inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-signature px-4 text-[11px] font-semibold text-white disabled:opacity-45"
-          >
-            {productLinkLoading ? <Loader2 size={13} className="animate-spin" /> : <Link2 size={13} />}
-            {productLinkLoading ? "Importing…" : "Continue"}
-          </button>
-        </div>
-      </AlertDialogContent>
-    </AlertDialog>
     </>
   );
 }
