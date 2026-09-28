@@ -103,6 +103,7 @@ function reportRangeLabel(range: z.infer<typeof reportRangeSchema>) {
 const inferredProductSql = `COALESCE(product_id, CASE
   WHEN kind LIKE 'subscription_%' AND plan IN ('creator','pro','agency') THEN plan
   WHEN kind='one_time' AND credits_granted=38 THEN 'single8'
+  WHEN kind='one_time' AND credits_granted=134 THEN 'single32'
   WHEN kind='one_time' AND credits_granted=198 THEN 'single48'
   WHEN kind='one_time' AND credits_granted=582 THEN 'single144'
   WHEN kind='one_time' AND credits_granted=50 THEN 'topup50'
