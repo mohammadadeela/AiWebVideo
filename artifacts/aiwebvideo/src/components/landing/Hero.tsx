@@ -6,7 +6,7 @@ export function Hero() {
   const requested = params.get("create");
   const creationIntent = requested === "video" || requested === "photo" || requested === "product-video" || requested === "scenario" || requested === "interior" || requested === "architecture" || requested === "website" ? requested : "website";
   return (
-    <section id="generate" className="relative scroll-mt-20 overflow-hidden border-b border-white/[.06] bg-black/10">
+    <section id="generate" className="relative scroll-mt-28 overflow-hidden border-b border-white/[.06] bg-black/10 sm:scroll-mt-32">
       <div className="pointer-events-none absolute left-1/2 top-0 h-[420px] w-[980px] -translate-x-1/2 rounded-full bg-violet/[.09] blur-[120px]" />
       <div className="relative mx-auto max-w-7xl px-4 pb-10 pt-7 sm:px-5 sm:pb-14 sm:pt-11 lg:px-8 lg:pb-16">
         <div className="mb-6 max-w-5xl sm:mb-7">
