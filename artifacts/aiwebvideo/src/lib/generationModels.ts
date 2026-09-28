@@ -59,7 +59,7 @@ export const PUBLIC_MODELS: PublicModelCard[] = [
     tagline: 'Sharper campaign imagery with stronger detail.',
     bestFor: 'Product photos and polished marketing creatives',
     speed: 'Fast', quality: '2K', nativeAudio: false, supports4k: true, recommended: true,
-    internalCreditsPerImage: 1,
+    internalCreditsPerImage: 1, internalCredits4k: 2,
   },
   {
     id: 'graphic-pro', name: 'Graphic Pro', family: 'image',
@@ -80,7 +80,7 @@ export const PUBLIC_MODELS: PublicModelCard[] = [
     tagline: 'Detailed visualization with stronger spatial fidelity.',
     bestFor: 'Retail, residential and architectural concepts',
     speed: 'Fast', quality: '2K', nativeAudio: false, supports4k: true, recommended: true,
-    internalCreditsPerImage: 1,
+    internalCreditsPerImage: 1, internalCredits4k: 2,
   },
   {
     id: 'space-pro', name: 'Space Pro', family: 'interior',
