@@ -441,7 +441,7 @@ export function WebsiteBriefForm({
       durationSeconds: activeMode === "photo" ? 8 : durationSeconds,
       aspectRatio: settings.aspectRatio,
       outputQuality: settings.outputQuality,
-      audioMode: activeMode === "photo" || isInterior ? "silent" : settings.audioMode,
+      audioMode: activeMode === "photo" || (isInterior && interiorOutput === "images") ? "silent" : settings.audioMode,
       modelId: settings.modelId,
     });
   }
@@ -788,7 +788,9 @@ export function WebsiteBriefForm({
                     ? displayCredits(settings.outputQuality === "4k"
                         ? (model.internalCredits4k ?? model.internalCredits1080p ?? 1)
                         : (model.internalCredits1080p ?? 1))
-                    : displayCredits(model.internalCreditsPerImage ?? 1);
+                    : displayCredits(settings.outputQuality === "4k"
+                        ? (model.internalCredits4k ?? model.internalCreditsPerImage ?? 1)
+                        : (model.internalCreditsPerImage ?? 1));
                   return (
                     <button
                       key={model.id}
