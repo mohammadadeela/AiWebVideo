@@ -37,7 +37,10 @@ export function estimateInternalRenderCredits(
 ) {
   if (mode === 'photos' || mode === 'icon') {
     const model = publicModel(modelId ?? 'graphic-2');
-    return Math.max(1, model.internalCreditsPerImage ?? 1) * 4;
+    const perImage = outputQuality === '4k'
+      ? (model.internalCredits4k ?? model.internalCreditsPerImage ?? 1)
+      : (model.internalCreditsPerImage ?? 1);
+    return Math.max(1, perImage) * 4;
   }
   const model = publicModel(modelId ?? 'cinema-2');
   const generatedSeconds = normalizedGeneratedSeconds(durationSeconds);
