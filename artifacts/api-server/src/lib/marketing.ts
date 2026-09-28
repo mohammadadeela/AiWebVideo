@@ -2,18 +2,20 @@ import { query } from './pool.js';
 
 export interface MarketingVideo {
   id: string;
+  kind?: 'image' | 'video';
   url: string | null;
   posterUrl: string | null;
   caption: string | null;
   overlayText: string | null;
   eyebrow: string | null;
-  templateMode?: 'video' | 'photo' | 'product-video' | 'scenario' | 'interior' | null;
+  templateMode?: 'website' | 'video' | 'photo' | 'product-video' | 'scenario' | 'interior' | 'architecture' | null;
   templatePrompt?: string | null;
 }
 
 export interface MarketingSettings {
   heading: string;
   description: string;
+  backgrounds?: Partial<Record<'website' | 'video' | 'photo' | 'product-video' | 'scenario' | 'interior' | 'architecture', string | null>>;
   videos: {
     showcase: MarketingVideo[];
   };
@@ -24,7 +26,7 @@ const emptyVideo = (id: string): MarketingVideo => ({ id, url: null, posterUrl: 
 const defaults: MarketingSettings = {
   heading: 'Made with AiWebVideo',
   description: 'See short examples created by people using the studio, then start with your own website.',
-  videos: { showcase: [emptyVideo('example-1'), emptyVideo('example-2'), emptyVideo('example-3')] },
+  videos: { showcase: [] },
 };
 
 let cache: { value: MarketingSettings; expires: number } | null = null;
@@ -36,12 +38,13 @@ export async function getMarketingSettings(): Promise<MarketingSettings> {
   ).catch(() => ({ rows: [] as Array<{ value: Partial<MarketingSettings> }> }));
   const raw = rows[0]?.value ?? {};
   const legacy = raw.videos as unknown as { feature?: Partial<MarketingVideo>; howTo?: Partial<MarketingVideo>; showcase?: Partial<MarketingVideo>[] } | undefined;
-  const supplied = legacy?.showcase?.length
+  const supplied = Array.isArray(legacy?.showcase)
     ? legacy.showcase
     : [legacy?.feature, legacy?.howTo].filter(Boolean) as Partial<MarketingVideo>[];
   const value: MarketingSettings = {
     heading: typeof raw.heading === 'string' ? raw.heading : defaults.heading,
     description: typeof raw.description === 'string' ? raw.description : defaults.description,
+    backgrounds: raw.backgrounds && typeof raw.backgrounds === 'object' ? raw.backgrounds : {},
     videos: {
       showcase: (supplied.length ? supplied : defaults.videos.showcase)
         .slice(0, MAX_MARKETING_VIDEOS)
