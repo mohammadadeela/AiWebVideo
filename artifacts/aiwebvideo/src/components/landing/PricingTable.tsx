@@ -117,6 +117,15 @@ const ONE_TIME_PACKS = [
     note: "One punchy promo, ready in minutes",
   },
   {
+    id: "single32" as const,
+    name: "Standard Video",
+    length: "32 seconds",
+    price: "$34.99",
+    amountUsd: 34.99,
+    credits: 134,
+    note: "More time to show your product and tell its story",
+  },
+  {
     id: "single48" as const,
     name: "Full Marketing Video",
     length: "48 seconds",
