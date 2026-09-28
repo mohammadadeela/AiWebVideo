@@ -45,6 +45,7 @@ import {
 import { normalizeWebsiteUrl } from "@/lib/websiteUrl";
 import { INTERIOR_MASTER_PROMPT } from "@/lib/creativeIdeas";
 import { estimateRenderCredits } from "@/lib/credits";
+import { defaultModelFor } from "@/lib/generationModels";
 import {
   clearLocalJobWorkflow,
   loadLocalJobWorkflow,
@@ -502,9 +503,18 @@ export function ChatWidget({
         }
 
         if (handoff.kind === "website") {
-          await performWebsiteSubmit(handoff.url, handoff.brief, handoff.settings, files);
+          await performWebsiteSubmit(
+            handoff.url,
+            handoff.brief,
+            { ...handoff.settings, modelId: handoff.settings.modelId ?? "cinema-2" },
+            files,
+          );
         } else {
-          await performStudioSubmit({ ...handoff.request, files });
+          await performStudioSubmit({
+            ...handoff.request,
+            modelId: handoff.request.modelId ?? "cinema-2",
+            files,
+          });
         }
       } catch (error) {
         clearPublicCreatorHandoff();
@@ -1331,6 +1341,7 @@ export function ChatWidget({
         aspectRatio: request.aspectRatio,
         outputQuality: request.outputQuality,
         audioMode: request.audioMode,
+        modelId: request.modelId,
       },
       attachmentDraftKey,
     });
@@ -1361,6 +1372,7 @@ export function ChatWidget({
       outputQuality: settings.outputQuality,
       audioMode: settings.audioMode,
       narrationLanguage: settings.narrationLanguage,
+      modelId: settings.modelId,
     };
     setMode(settings.mode);
     setModelId(settings.modelId);
@@ -1956,6 +1968,7 @@ ${request.prompt}`
       durationSeconds,
       outputQuality,
       audioMode,
+      modelId,
     );
     if (!canStartPaidPlanning) return;
     setBusy(true);
@@ -1994,6 +2007,7 @@ ${request.prompt}`
         frameRate,
         selectedCaptureIds,
         selectedGeneratedPhotoIds,
+        modelId,
       });
       if (response.creditsRemaining !== undefined) setCreditBalance(response.creditsRemaining);
       if (response.jobId !== requestedJobId) {
@@ -2185,6 +2199,7 @@ ${request.prompt}`
       durationSeconds,
       outputQuality,
       audioMode,
+      modelId,
     );
     if (!canStartPaidPlanning) return;
     const label =
@@ -2219,6 +2234,7 @@ ${request.prompt}`
         frameRate,
         selectedCaptureIds,
         selectedGeneratedPhotoIds,
+        modelId,
       });
       if (response.creditsRemaining !== undefined) setCreditBalance(response.creditsRemaining);
       if (response.jobId !== sourceJobId) {
@@ -2346,6 +2362,10 @@ ${request.prompt}`
     }
     const nextAspectRatio = nextMode === "photos" ? "1:1" as const : aspectRatio;
     const nextAudioMode = nextMode === "photos" ? "silent" as AudioMode : audioMode;
+    const nextModelId =
+      nextMode === mode
+        ? modelId
+        : defaultModelFor(nextMode === "photos" || nextMode === "icon" ? "image" : "video");
     const vibe = MODE_DEFAULT_VIBES[nextMode];
 
     // The user's message is normal chat and costs nothing. Only after we
@@ -2359,10 +2379,12 @@ ${request.prompt}`
       durationSeconds,
       outputQuality,
       nextAudioMode,
+      nextModelId,
     );
     if (!canStartPaidPlanning) return;
     if (nextMode !== mode) {
       setMode(nextMode);
+      setModelId(nextModelId);
       setAspectRatio(nextAspectRatio);
       setAudioMode(nextAudioMode);
       pushBot(understood.explanation);
@@ -2383,6 +2405,7 @@ ${request.prompt}`
         frameRate,
         selectedCaptureIds,
         selectedGeneratedPhotoIds: effectiveSelectedGeneratedPhotoIds,
+        modelId: nextModelId,
       });
       if (response.creditsRemaining !== undefined) setCreditBalance(response.creditsRemaining);
       if (response.jobId !== sourceJobId) {
@@ -2414,6 +2437,7 @@ ${request.prompt}`
       renderedRef.current = false;
       setCreativeBrief(null);
       setMode(nextMode);
+      setModelId(defaultModelFor(nextMode === "photos" ? "image" : "video"));
       if (nextMode === "photos") {
         setAspectRatio("1:1");
         setOutputQuality("1080p");
