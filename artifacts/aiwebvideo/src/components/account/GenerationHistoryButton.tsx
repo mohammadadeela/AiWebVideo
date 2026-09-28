@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Clock3, ExternalLink, Loader2 } from "lucide-react";
-import { useLocation } from "wouter";
 import { fetchUserJobs, type UserJobSummary } from "@/lib/api-client";
 
 const FILTERS = [
@@ -25,7 +24,6 @@ function shortDate(value: string) {
 }
 
 export function GenerationHistoryButton() {
-  const [, navigate] = useLocation();
   const [open, setOpen] = useState(false);
   const [jobs, setJobs] = useState<UserJobSummary[]>([]);
   const [loading, setLoading] = useState(false);
@@ -123,7 +121,7 @@ export function GenerationHistoryButton() {
                       type="button"
                       onClick={() => {
                         setOpen(false);
-                        navigate(`/dashboard?job=${encodeURIComponent(job.id)}`);
+                        window.location.assign(`/?job=${encodeURIComponent(job.id)}#generate`);
                       }}
                       className="group flex w-full items-center gap-3 rounded-xl border border-transparent px-2.5 py-2 text-left transition hover:border-white/[.07] hover:bg-white/[.04]"
                     >
