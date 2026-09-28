@@ -569,8 +569,22 @@ export function WebsiteBriefForm({
               <p className="mt-0.5 text-[9px] text-text-dim">Images for design review or a continuous walkthrough video.</p>
             </div>
             <div className="flex rounded-xl border border-white/10 bg-black/20 p-1">
-              <button type="button" onClick={() => setInteriorOutput("images")} className={optionClass(interiorOutput === "images")}>Design images</button>
-              <button type="button" onClick={() => setInteriorOutput("video")} className={optionClass(interiorOutput === "video")}>Walkthrough video</button>
+              <button
+                type="button"
+                onClick={() => {
+                  setInteriorOutput("images");
+                  setSettings((current) => ({ ...current, modelId: defaultModelFor("interior"), outputQuality: "1080p", audioMode: "silent" }));
+                }}
+                className={optionClass(interiorOutput === "images")}
+              >Design images</button>
+              <button
+                type="button"
+                onClick={() => {
+                  setInteriorOutput("video");
+                  setSettings((current) => ({ ...current, modelId: defaultModelFor("video"), outputQuality: "1080p", audioMode: "native_audio" }));
+                }}
+                className={optionClass(interiorOutput === "video")}
+              >Walkthrough video</button>
             </div>
           </div>
         )}
