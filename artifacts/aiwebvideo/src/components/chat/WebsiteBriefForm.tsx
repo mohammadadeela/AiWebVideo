@@ -18,7 +18,15 @@ import {
   X,
 } from "lucide-react";
 import { normalizeWebsiteUrl } from "@/lib/websiteUrl";
-import { estimateRenderCredits } from "@/lib/credits";
+import { displayedModelUnitCredits, estimateRenderCredits } from "@/lib/credits";
+import {
+  IMAGE_MODEL_OPTIONS,
+  VIDEO_MODEL_OPTIONS,
+  isImageTier,
+  modelOption,
+  publicModelName,
+  publicModelShortName,
+} from "@/lib/modelTiers";
 import {
   getIdeasForIntent,
   referenceHintForIdea,
@@ -26,7 +34,7 @@ import {
   type IdeaContext,
 } from "@/lib/creativeIdeas";
 import { trackStudioEvent } from "@/lib/studio-api";
-import type { AudioMode, JobMode } from "./types";
+import type { AudioMode, JobMode, ModelTier } from "./types";
 
 export type CreationIntent =
   | "website"
@@ -46,6 +54,7 @@ export interface WebsiteGenerationSettings {
   durationSeconds: number | "auto";
   aspectRatio: "16:9" | "9:16" | "1:1";
   outputQuality: "1080p" | "4k";
+  modelTier: ModelTier;
   audioMode: AudioMode;
   narrationLanguage: string;
 }
@@ -58,6 +67,7 @@ export interface StudioGenerationRequest {
   durationSeconds: number;
   aspectRatio: "16:9" | "9:16" | "1:1";
   outputQuality: "1080p" | "4k";
+  modelTier: ModelTier;
   audioMode: AudioMode;
 }
 
@@ -66,6 +76,7 @@ const DEFAULT_SETTINGS: WebsiteGenerationSettings = {
   durationSeconds: 8,
   aspectRatio: "9:16",
   outputQuality: "1080p",
+  modelTier: "cinema2",
   audioMode: "native_audio",
   narrationLanguage: "en",
 };
@@ -254,9 +265,21 @@ export function WebsiteBriefForm({
     setSettingsOpen(false);
     setError(null);
     setSettings((current) => {
-      if (intent === "photo" || intent === "interior") return { ...current, aspectRatio: intent === "interior" ? "16:9" : "1:1", audioMode: "silent" };
+      if (intent === "photo" || intent === "interior") {
+        return {
+          ...current,
+          aspectRatio: intent === "interior" ? "16:9" : "1:1",
+          outputQuality: "1080p",
+          modelTier: "graphic2",
+          audioMode: "silent",
+        };
+      }
       const leavingPhotoDefaults = (previousIntent === "photo" || previousIntent === "interior") && current.audioMode === "silent";
-      return leavingPhotoDefaults ? { ...current, aspectRatio: "9:16", audioMode: "native_audio" } : current;
+      return {
+        ...current,
+        ...(leavingPhotoDefaults ? { aspectRatio: "9:16" as const, audioMode: "native_audio" as const } : {}),
+        modelTier: "cinema2",
+      };
     });
   }
 
@@ -427,13 +450,15 @@ export function WebsiteBriefForm({
       durationSeconds: activeMode === "photo" ? 8 : durationSeconds,
       aspectRatio: settings.aspectRatio,
       outputQuality: settings.outputQuality,
+      modelTier: settings.modelTier,
       audioMode: activeMode === "photo" || isInterior ? "silent" : settings.audioMode,
     });
   }
 
   const isProductMode = activeMode === "photo" || activeMode === "product-video";
   const isInteriorMode = activeMode === "interior";
-  const isVideoMode = activeMode !== "photo" && (activeMode !== "interior" || interiorOutput === "video");
+  const isImageGenerationMode = activeMode === "photo" || (activeMode === "interior" && interiorOutput === "images");
+  const isVideoMode = !isImageGenerationMode;
   const durationSeconds = settings.durationSeconds === "auto" ? 8 : settings.durationSeconds;
   const formatSummary = settings.aspectRatio === "9:16" ? "Portrait" : settings.aspectRatio === "16:9" ? "Wide" : "Square";
   const audioSummary = settings.audioMode === "voice_music"
@@ -443,9 +468,11 @@ export function WebsiteBriefForm({
       : settings.audioMode === "music_only"
         ? "Music only"
         : "Silent";
-  const exactCredits = activeMode === "photo" || (activeMode === "interior" && interiorOutput === "images")
-    ? estimateRenderCredits("photos", true, 8, "1080p")
-    : estimateRenderCredits("video", settings.audioMode !== "voice_music", durationSeconds, settings.outputQuality);
+  const exactCredits = isImageGenerationMode
+    ? estimateRenderCredits("photos", true, 8, settings.outputQuality, settings.modelTier)
+    : estimateRenderCredits("video", settings.audioMode !== "voice_music", durationSeconds, settings.outputQuality, settings.modelTier);
+  const selectedModel = modelOption(settings.modelTier);
+  const selectedModelName = publicModelShortName(settings.modelTier, isInteriorMode && isImageGenerationMode);
   const submitDisabled = disabled || (
     activeMode === "website"
       ? !url.trim() || !brief.trim()
@@ -551,8 +578,22 @@ export function WebsiteBriefForm({
               <p className="mt-0.5 text-[9px] text-text-dim">Images for design review or a continuous walkthrough video.</p>
             </div>
             <div className="flex rounded-xl border border-white/10 bg-black/20 p-1">
-              <button type="button" onClick={() => setInteriorOutput("images")} className={optionClass(interiorOutput === "images")}>Design images</button>
-              <button type="button" onClick={() => setInteriorOutput("video")} className={optionClass(interiorOutput === "video")}>Walkthrough video</button>
+              <button
+                type="button"
+                onClick={() => {
+                  setInteriorOutput("images");
+                  setSettings((current) => ({ ...current, modelTier: "graphic2", outputQuality: "1080p", audioMode: "silent" }));
+                }}
+                className={optionClass(interiorOutput === "images")}
+              >Design images</button>
+              <button
+                type="button"
+                onClick={() => {
+                  setInteriorOutput("video");
+                  setSettings((current) => ({ ...current, modelTier: "cinema2", outputQuality: "1080p", audioMode: "native_audio" }));
+                }}
+                className={optionClass(interiorOutput === "video")}
+              >Walkthrough video</button>
             </div>
           </div>
         )}
@@ -660,7 +701,9 @@ export function WebsiteBriefForm({
             className={controlClass(settingsOpen)}
           >
             <Settings2 size={13} />
-            {isVideoMode ? `${durationSeconds}s · ${formatSummary} · ${settings.outputQuality}` : `${formatSummary} · ${settings.outputQuality}`}
+            {isVideoMode
+              ? `${selectedModelName} · ${durationSeconds}s · ${settings.outputQuality}`
+              : `${selectedModelName} · ${selectedModel.outputLabel}`}
             <ChevronDown size={12} className={settingsOpen ? "rotate-180" : ""} />
           </button>
         </div>
@@ -779,14 +822,78 @@ export function WebsiteBriefForm({
                 </div>
               </div>
 
-              <div className="rounded-xl border border-white/[.07] bg-white/[.02] p-3">
-                <p className="mb-2 text-[11px] font-semibold text-white">Quality</p>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {(["1080p", "4k"] as const).map((quality) => (
-                    <button key={quality} type="button" onClick={() => setSettings((current) => ({ ...current, outputQuality: quality }))} className={optionClass(settings.outputQuality === quality)}>{quality === "4k" ? "4K" : "1080p"}</button>
-                  ))}
+              <div className="rounded-xl border border-white/[.07] bg-white/[.02] p-3 sm:col-span-2">
+                <div className="mb-2.5 flex items-end justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-semibold text-white">{isInteriorMode && isImageGenerationMode ? "Design model" : "Generation model"}</p>
+                    <p className="mt-0.5 text-[8px] text-text-dim">Choose the speed, detail and price that fit this production.</p>
+                  </div>
+                  <span className="shrink-0 rounded-full border border-mint/15 bg-mint/[.06] px-2 py-1 text-[7px] font-semibold text-mint">Pay only for your choice</span>
+                </div>
+                <div className="grid gap-2 md:grid-cols-3">
+                  {(isImageGenerationMode ? IMAGE_MODEL_OPTIONS : VIDEO_MODEL_OPTIONS).map((option) => {
+                    const selected = settings.modelTier === option.id;
+                    const cardQuality = option.id === "cinema1" ? "1080p" : settings.outputQuality;
+                    const unitCredits = displayedModelUnitCredits(option.id, cardQuality);
+                    const displayName = isInteriorMode && isImageGenerationMode ? publicModelName(option.id, true) : option.name;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setSettings((current) => ({
+                          ...current,
+                          modelTier: option.id,
+                          ...(isImageTier(option.id)
+                            ? { outputQuality: option.id === "graphic_pro" ? "4k" as const : "1080p" as const }
+                            : option.id === "cinema1"
+                              ? { outputQuality: "1080p" as const }
+                              : {}),
+                        }))}
+                        className={`relative overflow-hidden rounded-2xl border p-3 text-left transition ${selected
+                          ? "border-mint/55 bg-mint/[.09] shadow-[0_16px_42px_-30px_rgba(114,255,222,.9)]"
+                          : "border-white/[.08] bg-black/15 hover:border-violet/35 hover:bg-violet/[.045]"}`}
+                      >
+                        {selected && <span className="absolute right-2.5 top-2.5 grid h-5 w-5 place-items-center rounded-full bg-mint text-[#10231f]"><Check size={11} /></span>}
+                        <span className="block pr-7 text-[11px] font-bold text-white">{displayName}</span>
+                        <span className="mt-0.5 block text-[8px] font-medium text-violet">{option.tagline}</span>
+                        <span className="mt-2 block text-[8px] leading-4 text-text-muted">{option.detail}</span>
+                        <span className="mt-2 flex flex-wrap gap-1">
+                          {option.features.map((feature) => (
+                            <span key={feature} className="rounded-full border border-white/[.08] bg-white/[.035] px-1.5 py-0.5 text-[7px] font-semibold text-white/65">{feature}</span>
+                          ))}
+                        </span>
+                        <span className="mt-2.5 flex items-center justify-between gap-2 border-t border-white/[.06] pt-2 text-[8px]">
+                          <span className="font-semibold text-mint">{unitCredits} credits / {isImageGenerationMode ? "image" : "sec"}</span>
+                          <span className="text-text-dim">{option.outputLabel}</span>
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
+
+              {isVideoMode && (
+                <div className="rounded-xl border border-white/[.07] bg-white/[.02] p-3">
+                  <p className="mb-2 text-[11px] font-semibold text-white">Resolution</p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {(["1080p", "4k"] as const).map((quality) => {
+                      const unavailable = quality === "4k" && settings.modelTier === "cinema1";
+                      return (
+                        <button
+                          key={quality}
+                          type="button"
+                          disabled={unavailable}
+                          onClick={() => setSettings((current) => ({ ...current, outputQuality: quality }))}
+                          className={`${optionClass(settings.outputQuality === quality)} disabled:cursor-not-allowed disabled:opacity-35`}
+                        >
+                          {quality === "4k" ? "4K" : "1080p"}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {settings.modelTier === "cinema1" && <p className="mt-2 text-[8px] text-text-dim">Cinema 1 is optimized for fast 1080p generation.</p>}
+                </div>
+              )}
 
               {isVideoMode && (
                 <div className="rounded-xl border border-white/[.07] bg-white/[.02] p-3">
@@ -818,7 +925,7 @@ export function WebsiteBriefForm({
         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
           {!compactLayout && (
             <div className="flex-1 text-[9px] text-text-dim">
-              {isProductMode && !files.length ? "Add a real product photo before generating." : activeMode === "interior" && !files.length ? "Add space references before generating." : `Your setup: ${isVideoMode ? `${durationSeconds}s · ` : ""}${formatSummary} · ${settings.outputQuality}`}
+              {isProductMode && !files.length ? "Add a real product photo before generating." : activeMode === "interior" && !files.length ? "Add space references before generating." : `Your setup: ${selectedModelName} · ${isVideoMode ? `${durationSeconds}s · ${settings.outputQuality}` : selectedModel.outputLabel} · ${formatSummary}`}
             </div>
           )}
           <button
