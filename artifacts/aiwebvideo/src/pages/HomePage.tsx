@@ -5,6 +5,9 @@ import { Footer } from "@/components/landing/Footer";
 import { VideoShowcase } from "@/components/landing/VideoShowcase";
 import { CreationModes } from "@/components/landing/CreationModes";
 import { CreativePresets } from "@/components/landing/CreativePresets";
+import { LandingProjectsDrawer } from "@/components/landing/LandingProjectsDrawer";
+import { FeatureStrip } from "@/components/landing/FeatureStrip";
+import { PricingTable } from "@/components/landing/PricingTable";
 import { useSeo } from "@/lib/useSeo";
 
 const landingFaqs: ReadonlyArray<readonly [string, string]> = [
@@ -33,11 +36,20 @@ export function HomePage() {
   return (
     <>
       <Nav />
+      <LandingProjectsDrawer />
       <main>
         <Hero />
         <CreativePresets />
         <VideoShowcase />
         <CreationModes />
+        <FeatureStrip />
+        <section id="pricing" className="border-t border-white/[.06]" aria-labelledby="landing-pricing-title">
+          <div className="mx-auto max-w-7xl px-4 py-12 sm:px-5 sm:py-16 lg:px-8">
+            <h2 id="landing-pricing-title" className="font-display text-2xl font-bold text-white sm:text-3xl">Choose your credits</h2>
+            <p className="mb-7 mt-2 text-xs text-text-muted">Your creator shows the estimated cost before you generate.</p>
+            <PricingTable />
+          </div>
+        </section>
       </main>
       <Footer />
     </>
