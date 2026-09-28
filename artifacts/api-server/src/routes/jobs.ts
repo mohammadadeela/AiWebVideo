@@ -44,6 +44,7 @@ import { signAssetTree, signPrivateAssetUrl } from "../lib/asset-access.js";
 import { ensureLocalAsset, uploadFileToR2 } from "../lib/r2-storage.js";
 import type { JobStatusResponse, JobWorkflowState } from "../types.js";
 import type { Storyboard } from "../lib/gemini.js";
+import { generationModelForMode, imageModelCreditsPerImage } from "../lib/generation-models.js";
 
 const router = Router();
 const MAX_REFERENCE_CAPTURES = MAX_VIDEO_SECONDS / VIDEO_SCENE_SECONDS;
@@ -454,6 +455,7 @@ router.patch("/:id/workflow", tryAuth, async (req, res) => {
           "linkedin",
           "custom",
         ]),
+        modelId: z.string().trim().min(1).max(40).optional(),
         durationSeconds: z.number().int().min(8).max(MAX_VIDEO_SECONDS),
         featuresText: z.string().max(2000).nullable(),
         creativeBrief: z.string().max(8000).nullable(),
@@ -584,6 +586,7 @@ router.post("/:id/preflight", requireAuth, async (req, res) => {
           "linkedin",
           "custom",
         ]),
+        modelId: z.string().trim().min(1).max(40).optional(),
         durationSeconds: z.number().int().min(MIN_VIDEO_SECONDS).max(MAX_VIDEO_SECONDS),
         outputQuality: z.enum(["1080p", "4k"]).optional().default("1080p"),
         audioMode: z.enum(["voice_music", "native_audio", "music_only", "silent"]).optional().default("native_audio"),
@@ -598,6 +601,8 @@ router.post("/:id/preflight", requireAuth, async (req, res) => {
       input.audioMode !== "voice_music",
       input.durationSeconds,
       input.outputQuality,
+      input.modelId,
+      (job.capture_metadata as CaptureMeta | null)?.studioKind,
     );
     const balance = req.user!.creditsBalance;
     res.json({
@@ -647,6 +652,7 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
           "custom",
         ]),
         vibeBrief: z.string().min(1).max(500),
+        modelId: z.string().trim().min(1).max(40).optional(),
         durationSeconds: z.number().int().min(MIN_VIDEO_SECONDS).max(MAX_VIDEO_SECONDS).optional().default(8),
         featuresText: z.string().max(1000).optional(),
         creativeBrief: z.string().max(8000).optional(),
@@ -676,6 +682,7 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
     const {
       mode,
       vibeBrief,
+      modelId,
       durationSeconds,
       featuresText,
       creativeBrief,
@@ -695,7 +702,18 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
 
     const savedWorkflowForCredit = job.workflow_state as Partial<JobWorkflowState> | null;
     const planningAudioMode = requestedAudioMode ?? savedWorkflowForCredit?.audioMode ?? "native_audio";
-    const planningQuote = videoCreditQuote(mode, planningAudioMode !== "voice_music", durationSeconds, outputQuality);
+    const selectedGenerationModel = generationModelForMode(modelId, mode, (job.capture_metadata as CaptureMeta | null)?.studioKind);
+    if (outputQuality === "4k" && !selectedGenerationModel.supports4k) {
+      throw new AppError("The selected AiWebVideo model does not support 4K. Choose 1080p or a higher model.", 400, "MODEL_QUALITY_UNSUPPORTED");
+    }
+    const planningQuote = videoCreditQuote(
+      mode,
+      planningAudioMode !== "voice_music",
+      durationSeconds,
+      outputQuality,
+      selectedGenerationModel.id,
+      (job.capture_metadata as CaptureMeta | null)?.studioKind,
+    );
     if (!req.user!.isAdmin && req.user!.creditsBalance < planningQuote.totalCredits) {
       const shortfall = planningQuote.totalCredits - req.user!.creditsBalance;
       throw new AppError(
@@ -786,6 +804,7 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
       savedAt: Date.now(),
       stage: "storyboarding",
       mode,
+      modelId: selectedGenerationModel.id,
       durationSeconds,
       featuresText: featuresText ?? null,
       creativeBrief: creativeBrief ?? null,
@@ -815,6 +834,7 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
       });
       await addJobMessage(job.id, "user", `${mode} · ${vibeBrief}`, "creative_choice", {
         mode,
+        modelId: selectedGenerationModel.id,
         vibeBrief,
         durationSeconds,
         featuresText,
@@ -1011,6 +1031,8 @@ router.post("/:id/quote", requireAuth, async (req, res) => {
       input.audioMode !== "voice_music",
       storyboard.targetDurationSeconds || 8,
       storyboard.outputQuality ?? "1080p",
+      (job.workflow_state as Partial<JobWorkflowState> | null)?.modelId,
+      (job.capture_metadata as CaptureMeta | null)?.studioKind,
     );
     const balance = req.user!.creditsBalance;
     const reservedCredits = Math.max(0, job.credits_spent || 0);
@@ -1078,6 +1100,7 @@ router.post("/:id/render", requireAuth, async (req, res) => {
       savedAt: Date.now(),
       stage: "rendering",
       mode: job.mode as JobWorkflowState["mode"],
+      modelId: existingWorkflow?.modelId,
       durationSeconds: storyboard.targetDurationSeconds || 8,
       featuresText: existingWorkflow?.featuresText ?? null,
       creativeBrief: storyboard.creativeBrief ?? existingWorkflow?.creativeBrief ?? null,
@@ -1095,7 +1118,23 @@ router.post("/:id/render", requireAuth, async (req, res) => {
     // Generation is balance-based. One-time credit buyers can render without
     // being mislabeled as subscribers; the atomic claim below is the paywall.
     const targetDuration = storyboard.targetDurationSeconds || 8;
-    const cost = videoCreditCost(job.mode, skipVoiceover, targetDuration, storyboard.outputQuality ?? "1080p");
+    const selectedRenderModel = generationModelForMode(
+      existingWorkflow?.modelId,
+      job.mode,
+      meta?.studioKind,
+    );
+    const renderQuality = storyboard.outputQuality ?? "1080p";
+    if (renderQuality === "4k" && !selectedRenderModel.supports4k) {
+      throw new AppError("The selected AiWebVideo model does not support 4K. Choose 1080p or a higher model.", 400, "MODEL_QUALITY_UNSUPPORTED");
+    }
+    const cost = videoCreditCost(
+      job.mode,
+      skipVoiceover,
+      targetDuration,
+      renderQuality,
+      selectedRenderModel.id,
+      meta?.studioKind,
+    );
     const claim = await claimRenderAndSpend(job.id, req.user!.id, cost);
     if (!claim.ok && claim.reason === "already_started") {
       throw new AppError("This job is already rendering or has finished.", 409, "RENDER_ALREADY_STARTED");
@@ -1318,6 +1357,7 @@ router.post("/:id/render", requireAuth, async (req, res) => {
                   : job.mode === "both"
                     ? "mixed-campaign"
                     : "website-photos",
+                selectedRenderModel.creditUnit === "image" ? selectedRenderModel.id : "graphic-2",
               );
             } finally {
               completedPhotos++;
@@ -1397,6 +1437,7 @@ router.post("/:id/render", requireAuth, async (req, res) => {
                 narrationPromise,
                 loadedCaptures.map((capture) => capture.label),
                 () => isCancelRequested(job.id),
+                selectedRenderModel.id,
               ).then(
                 (value) => ({ status: "fulfilled" as const, value }),
                 (reason) => ({ status: "rejected" as const, reason }),
@@ -1490,7 +1531,12 @@ router.post("/:id/render", requireAuth, async (req, res) => {
 
         if (wantsPhotos && photoCount < photoScenes.length) {
           const missingPhotos = photoScenes.length - photoCount;
-          const photoRefund = missingPhotos * CREDIT_COSTS.PHOTO_SINGLE;
+          const photoUnitCredits = imageModelCreditsPerImage(
+            selectedRenderModel.creditUnit === "image"
+              ? selectedRenderModel
+              : generationModelForMode("graphic-2", "photos", meta?.studioKind),
+          );
+          const photoRefund = missingPhotos * photoUnitCredits;
           await refund(photoRefund, `Partial photo refund ${job.id}`);
           shortDeliveryNote = `${shortDeliveryNote ? `${shortDeliveryNote} ` : ""}${missingPhotos} photo${missingPhotos === 1 ? "" : "s"} couldn't be generated and ${photoRefund} credits were refunded.`;
         }
