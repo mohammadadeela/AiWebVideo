@@ -376,7 +376,7 @@ export function saveJobMessage(
   });
 }
 
-export type CheckoutId = 'creator' | 'pro' | 'agency' | 'single8' | 'single48' | 'single144' | 'topup50' | 'topup100' | 'topup250';
+export type CheckoutId = 'creator' | 'pro' | 'agency' | 'single8' | 'single32' | 'single48' | 'single144' | 'topup50' | 'topup100' | 'topup250';
 
 export function startCheckout(plan: CheckoutId, jobId?: string | null) {
   return request<{ checkoutUrl: string }>('/api/paypal/checkout', {
