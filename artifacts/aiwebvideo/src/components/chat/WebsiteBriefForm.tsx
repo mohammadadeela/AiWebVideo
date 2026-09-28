@@ -590,29 +590,27 @@ export function WebsiteBriefForm({
 
       <div className={`relative ${compactLayout ? "p-3 sm:p-4" : "p-4 sm:p-5"}`}>
         {activeMode === "interior" && (
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-300/15 bg-emerald-300/[.04] p-3">
-            <div>
-              <p className="text-[11px] font-semibold text-white">Interior output</p>
-              <p className="mt-0.5 text-[9px] text-text-dim">Images for design review or a continuous walkthrough video.</p>
-            </div>
-            <div className="flex rounded-xl border border-white/10 bg-black/20 p-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setInteriorOutput("images");
-                  setSettings((current) => ({ ...current, modelId: defaultModelFor("interior"), outputQuality: "1080p", audioMode: "silent" }));
-                }}
-                className={optionClass(interiorOutput === "images")}
-              >Design images</button>
-              <button
-                type="button"
-                onClick={() => {
-                  setInteriorOutput("video");
-                  setSettings((current) => ({ ...current, modelId: defaultModelFor("video"), outputQuality: "1080p", audioMode: "native_audio" }));
-                }}
-                className={optionClass(interiorOutput === "video")}
-              >Walkthrough video</button>
-            </div>
+          <div className="mb-3 inline-flex rounded-xl border border-white/[.10] bg-white/[.025] p-1">
+            <button
+              type="button"
+              onClick={() => {
+                setInteriorOutput("images");
+                setSettings((current) => ({ ...current, modelId: defaultModelFor("interior"), outputQuality: "1080p", audioMode: "silent" }));
+              }}
+              className={`rounded-lg px-3 py-2 text-[10px] font-semibold transition ${interiorOutput === "images" ? "bg-white/[.10] text-white" : "text-white/45 hover:text-white"}`}
+            >
+              Images
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setInteriorOutput("video");
+                setSettings((current) => ({ ...current, modelId: defaultModelFor("video"), outputQuality: "1080p", audioMode: "native_audio" }));
+              }}
+              className={`rounded-lg px-3 py-2 text-[10px] font-semibold transition ${interiorOutput === "video" ? "bg-white/[.10] text-white" : "text-white/45 hover:text-white"}`}
+            >
+              Video
+            </button>
           </div>
         )}
 
