@@ -5,6 +5,7 @@ import { SubscriptionCheckoutModal } from '@/components/billing/SubscriptionChec
 import type { CheckoutId } from '@/lib/api-client';
 import { displayCredits, estimateRenderCredits } from '@/lib/credits';
 import { discountedPrice, fetchWelcomeGrowthOffer, formatUsd, formatWelcomeCountdown, type WelcomeGrowthOffer } from '@/lib/growth';
+import type { ModelTier } from './types';
 
 const PAYWALL_PLANS = [
   { id: 'creator' as const, name: 'Creator', price: 39, credits: 150, pitch: 'For regular creators', highlight: false },
@@ -45,6 +46,7 @@ export function PaywallModal({
   durationSeconds = 8,
   mode = 'video',
   outputQuality = '1080p',
+  modelTier,
   skipVoiceover = false,
   currentBalance = 0,
   reservedCredits = 0,
@@ -55,6 +57,7 @@ export function PaywallModal({
   durationSeconds?: number;
   mode?: string;
   outputQuality?: '1080p' | '4k';
+  modelTier?: ModelTier;
   skipVoiceover?: boolean;
   currentBalance?: number;
   reservedCredits?: number;
@@ -86,7 +89,7 @@ export function PaywallModal({
   const activeOffer = welcomeOffer?.active && welcomeOffer.discountPercent > 0 && new Date(welcomeOffer.expiresAt).getTime() > now
     ? welcomeOffer
     : null;
-  const requiredCredits = estimateRenderCredits(mode, skipVoiceover, durationSeconds, outputQuality);
+  const requiredCredits = estimateRenderCredits(mode, skipVoiceover, durationSeconds, outputQuality, modelTier);
   const fundedCredits = currentBalance + reservedCredits;
   const shortfall = Math.max(0, requiredCredits - fundedCredits);
   const eligibleVideoPacks = useMemo(() => mode !== 'photos' && mode !== 'icon' && mode !== 'both' && outputQuality === '1080p'
