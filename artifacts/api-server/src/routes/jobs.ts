@@ -1431,7 +1431,7 @@ router.post("/:id/render", requireAuth, async (req, res) => {
                   publishRenderProgress({
                     progress: pct,
                     status_message:
-                      message ?? (pct >= 96 ? "Finalizing your AI video" : "Veo is generating your video"),
+                      message ?? (pct >= 96 ? "Finalizing your AI video" : "Cinema is generating your video"),
                     eta_seconds: liveEta,
                   });
                 },
