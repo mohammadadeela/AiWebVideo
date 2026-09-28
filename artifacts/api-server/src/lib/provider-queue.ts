@@ -201,9 +201,7 @@ function maxRateLimitRetries(kind: ProviderQueueKind) {
     // its built-in plan and the production keeps moving.
     return envNumber('GEMINI_STORYBOARD_QUEUE_RATE_LIMIT_RETRIES', 1, 0, 3);
   }
-  return kind === 'video'
-    ? envNumber('GEMINI_VIDEO_QUEUE_RATE_LIMIT_RETRIES', 4, 0, 10)
-    : generic;
+  return generic;
 }
 
 function maxStoryboardRetryDelayMs() {
