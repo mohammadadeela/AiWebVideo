@@ -8,6 +8,7 @@ import { AppError, sendError } from '../lib/errors.js';
 import { saveImageFile } from '../lib/capture.js';
 import { MAX_VIDEO_SECONDS, MIN_VIDEO_SECONDS, videoCreditCost } from '../lib/credits.js';
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_PHOTOS, normalizeUploadToJpeg, sanitizeUploadTitle, uploadPhotoLabel } from '../lib/uploads.js';
+import { generationModelForMode } from '../lib/generation-models.js';
 
 const router = Router();
 
@@ -83,6 +84,7 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
       ? req.body.audioMode as 'voice_music' | 'native_audio' | 'music_only' | 'silent'
       : 'native_audio';
     const studioQuality = req.body?.outputQuality === '4k' ? '4k' as const : '1080p' as const;
+    const publicModelId = typeof req.body?.modelId === 'string' ? req.body.modelId.trim() : undefined;
     const requestedDuration = Number(req.body?.durationSeconds ?? MIN_VIDEO_SECONDS);
     const studioDuration = Number.isInteger(requestedDuration)
       && requestedDuration >= MIN_VIDEO_SECONDS
@@ -109,7 +111,18 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
       if (studioKind === 'product' && !files.length) {
         throw new AppError('Upload at least one real product photo before generating a product campaign.', 400, 'PRODUCT_PHOTO_REQUIRED');
       }
-      const requiredCredits = videoCreditCost(studioMode, studioAudioMode !== 'voice_music', studioDuration, studioQuality);
+      const selectedModel = generationModelForMode(publicModelId, studioMode, studioKind);
+      if (studioQuality === '4k' && !selectedModel.supports4k) {
+        throw new AppError('The selected AiWebVideo model does not support 4K. Choose 1080p or a higher model.', 400, 'MODEL_QUALITY_UNSUPPORTED');
+      }
+      const requiredCredits = videoCreditCost(
+        studioMode,
+        studioAudioMode !== 'voice_music',
+        studioDuration,
+        studioQuality,
+        selectedModel.id,
+        studioKind,
+      );
       if (req.user.creditsBalance < requiredCredits) {
         throw new AppError(`This production needs ${requiredCredits} credits. Add credits before generation starts.`, 402, 'INSUFFICIENT_CREDITS');
       }
