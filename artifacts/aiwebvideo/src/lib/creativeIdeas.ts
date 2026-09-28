@@ -216,6 +216,7 @@ const INTENT_FEATURE = {
   'product-video': 'product_video',
   scenario: 'scenario',
   interior: 'interior_design',
+  architecture: 'interior_design',
 } as const;
 
 export type IdeaIntent = keyof typeof INTENT_FEATURE;
