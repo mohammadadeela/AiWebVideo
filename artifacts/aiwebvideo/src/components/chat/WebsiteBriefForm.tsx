@@ -8,12 +8,9 @@ import {
   Image as ImageIcon,
   House,
   MessageCircleMore,
-  Monitor,
   PackageOpen,
   Paperclip,
   Sparkles,
-  Smartphone,
-  Volume2,
   X,
 } from "lucide-react";
 import { normalizeWebsiteUrl } from "@/lib/websiteUrl";
