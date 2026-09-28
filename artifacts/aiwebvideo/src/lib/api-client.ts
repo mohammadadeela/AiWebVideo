@@ -1,5 +1,5 @@
 import { getIdToken } from '@/lib/firebase/client';
-import type { AudioMode, JobStatusResponse, JobMode, JobWorkflowState } from '@/components/chat/types';
+import type { AudioMode, JobStatusResponse, JobMode, JobWorkflowState, ModelTier } from '@/components/chat/types';
 
 export class ApiError extends Error {
   code?: string;
@@ -73,6 +73,7 @@ export async function uploadStudioMedia(opts: {
   audioMode: AudioMode;
   aspectRatio: '16:9' | '9:16' | '1:1';
   outputQuality: '1080p' | '4k';
+  modelTier: ModelTier;
 }) {
   const token = await getIdToken();
   const form = new FormData();
@@ -85,6 +86,7 @@ export async function uploadStudioMedia(opts: {
   form.append('audioMode', opts.audioMode);
   form.append('aspectRatio', opts.aspectRatio);
   form.append('outputQuality', opts.outputQuality);
+  form.append('modelTier', opts.modelTier);
   const res = await fetch('/api/uploads', {
     method: 'POST',
     signal: AbortSignal.timeout(10 * 60_000),
@@ -128,7 +130,7 @@ export function requestStoryboard(
   vibeBrief: string,
   durationSeconds = 8,
   featuresText?: string,
-  options?: { creativeBrief?: string; aspectRatio?: '16:9' | '9:16' | '1:1'; outputQuality?: '1080p' | '4k'; audioMode?: AudioMode; frameRate?: 24 | 30 | 60; selectedCaptureIds?: string[]; selectedGeneratedPhotoIds?: string[] }
+  options?: { creativeBrief?: string; aspectRatio?: '16:9' | '9:16' | '1:1'; outputQuality?: '1080p' | '4k'; modelTier?: ModelTier; audioMode?: AudioMode; frameRate?: 24 | 30 | 60; selectedCaptureIds?: string[]; selectedGeneratedPhotoIds?: string[] }
 ) {
   return request<{ jobId: string; status: string; creditsReserved?: number; creditsRemaining?: number }>(`/api/jobs/${jobId}/storyboard`, {
     method: 'POST',
@@ -161,10 +163,11 @@ export function requestGenerationPreflight(
   durationSeconds: number,
   outputQuality: '1080p' | '4k',
   audioMode: AudioMode = 'native_audio',
+  modelTier?: ModelTier,
 ) {
   return request<GenerationPreflightQuote>(`/api/jobs/${jobId}/preflight`, {
     method: 'POST',
-    body: JSON.stringify({ mode, durationSeconds, outputQuality, audioMode }),
+    body: JSON.stringify({ mode, durationSeconds, outputQuality, audioMode, ...(modelTier ? { modelTier } : {}) }),
   });
 }
 
