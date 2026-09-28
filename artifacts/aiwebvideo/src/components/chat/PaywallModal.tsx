@@ -14,6 +14,7 @@ const PAYWALL_PLANS = [
 
 const VIDEO_PACKS = [
   { id: 'single8' as const, name: 'Quick Video', label: '8s video pack', amountUsd: 9.99, credits: 38 },
+  { id: 'single32' as const, name: 'Standard Video', label: '32s video pack', amountUsd: 34.99, credits: 134 },
   { id: 'single48' as const, name: 'Full Marketing Video', label: '48s video pack', amountUsd: 52.99, credits: 198 },
 ];
 
@@ -61,7 +62,7 @@ export function PaywallModal({
 }) {
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>(() =>
-    mode !== 'photos' && mode !== 'icon' && mode !== 'both' && outputQuality === '1080p' && [8, 48].includes(durationSeconds)
+    mode !== 'photos' && mode !== 'icon' && mode !== 'both' && outputQuality === '1080p' && [8, 32, 48].includes(durationSeconds)
       ? 'video'
       : 'credits',
   );
@@ -95,7 +96,7 @@ export function PaywallModal({
   const eligiblePlans = useMemo(() => PAYWALL_PLANS.filter((plan) => fundedCredits + displayCredits(plan.credits) >= requiredCredits), [fundedCredits, requiredCredits]);
   const exactVideoPack = useMemo(() => {
     if (mode === 'photos' || mode === 'icon' || mode === 'both' || outputQuality !== '1080p') return null;
-    const id = durationSeconds === 8 ? 'single8' : durationSeconds === 48 ? 'single48' : null;
+    const id = durationSeconds === 8 ? 'single8' : durationSeconds === 32 ? 'single32' : durationSeconds === 48 ? 'single48' : null;
     return id ? VIDEO_PACKS.find((pack) => pack.id === id) ?? null : null;
   }, [durationSeconds, mode, outputQuality]);
 
