@@ -42,7 +42,7 @@ export function videoCreditQuote(
 ): VideoCreditQuote {
   if (mode === 'photos' || mode === 'icon') {
     const imageModel = generationModelForMode(modelId, mode, studioKind);
-    const photoCredits = imageModelCreditsPerImage(imageModel) * 4;
+    const photoCredits = imageModelCreditsPerImage(imageModel, outputQuality) * 4;
     return {
       generatedSeconds: 0,
       perSecondCredits: 0,
@@ -61,7 +61,7 @@ export function videoCreditQuote(
   // "both" keeps the standard Graphic 2 four-image set alongside the selected
   // video model. It is intentionally not tied to a hidden provider setting.
   const photoCredits = mode === 'both'
-    ? imageModelCreditsPerImage(generationModelForMode('graphic-2', 'photos', 'product')) * 4
+    ? imageModelCreditsPerImage(generationModelForMode('graphic-2', 'photos', 'product'), outputQuality) * 4
     : 0;
   const narrationCredits = skipVoiceover ? 0 : CREDIT_COSTS.VOICEOVER;
   return {
