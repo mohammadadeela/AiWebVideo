@@ -48,7 +48,16 @@ export const GEMINI_COST_CATALOG = {
     standard1080: 0.40,
     standard4k: 0.60,
   },
-  image: { twoK: 0.101, fourK: 0.151 },
+  image: {
+    lite1K: 0.0336,
+    flash1K: 0.067,
+    flash2K: 0.101,
+    flash4K: 0.151,
+    pro1K2K: 0.134,
+    pro4K: 0.24,
+    twoK: 0.101,
+    fourK: 0.151,
+  },
   ttsAudioSecond: 0.0005,
 } as const;
 

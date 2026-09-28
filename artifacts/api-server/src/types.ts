@@ -20,6 +20,13 @@ export type JobStatus =
   | "cancelled";
 export type AudioMode =
   "voice_music" | "native_audio" | "music_only" | "silent";
+export type ModelTier =
+  | "cinema1"
+  | "cinema2"
+  | "cinema_pro"
+  | "graphic1"
+  | "graphic2"
+  | "graphic_pro";
 
 export interface JobWorkflowState {
   savedAt: number;
@@ -43,6 +50,7 @@ export interface JobWorkflowState {
   creativeBrief: string | null;
   aspectRatio: "16:9" | "9:16" | "1:1";
   outputQuality: "1080p" | "4k";
+  modelTier?: ModelTier;
   frameRate: 24 | 30 | 60;
   selectedCaptureIds: string[];
   audioMode: AudioMode;

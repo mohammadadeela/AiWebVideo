@@ -197,7 +197,7 @@ function maxRateLimitRetries(kind: ProviderQueueKind) {
     return envNumber('GEMINI_STORYBOARD_QUEUE_RATE_LIMIT_RETRIES', 1, 0, 3);
   }
   return kind === 'video'
-    ? envNumber('GEMINI_VIDEO_QUEUE_RATE_LIMIT_RETRIES', 4, 0, 10)
+    ? envNumber('GEMINI_VIDEO_QUEUE_RATE_LIMIT_RETRIES', 0, 0, 1)
     : generic;
 }
 
@@ -402,7 +402,14 @@ async function drain(kind: ProviderQueueKind, model: string) {
             } else {
               void publishStoryboardFallbackStatus(item);
               item.reject(error);
-              if (billingUnavailable || isClearlyLongLivedQuota(error)) {
+              if (kind === 'video') {
+                const circuitMs = Math.max(
+                  providerDelayMs ?? 60_000,
+                  envNumber('GEMINI_VIDEO_CIRCUIT_BREAKER_MS', 60_000, 10_000, 10 * 60_000),
+                );
+                state.blockedUntil = Math.max(state.blockedUntil, Date.now() + circuitMs);
+              }
+              if (kind === 'video' || billingUnavailable || isClearlyLongLivedQuota(error)) {
                 const pending = state.waiting.splice(0, state.waiting.length);
                 for (const queued of pending) {
                   void publishStoryboardFallbackStatus(queued);
@@ -437,6 +444,11 @@ export async function runQueuedProviderCall<T>(input: {
 }): Promise<T> {
   const ownerKey = await ownerForJob(input.jobId);
   const state = stateFor(input.kind, input.model);
+  if (input.kind === 'video' && state.blockedUntil > Date.now()) {
+    throw new Error(
+      `Video generation is temporarily paused for this model after a provider capacity/quota response. Try again after ${Math.ceil((state.blockedUntil - Date.now()) / 1000)} seconds; no new paid provider request was submitted.`,
+    );
+  }
   return new Promise<T>((resolve, reject) => {
     const now = Date.now();
     const item: QueueItem<T> = {
