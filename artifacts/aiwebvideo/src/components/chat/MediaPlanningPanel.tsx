@@ -1,7 +1,16 @@
 import { useState } from 'react';
+import { Clock, Minus, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/app-button';
 import type { CaptureMetadata } from './types';
-import { MAX_VIDEO_SECONDS, MIN_VIDEO_SECONDS, VIDEO_SCENE_SECONDS, estimateRenderCredits, normalizedGeneratedSeconds } from '@/lib/credits';
+import { MIN_VIDEO_SECONDS, VIDEO_SCENE_SECONDS, estimateRenderCredits } from '@/lib/credits';
+
+const MAX_CREATOR_DURATION_SECONDS = 60;
+const DURATION_PRESETS = [8, 16, 24, 32, 40, 48, 56, 60] as const;
+
+function normalizeCreatorDuration(value: number) {
+  if (!Number.isFinite(value)) return MIN_VIDEO_SECONDS;
+  return Math.max(MIN_VIDEO_SECONDS, Math.min(MAX_CREATOR_DURATION_SECONDS, Math.round(value)));
+}
 
 export interface CaptureMediaItem { id: string; url: string; title: string; pageUrl?: string; }
 
@@ -180,12 +189,17 @@ export function MediaPlanningPanel({
   disabled?: boolean;
 }) {
   const items = captureMediaItems(metadata);
-  const [customText, setCustomText] = useState(String(Math.min(MAX_VIDEO_SECONDS, Math.max(32, selectedIds.length * VIDEO_SCENE_SECONDS))));
+  const initialCustomSeconds = normalizeCreatorDuration(Math.max(32, selectedIds.length * VIDEO_SCENE_SECONDS));
+  const [customText, setCustomText] = useState(String(initialCustomSeconds));
+  const [committedCustomSeconds, setCommittedCustomSeconds] = useState(initialCustomSeconds);
   const [dimensions, setDimensions] = useState<Record<string, number>>({});
   const selectedSet = new Set(selectedIds);
   const selectedCount = selectedIds.length;
-  const recommendedSeconds = Math.min(MAX_VIDEO_SECONDS, Math.max(MIN_VIDEO_SECONDS, selectedCount * VIDEO_SCENE_SECONDS));
-  const previewSeconds = normalizedGeneratedSeconds(Number(customText) || MIN_VIDEO_SECONDS);
+  const recommendedSeconds = normalizeCreatorDuration(Math.max(MIN_VIDEO_SECONDS, selectedCount * VIDEO_SCENE_SECONDS));
+  const parsedCustomSeconds = Number.parseInt(customText, 10);
+  const previewSeconds = Number.isFinite(parsedCustomSeconds)
+    ? normalizeCreatorDuration(parsedCustomSeconds)
+    : committedCustomSeconds;
   const previewScenes = Math.max(1, Math.ceil(previewSeconds / VIDEO_SCENE_SECONDS));
   const portraitCount = selectedIds.filter((id) => (dimensions[id] ?? 1) < 0.82).length;
   const landscapeCount = selectedIds.filter((id) => (dimensions[id] ?? 1) > 1.22).length;
@@ -200,7 +214,21 @@ export function MediaPlanningPanel({
     else if (selectedIds.length < 30) onSelectionChange([...selectedIds, id]);
   }
 
-  const presets = [8, 32, 64, recommendedSeconds].filter((seconds, index, all) => all.indexOf(seconds) === index);
+  function commitCustomDuration(raw = customText) {
+    const parsed = Number.parseInt(raw.trim(), 10);
+    const safe = normalizeCreatorDuration(Number.isFinite(parsed) ? parsed : committedCustomSeconds);
+    setCommittedCustomSeconds(safe);
+    setCustomText(String(safe));
+    return safe;
+  }
+
+  function nudgeCustomDuration(delta: number) {
+    const safe = normalizeCreatorDuration(previewSeconds + delta);
+    setCommittedCustomSeconds(safe);
+    setCustomText(String(safe));
+  }
+
+  const presets = [...DURATION_PRESETS];
 
   return <div className="space-y-3 rounded-2xl border border-violet/25 bg-gradient-to-br from-violet/10 to-transparent p-3.5">
     <div className="flex flex-wrap items-start justify-between gap-2">
@@ -241,34 +269,76 @@ export function MediaPlanningPanel({
 
     {selectedCount === 0 ? <div className="rounded-xl border border-amber-300/25 bg-amber-300/10 p-3 text-[11px] text-amber-100">Choose at least one photo or screenshot. Selecting only the strongest items usually makes a short video clearer.</div> : (() => { const silentCost = estimateRenderCredits('video', true, recommendedSeconds, '1080p'); const voiceCost = estimateRenderCredits('video', false, recommendedSeconds, '1080p'); return <div className="rounded-xl border border-mint/20 bg-mint/5 p-3 text-[11px] leading-relaxed text-text-muted"><p className="font-semibold text-mint">Recommended: {formatDuration(recommendedSeconds)} · {Math.ceil(recommendedSeconds / VIDEO_SCENE_SECONDS)} timeline beats</p><p className="mt-1">The beats guide one continuous premium AI film and help cover the selected references. The 1080p video costs {silentCost} credits without narration or {voiceCost} with voice.</p>{isSignedIn && <p className={`mt-1 font-semibold ${creditBalance >= voiceCost ? 'text-mint' : 'text-amber-200'}`}>Your balance: {creditBalance} · {creditBalance >= voiceCost ? 'enough for the recommended 1080p voice version' : `you would need ${voiceCost - creditBalance} more credits for the recommended voice version`}</p>}<p className="mt-1 text-text-dim">{orientationAdvice}</p></div>; })()}
 
-    <div className="grid gap-2 sm:grid-cols-2">
-      {presets.map((seconds) => { const silentCost = estimateRenderCredits('video', true, seconds, '1080p'); const voiceCost = estimateRenderCredits('video', false, seconds, '1080p'); const shortage = Math.max(0, voiceCost - creditBalance); return <button key={seconds} type="button" disabled={disabled || selectedCount === 0} onClick={() => onChooseDuration(seconds, seconds === recommendedSeconds ? `Recommended coverage · ${formatDuration(seconds)}` : `${formatDuration(seconds)} video`)} className={`rounded-xl border px-3 py-2.5 text-left transition ${seconds === recommendedSeconds ? 'border-mint/35 bg-mint/10' : 'border-border bg-panel-alt hover:border-violet/40'}`}><span className="block text-xs font-semibold text-text-primary">{seconds === recommendedSeconds ? '✓ Recommended · ' : ''}{formatDuration(seconds)}</span><span className="mt-0.5 block text-[9px] text-text-dim">{Math.ceil(seconds / VIDEO_SCENE_SECONDS)} timeline beats · {silentCost} credits at 1080p + optional voice</span>{isSignedIn && <span className={`mt-1 block text-[9px] font-semibold ${shortage ? 'text-amber-200' : 'text-mint'}`}>{shortage ? `Voice version needs ${shortage} more credits` : 'Your balance covers the 1080p voice version'}</span>}</button>; })}
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      {presets.map((seconds) => {
+        const silentCost = estimateRenderCredits('video', true, seconds, '1080p');
+        const voiceCost = estimateRenderCredits('video', false, seconds, '1080p');
+        const shortage = Math.max(0, voiceCost - creditBalance);
+        const recommended = seconds === recommendedSeconds;
+        return <button
+          key={seconds}
+          type="button"
+          disabled={disabled || selectedCount === 0}
+          onClick={() => onChooseDuration(seconds, recommended ? `Recommended coverage · ${formatDuration(seconds)}` : `${formatDuration(seconds)} video`)}
+          className={`rounded-xl border px-3 py-2.5 text-left transition ${recommended ? 'border-mint/35 bg-mint/10' : 'border-border bg-panel-alt hover:border-violet/40'}`}
+        >
+          <span className="flex items-center gap-1.5 text-xs font-semibold text-text-primary">
+            <Clock size={12} className={recommended ? 'text-mint' : 'text-text-dim'} />
+            {formatDuration(seconds)}
+          </span>
+          {recommended && <span className="mt-1 block text-[8px] font-semibold uppercase tracking-[.1em] text-mint">Recommended</span>}
+          <span className="mt-1 block text-[9px] text-text-dim">{Math.ceil(seconds / VIDEO_SCENE_SECONDS)} beats · {silentCost} credits</span>
+          {isSignedIn && <span className={`mt-1 block text-[9px] font-semibold ${shortage ? 'text-amber-200' : 'text-mint'}`}>{shortage ? `Voice needs +${shortage}` : 'Balance covers voice'}</span>}
+        </button>;
+      })}
     </div>
 
     <div className="rounded-2xl border border-white/[.08] bg-white/[.025] p-3.5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <p className="text-[11px] font-semibold text-white">Custom duration</p>
-          <p className="mt-0.5 text-[9px] text-text-dim">Type any whole second from 8 to 144</p>
+          <p className="flex items-center gap-1.5 text-[11px] font-semibold text-white"><Clock size={13} className="text-violet" />Custom duration</p>
+          <p className="mt-0.5 text-[9px] text-text-dim">Type any whole second from 8 to 60. The value is committed after you finish typing.</p>
         </div>
         <span className="rounded-full border border-mint/20 bg-mint/10 px-2.5 py-1 font-utility text-[9px] text-mint">{formatDuration(previewSeconds)}</span>
       </div>
       <div className="mt-3 flex items-center gap-2">
-        <button type="button" disabled={disabled} onClick={() => setCustomText(String(normalizedGeneratedSeconds(Math.max(MIN_VIDEO_SECONDS, previewSeconds - 1))))} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/[.08] bg-white/[.04] text-lg font-bold text-white transition hover:bg-white/[.08] disabled:opacity-40">−</button>
+        <button type="button" disabled={disabled} onClick={() => nudgeCustomDuration(-1)} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/[.08] bg-white/[.04] text-white transition hover:border-violet/35 hover:bg-white/[.08] disabled:opacity-40" aria-label="Decrease duration"><Minus size={15} /></button>
         <div className="relative min-w-0 flex-1">
           <input
             type="text"
             inputMode="numeric"
             value={customText}
-            onChange={(event) => setCustomText(event.target.value.replace(/[^0-9]/g, ''))}
-            onBlur={() => setCustomText(String(previewSeconds))}
-            className="h-12 w-full rounded-xl border border-white/[.1] bg-black/20 px-4 pr-12 text-center text-lg font-bold text-white outline-none transition focus:border-violet/60 focus:ring-2 focus:ring-violet/20"
+            onChange={(event) => setCustomText(event.target.value.replace(/[^0-9]/g, '').slice(0, 3))}
+            onBlur={() => commitCustomDuration()}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                commitCustomDuration();
+                event.currentTarget.blur();
+              }
+              if (event.key === 'Escape') {
+                setCustomText(String(committedCustomSeconds));
+                event.currentTarget.blur();
+              }
+            }}
+            placeholder="8–60"
+            className="h-12 w-full rounded-xl border border-white/[.1] bg-black/20 px-4 pr-12 text-center text-lg font-bold text-white outline-none transition placeholder:text-white/20 focus:border-violet/60 focus:ring-2 focus:ring-violet/20"
             aria-label="Custom video duration in seconds"
           />
           <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-semibold uppercase tracking-[.14em] text-text-dim">sec</span>
         </div>
-        <button type="button" disabled={disabled} onClick={() => setCustomText(String(normalizedGeneratedSeconds(Math.min(MAX_VIDEO_SECONDS, previewSeconds + 1))))} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/[.08] bg-white/[.04] text-lg font-bold text-white transition hover:bg-white/[.08] disabled:opacity-40">+</button>
-        <Button size="sm" disabled={disabled || selectedCount === 0} onClick={() => onChooseDuration(previewSeconds, `Custom · ${formatDuration(previewSeconds)}`)}>Use {formatDuration(previewSeconds)}</Button>
+        <button type="button" disabled={disabled} onClick={() => nudgeCustomDuration(1)} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/[.08] bg-white/[.04] text-white transition hover:border-violet/35 hover:bg-white/[.08] disabled:opacity-40" aria-label="Increase duration"><Plus size={15} /></button>
+        <Button
+          size="sm"
+          disabled={disabled || selectedCount === 0}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => {
+            const safe = commitCustomDuration();
+            onChooseDuration(safe, `Custom · ${formatDuration(safe)}`);
+          }}
+        >
+          Use {formatDuration(previewSeconds)}
+        </Button>
       </div>
       {(() => { const preview1080 = estimateRenderCredits('video', true, previewSeconds, '1080p'); const preview4k = estimateRenderCredits('video', true, previewSeconds, '4k'); const previewVoice = estimateRenderCredits('video', false, previewSeconds, '1080p'); return <><p className={`mt-2 text-[10px] ${selectedCount > previewScenes ? 'text-amber-200' : 'text-text-dim'}`}>{selectedCount > previewScenes ? `${selectedCount} items cannot each receive a dedicated scene in ${formatDuration(previewSeconds)}. Select ${previewScenes} priority items, or use at least ${formatDuration(recommendedSeconds)}.` : `${previewScenes} timeline beats · ${preview1080} credits at 1080p or ${preview4k} credits at 4K · voice narration adds 6.`}</p>{isSignedIn && <p className={`mt-1 text-[10px] font-semibold ${creditBalance >= previewVoice ? 'text-mint' : 'text-amber-200'}`}>Balance {creditBalance} · {creditBalance >= previewVoice ? 'enough for 1080p with voice' : `add ${previewVoice - creditBalance} credits for 1080p with voice`}</p>}</>; })()}
     </div>
