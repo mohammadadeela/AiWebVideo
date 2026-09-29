@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ComponentProps } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowDown, ChevronDown, ChevronUp } from "lucide-react";
 import { ChatWidget as ChatWidgetBase } from "./ChatWidgetBase";
 
 type ChatWidgetProps = ComponentProps<typeof ChatWidgetBase>;
@@ -52,14 +52,201 @@ export function ChatWidget({
   const [actionTray, setActionTray] = useState<HTMLElement | null>(null);
   const [startOverButton, setStartOverButton] = useState<HTMLButtonElement | null>(null);
   const [startOverDisabled, setStartOverDisabled] = useState(false);
+  const [showJumpToLatest, setShowJumpToLatest] = useState(false);
+  const [hasUnseenBelow, setHasUnseenBelow] = useState(false);
+  const [latestButtonBottom, setLatestButtonBottom] = useState(16);
   const shellRef = useRef<HTMLDivElement>(null);
   const openedChatAutoScrollRef = useRef<string | null>(null);
+  const latestScrollElementRef = useRef<HTMLElement | null>(null);
+  const autoFollowRef = useRef(true);
+  const lastScrollTopRef = useRef(0);
+  const userScrollIntentRef = useRef(false);
 
   useEffect(() => {
     const nextChatId = resumeJobId ?? initialJobId ?? null;
     setActiveChatId(nextChatId);
     setFinishControlsCollapsed(readFinishedPanelState(nextChatId));
+    autoFollowRef.current = true;
+    userScrollIntentRef.current = false;
+    setShowJumpToLatest(false);
+    setHasUnseenBelow(false);
   }, [initialJobId, resumeJobId]);
+
+  const jumpToLatest = () => {
+    const scroller = latestScrollElementRef.current;
+    if (!scroller) return;
+    autoFollowRef.current = true;
+    userScrollIntentRef.current = false;
+    setHasUnseenBelow(false);
+    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    scroller.scrollTo({
+      top: scroller.scrollHeight,
+      behavior: reducedMotion ? "auto" : "smooth",
+    });
+  };
+
+  // ChatGPT/Claude-style follow mode:
+  // - follow new content only while the reader is already near the bottom;
+  // - immediately stop following when the reader scrolls upward;
+  // - resume automatically when they return to the bottom;
+  // - expose a jump-to-latest control whenever newer content sits below.
+  useEffect(() => {
+    const shell = shellRef.current;
+    if (!shell) return;
+
+    let attached: HTMLElement | null = null;
+    let contentObserver: MutationObserver | null = null;
+    let resizeObserver: ResizeObserver | null = null;
+    let touchY: number | null = null;
+    let scheduledFrame = 0;
+    let detachListeners = () => {};
+
+    const isNearBottom = (element: HTMLElement) =>
+      element.scrollHeight - element.scrollTop - element.clientHeight <= 100;
+
+    const updateButtonPosition = (element: HTMLElement) => {
+      const shellRect = shell.getBoundingClientRect();
+      const messagesRect = element.getBoundingClientRect();
+      const nextBottom = Math.max(12, Math.round(shellRect.bottom - messagesRect.bottom + 12));
+      setLatestButtonBottom(nextBottom);
+    };
+
+    const markUserScrollUp = (element: HTMLElement) => {
+      autoFollowRef.current = false;
+      userScrollIntentRef.current = true;
+      setShowJumpToLatest(element.scrollHeight > element.clientHeight + 4);
+      // Cancels an in-flight smooth follow in browsers that otherwise keep
+      // animating after a wheel/touch gesture begins.
+      element.scrollTo({ top: element.scrollTop, behavior: "auto" });
+    };
+
+    const scheduleFollow = (element: HTMLElement, markUnread: boolean) => {
+      if (scheduledFrame) window.cancelAnimationFrame(scheduledFrame);
+      scheduledFrame = window.requestAnimationFrame(() => {
+        updateButtonPosition(element);
+        if (autoFollowRef.current) {
+          const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+          element.scrollTo({
+            top: element.scrollHeight,
+            behavior: reducedMotion ? "auto" : "smooth",
+          });
+          setHasUnseenBelow(false);
+        } else {
+          const hasBelow = element.scrollHeight - element.scrollTop - element.clientHeight > 4;
+          setShowJumpToLatest(hasBelow);
+          if (markUnread && hasBelow) setHasUnseenBelow(true);
+        }
+      });
+    };
+
+    const attach = (element: HTMLElement) => {
+      if (attached === element) return;
+      detachListeners();
+      contentObserver?.disconnect();
+      resizeObserver?.disconnect();
+
+      attached = element;
+      latestScrollElementRef.current = element;
+      lastScrollTopRef.current = element.scrollTop;
+      updateButtonPosition(element);
+
+      const onScroll = () => {
+        const currentTop = element.scrollTop;
+        const movingUp = currentTop < lastScrollTopRef.current - 1;
+        if (movingUp) {
+          autoFollowRef.current = false;
+          userScrollIntentRef.current = true;
+        }
+
+        if (isNearBottom(element)) {
+          autoFollowRef.current = true;
+          userScrollIntentRef.current = false;
+          setShowJumpToLatest(false);
+          setHasUnseenBelow(false);
+        } else {
+          setShowJumpToLatest(element.scrollHeight > element.clientHeight + 4);
+        }
+        lastScrollTopRef.current = currentTop;
+        updateButtonPosition(element);
+      };
+
+      const onWheel = (event: WheelEvent) => {
+        if (event.deltaY < 0) markUserScrollUp(element);
+      };
+
+      const onTouchStart = (event: TouchEvent) => {
+        touchY = event.touches[0]?.clientY ?? null;
+      };
+
+      const onTouchMove = (event: TouchEvent) => {
+        const nextY = event.touches[0]?.clientY ?? null;
+        if (touchY !== null && nextY !== null && nextY > touchY + 2) {
+          markUserScrollUp(element);
+        }
+        touchY = nextY;
+      };
+
+      const onTouchEnd = () => {
+        touchY = null;
+      };
+
+      element.addEventListener("scroll", onScroll, { passive: true });
+      element.addEventListener("wheel", onWheel, { passive: true });
+      element.addEventListener("touchstart", onTouchStart, { passive: true });
+      element.addEventListener("touchmove", onTouchMove, { passive: true });
+      element.addEventListener("touchend", onTouchEnd, { passive: true });
+
+      detachListeners = () => {
+        element.removeEventListener("scroll", onScroll);
+        element.removeEventListener("wheel", onWheel);
+        element.removeEventListener("touchstart", onTouchStart);
+        element.removeEventListener("touchmove", onTouchMove);
+        element.removeEventListener("touchend", onTouchEnd);
+      };
+
+      contentObserver = new MutationObserver(() => scheduleFollow(element, true));
+      contentObserver.observe(element, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+      });
+
+      resizeObserver = new ResizeObserver(() => scheduleFollow(element, false));
+      resizeObserver.observe(element);
+      const contentRoot = element.firstElementChild;
+      if (contentRoot instanceof HTMLElement) resizeObserver.observe(contentRoot);
+
+      if (isNearBottom(element)) {
+        autoFollowRef.current = true;
+        setShowJumpToLatest(false);
+      } else {
+        setShowJumpToLatest(element.scrollHeight > element.clientHeight + 4);
+      }
+    };
+
+    const discoverMessages = () => {
+      const messages = shell.querySelector<HTMLElement>("[data-chat-messages]");
+      if (messages) attach(messages);
+    };
+
+    discoverMessages();
+    const shellObserver = new MutationObserver(discoverMessages);
+    shellObserver.observe(shell, { childList: true, subtree: true });
+    const onWindowResize = () => {
+      if (attached) updateButtonPosition(attached);
+    };
+    window.addEventListener("resize", onWindowResize);
+
+    return () => {
+      shellObserver.disconnect();
+      contentObserver?.disconnect();
+      resizeObserver?.disconnect();
+      detachListeners();
+      if (scheduledFrame) window.cancelAnimationFrame(scheduledFrame);
+      window.removeEventListener("resize", onWindowResize);
+      if (latestScrollElementRef.current === attached) latestScrollElementRef.current = null;
+    };
+  }, []);
 
   // Every time an existing chat is opened from history/sidebar, land at the
   // working end of the conversation instead of making the user manually scroll
@@ -80,10 +267,11 @@ export function ChatWidget({
     let fallbackTimer = 0;
 
     const alignToConversationEnd = () => {
-      if (openedChatAutoScrollRef.current === chatId) return;
+      if (openedChatAutoScrollRef.current === chatId || userScrollIntentRef.current) return;
       openedChatAutoScrollRef.current = chatId;
 
       const align = () => {
+        if (userScrollIntentRef.current) return;
         const director = shell.firstElementChild;
         const messages = shell.querySelector<HTMLElement>("[data-chat-messages]");
         const controls = shell.querySelector<HTMLElement>("[data-chat-controls]");
@@ -170,6 +358,11 @@ export function ChatWidget({
           const alignToFinishedResult = () => {
             const messages = shell.querySelector<HTMLElement>("[data-chat-messages]");
             if (!messages) return;
+            if (!autoFollowRef.current || userScrollIntentRef.current) {
+              setShowJumpToLatest(true);
+              setHasUnseenBelow(true);
+              return;
+            }
             const results = messages.querySelectorAll<HTMLElement>('[data-generated-result="true"]');
             const result = results[results.length - 1];
             if (!result) {
@@ -303,6 +496,21 @@ export function ChatWidget({
       />
       {toggle}
       {startOverDock}
+      {showJumpToLatest && (
+        <button
+          type="button"
+          onClick={jumpToLatest}
+          className="absolute left-1/2 z-[80] inline-flex min-h-9 -translate-x-1/2 items-center gap-1.5 rounded-full border border-white/[.12] bg-[#151027]/95 px-3 text-[10px] font-semibold text-white shadow-[0_14px_38px_-18px_rgba(0,0,0,.95)] backdrop-blur-xl transition hover:border-violet/35 hover:bg-[#1b1430]"
+          style={{ bottom: latestButtonBottom }}
+          aria-label="Jump to latest message"
+        >
+          <ArrowDown size={13} className="text-mint" />
+          <span>Latest</span>
+          {hasUnseenBelow && (
+            <span className="h-1.5 w-1.5 rounded-full bg-mint shadow-[0_0_8px_rgba(52,217,196,.75)]" aria-hidden="true" />
+          )}
+        </button>
+      )}
     </div>
   );
 }
