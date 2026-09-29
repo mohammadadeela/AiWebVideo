@@ -589,10 +589,10 @@ test("video quotes preserve exact whole-second customer durations up to 2m24s", 
   assert.deepEqual(exact1080, {
     generatedSeconds: 37,
     perSecondCredits: 2,
-    videoCredits: 74,
+    videoCredits: 80,
     photoCredits: 0,
     narrationCredits: 6,
-    totalCredits: 80,
+    totalCredits: 86,
     modelId: "cinema-2",
   });
   const max4k = videoCreditQuote("video", true, 144, "4k", "cinema-pro");

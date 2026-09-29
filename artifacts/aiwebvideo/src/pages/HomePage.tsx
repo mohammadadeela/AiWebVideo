@@ -158,8 +158,8 @@ export function HomePage() {
       <Nav />
       <main>
         <Hero />
-        <VideoShowcase />
         <InspirationGallery />
+        <VideoShowcase />
 
         <section className="border-b border-white/[.06] bg-black/10" aria-label="Product advantages">
           <div className="mx-auto grid max-w-7xl grid-cols-2 divide-x divide-white/[.06] px-5 sm:grid-cols-4">

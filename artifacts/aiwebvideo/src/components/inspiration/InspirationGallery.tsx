@@ -27,7 +27,7 @@ function InspirationTile({ item, feature, compact }: { item: InspirationMedia; f
     {item.type === 'video'
       ? <video ref={videoRef} src={visible ? item.url : undefined} poster={item.thumbnailUrl} preload="none" muted loop playsInline aria-hidden="true" className={`w-full object-cover ${compact ? 'aspect-[4/3]' : ''}`} />
       : <img src={item.thumbnailUrl} loading="lazy" decoding="async" alt="" className={`w-full object-cover ${compact ? 'aspect-[4/3]' : ''}`} />}
-    <span className="absolute inset-x-2 bottom-2 translate-y-1 rounded-lg bg-black/75 px-3 py-2 text-center text-[11px] font-semibold text-white opacity-0 transition group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:opacity-100 max-md:opacity-100">Create with yours</span>
+    <span className="absolute inset-x-2 bottom-2 translate-y-1 rounded-lg bg-black/75 px-3 py-2 text-center text-[11px] font-semibold text-white opacity-0 transition group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:opacity-100">Create with yours</span>
   </a>;
 }
 
@@ -55,7 +55,7 @@ export function InspirationGallery({ feature, compact = false }: { feature?: Ins
       setItems((current) => [...current, ...result.items]); setHasMore(result.hasMore);
     } catch { setError(true); } finally { setLoading(false); }
   }
-  if (compact && !items.length) return null;
+  if (!items.length && !loading && (compact || (!selectedFeature && type === 'all'))) return null;
   return <section aria-label="Creative inspiration" className={compact ? 'mt-5 max-w-full' : 'mx-auto max-w-7xl px-4 py-12 sm:px-5 sm:py-16'}>
     <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
       <h2 className={`font-display font-semibold text-white ${compact ? 'text-sm' : 'text-2xl sm:text-3xl'}`}>{compact ? 'Try a direction' : 'Create with yours'}</h2>
@@ -63,6 +63,7 @@ export function InspirationGallery({ feature, compact = false }: { feature?: Ins
     </div>
     {!compact && <div className="mb-5 flex gap-1 overflow-x-auto pb-1" aria-label="Feature filter"><button type="button" aria-pressed={!selectedFeature} onClick={() => setSelectedFeature(undefined)} className={`shrink-0 rounded-full px-3 py-1.5 text-xs ${!selectedFeature ? 'bg-violet text-white' : 'text-text-muted hover:text-white'}`}>All</button>{labels.map((entry) => <button type="button" key={entry.id} aria-pressed={selectedFeature === entry.id} onClick={() => setSelectedFeature(entry.id)} className={`shrink-0 rounded-full px-3 py-1.5 text-xs ${selectedFeature === entry.id ? 'bg-violet text-white' : 'text-text-muted hover:text-white'}`}>{entry.label}</button>)}</div>}
     <div className={compact ? 'flex gap-2 overflow-x-auto pb-2' : 'columns-2 gap-2 sm:columns-3 lg:columns-4'}>{items.map((item) => <InspirationTile key={item.id} item={item} feature={feature} compact={compact} />)}</div>
+    {!compact && !loading && !items.length && !error && <p className="py-7 text-center text-xs text-text-muted">No examples in this filter yet.</p>}
     {error && <p role="status" className="mt-3 text-xs text-text-muted">Examples could not be loaded.</p>}
     {!compact && hasMore && <button type="button" disabled={loading} onClick={() => void more()} className="mt-6 rounded-xl border border-white/15 px-4 py-2 text-xs text-white disabled:opacity-50">{loading ? 'Loading…' : 'Show more'}</button>}
   </section>;

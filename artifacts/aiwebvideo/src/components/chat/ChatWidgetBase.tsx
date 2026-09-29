@@ -628,7 +628,7 @@ export function ChatWidget({
   }, [jobId, job?.captureMetadata, activeCaptureMetadata]);
 
   useEffect(() => {
-    if (pollingActive) return;
+    if (pollingActive || stage === "done") return;
     if (scrollRef.current)
       scrollRef.current.scrollTo({
         top: scrollRef.current.scrollHeight,
@@ -685,8 +685,7 @@ export function ChatWidget({
   useEffect(() => {
     const justStarted = pollingActive && !previousPollingActiveRef.current;
     previousPollingActiveRef.current = pollingActive;
-    const jobAttached = pollingActive && Boolean(jobId);
-    if (!justStarted && !jobAttached) return;
+    if (!justStarted) return;
 
     const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     const behavior: ScrollBehavior = reducedMotion ? "auto" : "smooth";
@@ -731,6 +730,25 @@ export function ChatWidget({
       window.cancelAnimationFrame(firstFrame);
       if (secondFrame) window.cancelAnimationFrame(secondFrame);
       if (settleTimer) window.clearTimeout(settleTimer);
+    };
+  }, [pollingActive, jobId]);
+
+  useEffect(() => {
+    const scroller = scrollRef.current;
+    const panel = generationProcessRef.current;
+    if (!pollingActive || !scroller || !panel) return;
+    let follow = true;
+    const onScroll = () => {
+      follow = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 180;
+    };
+    const resize = new ResizeObserver(() => {
+      if (follow) scroller.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
+    });
+    resize.observe(panel);
+    scroller.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      resize.disconnect();
+      scroller.removeEventListener("scroll", onScroll);
     };
   }, [pollingActive, jobId]);
 
@@ -1071,8 +1089,8 @@ export function ChatWidget({
       return;
     }
 
-    // Capture and its analysis remain visible before any paid planning starts.
-    // The explicit Continue action alone can advance to the AI provider.
+    // Keep the capture in chat. Signed-in customers continue through the
+    // server credit gate without an extra campaign setup step.
     if (!isSignedIn) {
       pendingActionRef.current = async () => {
         await claimJob(job.id);
@@ -1090,11 +1108,12 @@ export function ChatWidget({
       frameRate, selectedCaptureIds: autoSelectCaptureIds(metadata, 8),
       audioMode: request?.audioMode ?? audioMode,
       narrationLanguage: request?.narrationLanguage ?? narrationLanguage,
-      websiteAutoFlow: Boolean(request), manualRenderAfterPlan: true,
+      websiteAutoFlow: Boolean(request), manualRenderAfterPlan: !isSignedIn,
       requestedDurationSeconds: request?.durationSeconds,
     };
     saveLocalJobWorkflow(job.id, previewWorkflow);
     void saveJobWorkflow(job.id, previewWorkflow).catch(() => {});
+    if (isSignedIn) setManualRenderAfterPlan(false);
     setStage("preview_ready");
   }, [job, jobId, stage, isSignedIn]);
 
@@ -1549,6 +1568,7 @@ Promotion direction: ${brief}` : normalized);
 
   async function startWebsiteStoryboard(activeJobId: string, metadata: CaptureMetadata | null) {
     if (!metadata || !activeJobId) return;
+    setBusy(true);
 
     // Prefer the exact request from the composer. If the component remounted
     // while Chromium was capturing, rebuild the request from restored workflow
@@ -1583,6 +1603,7 @@ Promotion direction: ${brief}` : normalized);
       request.modelId,
     );
     if (!canStartPaidPlanning) {
+      setBusy(false);
       setStage("preview_ready");
       return;
     }
@@ -1620,8 +1641,20 @@ Promotion direction: ${brief}` : normalized);
       storyboardedRef.current = false;
       pushBot(errorMessage(error));
       setStage("failed");
+    } finally {
+      setBusy(false);
     }
   }
+
+  const automaticWebsitePlanRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (restoring || !isSignedIn || busy || stage !== "preview_ready" || !jobId) return;
+    const current = activeCaptureMetadata ?? job?.captureMetadata ?? null;
+    if (!current || automaticWebsitePlanRef.current === jobId) return;
+    automaticWebsitePlanRef.current = jobId;
+    setManualRenderAfterPlan(false);
+    void startWebsiteStoryboard(jobId, current);
+  }, [restoring, isSignedIn, busy, stage, jobId, activeCaptureMetadata, job?.captureMetadata]);
 
   async function performWebsiteAttachmentUpload(activeJobId: string, files: File[]) {
     if (!activeJobId || !files.length) return false;
@@ -2652,80 +2685,7 @@ Promotion direction: ${brief}` : normalized);
               />
             )}
             {stage === "preview_ready" && (
-              <div className="space-y-3">
-                <div className="rounded-2xl border border-mint/25 bg-mint/[.055] p-4">
-                  <p className="font-utility text-[9px] font-semibold uppercase tracking-[.16em] text-mint">
-                    Your website is ready
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-white">
-                    We captured {websiteBrandName(job?.sourceUrl, projectCaptureMetadata?.title)} and saved the useful context.
-                  </p>
-                  <p className="mt-1 text-[11px] leading-5 text-text-muted">
-                    Your website pages and brand signals are saved for the next step.
-                  </p>
-                  <div className="mt-3 rounded-xl border border-white/10 bg-black/15 p-3">
-                    <div className="mb-2 flex items-center gap-2">
-                      <SiteIcon url={projectCaptureMetadata?.logoUrl} size={32} />
-                      <span className="text-[11px] font-semibold text-white">{projectCaptureMetadata?.pageCount ?? liveReferenceItems.length} useful page{(projectCaptureMetadata?.pageCount ?? liveReferenceItems.length) === 1 ? "" : "s"} saved</span>
-                      <div className="ml-auto flex gap-1" aria-label="Detected site colors">
-                        {(projectCaptureMetadata?.brandColors ?? []).slice(0, 5).map((color) => <span key={color} title={color} className="h-4 w-4 rounded-full border border-white/20" style={{ backgroundColor: color }} />)}
-                      </div>
-                    </div>
-                    <div className="chat-scroll flex gap-2 overflow-x-auto pb-1">
-                      {liveReferenceItems.map((item) => (
-                        <figure key={item.id} className="w-48 shrink-0 sm:w-60">
-                          <img src={item.url} alt={`Captured ${item.title}`} className="aspect-[16/10] w-full rounded-lg border border-white/10 object-cover object-top" />
-                          <figcaption className="mt-1 truncate text-[10px] text-text-muted">{item.title}</figcaption>
-                        </figure>
-                      ))}
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-2 text-[10px] text-text-muted">
-                      <span className="rounded-lg bg-white/5 px-2.5 py-1.5">{durationLabel(durationSeconds)} · {aspectRatio}</span>
-                      <span className="rounded-lg bg-white/5 px-2.5 py-1.5">{outputQuality === "4k" ? "4K" : "1080p"} · {audioMode === "voice_music" ? "Narrated" : audioMode === "native_audio" ? "Scene audio" : audioMode === "music_only" ? "Music" : "Silent"}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-white/[.08] bg-white/[.025] p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-utility text-[9px] font-semibold uppercase tracking-[.16em] text-violet">Your campaign setup</p>
-                      <p className="mt-1 text-xs font-semibold text-white">Everything needed to continue is saved.</p>
-                    </div>
-                  </div>
-                  {projectCaptureMetadata?.brandProfile && (
-                    <div className="mt-3 rounded-xl border border-white/[.06] bg-black/15 px-3 py-2.5">
-                      <p className="text-[10px] font-semibold text-white">Brand profile</p>
-                      <p className="mt-1 text-[11px] leading-5 text-text-muted">{projectCaptureMetadata.brandProfile.summary}</p>
-                      <div className="mt-2 flex gap-1">{projectCaptureMetadata.brandProfile.colors.slice(0, 5).map((color) => <span key={color} title={color} className="h-4 w-4 rounded-full border border-white/20" style={{ backgroundColor: color }} />)}</div>
-                    </div>
-                  )}
-                  {projectCaptureMetadata?.readiness && <p className="mt-2 text-[11px] leading-5 text-text-muted">{projectCaptureMetadata.readiness}</p>}
-                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                    {[
-                      ["01", "Hook", "AI will choose the strongest opening."],
-                      ["02", "Show value", "Real site context stays attached to the plan."],
-                      ["03", "Finish", "The final generation happens only after you approve payment."],
-                    ].map(([number, title, body]) => (
-                      <div key={number} className="rounded-xl border border-white/[.06] bg-black/10 p-3">
-                        <p className="font-utility text-[8px] text-violet">{number}</p>
-                        <p className="mt-1 text-[11px] font-semibold text-white">{title}</p>
-                        <p className="mt-1 text-[10px] leading-4 text-text-dim">{body}</p>
-                      </div>
-                    ))}
-                  </div>
-                  {!!projectCaptureMetadata?.campaignChecklist?.length && (
-                    <ul className="mt-3 space-y-2">
-                      {projectCaptureMetadata.campaignChecklist.map((item, index) => (
-                        <li key={`${item.pageUrl}-${index}`} className="flex items-center gap-2 text-[11px] text-text-muted">
-                          <SiteIcon url={projectCaptureMetadata.logoUrl} size={25} />
-                          <span className="min-w-0"><span className="text-white">{item.text}</span><span className="block truncate text-[9px] text-text-dim">From {item.pageTitle}</span></span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-
+              <div className="mx-auto w-full max-w-xl">
                 <Button
                   variant="primary"
                   size="lg"
@@ -2739,11 +2699,8 @@ Promotion direction: ${brief}` : normalized);
                   }}
                   disabled={busy}
                 >
-                  {!isPublicCreatorPath() && isSignedIn ? "Continue to AI production" : "Continue with this campaign"}
+                  {isSignedIn ? "Continue generation" : "Sign in to create video"}
                 </Button>
-                <p className="text-center text-[10px] text-text-dim">
-                  Website read complete. Your saved source is ready for production.
-                </p>
               </div>
             )}
             {stage === "awaiting_private_pages" && (

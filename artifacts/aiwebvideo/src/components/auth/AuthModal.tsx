@@ -56,6 +56,7 @@ function LastUsedMethod({ active, children }: { active: boolean; children: React
 // provider not enabled in the console, popup blocked, etc.) instead of
 // staring at one generic sentence for every possible failure.
 function firebaseErrorMessage(err: unknown): string {
+  if (err instanceof ApiError) return err.message;
   const code = (err as { code?: string } | null)?.code ?? '';
   const known: Record<string, string> = {
     'auth/unauthorized-domain': "This site's domain is not authorized for sign-in yet. An admin needs to add it under Firebase Console -> Authentication -> Settings -> Authorized domains.",

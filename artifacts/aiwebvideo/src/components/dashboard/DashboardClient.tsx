@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { ChatWidget } from "@/components/chat/ChatWidget";
 import type { CreationIntent } from "@/components/chat/WebsiteBriefForm";
@@ -8,10 +8,11 @@ import { Wordmark } from "@/components/ui/Wordmark";
 import { UserMenu, formatCredits } from "@/components/account/UserMenu";
 import { CreditUpgradeNotice } from "@/components/account/CreditUpgradeNotice";
 import { watchAuthState } from "@/lib/firebase/client";
-import { deleteSavedChat, fetchMe, fetchUserJobs, updateSavedChat, type UserJobSummary } from "@/lib/api-client";
+import { deleteSavedChat, fetchMe, fetchUserJobs, reuseSavedCapture, updateSavedChat, type UserJobSummary } from "@/lib/api-client";
 import { type JobMode } from "@/components/chat/types";
 import {
   MoreHorizontal,
+  SquarePen,
   PanelLeftClose,
   PanelLeftOpen,
   Pin,
@@ -20,7 +21,6 @@ import {
   X,
 } from "lucide-react";
 import { clearActiveJobId, setActiveJobId } from "@/lib/guestSession";
-import { SiteIcon } from "@/components/chat/SiteIcon";
 
 interface Me {
   email: string;
@@ -89,6 +89,7 @@ export function DashboardClient() {
   const [reuseMode, setReuseMode] = useState<JobMode | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const swipeStart = useRef<{ x: number; y: number; opening: boolean } | null>(null);
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -211,6 +212,23 @@ export function DashboardClient() {
     }
   }
 
+  async function reuseFiles(item: UserJobSummary) {
+    setActionMenuId(null);
+    try {
+      const copy = await reuseSavedCapture(item.id);
+      setSelectedJobId(null);
+      setComposerJobId(null);
+      setReuseJobId(copy.jobId);
+      setReuseMode(null);
+      setNewProjectKey((value) => value + 1);
+      navigate(`/dashboard?reuse=${encodeURIComponent(copy.jobId)}`);
+      setSidebarOpen(false);
+      void refresh();
+    } catch {
+      setError("We could not reuse those files. Please try again.");
+    }
+  }
+
   async function removeChat(item: UserJobSummary) {
     if (!window.confirm(`Delete “${item.title}” from your production history?`)) return;
     try {
@@ -263,7 +281,23 @@ export function DashboardClient() {
     );
 
   return (
-    <div className="min-h-screen bg-bg lg:flex">
+    <div className="min-h-screen bg-bg lg:flex"
+      onTouchStart={(event) => {
+        if (window.innerWidth >= 1024) return;
+        const touch = event.touches[0];
+        if (!touch || (!sidebarOpen && touch.clientX > 36)) return;
+        swipeStart.current = { x: touch.clientX, y: touch.clientY, opening: !sidebarOpen };
+      }}
+      onTouchEnd={(event) => {
+        const start = swipeStart.current;
+        swipeStart.current = null;
+        const touch = event.changedTouches[0];
+        if (!start || !touch) return;
+        const dx = touch.clientX - start.x;
+        if (Math.abs(touch.clientY - start.y) > Math.abs(dx) || Math.abs(dx) < 72) return;
+        if (start.opening && dx > 0) setSidebarOpen(true);
+        if (!start.opening && dx < 0) setSidebarOpen(false);
+      }}>
       {sidebarOpen && (
         <button
           type="button"
@@ -298,9 +332,7 @@ export function DashboardClient() {
           onClick={startNew}
           className="premium-button mt-2.5 flex w-full items-center gap-2.5 rounded-xl border border-violet/30 bg-violet/10 px-3 py-2.5 text-left text-[12px] font-semibold text-text-primary transition hover:bg-violet/15 active:scale-[.99] sm:mt-3 sm:py-3 sm:text-sm"
         >
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-signature text-sm text-white">
-            ＋
-          </span>
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-signature text-white"><SquarePen size={15} /></span>
           New creation
         </button>
         <div className="relative mt-3">
@@ -371,10 +403,9 @@ export function DashboardClient() {
               {filteredJobs.filter((item) => item.pinned).map((item) => (
                 <div key={item.id} className="flex items-center gap-1 rounded-xl hover:bg-white/5">
                   <a href={`/dashboard?job=${encodeURIComponent(item.id)}`} onClick={(event) => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); openProject(item.id); }} className="flex min-w-0 flex-1 items-center gap-2 px-2 py-2">
-                    <SiteIcon url={item.logoUrl} size={27} />
                     <span className="min-w-0 flex-1"><span className="block truncate text-xs text-white">{projectLabel(item)}</span><span className="block truncate text-[10px] text-text-dim">{statusLabel(item.status, item.progress)}</span></span>
-                    {(item.previewUrl || item.screenshotUrl) && <img src={item.previewUrl || item.screenshotUrl || ""} alt="" loading="lazy" className="h-8 w-10 rounded-md object-cover object-top" />}
                   </a>
+                  <button type="button" onClick={() => void reuseFiles(item)} title="Create with these files" aria-label={`Create with files from ${projectLabel(item)}`} className="rounded-lg p-2 text-text-dim hover:text-white"><SquarePen size={13} /></button>
                   <button type="button" onClick={() => void togglePin(item)} title="Unpin project" aria-label={`Unpin ${projectLabel(item)}`} className="rounded-lg p-2 text-text-dim hover:text-white"><Pin size={13} className="fill-violet" /></button>
                 </div>
               ))}
@@ -403,10 +434,6 @@ export function DashboardClient() {
                   className="block w-full px-3 py-2.5 pr-9 text-left"
                 >
                   <div className="flex items-center gap-2">
-                    <SiteIcon url={item.logoUrl} size={27} />
-                    {(item.previewUrl || item.screenshotUrl) && (
-                      <img src={item.previewUrl || item.screenshotUrl || ""} alt="" loading="lazy" className="h-8 w-8 shrink-0 rounded-lg border border-white/10 object-cover" />
-                    )}
                     <span
                       className={`h-1.5 w-1.5 shrink-0 rounded-full ${item.status === "done" ? "bg-mint" : item.status === "failed" ? "bg-pink" : "bg-violet animate-pulse-soft"}`}
                     />
@@ -439,7 +466,11 @@ export function DashboardClient() {
                   <MoreHorizontal size={15} />
                 </button>
                 {actionMenuId === item.id && (
-                  <div className="absolute right-2 top-10 z-50 w-44 rounded-xl border border-border bg-panel p-1.5 shadow-2xl">
+                  <div className="absolute right-2 top-10 z-50 w-52 rounded-xl border border-border bg-panel p-1.5 shadow-2xl">
+                    <button type="button" onClick={() => void reuseFiles(item)}
+                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-text-muted hover:bg-white/5 hover:text-white">
+                      <SquarePen size={14} /> Create with these files
+                    </button>
                     <button
                       type="button"
                       onClick={() => void togglePin(item)}
@@ -489,6 +520,10 @@ export function DashboardClient() {
               aria-controls="workspace-project-menu"
             >
               <PanelLeftOpen size={16} />
+            </button>
+            <button type="button" onClick={startNew} aria-label="New creation" title="New creation"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-text-muted transition hover:bg-white/[.05] hover:text-white sm:h-10 sm:w-10">
+              <SquarePen size={17} />
             </button>
             <div>
               <p className="text-sm font-semibold text-text-primary">

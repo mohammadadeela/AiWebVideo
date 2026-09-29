@@ -1,4 +1,4 @@
-import { getIdToken } from '@/lib/firebase/client';
+import { clearFirebaseIdentity, getIdToken } from '@/lib/firebase/client';
 import type { AudioMode, JobStatusResponse, JobMode, JobWorkflowState } from '@/components/chat/types';
 
 export class ApiError extends Error {
@@ -334,16 +334,41 @@ export function fetchAdminInspiration(filters: { feature?: InspirationFeature; t
   for (const [key, value] of Object.entries(filters)) if (value) params.set(key, value);
   return request<{ items: InspirationMedia[] }>(`/api/inspiration/admin/items?${params}`);
 }
-export async function uploadInspiration(files: File[]) {
-  const token = await getIdToken();
-  const body = new FormData();
-  files.forEach((file) => body.append('files', file));
-  const res = await fetch('/api/inspiration/admin/upload', { method: 'POST', credentials: 'same-origin', signal: AbortSignal.timeout(180_000), headers: token ? { Authorization: `Bearer ${token}` } : undefined, body });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(data.error || 'Upload failed.', res.status, data.code);
-  return data as { items: Array<{ id: string; duplicate: boolean }> };
+export interface InspirationUploadResult {
+  items: Array<{ id: string; duplicate: boolean }>;
+  failures: Array<{ name: string; error: string }>;
 }
-export function updateInspirationBulk(patch: { ids: string[]; features?: InspirationFeature[]; status?: InspirationMedia['status']; featured?: boolean; sortOrder?: number; delete?: boolean }) {
+export async function uploadInspiration(files: File[], onProgress?: (done: number, total: number) => void) {
+  const token = await getIdToken();
+  const result: InspirationUploadResult = { items: [], failures: [] };
+  let done = 0;
+  for (let index = 0; index < files.length;) {
+    const batch: File[] = [];
+    let bytes = 0;
+    while (index < files.length && batch.length < 4 && (!batch.length || bytes + files[index].size <= 300 * 1024 * 1024)) {
+      batch.push(files[index]); bytes += files[index].size; index++;
+    }
+    const body = new FormData();
+    batch.forEach((file) => body.append('files', file));
+    try {
+      const res = await fetch('/api/inspiration/admin/upload', { method: 'POST', credentials: 'same-origin',
+        signal: AbortSignal.timeout(300_000), headers: token ? { Authorization: `Bearer ${token}` } : undefined, body });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 401 || res.status === 403) throw new ApiError(data.error || 'Admin access required.', res.status, data.code);
+      if (!res.ok) throw new ApiError(data.error || 'Upload failed.', res.status, data.code);
+      result.items.push(...((data.items ?? []) as InspirationUploadResult['items']));
+      result.failures.push(...((data.failures ?? []) as InspirationUploadResult['failures']));
+    } catch (error) {
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) throw error;
+      result.failures.push(...batch.map((file) => ({ name: file.name,
+        error: error instanceof Error ? error.message : 'Upload failed. Try again.' })));
+    }
+    done += batch.length;
+    onProgress?.(done, files.length);
+  }
+  return result;
+}
+export function updateInspirationBulk(patch: { ids: string[]; features?: InspirationFeature[]; featuresMode?: 'add' | 'replace'; status?: InspirationMedia['status']; featured?: boolean; sortOrder?: number; delete?: boolean }) {
   return request<{ updated: number }>('/api/inspiration/admin/bulk', { method: 'PATCH', body: JSON.stringify(patch) });
 }
 
@@ -487,6 +512,7 @@ function finishBrowserSession(): void {
 }
 
 export async function localLogin(email: string, password: string) {
+  await clearFirebaseIdentity();
   const res = await fetch('/api/auth/login', {
     method: 'POST',
     credentials: 'same-origin',
@@ -516,6 +542,7 @@ export async function requestSignupCode(email: string, password: string) {
 
 // Step 2: confirm the code and create the account.
 export async function verifySignupCode(email: string, code: string) {
+  await clearFirebaseIdentity();
   const res = await fetch('/api/auth/register/verify-code', {
     method: 'POST',
     credentials: 'same-origin', cache: 'no-store',
@@ -553,6 +580,7 @@ export async function requestPasswordResetCode(email: string) {
 }
 
 export async function resetPasswordWithCode(email: string, code: string, password: string) {
+  await clearFirebaseIdentity();
   const res = await fetch('/api/auth/forgot-password/reset', {
     method: 'POST',
     credentials: 'same-origin', cache: 'no-store',

@@ -56,12 +56,12 @@ export function PaywallModal({ onClose, durationSeconds = 8, mode = 'video', out
       className={`fixed inset-0 z-[100] flex items-end justify-center bg-black/55 p-0 sm:items-center sm:p-4
         ${direct || subscription ? 'pointer-events-none opacity-0' : ''}`}>
       <div onClick={(event) => event.stopPropagation()}
-        className="max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-t-2xl border border-white/10 bg-[#120e22] p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl">
+        className="max-h-[min(90dvh,42rem)] w-full max-w-md overflow-y-auto overscroll-contain rounded-t-2xl border border-white/10 bg-[#120e22] p-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl sm:p-5">
         <div className="flex items-start justify-between gap-4">
-          <div><h2 className="font-display text-lg font-semibold text-white">Your creation</h2>
-            <p className="mt-1 text-sm text-text-muted">{modelId?.replace('cinema-','Cinema ').replace('graphic-','Graphic ').replace('space-','Space ') ?? 'Generation'}
+          <div><h2 className="font-display text-base font-semibold text-white">Add {displayCredits(shortfall)} credits to continue</h2>
+            <p className="mt-1 text-xs text-text-muted">{modelId?.replace('cinema-','Cinema ').replace('graphic-','Graphic ').replace('space-','Space ') ?? 'Generation'}
               {mode === 'photos' ? ' · 4 images' : ` · ${durationSeconds}s`} · {outputQuality === '4k' ? '4K' : '1080p'}</p>
-            <p className="mt-2 text-sm text-mint">{displayCredits(required)} credits · {displayCredits(balance)} available</p>
+            <p className="mt-2 text-xs text-mint">{displayCredits(required)} needed · {displayCredits(balance)} available</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Close" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-text-muted hover:bg-white/10">×</button>
         </div>

@@ -43,6 +43,7 @@ interface Me {
   email: string;
   plan: string;
   creditsBalance: number;
+  starterCreditsBalance?: number;
   isAdmin: boolean;
   authProvider: string;
   supportsPasswordChange: boolean;
@@ -93,6 +94,10 @@ export function ProfilePage() {
   const [jobs, setJobs] = useState<UserJobSummary[]>([]);
   const [subscriptions, setSubscriptions] = useState<SubscriptionSummary[]>([]);
   const [usage, setUsage] = useState<UserUsageSummary | null>(null);
+  const paidBalance = Math.max(0, usage?.balance ?? me?.creditsBalance ?? 0);
+  const monthUsed = Math.max(0, usage?.thisMonth.creditsUsed ?? 0);
+  const usagePercent = paidBalance + monthUsed > 0 ? Math.min(100, Math.round(100 * monthUsed / (paidBalance + monthUsed))) : 0;
+  const unlimited = me?.isAdmin || paidBalance >= 500_000;
   const [payments, setPayments] = useState<BillingPaymentSummary[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -361,6 +366,18 @@ export function ProfilePage() {
                   <p className="text-[10px] font-semibold uppercase tracking-[.14em] text-text-dim">Current balance</p>
                   <p className="mt-0.5 font-utility text-lg font-bold text-mint">{formatCredits(usage?.balance ?? me?.creditsBalance)}</p>
                 </div>
+              </div>
+
+              <div className="mt-5 rounded-2xl border border-white/10 bg-bg/25 p-4 sm:p-5">
+                <div className="flex flex-wrap items-end justify-between gap-3">
+                  <div><p className="text-sm font-semibold text-text-primary">Credit usage</p>
+                    <p className="mt-1 text-xs text-text-muted">{formatCredits(monthUsed)} used this month · {unlimited ? 'Unlimited access' : `${formatCredits(paidBalance)} available`}</p></div>
+                  {!unlimited && <span className="font-utility text-lg font-semibold text-mint">{usagePercent}%</span>}
+                </div>
+                {!unlimited && <div role="progressbar" aria-label="Share of credits used this month compared with credits available now"
+                  aria-valuenow={usagePercent} aria-valuemin={0} aria-valuemax={100}
+                  className="mt-3 h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-mint transition-[width] duration-300" style={{ width: `${usagePercent}%` }} /></div>}
+                {(me?.starterCreditsBalance ?? 0) > 0 && <p className="mt-3 text-xs text-text-muted">{formatCredits(me?.starterCreditsBalance)} starter credits for website analysis</p>}
               </div>
 
               <div className="mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">

@@ -10,13 +10,14 @@ import {
   House,
   Building2,
   Languages,
-  Maximize2,
   MessageCircleMore,
   Mic,
   Monitor,
   Music,
+  Minus,
   PackageOpen,
   Paperclip,
+  Plus,
   Sparkles,
   Video,
   Volume2,
@@ -139,6 +140,36 @@ function normalizeDuration(value: number) {
   return Math.max(MIN_CREATOR_DURATION_SECONDS, Math.min(MAX_CREATOR_DURATION_SECONDS, Math.round(value)));
 }
 
+function SiteMeasure({ label, value, onChange, step, min, max = 10000, unit }: {
+  label: string; value: string; onChange: (value: string) => void; step: number; min: number; max?: number; unit?: string;
+}) {
+  const adjust = (direction: -1 | 1) => {
+    const current = Number(value.replace(',', '.'));
+    const next = Math.min(max, Math.max(min, Number.isFinite(current) && value ? current + direction * step : min));
+    onChange(String(Math.round(next * 100) / 100));
+  };
+  const normalize = () => {
+    if (!value) return;
+    const parsed = Number(value.replace(',', '.'));
+    const rounded = step === 1 ? Math.round(parsed) : Math.round(parsed * 100) / 100;
+    onChange(Number.isFinite(parsed) ? String(Math.min(max, Math.max(min, rounded))) : '');
+  };
+  return <label className="min-w-0 space-y-1.5">
+    <span className="block text-[11px] font-medium text-text-muted">{label}</span>
+    <span className="flex h-11 min-w-0 items-center rounded-xl border border-white/12 bg-[#0b0818] focus-within:border-violet/60 focus-within:ring-2 focus-within:ring-violet/15">
+      <button type="button" onClick={() => adjust(-1)} aria-label={`Decrease ${label}`} disabled={!!value && Number(value) <= min}
+        className="grid h-full w-9 shrink-0 place-items-center rounded-l-xl text-text-muted hover:bg-white/5 hover:text-white disabled:opacity-30"><Minus size={13} /></button>
+      <input type="text" inputMode={step === 1 ? 'numeric' : 'decimal'} value={value} onBlur={normalize}
+        onChange={(event) => { const next = event.target.value.replace(',', '.');
+          if ((step === 1 ? /^\d{0,3}$/ : /^\d{0,5}(?:\.\d{0,2})?$/).test(next)) onChange(next); }}
+        aria-label={label} placeholder="—" className="w-full min-w-0 bg-transparent text-center text-sm font-medium text-white outline-none placeholder:text-white/25" />
+      {unit && <span className="text-[10px] text-text-dim">{unit}</span>}
+      <button type="button" onClick={() => adjust(1)} aria-label={`Increase ${label}`} disabled={!!value && Number(value) >= max}
+        className="grid h-full w-9 shrink-0 place-items-center rounded-r-xl text-text-muted hover:bg-white/5 hover:text-white disabled:opacity-30"><Plus size={13} /></button>
+    </span>
+  </label>;
+}
+
 function intentFromSearch(): CreationIntent | null {
   if (typeof window === "undefined") return null;
   const value = new URLSearchParams(window.location.search).get("create");
@@ -176,6 +207,13 @@ function controlClass(active: boolean) {
       ? "border-violet/45 bg-violet/[.12] text-white shadow-[0_12px_30px_-24px_rgba(139,92,246,.95)]"
       : "border-white/[.10] bg-white/[.035] text-text-muted hover:border-violet/30 hover:bg-violet/[.07] hover:text-white"
   }`;
+}
+
+function AspectIcon({ ratio }: { ratio: "9:16" | "16:9" | "1:1" }) {
+  const size = ratio === "9:16" ? [11, 18] : ratio === "16:9" ? [20, 11] : [15, 15];
+  return <span aria-hidden="true" className="inline-flex h-5 w-6 shrink-0 items-center justify-center">
+    <span className="rounded-[2px] border-[1.5px] border-current" style={{ width: size[0], height: size[1] }} />
+  </span>;
 }
 
 type CompactDropdownOption = {
@@ -666,7 +704,8 @@ export function WebsiteBriefForm({
   const durationSeconds = settings.durationSeconds === "auto" ? 8 : settings.durationSeconds;
   const formatSummary = settings.aspectRatio === "9:16" ? "Portrait" : settings.aspectRatio === "16:9" ? "Wide" : "Square";
   const modelFamily = isVideoMode ? "video" : isInteriorMode ? "interior" : "image";
-  const availableModels = modelsFor(modelFamily);
+  const availableModels = modelsFor(modelFamily).filter((model) =>
+    model.id !== 'cinema-1' || (activeMode !== 'product-video' && activeMode !== 'scenario' && activeMode !== 'architecture'));
   const selectedModel = publicModel(settings.modelId);
   const exactCredits = activeMode === "photo" || (isInteriorMode && interiorOutput === "images")
     ? estimateRenderCredits("photos", true, 8, settings.outputQuality, settings.modelId)
@@ -772,7 +811,34 @@ export function WebsiteBriefForm({
 
       <div className={`relative ${compactLayout ? "p-3 sm:p-4" : "p-4 sm:p-5"}`}>
         {inspiration && <div className="mb-3 flex items-center gap-3 rounded-xl border border-violet/25 bg-white/[.035] p-2"><img src={inspiration.thumbnailUrl} alt="Selected inspiration" className="h-14 w-14 rounded-lg object-cover" /><span className="min-w-0 flex-1 text-xs font-semibold text-white">Create with yours</span><button type="button" onClick={() => { setInspiration(null); const next = new URL(window.location.href); next.searchParams.delete('inspiration'); window.history.replaceState(null, '', next); }} className="rounded-lg p-2 text-text-muted hover:text-white" aria-label="Remove inspiration"><X size={15} /></button></div>}
-        {activeMode === 'architecture' && <div className="mb-3 space-y-2 rounded-xl border border-white/10 p-3"><div className="flex gap-2"><input type="text" value={mapLink} onChange={(event) => { setMapLink(event.target.value); setSite(null); }} placeholder="Google Maps link or address" aria-label="Google Maps link or address" className="min-w-0 flex-1 rounded-xl border border-white/15 bg-[#0b0818] px-3 py-2 text-xs text-white" /><button type="button" disabled={!mapLink.trim() || resolvingSite} onClick={() => { setResolvingSite(true); setError(null); if (!/^https?:\/\//i.test(mapLink)) { setSite({ label: mapLink.trim(), resolvedUrl: '' }); setResolvingSite(false); return; } void resolveArchitectureLocation(mapLink).then(setSite).catch(() => setError("Couldn't identify this location. Paste another Maps link or add the address.")).finally(() => setResolvingSite(false)); }} className="rounded-xl border border-white/15 px-3 py-2 text-xs text-white disabled:opacity-40">{resolvingSite ? 'Resolving…' : 'Locate'}</button></div>{site && <p className="text-[11px] text-mint">{site.label || `${site.latitude}, ${site.longitude}`} · Add a site photo or screenshot</p>}<div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{[[plotWidth,setPlotWidth,'Plot width (m)'],[plotDepth,setPlotDepth,'Plot depth (m)'],[floorCount,setFloorCount,'Floors'],[setback,setSetback,'Road setback (m)']].map(([value,setter,label]) => <input key={label as string} type="number" min="0" step="any" value={value as string} onChange={(event) => (setter as (value: string) => void)(event.target.value)} placeholder={label as string} aria-label={label as string} className="min-w-0 rounded-xl border border-white/15 bg-[#0b0818] px-3 py-2 text-xs text-white" />)}</div><label className="flex items-center gap-2 text-[11px] text-text-muted"><input type="checkbox" checked={estimatedScale} onChange={(event) => setEstimatedScale(event.target.checked)} />Use estimated site scale when measurements are unavailable</label></div>}
+        {activeMode === 'architecture' && <div className="mb-3 space-y-3 rounded-xl border border-white/10 bg-white/[.015] p-3 sm:p-4">
+          <div className="flex gap-2">
+            <input type="text" value={mapLink} onChange={(event) => { setMapLink(event.target.value); setSite(null); }}
+              placeholder="Google Maps link or address" aria-label="Google Maps link or address"
+              className="min-h-11 min-w-0 flex-1 rounded-xl border border-white/15 bg-[#0b0818] px-3 text-xs text-white outline-none focus:border-violet/50" />
+            <button type="button" disabled={!mapLink.trim() || resolvingSite}
+              onClick={() => { setResolvingSite(true); setError(null);
+                if (!/^https?:\/\//i.test(mapLink)) { setSite({ label: mapLink.trim(), resolvedUrl: '' }); setResolvingSite(false); return; }
+                void resolveArchitectureLocation(mapLink).then(setSite).catch(() => setError("Couldn't identify this location. Paste another Maps link or add the address.")).finally(() => setResolvingSite(false)); }}
+              className="min-h-11 rounded-xl border border-white/15 px-3 text-xs text-white hover:bg-white/5 disabled:opacity-40">
+              {resolvingSite ? 'Resolving…' : 'Locate'}
+            </button>
+          </div>
+          {site && <p className="text-[11px] text-mint">{site.label || `${site.latitude}, ${site.longitude}`} · Add a site photo or screenshot</p>}
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <SiteMeasure label="Plot width" value={plotWidth} onChange={setPlotWidth} min={0.5} step={0.5} unit="m" />
+            <SiteMeasure label="Plot depth" value={plotDepth} onChange={setPlotDepth} min={0.5} step={0.5} unit="m" />
+            <SiteMeasure label="Floors" value={floorCount} onChange={setFloorCount} min={1} max={200} step={1} />
+            <SiteMeasure label="Road setback" value={setback} onChange={setSetback} min={0} max={1000} step={0.5} unit="m" />
+          </div>
+          <button type="button" role="checkbox" aria-checked={estimatedScale} onClick={() => setEstimatedScale((current) => !current)}
+            className="flex min-h-11 items-center gap-2.5 rounded-lg px-1 text-left text-xs text-text-muted hover:text-white">
+            <span aria-hidden="true" className={`grid h-[18px] w-[18px] shrink-0 place-items-center rounded-md border transition ${estimatedScale ? 'border-violet bg-violet text-white' : 'border-white/35 bg-white/[.03]'}`}>
+              {estimatedScale && <Check size={13} strokeWidth={3} />}
+            </span>
+            Use estimated site scale when measurements are unavailable
+          </button>
+        </div>}
         {isProductMode && <div className="mb-3"><div className="flex gap-2"><input type="url" value={productLink} onChange={(event) => setProductLink(event.target.value)} placeholder="Product link" aria-label="Product link" className="min-w-0 flex-1 rounded-xl border border-white/15 bg-[#0b0818] px-3 py-2 text-xs text-white outline-none focus:border-violet" /><button type="button" disabled={!productLink.trim() || readingProduct} onClick={() => { setReadingProduct(true); setError(null); void extractProductReference(productLink).then((data) => { setProductData(data); setChosenProductImages(data.images.slice(0, 1)); }).catch(() => { setProductData(null); setChosenProductImages([]); setError("Couldn't load this product. Upload product images instead."); }).finally(() => setReadingProduct(false)); }} className="rounded-xl border border-white/15 px-3 py-2 text-xs text-white disabled:opacity-40">{readingProduct ? 'Reading product…' : 'Use link'}</button></div>{productData && <div className="mt-2"><p className="mb-2 truncate text-xs text-text-muted">{productData.title || 'Choose product images'}</p><div className="flex gap-2 overflow-x-auto">{productData.images.map((image) => <button key={image} type="button" aria-label="Use product image" aria-pressed={chosenProductImages.includes(image)} onClick={() => setChosenProductImages((current) => current.includes(image) ? current.filter((url) => url !== image) : [...current, image])} className={`h-20 w-20 shrink-0 overflow-hidden rounded-lg border-2 ${chosenProductImages.includes(image) ? 'border-mint' : 'border-transparent'}`}><img src={image} alt="Product reference" loading="lazy" className="h-full w-full object-contain" /></button>)}</div></div>}</div>}
         {isInteriorMode && (
           <div className="mb-3 inline-flex rounded-xl border border-white/[.10] bg-white/[.025] p-1">
@@ -1079,7 +1145,7 @@ export function WebsiteBriefForm({
           <button ref={outputAnchor} type="button" className={controlClass(openSettingMenu === "output")}
             aria-expanded={openSettingMenu === "output"} aria-label="Output settings"
             onClick={() => { setCompactPanel(null); setOpenSettingMenu((current) => current === "output" ? null : "output"); }}>
-            <Maximize2 size={14} /> {settings.aspectRatio} · {settings.outputQuality === "4k" ? "4K" : "1080p"}
+            <AspectIcon ratio={settings.aspectRatio} /> {settings.aspectRatio} · {settings.outputQuality === "4k" ? "4K" : "1080p"}
             {selectedModel.audioModes.length > 0 && ` · ${settings.audioMode === "silent" ? "Silent" : "Sound"}`} <ChevronDown size={12} />
           </button>
           {openSettingMenu === "output" && <CreatorPopover anchor={outputAnchor} onClose={() => setOpenSettingMenu(null)} label="Output settings" width={300}>
@@ -1087,7 +1153,7 @@ export function WebsiteBriefForm({
               <fieldset><legend className="mb-1 text-xs font-semibold text-white">Format</legend><div className="grid grid-cols-3 gap-1">
                 {([['9:16','Portrait'],['16:9','Wide'],['1:1','Square']] as const).map(([value,label]) =>
                   <button key={value} type="button" onClick={() => setSettings((current) => ({ ...current, aspectRatio:value }))}
-                    aria-pressed={settings.aspectRatio === value} className={optionClass(settings.aspectRatio === value)}>{value}<span className="sr-only">{label}</span></button>)}
+                    aria-pressed={settings.aspectRatio === value} className={optionClass(settings.aspectRatio === value)}><AspectIcon ratio={value} />{value}<span className="sr-only">{label}</span></button>)}
               </div></fieldset>
               {selectedModel.supportedQualities.length > 1 && <fieldset><legend className="mb-1 text-xs font-semibold text-white">Quality</legend><div className="flex gap-1">
                 {selectedModel.supportedQualities.map((value) => <button key={value} type="button"
@@ -1210,7 +1276,7 @@ export function WebsiteBriefForm({
           </button>
         </div>
       </div>
-      <div className="px-3 pb-3"><InspirationGallery feature={activeMode as InspirationFeature} compact /></div>
+      {!landingWebsitePreview && <div className="px-3 pb-3"><InspirationGallery feature={activeMode as InspirationFeature} compact /></div>}
     </div>
   );
 }

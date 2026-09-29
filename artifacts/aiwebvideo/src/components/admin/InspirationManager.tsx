@@ -13,30 +13,35 @@ export function InspirationManager() {
   const [selected, setSelected] = useState<string[]>([]);
   const [features, setFeatures] = useState<InspirationFeature[]>([]);
   const [type, setType] = useState<'all' | 'image' | 'video'>('all');
+  const [featureFilter, setFeatureFilter] = useState<'all' | InspirationFeature>('all');
   const [status, setStatus] = useState<'all' | InspirationMedia['status'] | 'unassigned'>('all');
   const [search, setSearch] = useState('');
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState('');
+  const [failures, setFailures] = useState<Array<{ name: string; error: string }>>([]);
   const [message, setMessage] = useState<string | null>(null);
   const reload = async () => setItems((await fetchAdminInspiration()).items);
   useEffect(() => { void reload().catch((error) => setMessage(error instanceof Error ? error.message : 'Could not load media.')); }, []);
   const visible = useMemo(() => items.filter((item) =>
     (type === 'all' || item.type === type) &&
+    (featureFilter === 'all' || item.features.includes(featureFilter)) &&
     (status === 'all' || (status === 'unassigned' ? !item.features.length : item.status === status)) &&
     `${item.adminTitle ?? ''} ${item.features.join(' ')}`.toLowerCase().includes(search.toLowerCase()),
-  ), [items, type, status, search]);
+  ), [items, type, featureFilter, status, search]);
   const chosen = items.filter((item) => selected.includes(item.id));
   const missing = chosen.filter((item) => !item.features.length);
 
   async function upload(files: FileList | null) {
     if (!files?.length) return;
-    setBusy(true); setMessage(null);
+    setBusy(true); setMessage(null); setFailures([]); setProgress(`Uploading 0 of ${files.length}`);
     try {
-      const result = await uploadInspiration(Array.from(files));
-      setSelected(result.items.map((item) => item.id));
+      const result = await uploadInspiration(Array.from(files), (done, total) => setProgress(`Processed ${done} of ${total}`));
+      setSelected([...new Set(result.items.map((item) => item.id))]);
       await reload();
-      setMessage(result.items.some((item) => item.duplicate) ? 'Existing files were reused. Assign features before publishing.' : 'Uploaded as drafts. Assign features before publishing.');
-    } catch (error) { setMessage(error instanceof Error ? error.message : 'Upload failed.'); }
-    finally { setBusy(false); }
+      setFailures(result.failures);
+      setMessage(result.items.length ? `${result.items.length} ready as drafts. Assign features, then publish.` : 'No files were added.');
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Upload failed.'); await reload().catch(() => {}); }
+    finally { setBusy(false); setProgress(''); }
   }
 
   async function bulk(patch: Parameters<typeof updateInspirationBulk>[0]) {
@@ -64,14 +69,19 @@ export function InspirationManager() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div><h2 className="font-display text-xl font-semibold text-white">Inspiration media</h2><p className="mt-1 text-xs text-text-dim">Upload together, assign features, then publish.</p></div>
         <label className="cursor-pointer rounded-xl bg-violet px-4 py-2.5 text-xs font-semibold text-white focus-within:outline focus-within:outline-2 focus-within:outline-mint">
-          {busy ? 'Working…' : 'Add images & videos'}
+          {progress || (busy ? 'Working…' : 'Add images & videos')}
           <input type="file" multiple accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" className="sr-only" disabled={busy} onChange={(event) => { void upload(event.target.files); event.target.value = ''; }} />
         </label>
       </div>
       {message && <p role="status" className="rounded-xl bg-white/[.05] px-3 py-2 text-xs text-text-muted">{message}</p>}
+      {!!failures.length && <div role="alert" className="rounded-xl border border-amber-400/20 bg-amber-400/[.06] p-3 text-xs text-amber-100">
+        <p className="font-semibold">{failures.length} file{failures.length === 1 ? '' : 's'} could not be added</p>
+        <ul className="mt-1 space-y-1">{failures.map((failure, index) => <li key={`${failure.name}-${index}`} className="break-words">{failure.name}: {failure.error}</li>)}</ul>
+      </div>}
       <div className="flex flex-wrap gap-2">
         <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search media" aria-label="Search media" className="min-h-10 min-w-0 flex-1 rounded-xl border border-border bg-panel px-3 text-xs text-white sm:max-w-60" />
         <select value={type} onChange={(event) => setType(event.target.value as typeof type)} aria-label="Media type" className="min-h-10 rounded-xl border border-border bg-panel px-3 text-xs text-white"><option value="all">Images & videos</option><option value="image">Images</option><option value="video">Videos</option></select>
+        <select value={featureFilter} onChange={(event) => setFeatureFilter(event.target.value as typeof featureFilter)} aria-label="Feature filter" className="min-h-10 rounded-xl border border-border bg-panel px-3 text-xs text-white"><option value="all">All features</option>{INSPIRATION_FEATURES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select>
         <select value={status} onChange={(event) => setStatus(event.target.value as typeof status)} aria-label="Media status" className="min-h-10 rounded-xl border border-border bg-panel px-3 text-xs text-white"><option value="all">All statuses</option><option value="draft">Draft</option><option value="published">Published</option><option value="hidden">Hidden</option><option value="unassigned">Unassigned</option></select>
         <button type="button" onClick={() => setSelected(visible.map((item) => item.id))} className="min-h-10 rounded-xl px-3 text-xs text-text-muted hover:text-white">Select visible</button>
         <button type="button" onClick={() => setSelected([])} className="min-h-10 rounded-xl px-3 text-xs text-text-muted hover:text-white">Clear</button>
@@ -83,7 +93,8 @@ export function InspirationManager() {
             {INSPIRATION_FEATURES.map((item) => <label key={item.id} className="flex min-h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-white/10 px-2.5 text-[11px] text-text-muted"><input type="checkbox" checked={features.includes(item.id)} onChange={() => setFeatures((current) => current.includes(item.id) ? current.filter((id) => id !== item.id) : [...current, item.id])} />{item.label}</label>)}
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
-            <button type="button" disabled={busy || !features.length} onClick={() => void bulk({ ids: selected, features })} className="rounded-lg bg-violet px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Apply features</button>
+            <button type="button" disabled={busy || !features.length} onClick={() => void bulk({ ids: selected, features, featuresMode: 'add' })} className="rounded-lg bg-violet px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Add features</button>
+            <button type="button" disabled={busy || !features.length} onClick={() => void bulk({ ids: selected, features, featuresMode: 'replace' })} className="rounded-lg border border-white/10 px-3 py-2 text-xs text-white disabled:opacity-50">Set selected features</button>
             <button type="button" disabled={busy || missing.length > 0} onClick={() => void bulk({ ids: selected, status: 'published' })} className="rounded-lg border border-mint/30 px-3 py-2 text-xs font-semibold text-mint disabled:opacity-40">Publish</button>
             <button type="button" disabled={busy} onClick={() => void bulk({ ids: selected, status: 'hidden' })} className="rounded-lg border border-white/10 px-3 py-2 text-xs text-white">Hide</button>
             <button type="button" disabled={busy} onClick={() => { if (window.confirm(`Delete ${selected.length} item(s)?`)) void bulk({ ids: selected, delete: true }); }} className="rounded-lg px-3 py-2 text-xs text-pink">Delete</button>

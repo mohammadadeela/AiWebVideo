@@ -56,8 +56,12 @@ export function videoCreditQuote(
 
   const videoModel = generationModelForMode(modelId, mode, studioKind);
   const generatedSeconds = normalizedGeneratedSeconds(durationSeconds);
+  // Premium rendering buys native eight-second Veo clips, including the last
+  // clip trimmed to a shorter requested duration. Quote the actual provider
+  // operations rather than undercharging non-multiples of eight.
+  const providerSeconds = Math.ceil(generatedSeconds / VIDEO_SCENE_SECONDS) * VIDEO_SCENE_SECONDS;
   const perSecondCredits = videoModelCreditsPerSecond(videoModel, outputQuality);
-  const videoCredits = generatedSeconds * perSecondCredits;
+  const videoCredits = providerSeconds * perSecondCredits;
   // "both" keeps the standard Graphic 2 four-image set alongside the selected
   // video model. It is intentionally not tied to a hidden provider setting.
   const photoCredits = mode === 'both'

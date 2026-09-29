@@ -11,6 +11,7 @@ import { AppError, sendError } from '../lib/errors.js';
 import { pool, query } from '../lib/pool.js';
 import { ASSETS_DIR } from '../lib/capture.js';
 import { deleteR2Object, uploadBufferToR2 } from '../lib/r2-storage.js';
+import { logger } from '../lib/logger.js';
 
 const router = Router();
 const run = promisify(execFile);
@@ -105,10 +106,16 @@ router.post('/admin/upload', (req, res, next) => {
     const files = (req.files as Express.Multer.File[] | undefined) ?? [];
     if (!files.length) throw new AppError('Choose images or videos.', 400, 'NO_FILES');
     const items: Array<{ id: string; duplicate: boolean }> = [];
+    const failures: Array<{ name: string; error: string }> = [];
     const directory = path.join(ASSETS_DIR, 'marketing');
     await fs.mkdir(directory, { recursive: true });
     const extensions: Record<string, string> = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'video/mp4': '.mp4', 'video/webm': '.webm', 'video/quicktime': '.mov' };
     for (const file of files) {
+      const original = path.basename(file.originalname).replace(/[\x00-\x1f\x7f]/g, '').slice(0, 120) || 'Untitled media';
+      let mediaName: string | null = null;
+      let posterName: string | null = null;
+      const stored: string[] = [];
+      try {
       if (file.mimetype.startsWith('image/') && file.size > 12 * 1024 * 1024) throw new AppError('Images must be under 12 MB.', 400, 'IMAGE_TOO_LARGE');
       const hash = createHash('sha256').update(file.buffer).digest('hex');
       const existing = await query<{ id: string }>('SELECT id FROM inspiration_media WHERE sha256=$1', [hash]);
@@ -116,6 +123,7 @@ router.post('/admin/upload', (req, res, next) => {
       const ext = extensions[file.mimetype];
       if (!ext) throw new AppError('Unsupported file type.', 400, 'UNSUPPORTED_MEDIA');
       const name = `inspiration-${randomUUID()}${ext}`;
+      mediaName = name;
       const localFile = path.join(directory, name);
       await fs.writeFile(localFile, file.buffer);
       const type = file.mimetype.startsWith('video/') ? 'video' : 'image';
@@ -130,29 +138,67 @@ router.post('/admin/upload', (req, res, next) => {
         if (!width || !height) throw new Error('No visual stream');
       } catch { throw new AppError(`Could not read ${file.originalname}. Use a supported image or video.`, 400, 'INVALID_MEDIA'); }
       {
-        const posterName = `inspiration-${randomUUID()}.jpg`;
+        posterName = `inspiration-${randomUUID()}.jpg`;
         const posterPath = path.join(directory, posterName);
         try {
-          await run('ffmpeg', ['-y', '-i', localFile, '-frames:v', '1', '-vf', 'scale=min(960\,iw):-2', '-q:v', '4', posterPath], { timeout: 30_000 });
+          await run('ffmpeg', ['-y', '-hide_banner', '-loglevel', 'error', '-i', localFile,
+            '-frames:v', '1', '-vf', 'scale=960:960:force_original_aspect_ratio=decrease',
+            '-q:v', '4', posterPath], { timeout: 45_000, maxBuffer: 4 * 1024 * 1024 });
           const poster = await fs.readFile(posterPath);
-          await uploadBufferToR2('marketing', posterName, poster);
+          if (!poster.length) throw new Error('Empty preview');
+          try {
+            if (await uploadBufferToR2('marketing', posterName, poster)) stored.push(posterName);
+          } catch (error) {
+            logger.error({ err: error }, '[inspiration] preview storage failed');
+            throw new AppError('Media storage is unavailable. Try this file again.', 503, 'MEDIA_STORAGE_FAILED');
+          }
           thumbnailUrl = `/api/assets/marketing/${posterName}`;
-        } catch { throw new AppError(`Could not prepare a thumbnail for ${file.originalname}.`, 400, 'INVALID_MEDIA'); }
+        } catch (error) {
+          if (error instanceof AppError) throw error;
+          logger.warn({ err: error, mediaType: type }, '[inspiration] thumbnail generation failed');
+          throw new AppError(`Could not prepare a preview for ${original}.`, 400, 'THUMBNAIL_FAILED');
+        }
       }
-      await uploadBufferToR2('marketing', name, file.buffer);
+      try {
+        if (await uploadBufferToR2('marketing', name, file.buffer)) stored.push(name);
+      } catch (error) {
+        logger.error({ err: error }, '[inspiration] media storage failed');
+        throw new AppError('Media storage is unavailable. Try this file again.', 503, 'MEDIA_STORAGE_FAILED');
+      }
       const saved = await query<{ id: string }>(`INSERT INTO inspiration_media
         (media_type,media_url,thumbnail_url,width,height,duration_seconds,sha256,admin_title,uploaded_by,sort_order)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,(SELECT COALESCE(MAX(sort_order),-1)+1 FROM inspiration_media)) ON CONFLICT(sha256) DO UPDATE SET sha256=EXCLUDED.sha256 RETURNING id`,
-        [type, `/api/assets/marketing/${name}`, thumbnailUrl, width, height, duration, hash, file.originalname.slice(0, 120), req.user!.id]);
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,(SELECT COALESCE(MAX(sort_order),-1)+1 FROM inspiration_media)) ON CONFLICT(sha256) DO NOTHING RETURNING id`,
+        [type, `/api/assets/marketing/${name}`, thumbnailUrl, width, height, duration, hash, original, req.user!.id]);
+      if (!saved.rows[0]) {
+        const duplicate = await query<{ id: string }>('SELECT id FROM inspiration_media WHERE sha256=$1', [hash]);
+        if (!duplicate.rows[0]) throw new Error('Duplicate media lookup failed');
+        items.push({ id: duplicate.rows[0].id, duplicate: true });
+        await Promise.allSettled([
+          ...[mediaName, posterName].filter((value): value is string => Boolean(value))
+            .map((value) => fs.rm(path.join(directory, value), { force: true })),
+          ...stored.map((value) => deleteR2Object('marketing', value)),
+        ]);
+        continue;
+      }
       items.push({ id: saved.rows[0].id, duplicate: false });
+      } catch (error) {
+        failures.push({ name: original, error: error instanceof AppError ? error.message : 'Upload failed. Try again.' });
+        if (!(error instanceof AppError)) logger.error({ err: error }, '[inspiration] media upload failed');
+        await Promise.allSettled([
+          ...[mediaName, posterName].filter((value): value is string => Boolean(value))
+            .map((value) => fs.rm(path.join(directory, value), { force: true })),
+          ...stored.map((value) => deleteR2Object('marketing', value)),
+        ]);
+      }
     }
-    res.status(201).json({ items });
+    res.status(failures.length ? 207 : 201).json({ items, failures });
   } catch (error) { sendError(res, error); }
 });
 
 const bulkBody = z.object({
   ids: z.array(uuid).min(1).max(300),
   features: z.array(feature).max(INSPIRATION_FEATURES.length).optional(),
+  featuresMode: z.enum(['add', 'replace']).optional().default('add'),
   status: z.enum(['draft', 'published', 'hidden']).optional(),
   featured: z.boolean().optional(),
   sortOrder: z.number().int().min(0).max(100_000).optional(),
@@ -174,9 +220,10 @@ router.patch('/admin/bulk', async (req, res) => {
       await client.query('DELETE FROM inspiration_media WHERE id=ANY($1::uuid[])', [ids]);
     } else {
       if (body.features) {
-        await client.query('DELETE FROM inspiration_features WHERE media_id=ANY($1::uuid[])', [ids]);
+        if (body.featuresMode === 'replace')
+          await client.query('DELETE FROM inspiration_features WHERE media_id=ANY($1::uuid[])', [ids]);
         for (const id of ids) for (const assigned of body.features) {
-          await client.query('INSERT INTO inspiration_features(media_id,feature_id) VALUES ($1,$2)', [id, assigned]);
+          await client.query('INSERT INTO inspiration_features(media_id,feature_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [id, assigned]);
         }
       }
       if (body.status === 'published' || body.features) {

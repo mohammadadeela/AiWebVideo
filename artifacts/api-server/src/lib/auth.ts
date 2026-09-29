@@ -76,10 +76,10 @@ function verifyLocalJwt(token: string): { sub: string; type?: string; sv?: numbe
 }
 
 function requestToken(req: Request): string | null {
-  const header = req.headers.authorization;
-  if (header?.startsWith('Bearer ')) return header.slice(7);
   const cookieToken = (req.cookies as Record<string, unknown> | undefined)?.[SESSION_COOKIE_NAME];
-  return typeof cookieToken === 'string' && cookieToken ? cookieToken : null;
+  if (typeof cookieToken === 'string' && cookieToken) return cookieToken;
+  const header = req.headers.authorization;
+  return header?.startsWith('Bearer ') ? header.slice(7) : null;
 }
 
 function authUserFromRow(row: import('./queries.js').UserRow, configuredAdmin?: string): AuthUser {

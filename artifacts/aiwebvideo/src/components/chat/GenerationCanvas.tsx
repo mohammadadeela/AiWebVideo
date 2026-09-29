@@ -364,13 +364,7 @@ export function GenerationCanvas({
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_-10%,rgba(139,92,246,.14),transparent_34%),radial-gradient(circle_at_100%_100%,rgba(52,217,196,.05),transparent_28%)]" />
         <div className="relative p-3.5 sm:p-4">
           <div className="flex items-start gap-3">
-            {brandMarkUrl && productionKind === "website-video" ? (
-              <SiteIcon url={brandMarkUrl} size={36} />
-            ) : (
-              <span className={"flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border " + copy.accentBorder + " " + copy.accentBg + " " + copy.accentText} aria-hidden="true">
-                <Icon size={15} className={!settled ? "animate-pulse-soft" : ""} />
-              </span>
-            )}
+            <img src="/logo.svg" alt="AiWebVideo" width={36} height={36} className="h-9 w-9 shrink-0 rounded-xl object-contain" />
 
             <div className="min-w-0 flex-1">
               <div className="flex min-h-6 items-center gap-2">

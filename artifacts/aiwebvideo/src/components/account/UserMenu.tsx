@@ -12,6 +12,7 @@ export function formatCredits(value: number | undefined) {
 
 export function UserMenu({ email, plan, creditsBalance, isAdmin = false, sidebar = false }: { email: string; plan: string; creditsBalance: number; isAdmin?: boolean; sidebar?: boolean }) {
   const [open, setOpen] = useState(false);
+  const [signOutError, setSignOutError] = useState('');
   const [location, navigate] = useLocation();
   const [offer, setOffer] = useState<WelcomeGrowthOffer | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -48,9 +49,14 @@ export function UserMenu({ email, plan, creditsBalance, isAdmin = false, sidebar
     : null;
 
   async function handleSignOut() {
-    await signOut();
-    setOpen(false);
-    navigate('/');
+    setSignOutError('');
+    try {
+      await signOut();
+      setOpen(false);
+      navigate('/');
+    } catch {
+      setSignOutError('Could not sign out. Please try again.');
+    }
   }
 
   return (
@@ -95,6 +101,7 @@ export function UserMenu({ email, plan, creditsBalance, isAdmin = false, sidebar
             {isAdmin && <Link href="/admin" onClick={() => setOpen(false)} className="block rounded-xl px-3 py-2.5 font-semibold text-violet hover:bg-violet/10">Admin control center</Link>}
             <Link href="/pricing" onClick={() => setOpen(false)} className="block rounded-xl px-3 py-2.5 text-text-muted hover:bg-white/5 hover:text-text-primary">Plans & credits</Link>
             <button type="button" onClick={handleSignOut} className="w-full rounded-xl px-3 py-2.5 text-left text-text-muted hover:bg-white/5 hover:text-text-primary">Sign out</button>
+            {signOutError && <p role="alert" className="px-3 py-2 text-xs text-pink">{signOutError}</p>}
           </div>
         </div>
       )}
