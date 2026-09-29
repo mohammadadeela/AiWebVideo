@@ -24,6 +24,7 @@ import {
   X,
 } from "lucide-react";
 import { normalizeWebsiteUrl } from "@/lib/websiteUrl";
+import { CreatorPopover } from "./CreatorPopover";
 import { displayCredits, estimateRenderCredits } from "@/lib/credits";
 import { defaultModelFor, modelsFor, publicModel, type PublicModelId } from "@/lib/generationModels";
 import {
@@ -115,7 +116,7 @@ const ACCEPTED_IMAGES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const MIN_CREATOR_DURATION_SECONDS = 8;
 const MAX_CREATOR_DURATION_SECONDS = 60;
-const DURATION_PRESETS = [8, 16, 24, 32, 40, 48, 56, 60] as const;
+const DURATION_PRESETS = [8, 16, 24, 32, 48, 60] as const;
 const NARRATION_LANGUAGES = [
   ["en", "English"],
   ["ar", "Arabic"],
@@ -170,7 +171,7 @@ function optionClass(active: boolean) {
 }
 
 function controlClass(active: boolean) {
-  return `creator-secondary-button inline-flex min-h-10 items-center gap-2 rounded-xl border px-3 text-[10px] font-semibold transition sm:text-[11px] ${
+  return `creator-secondary-button inline-flex h-9 min-h-9 items-center gap-1.5 rounded-xl border px-2.5 text-xs font-semibold transition sm:h-9 sm:min-h-9 ${
     active
       ? "border-violet/45 bg-violet/[.12] text-white shadow-[0_12px_30px_-24px_rgba(139,92,246,.95)]"
       : "border-white/[.10] bg-white/[.035] text-text-muted hover:border-violet/30 hover:bg-violet/[.07] hover:text-white"
@@ -203,11 +204,13 @@ function CompactDropdown({
   ariaLabel: string;
   align?: "left" | "right";
 }) {
+  const anchor = useRef<HTMLButtonElement>(null);
   const selected = options.find((option) => option.value === value) ?? options[0];
 
   return (
     <div className="relative">
       <button
+        ref={anchor}
         type="button"
         onClick={onToggle}
         aria-expanded={open}
@@ -223,13 +226,7 @@ function CompactDropdown({
       </button>
 
       {open && (
-        <div
-          role="listbox"
-          aria-label={ariaLabel}
-          className={`absolute bottom-[calc(100%+8px)] z-[90] min-w-[190px] overflow-hidden rounded-2xl border border-white/[.11] bg-[#100c20]/[.99] p-1.5 shadow-[0_26px_70px_-28px_rgba(0,0,0,.98)] backdrop-blur-2xl ${
-            align === "right" ? "right-0" : "left-0"
-          }`}
-        >
+        <CreatorPopover anchor={anchor} onClose={onToggle} label={ariaLabel} width={230}>
           {options.map((option) => {
             const active = option.value === value;
             return (
@@ -260,7 +257,7 @@ function CompactDropdown({
               </button>
             );
           })}
-        </div>
+        </CreatorPopover>
       )}
     </div>
   );
@@ -353,7 +350,7 @@ export function WebsiteBriefForm({
   const [setback, setSetback] = useState('');
   const [estimatedScale, setEstimatedScale] = useState(false);
   const [compactPanel, setCompactPanel] = useState<"style" | "ideas" | "model" | null>(null);
-  const [openSettingMenu, setOpenSettingMenu] = useState<"duration" | "aspect" | "quality" | "audio" | "language" | null>(null);
+  const [openSettingMenu, setOpenSettingMenu] = useState<"duration" | "aspect" | "quality" | "audio" | "language" | "output" | null>(null);
   const [customDurationInput, setCustomDurationInput] = useState(String(DEFAULT_SETTINGS.durationSeconds));
   const [usingCustomDuration, setUsingCustomDuration] = useState(false);
   const [settings, setSettings] = useState<WebsiteGenerationSettings>(DEFAULT_SETTINGS);
@@ -366,6 +363,11 @@ export function WebsiteBriefForm({
   const dragDepthRef = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const composerRootRef = useRef<HTMLDivElement>(null);
+  const modelAnchor = useRef<HTMLButtonElement>(null);
+  const durationAnchor = useRef<HTMLButtonElement>(null);
+  const outputAnchor = useRef<HTMLButtonElement>(null);
+  const styleAnchor = useRef<HTMLButtonElement>(null);
+  const ideasAnchor = useRef<HTMLButtonElement>(null);
   const websiteBriefRef = useRef<HTMLTextAreaElement>(null);
   const studioPromptRef = useRef<HTMLTextAreaElement>(null);
 
@@ -545,12 +547,15 @@ export function WebsiteBriefForm({
     if (!openSettingMenu && compactPanel !== "model") return;
     const closeFloatingMenus = (event: PointerEvent) => {
       const root = composerRootRef.current;
-      if (!root || !(event.target instanceof Node) || root.contains(event.target)) return;
+      if (!root || !(event.target instanceof Node) || root.contains(event.target)
+        || document.querySelector('[data-creator-popover]')?.contains(event.target)) return;
       setOpenSettingMenu(null);
       setCompactPanel((current) => current === "model" ? null : current);
     };
     document.addEventListener("pointerdown", closeFloatingMenus);
-    return () => document.removeEventListener("pointerdown", closeFloatingMenus);
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') { setOpenSettingMenu(null); setCompactPanel(null); } };
+    document.addEventListener('keydown',closeOnEscape);
+    return () => { document.removeEventListener("pointerdown", closeFloatingMenus); document.removeEventListener('keydown',closeOnEscape); };
   }, [compactPanel, openSettingMenu]);
 
   function submit() {
@@ -853,53 +858,25 @@ export function WebsiteBriefForm({
           </label>
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          {activeMode === "website" && (
-            <button
-              type="button"
-              onClick={() => {
-                setOpenSettingMenu(null);
-                setCompactPanel((current) => current === "style" ? null : "style");
-              }}
-              aria-expanded={compactPanel === "style"}
-              className={controlClass(compactPanel === "style")}
-            >
-              <Film size={13} className="text-mint" />
-              Style: {selectedWebsiteRecipe ? WEBSITE_RECIPES.find((recipe) => recipe.mode === selectedWebsiteRecipe)?.label : "Auto"}
-              <ChevronDown size={12} className={`transition-transform ${compactPanel === "style" ? "rotate-180" : ""}`} />
-            </button>
-          )}
-
-          <button
-            type="button"
-            onClick={() => {
-              setOpenSettingMenu(null);
-              toggleIdeas();
-            }}
-            aria-expanded={compactPanel === "ideas"}
-            className={controlClass(compactPanel === "ideas")}
-          >
-            <Sparkles size={13} className="text-violet" />
-            Ideas
-            {selectedIdea && <span className="rounded-full bg-mint/10 px-1.5 py-0.5 text-[8px] text-mint">Added</span>}
-            <ChevronDown size={12} className={`transition-transform ${compactPanel === "ideas" ? "rotate-180" : ""}`} />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setOpenSettingMenu(null);
-              inputRef.current?.click();
-            }}
-            disabled={disabled || files.length >= 10}
-            className={controlClass(false)}
-          >
-            <Paperclip size={13} className="text-mint" />
-            {files.length ? `References ${files.length}` : isProductMode ? "Add product" : isInteriorMode ? "Add site & building references" : "References"}
-          </button>
-
+        <div className="mt-1 flex items-center gap-1.5">
+          <button type="button" onClick={() => inputRef.current?.click()} disabled={disabled || files.length >= 10}
+            aria-label={isProductMode ? "Add product" : "Add reference"} title={isProductMode ? "Add product" : "Add reference"}
+            className="creator-icon-button grid h-9 w-9 place-items-center rounded-lg text-text-muted hover:bg-white/5 hover:text-white"><Paperclip size={16} /></button>
+          {files.length > 0 && <span className="text-xs text-mint">{files.length}</span>}
+          <button type="button" ref={ideasAnchor} onClick={() => { setOpenSettingMenu(null); toggleIdeas(); }}
+            aria-expanded={compactPanel === "ideas"} aria-label="Ideas" title="Ideas"
+            className="creator-icon-button grid h-9 w-9 place-items-center rounded-lg text-text-muted hover:bg-white/5 hover:text-white"><Sparkles size={16} /></button>
+          {activeMode === "website" && <button type="button" ref={styleAnchor}
+            onClick={() => { setOpenSettingMenu(null); setCompactPanel((current) => current === "style" ? null : "style"); }}
+            aria-expanded={compactPanel === "style"} aria-label="Style" title="Style"
+            className="creator-icon-button inline-flex h-9 items-center gap-1 rounded-lg px-2 text-text-muted hover:bg-white/5 hover:text-white">
+            <Film size={16} />{selectedWebsiteRecipe && <span className="text-xs">{WEBSITE_RECIPES.find((recipe) => recipe.mode === selectedWebsiteRecipe)?.label}</span>}
+          </button>}
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
           <div className="relative">
             <button
+              ref={modelAnchor}
               type="button"
               onClick={() => {
                 setOpenSettingMenu(null);
@@ -917,15 +894,10 @@ export function WebsiteBriefForm({
             </button>
 
             {compactPanel === "model" && (
-              <div
-                role="listbox"
-                aria-label="Generation model"
-                className="absolute bottom-[calc(100%+8px)] left-0 z-[95] w-[min(390px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-white/[.11] bg-[#100c20]/[.99] p-1.5 shadow-[0_28px_80px_-30px_rgba(0,0,0,.98)] backdrop-blur-2xl"
-              >
+              <CreatorPopover anchor={modelAnchor} onClose={() => setCompactPanel(null)} label="Generation model" width={312}>
                 <div className="flex items-center justify-between gap-3 px-2.5 pb-1.5 pt-1">
                   <div>
                     <p className="text-[10px] font-semibold text-white">Choose model</p>
-                    <p className="mt-0.5 text-[8px] text-white/35">Only compatible options are shown.</p>
                   </div>
                   <button
                     type="button"
@@ -968,7 +940,6 @@ export function WebsiteBriefForm({
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center gap-2">
                           <span className="truncate text-[11px] font-semibold text-white">{model.name}</span>
-                          {model.recommended && <span className="rounded-md bg-mint/10 px-1.5 py-0.5 text-[7px] font-bold text-mint">BEST</span>}
                         </span>
                         <span className="mt-1 flex flex-wrap items-center gap-1 text-[8px] text-white/42">
                           <span>{model.speed}</span>
@@ -987,13 +958,14 @@ export function WebsiteBriefForm({
                     </button>
                   );
                 })}
-              </div>
+              </CreatorPopover>
             )}
           </div>
 
           {selectedModel.supportsDuration && (
             <div className="relative">
               <button
+                ref={durationAnchor}
                 type="button"
                 onClick={() => {
                   setCompactPanel(null);
@@ -1011,15 +983,10 @@ export function WebsiteBriefForm({
               </button>
 
               {openSettingMenu === "duration" && (
-                <div
-                  role="dialog"
-                  aria-label="Video duration"
-                  className="absolute bottom-[calc(100%+8px)] left-0 z-[96] w-[min(310px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-white/[.11] bg-[#100c20]/[.99] p-3 shadow-[0_28px_80px_-30px_rgba(0,0,0,.98)] backdrop-blur-2xl"
-                >
+                <CreatorPopover anchor={durationAnchor} onClose={() => setOpenSettingMenu(null)} label="Video duration" width={280}>
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-[11px] font-semibold text-white">Video duration</p>
-                      <p className="mt-0.5 text-[8px] text-white/38">Choose a quick preset or enter any whole second from 8 to 60.</p>
                     </div>
                     <button
                       type="button"
@@ -1031,7 +998,7 @@ export function WebsiteBriefForm({
                     </button>
                   </div>
 
-                  <div className="mt-3 grid grid-cols-4 gap-1.5">
+                  <div className="mt-2 grid grid-cols-3 gap-1">
                     {DURATION_PRESETS.map((seconds) => {
                       const active = !usingCustomDuration && durationSeconds === seconds;
                       return (
@@ -1039,14 +1006,13 @@ export function WebsiteBriefForm({
                           key={seconds}
                           type="button"
                           onClick={() => applyDurationPreset(seconds)}
-                          className={`flex min-h-11 flex-col items-center justify-center rounded-xl border px-2 py-2 transition ${
+                          className={`flex min-h-10 items-center justify-center rounded-lg border px-2 py-1 transition ${
                             active
                               ? "border-mint/35 bg-mint/[.10] text-mint"
                               : "border-white/[.08] bg-white/[.035] text-white/70 hover:border-violet/30 hover:bg-white/[.055] hover:text-white"
                           }`}
                         >
-                          <Clock size={12} className={active ? "text-mint" : "text-white/40"} />
-                          <span className="mt-1 text-[10px] font-semibold">{seconds}s</span>
+                          <span className="text-xs font-semibold">{seconds}s</span>
                         </button>
                       );
                     })}
@@ -1104,84 +1070,38 @@ export function WebsiteBriefForm({
                         Use
                       </button>
                     </div>
-                    <p className="mt-2 text-[8px] leading-3.5 text-white/32">Your value is saved only after you finish typing, so clearing or replacing the number no longer jumps back to 8 while you type.</p>
                   </div>
-                </div>
+                </CreatorPopover>
               )}
             </div>
           )}
 
-          <CompactDropdown
-            value={settings.aspectRatio}
-            options={[
-              { value: "9:16", label: "9:16", helper: "Portrait", icon: <span className="h-4 w-2.5 rounded-[3px] border border-current/80" /> },
-              { value: "16:9", label: "16:9", helper: "Landscape", icon: <span className="h-2.5 w-4 rounded-[3px] border border-current/80" /> },
-              { value: "1:1", label: "1:1", helper: "Square", icon: <span className="h-3.5 w-3.5 rounded-[3px] border border-current/80" /> },
-            ]}
-            open={openSettingMenu === "aspect"}
-            onToggle={() => {
-              setCompactPanel(null);
-              setOpenSettingMenu((current) => current === "aspect" ? null : "aspect");
-            }}
-            onChange={(value) => {
-              setSettings((current) => ({ ...current, aspectRatio: value as "16:9" | "9:16" | "1:1" }));
-              setOpenSettingMenu(null);
-            }}
-            icon={<Maximize2 size={12} />}
-            ariaLabel="Aspect ratio"
-          />
-
-          {selectedModel.supportedQualities.length > 1 ? (
-            <CompactDropdown
-              value={settings.outputQuality}
-              options={selectedModel.supportedQualities.map((quality) => ({
-                value: quality,
-                label: quality === "4k" ? "4K" : "1080p",
-                helper: quality === "4k" ? "Maximum detail" : "Standard HD",
-                icon: quality === "4k" ? <Sparkles size={13} /> : <Monitor size={13} />,
-              }))}
-              open={openSettingMenu === "quality"}
-              onToggle={() => {
-                setCompactPanel(null);
-                setOpenSettingMenu((current) => current === "quality" ? null : "quality");
-              }}
-              onChange={(value) => {
-                setSettings((current) => ({ ...current, outputQuality: value as "1080p" | "4k" }));
-                setOpenSettingMenu(null);
-              }}
-              icon={<Monitor size={12} />}
-              ariaLabel="Quality"
-            />
-          ) : (
-            <span className="creator-secondary-button inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.025] px-3 text-[10px] font-semibold text-white/55 sm:text-[11px]">
-              <span className="grid h-5 w-5 place-items-center rounded-md bg-white/[.04] text-mint"><Monitor size={12} /></span>
-              {selectedModel.quality}
-            </span>
-          )}
-
-          {selectedModel.audioModes.length > 0 && (
-            <CompactDropdown
-              value={settings.audioMode}
-              options={[
-                ...(selectedModel.audioModes.includes("native_audio") ? [{ value: "native_audio", label: "Sound", helper: "Native scene audio", icon: <Volume2 size={13} /> }] : []),
-                ...(selectedModel.audioModes.includes("voice_music") ? [{ value: "voice_music", label: "Narration", helper: "Voice + soundtrack", icon: <Mic size={13} /> }] : []),
-                ...(selectedModel.audioModes.includes("music_only") ? [{ value: "music_only", label: "Music", helper: "Soundtrack only", icon: <Music size={13} /> }] : []),
-                ...(selectedModel.audioModes.includes("silent") ? [{ value: "silent", label: "Silent", helper: "No audio", icon: <VolumeX size={13} /> }] : []),
-              ]}
-              open={openSettingMenu === "audio"}
-              onToggle={() => {
-                setCompactPanel(null);
-                setOpenSettingMenu((current) => current === "audio" ? null : "audio");
-              }}
-              onChange={(value) => {
-                setSettings((current) => ({ ...current, audioMode: value as AudioMode }));
-                setOpenSettingMenu(null);
-              }}
-              icon={<Volume2 size={12} />}
-              ariaLabel="Audio"
-              align="right"
-            />
-          )}
+          <button ref={outputAnchor} type="button" className={controlClass(openSettingMenu === "output")}
+            aria-expanded={openSettingMenu === "output"} aria-label="Output settings"
+            onClick={() => { setCompactPanel(null); setOpenSettingMenu((current) => current === "output" ? null : "output"); }}>
+            <Maximize2 size={14} /> {settings.aspectRatio} · {settings.outputQuality === "4k" ? "4K" : "1080p"}
+            {selectedModel.audioModes.length > 0 && ` · ${settings.audioMode === "silent" ? "Silent" : "Sound"}`} <ChevronDown size={12} />
+          </button>
+          {openSettingMenu === "output" && <CreatorPopover anchor={outputAnchor} onClose={() => setOpenSettingMenu(null)} label="Output settings" width={300}>
+            <div className="space-y-3 p-1">
+              <fieldset><legend className="mb-1 text-xs font-semibold text-white">Format</legend><div className="grid grid-cols-3 gap-1">
+                {([['9:16','Portrait'],['16:9','Wide'],['1:1','Square']] as const).map(([value,label]) =>
+                  <button key={value} type="button" onClick={() => setSettings((current) => ({ ...current, aspectRatio:value }))}
+                    aria-pressed={settings.aspectRatio === value} className={optionClass(settings.aspectRatio === value)}>{value}<span className="sr-only">{label}</span></button>)}
+              </div></fieldset>
+              {selectedModel.supportedQualities.length > 1 && <fieldset><legend className="mb-1 text-xs font-semibold text-white">Quality</legend><div className="flex gap-1">
+                {selectedModel.supportedQualities.map((value) => <button key={value} type="button"
+                  onClick={() => setSettings((current) => ({ ...current, outputQuality:value }))}
+                  aria-pressed={settings.outputQuality === value} className={optionClass(settings.outputQuality === value)}>{value === '4k' ? '4K' : '1080p'}</button>)}
+              </div></fieldset>}
+              {selectedModel.audioModes.length > 1 && <fieldset><legend className="mb-1 text-xs font-semibold text-white">Audio</legend><div className="flex flex-wrap gap-1">
+                {selectedModel.audioModes.map((value) => <button key={value} type="button"
+                  onClick={() => setSettings((current) => ({ ...current, audioMode:value }))}
+                  aria-pressed={settings.audioMode === value} className={optionClass(settings.audioMode === value)}>
+                    {value === 'native_audio' ? 'Sound' : value === 'voice_music' ? 'Narration' : value === 'music_only' ? 'Music' : 'Silent'}</button>)}
+              </div></fieldset>}
+            </div>
+          </CreatorPopover>}
         </div>
 
         {selectedModel.audioModes.includes("voice_music") && settings.audioMode === "voice_music" && (
@@ -1206,8 +1126,8 @@ export function WebsiteBriefForm({
         )}
 
         {compactPanel === "style" && activeMode === "website" && (
-          <div className="mt-2 rounded-2xl border border-mint/15 bg-mint/[.035] p-2.5">
-            <div className="chat-scroll flex gap-1.5 overflow-x-auto pb-0.5">
+          <CreatorPopover anchor={styleAnchor} onClose={() => setCompactPanel(null)} label="Style" width={260}>
+            <div className="grid grid-cols-2 gap-1">
               <button
                 type="button"
                 onClick={() => {
@@ -1235,23 +1155,22 @@ export function WebsiteBriefForm({
                 </button>
               ))}
             </div>
-          </div>
+          </CreatorPopover>
         )}
 
         {compactPanel === "ideas" && (
-          <div className="mt-2 rounded-2xl border border-violet/15 bg-violet/[.035] p-2.5 sm:p-3">
+          <CreatorPopover anchor={ideasAnchor} onClose={() => setCompactPanel(null)} label="Ideas" width={310}>
             <div className="mb-2 flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[10px] font-semibold text-white">Pick a creative direction</p>
                 <p className="mt-0.5 text-[8px] text-text-dim">It only fills your prompt. You can change anything before generating.</p>
               </div>
               <div className="flex shrink-0 items-center gap-1.5">
-                <span className="rounded-full border border-mint/15 bg-mint/[.06] px-2 py-1 text-[7px] font-semibold text-mint">FREE</span>
                 <button type="button" onClick={() => setCompactPanel(null)} aria-label="Close ideas" className="grid h-7 w-7 place-items-center rounded-lg text-text-dim hover:bg-white/5 hover:text-white"><X size={12} /></button>
               </div>
             </div>
             <MasterIdeas ideas={masterIdeas} context={ideaContext} selectedId={selectedIdea?.id ?? null} onSelect={applyMasterIdea} />
-          </div>
+          </CreatorPopover>
         )}
 
         {previews.length > 0 && (

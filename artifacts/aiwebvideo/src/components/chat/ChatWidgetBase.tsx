@@ -358,6 +358,7 @@ export function ChatWidget({
   const [isAdmin, setIsAdmin] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [paywallRequiredCredits, setPaywallRequiredCredits] = useState<number | null>(null);
   const [paywallContext, setPaywallContext] = useState<string | undefined>();
   const [creditBalance, setCreditBalance] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -963,7 +964,8 @@ export function ChatWidget({
 
     if (job.status === "cancelled") {
       capturedRef.current = true;
-      pushBot("Stopped — no credits were spent on this capture.");
+      window.dispatchEvent(new Event('aiwebvideo:balance-changed'));
+      pushBot("Stopped — your website allowance was restored.");
       setCancelling(false);
       setStage("failed");
       return;
@@ -971,6 +973,7 @@ export function ChatWidget({
 
     if (job.status === "failed") {
       capturedRef.current = true;
+      window.dispatchEvent(new Event('aiwebvideo:balance-changed'));
       pushBot(job.errorMessage || "We couldn't load that site. Check the URL and try again.");
       setStage("failed");
       return;
@@ -1009,6 +1012,7 @@ export function ChatWidget({
     // Lock this transition before starting async work so polling cannot launch
     // the storyboard twice on the next 1.8s tick.
     capturedRef.current = true;
+    window.dispatchEvent(new Event('aiwebvideo:balance-changed'));
     setActiveCaptureMetadata(metadata);
     pushBot(<SiteCard sourceUrl={job.sourceUrl} metadata={metadata} />);
 
@@ -1161,6 +1165,7 @@ export function ChatWidget({
     if (stage !== "rendering" || !job || job.id !== jobId || renderedRef.current) return;
     if (job.status === "done") {
       renderedRef.current = true;
+      window.dispatchEvent(new Event('aiwebvideo:balance-changed'));
       void fetchMe()
         .then((account) => setCreditBalance(account.creditsBalance))
         .catch(() => {});
@@ -1168,6 +1173,7 @@ export function ChatWidget({
       setStage("done");
     } else if (job.status === "cancelled") {
       renderedRef.current = true;
+      window.dispatchEvent(new Event('aiwebvideo:balance-changed'));
       void fetchMe()
         .then((account) => setCreditBalance(account.creditsBalance))
         .catch(() => {});
@@ -1176,6 +1182,7 @@ export function ChatWidget({
       setStage("failed");
     } else if (job.status === "failed") {
       renderedRef.current = true;
+      window.dispatchEvent(new Event('aiwebvideo:balance-changed'));
       void fetchMe()
         .then((account) => setCreditBalance(account.creditsBalance))
         .catch(() => {});
@@ -1224,8 +1231,7 @@ export function ChatWidget({
     referenceFiles: File[],
   ) {
     clearPublicCreatorHandoff();
-    // Free public marketing preview: read the real site first, show its favicon
-    // and useful screenshots, then stop before AI direction/rendering.
+    // Retain the legacy saved-preview handoff for previously created sessions.
     setManualRenderAfterPlan(true);
     websiteRequestRef.current = {
       brief,
@@ -1413,9 +1419,8 @@ export function ChatWidget({
         void redirectSignedInWebsiteSetupToWorkspace(url, brief, settings, referenceFiles);
         return;
       }
-      // The landing page deliberately proves the product before asking for an
-      // account: capture the website now, then stop at preview_ready.
-      void performLandingWebsitePreview(url, brief, settings, referenceFiles);
+      pendingActionRef.current = () => redirectSignedInWebsiteSetupToWorkspace(url, brief, settings, referenceFiles);
+      setShowAuthModal(true);
       return;
     }
     if (!isSignedIn) {
@@ -1492,7 +1497,7 @@ Promotion direction: ${brief}` : normalized);
       } catch {}
       pushBot(
         isPublicCreatorPath() && !isSignedIn
-          ? `I’m opening ${hostname} now. You’ll see the real favicon and the strongest distinct pages before I ask you to create an account.`
+          ? `I’m opening ${hostname} now and selecting the strongest distinct pages.`
           : `I’m opening ${hostname} now. I’ll keep only the strongest distinct pages, learn the visual identity and prepare the promotion automatically.`,
       );
       if (isSignedIn && (window.location.pathname === "/" || window.location.pathname.startsWith("/studio"))) {
@@ -1526,6 +1531,7 @@ Promotion direction: ${brief}` : normalized);
       );
       setCreditBalance(quote.balance);
       if (!quote.affordable) {
+        setPaywallRequiredCredits(quote.totalCredits);
         const needed = quote.shortfall;
         setPaywallContext(`Add ${needed} more credit${needed === 1 ? "" : "s"} before AI production starts`);
         setShowPaywall(true);
@@ -2060,6 +2066,7 @@ Promotion direction: ${brief}` : normalized);
       const quote = await requestRenderQuote(jobId, audioMode);
       setCreditBalance(quote.balance);
       if (!quote.affordable) {
+        setPaywallRequiredCredits(quote.totalCredits);
         const context = `You need ${quote.shortfall} more credit${quote.shortfall === 1 ? "" : "s"} for this ${durationLabel(quote.generatedSeconds)} production`;
         setPaywallContext(context);
         pushBot(
@@ -2654,7 +2661,7 @@ Promotion direction: ${brief}` : normalized);
                     We captured {websiteBrandName(job?.sourceUrl, projectCaptureMetadata?.title)} and saved the useful context.
                   </p>
                   <p className="mt-1 text-[11px] leading-5 text-text-muted">
-                    These are your real website pages, favicon and brand signals. The free preview proves the source is connected before you decide whether to pay for AI production.
+                    Your website pages and brand signals are saved for the next step.
                   </p>
                   <div className="mt-3 rounded-xl border border-white/10 bg-black/15 p-3">
                     <div className="mb-2 flex items-center gap-2">
@@ -2685,7 +2692,6 @@ Promotion direction: ${brief}` : normalized);
                       <p className="font-utility text-[9px] font-semibold uppercase tracking-[.16em] text-violet">Your campaign setup</p>
                       <p className="mt-1 text-xs font-semibold text-white">Everything needed to continue is saved.</p>
                     </div>
-                    <span className="rounded-full border border-white/10 bg-black/20 px-2 py-1 text-[9px] font-semibold text-mint">Free preview</span>
                   </div>
                   {projectCaptureMetadata?.brandProfile && (
                     <div className="mt-3 rounded-xl border border-white/[.06] bg-black/15 px-3 py-2.5">
@@ -2736,7 +2742,7 @@ Promotion direction: ${brief}` : normalized);
                   {!isPublicCreatorPath() && isSignedIn ? "Continue to AI production" : "Continue with this campaign"}
                 </Button>
                 <p className="text-center text-[10px] text-text-dim">
-                  Website analysis and screenshots are free. No AI generation provider has started and nothing has been charged.
+                  Website read complete. Your saved source is ready for production.
                 </p>
               </div>
             )}
@@ -3160,13 +3166,19 @@ Promotion direction: ${brief}` : normalized);
 
       {showPaywall && (
         <PaywallModal
-          onClose={() => setShowPaywall(false)}
+          feature={projectCaptureMetadata?.studioKind === 'product'
+            ? mode === 'photos' ? 'product-photo' : 'product-video'
+            : projectCaptureMetadata?.studioKind === 'interior' || projectCaptureMetadata?.studioKind === 'architecture'
+              ? 'interior' : projectCaptureMetadata?.studioKind ? 'video' : 'website'}
+          onClose={() => { setShowPaywall(false); setPaywallRequiredCredits(null); }}
           context={paywallContext}
           durationSeconds={job?.storyboard?.targetDurationSeconds || durationSeconds}
           mode={mode}
           outputQuality={job?.storyboard?.outputQuality ?? outputQuality}
           skipVoiceover={skipVoiceover}
+          audioMode={audioMode}
           currentBalance={creditBalance}
+          requiredCredits={paywallRequiredCredits ?? undefined}
           reservedCredits={job?.creditsSpent ?? 0}
           jobId={jobId}
           modelId={modelId}

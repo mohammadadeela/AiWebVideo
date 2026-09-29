@@ -166,17 +166,11 @@ function money(value: number) {
 }
 
 function checkoutTotalUsd(baseAmountUsd: number) {
-  const base = Math.round((Math.max(0, Number(baseAmountUsd) || 0) + Number.EPSILON) * 100) / 100;
-  if (base <= 0) return 0;
-  const minimumGross = (base + 0.35) / (1 - 0.0401);
-  let total = Math.floor(minimumGross) + 0.99;
-  if (total + 0.000001 < minimumGross) total += 1;
-  return Math.round((total + Number.EPSILON) * 100) / 100;
+  return Math.round((Math.max(0, Number(baseAmountUsd) || 0) + Number.EPSILON) * 100) / 100;
 }
 
 function checkoutFeeUsd(baseAmountUsd: number) {
-  const base = Math.round((Math.max(0, Number(baseAmountUsd) || 0) + Number.EPSILON) * 100) / 100;
-  return Math.round((Math.max(0, checkoutTotalUsd(base) - base) + Number.EPSILON) * 100) / 100;
+  return 0; // Fees are included in the server catalog price.
 }
 
 function errorMessage(error: unknown) {
@@ -395,7 +389,13 @@ export function SecureCheckoutModal({
     window.setTimeout(() => {
       if (closingRef.current) return;
       const suffix = jobId ? `&job=${encodeURIComponent(jobId)}` : '';
-      window.location.href = `/dashboard?checkout=success${suffix}`;
+      const intent = !jobId && plan.startsWith('once_')
+        ? plan.startsWith('once_product_photo') ? 'photo'
+          : plan.startsWith('once_product_video') ? 'product-video'
+          : plan.startsWith('once_interior') ? 'interior'
+          : plan.startsWith('once_video') ? 'video' : 'website'
+        : null;
+      window.location.href = `/dashboard?checkout=success${suffix}${intent ? `&create=${intent}` : ''}`;
     }, 1250);
   }
 
@@ -674,7 +674,7 @@ export function SecureCheckoutModal({
             <div className="mx-auto max-w-md rounded-[28px] border border-emerald-300/25 bg-emerald-400/[.08] p-7 text-center shadow-[0_24px_70px_-36px_rgba(16,185,129,.9)]">
               <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-400/15 text-emerald-300"><BadgeCheck size={30} /></span>
               <h3 className="mt-4 font-display text-xl font-black text-white">{recurring ? 'Subscription active' : 'Payment complete'}</h3>
-              <p className="mt-2 text-sm text-text-muted">{success.creditsGranted.toLocaleString()} credits added{recurring ? ' · renews monthly' : ''}</p>
+              <p className="mt-2 text-sm text-text-muted">{credits === 0 ? `${productName} is ready in your account.` : `${success.creditsGranted.toLocaleString()} credits added${recurring ? ' · renews monthly' : ''}`}</p>
               <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1.5 text-xs font-bold text-emerald-200"><Check size={14} /> {money(success.amountUsd)} paid</div>
             </div>
           </div>
@@ -684,7 +684,7 @@ export function SecureCheckoutModal({
               <p className="text-[10px] font-bold uppercase tracking-[.15em] text-text-dim">Order summary</p>
               <div className="mt-4 rounded-2xl border border-white/[.08] bg-black/15 p-4">
                 <p className="text-sm font-semibold text-white">{productName}</p>
-                <div className="mt-3 flex items-center justify-between gap-3 text-xs"><span className="text-text-dim">Credits</span><span className="font-utility font-bold text-white">{credits.toLocaleString()}</span></div>
+                {credits > 0 && <div className="mt-3 flex items-center justify-between gap-3 text-xs"><span className="text-text-dim">Credits</span><span className="font-utility font-bold text-white">{credits.toLocaleString()}</span></div>}
                 <div className="mt-2 flex items-center justify-between gap-3 text-xs"><span className="text-text-dim">Payment</span><span className="font-semibold text-text-muted">{recurring ? 'Monthly' : 'One-time'}</span></div>
               </div>
 
@@ -695,10 +695,6 @@ export function SecureCheckoutModal({
                 <div className="flex items-center justify-between gap-3 text-xs">
                   <span className="text-text-dim">{recurring ? 'Monthly price' : 'Price'}</span>
                   <span className="font-semibold text-white">{money(amountUsd)}</span>
-                </div>
-                <div className="mt-2 flex items-center justify-between gap-3 text-xs">
-                  <span className="text-text-dim">Fees</span>
-                  <span className="font-semibold text-white">{money(checkoutFee)}</span>
                 </div>
                 <div className="my-3 h-px bg-white/[.08]" />
                 <div className="flex items-end justify-between gap-3">

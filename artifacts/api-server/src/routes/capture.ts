@@ -9,7 +9,9 @@ import { ensureLocalAsset } from '../lib/r2-storage.js';
 import { query } from '../lib/pool.js';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { tryAuth } from '../lib/auth.js';
+import { requireAuth } from '../lib/auth.js';
+import { settleGrowthCredits } from './growth.js';
+import { reserveCapture, settleCapture } from '../lib/starter-capture.js';
 import { AppError, sendError } from '../lib/errors.js';
 
 const router = Router();
@@ -63,7 +65,7 @@ async function finalizeCapturedJob(jobId: string, values: Parameters<typeof upda
   throw lastError instanceof Error ? lastError : new Error('Could not finalize capture status');
 }
 
-router.post('/', tryAuth, async (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
   try {
     const operations = await getOperationsSettings();
     if (operations.maintenanceMode && !req.user?.isAdmin) throw new AppError('Productions are temporarily paused for maintenance. Please try again shortly.', 503, 'MAINTENANCE_MODE');
@@ -90,8 +92,13 @@ router.post('/', tryAuth, async (req, res) => {
       throw err;
     }
 
-    const userId = req.user?.id ?? null;
+    const userId = req.user!.id;
+    await settleGrowthCredits(userId);
     const job = await createJob(userId, safeUrl, 'video');
+    if (!await reserveCapture(job.id, userId)) {
+      await query('DELETE FROM jobs WHERE id=$1', [job.id]);
+      throw new AppError('Add credits to read this website.', 402, 'INSUFFICIENT_CREDITS');
+    }
     await addJobMessage(job.id, 'user', safeUrl, 'url');
     await addJobMessage(job.id, 'user', creativeBrief, 'prompt');
     if (setupSummary) await addJobMessage(job.id, 'user', setupSummary, 'setup');
@@ -163,10 +170,12 @@ router.post('/', tryAuth, async (req, res) => {
             recordingUrl: captureMetadata.recordingUrl,
           }
         );
+        await settleCapture(job.id, true);
       } catch (err) {
+        await settleCapture(job.id, false).catch(() => {});
         if ((err as Error).message === 'JOB_CANCELLED') {
           await updateJob(job.id, { status: 'cancelled' as never, progress: 0, status_message: 'Cancelled', eta_seconds: 0 }).catch(() => {});
-          await addJobMessage(job.id, 'assistant', 'Stopped — no credits were spent on this capture.', 'cancelled').catch(() => {});
+          await addJobMessage(job.id, 'assistant', 'Stopped — your website allowance was restored.', 'cancelled').catch(() => {});
           return;
         }
         console.error('[capture] async error:', (err as Error).message);

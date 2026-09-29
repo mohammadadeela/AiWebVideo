@@ -8,11 +8,14 @@ import { grantCreditsOnce } from '../lib/billing.js';
 import { logger } from '../lib/logger.js';
 import { sendCreditPurchaseEmail } from '../lib/mailer.js';
 import { CREDIT_DISPLAY_MULTIPLIER } from '../lib/growth-offers.js';
+import { BILLING_PRODUCTS, creatorIntentForProductId, type BillingProductId } from '../lib/billing-products.js';
 import { normalizePayPalEnvironment } from './paypal.js';
 
 const router = Router();
 
 interface PendingPayment {
+  id: string;
+  product_id: string | null;
   user_id: string;
   amount_usd: string | number;
   currency: string;
@@ -209,7 +212,7 @@ export function validateEmbeddedCompletedOrder(
 
 async function pendingPayment(orderId: string, userId: string) {
   const { rows } = await query<PendingPayment>(
-    `SELECT user_id,amount_usd,currency,credits_granted,plan,status
+    `SELECT id,product_id,user_id,amount_usd,currency,credits_granted,plan,status
        FROM payments
       WHERE provider='paypal' AND provider_ref=$1 AND user_id=$2
       LIMIT 1`,
@@ -235,6 +238,8 @@ async function sendReceiptOnce(orderId: string, payment: PendingPayment) {
           credits: Math.max(0, Math.round(payment.credits_granted)) * CREDIT_DISPLAY_MULTIPLIER,
           amountUsd: Number(payment.amount_usd),
           reference: orderId,
+          purchaseName: payment.product_id && BILLING_PRODUCTS[payment.product_id as BillingProductId]?.scope
+            ? BILLING_PRODUCTS[payment.product_id as BillingProductId].name : undefined,
         })
       : false;
     if (!delivered) {
@@ -288,6 +293,7 @@ async function saveVaultMetadata(userId: string, order: Record<string, unknown>)
 async function finalizeEmbeddedOrder(userId: string, orderId: string) {
   const payment = await pendingPayment(orderId, userId);
   if (!payment) throw new AppError('Payment order not found.', 404, 'PAYMENT_NOT_FOUND');
+  if (payment.status === 'refunded' || payment.status === 'reversed') throw new AppError('This payment was reversed.',409,'PAYMENT_REVERSED');
   if (payment.status === 'paid') {
     return {
       ok: true,
@@ -314,13 +320,18 @@ async function finalizeEmbeddedOrder(userId: string, orderId: string) {
     currency: payment.currency,
   });
 
-  await grantCreditsOnce({
-    key: `paypal:order:${orderId}`,
-    userId,
-    credits: payment.credits_granted,
-    plan: payment.plan,
-    reason: `Completed card purchase ${orderId}`,
-  });
+  const purchased = payment.product_id ? BILLING_PRODUCTS[payment.product_id as BillingProductId] : null;
+  if (purchased?.scope) {
+    const scope = purchased.scope;
+    await query(`INSERT INTO one_time_generation_entitlements
+      (user_id,payment_id,product_id,feature,model_id,duration_seconds,quality,audio_mode,credit_value,remaining_credits)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$9) ON CONFLICT(payment_id) DO NOTHING`,
+      [userId,payment.id,payment.product_id,scope.feature,scope.modelId,scope.durationSeconds ?? null,
+        scope.quality,scope.audioMode,purchased.credits]);
+  } else {
+    await grantCreditsOnce({ key: `paypal:order:${orderId}`, userId,
+      credits: payment.credits_granted, plan: payment.plan, reason: `Completed card purchase ${orderId}` });
+  }
   await query(
     "UPDATE payments SET status='paid',provider_capture_ref=$2 WHERE provider='paypal' AND provider_ref=$1 AND user_id=$3",
     [orderId, verified.captureId, userId],
@@ -376,7 +387,9 @@ router.get('/return/:sessionId', requireAuth, async (req, res) => {
 
     await finalizeEmbeddedOrder(req.user!.id, session.order_id);
     await query('DELETE FROM paypal_card_checkout_sessions WHERE id=$1 AND user_id=$2', [sessionId, req.user!.id]).catch(() => {});
-    res.redirect(`${appUrl()}/dashboard?checkout=success${session.job_id ? `&job=${encodeURIComponent(session.job_id)}` : ''}`);
+    const paid = await pendingPayment(session.order_id,req.user!.id);
+    const intent = !session.job_id ? creatorIntentForProductId(paid?.product_id) : null;
+    res.redirect(`${appUrl()}/dashboard?checkout=success${session.job_id ? `&job=${encodeURIComponent(session.job_id)}` : ''}${intent ? `&create=${intent}` : ''}`);
   } catch (error) {
     logger.warn({ err: error, userId: req.user?.id }, '[paypal-card-settlement] payer-action return failed');
     res.redirect(fail);

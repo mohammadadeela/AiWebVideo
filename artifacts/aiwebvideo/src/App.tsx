@@ -14,7 +14,6 @@ const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then((module) => 
 const contentPages = () => import('@/pages/ContentPages');
 const AboutPage = lazy(() => contentPages().then((module) => ({ default: module.AboutPage })));
 const FaqPage = lazy(() => contentPages().then((module) => ({ default: module.FaqPage })));
-const FeaturesPage = lazy(() => contentPages().then((module) => ({ default: module.FeaturesPage })));
 const HowItWorksPage = lazy(() => contentPages().then((module) => ({ default: module.HowItWorksPage })));
 const PrivacyPage = lazy(() => contentPages().then((module) => ({ default: module.PrivacyPage })));
 const TermsPage = lazy(() => contentPages().then((module) => ({ default: module.TermsPage })));
@@ -94,7 +93,7 @@ function Router() {
       <Route path="/guides/create-ai-video-from-prompt" component={PromptVideoGuidePage} />
       <Route path="/guides/product-photos-and-videos-from-images" component={ProductReferencesGuidePage} />
       <Route path="/guides/interior-design-from-photos-and-plans" component={InteriorDesignGuidePage} />
-      <Route path="/features" component={FeaturesPage} />
+      <Route path="/features"><Redirect to="/how-it-works" /></Route>
       <Route path="/how-it-works" component={HowItWorksPage} />
       <Route path="/about" component={AboutPage} />
       <Route path="/faq" component={FaqPage} />

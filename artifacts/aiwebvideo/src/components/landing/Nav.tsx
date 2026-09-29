@@ -26,6 +26,7 @@ interface Me {
   email: string;
   plan: string;
   creditsBalance: number;
+  starterCreditsBalance: number;
   isAdmin: boolean;
 }
 
@@ -73,6 +74,16 @@ export function Nav() {
   useEffect(() => {
     setPortalReady(true);
   }, []);
+
+  useEffect(() => {
+    if (!isSignedIn) return;
+    const refresh = () => { if (!document.hidden) void fetchMe().then(setMe).catch(() => {}); };
+    const timer = window.setInterval(refresh, 30_000);
+    window.addEventListener('focus',refresh);
+    window.addEventListener('aiwebvideo:balance-changed',refresh);
+    return () => { window.clearInterval(timer); window.removeEventListener('focus',refresh);
+      window.removeEventListener('aiwebvideo:balance-changed',refresh); };
+  },[isSignedIn]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10);
@@ -184,7 +195,6 @@ export function Nav() {
             )}
           </div>
           <Link href="/examples" className="inline-flex min-h-11 items-center rounded-xl px-3.5 text-xs font-medium text-text-muted transition hover:bg-white/[.04] hover:text-white">Examples</Link>
-          <Link href="/features" className="inline-flex min-h-11 items-center rounded-xl px-3.5 text-xs font-medium text-text-muted transition hover:bg-white/[.04] hover:text-white">Features</Link>
           <Link href="/how-it-works" className="inline-flex min-h-11 items-center rounded-xl px-3.5 text-xs font-medium text-text-muted transition hover:bg-white/[.04] hover:text-white">How it works</Link>
           <Link href="/pricing" className="inline-flex min-h-11 items-center rounded-xl px-3.5 text-xs font-medium text-text-muted transition hover:bg-white/[.04] hover:text-white">Pricing</Link>
         </div>
@@ -198,7 +208,7 @@ export function Nav() {
           ) : isSignedIn ? (
             <>
               <Link href="/pricing" className="hidden rounded-full border border-white/[.08] bg-white/[.03] px-3 py-2 font-utility text-[9px] text-text-muted transition hover:text-white lg:block">
-                {formatCredits(me?.creditsBalance)} credits
+                {formatCredits((me?.creditsBalance ?? 0) + (me?.starterCreditsBalance ?? 0))} credits
               </Link>
               {me?.isAdmin && (
                 <Link
@@ -297,7 +307,6 @@ export function Nav() {
               <div className="my-3 h-px bg-white/[.07]" />
               <div className="grid grid-cols-2 gap-2">
                 <Link href="/examples" onClick={() => setMobileOpen(false)} className="flex min-h-10 items-center justify-center rounded-xl border border-white/[.06] bg-white/[.02] px-2 text-center text-[10px] font-medium text-text-muted transition active:bg-white/[.05] active:text-white">Examples</Link>
-                <Link href="/features" onClick={() => setMobileOpen(false)} className="flex min-h-10 items-center justify-center rounded-xl border border-white/[.06] bg-white/[.02] px-2 text-center text-[10px] font-medium text-text-muted transition active:bg-white/[.05] active:text-white">Features</Link>
                 <Link href="/how-it-works" onClick={() => setMobileOpen(false)} className="flex min-h-10 items-center justify-center rounded-xl border border-white/[.06] bg-white/[.02] px-2 text-center text-[10px] font-medium text-text-muted transition active:bg-white/[.05] active:text-white">How it works</Link>
                 <Link href="/pricing" onClick={() => setMobileOpen(false)} className="flex min-h-10 items-center justify-center rounded-xl border border-white/[.06] bg-white/[.02] px-2 text-center text-[10px] font-medium text-text-muted transition active:bg-white/[.05] active:text-white">Pricing</Link>
               </div>
@@ -312,7 +321,7 @@ export function Nav() {
               ) : isSignedIn ? (
                 <div className="flex items-center gap-2">
                   <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="flex min-h-11 flex-1 items-center justify-center rounded-xl bg-signature px-4 text-xs font-bold text-white shadow-[0_14px_28px_-20px_rgba(236,72,153,.72)]">Workspace</Link>
-                  <Link href="/pricing" onClick={() => setMobileOpen(false)} className="flex min-h-11 min-w-[96px] items-center justify-center rounded-xl border border-white/[.08] bg-white/[.025] px-3 font-utility text-[9px] font-semibold text-mint">{formatCredits(me?.creditsBalance)} credits</Link>
+                  <Link href="/pricing" onClick={() => setMobileOpen(false)} className="flex min-h-11 min-w-[96px] items-center justify-center rounded-xl border border-white/[.08] bg-white/[.025] px-3 font-utility text-xs font-semibold text-mint">{formatCredits((me?.creditsBalance ?? 0) + (me?.starterCreditsBalance ?? 0))} credits</Link>
                   {me?.isAdmin && (
                     <Link href="/admin" onClick={() => setMobileOpen(false)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-violet/25 bg-violet/10 text-violet" aria-label="Admin"><ShieldCheck size={15} /></Link>
                   )}

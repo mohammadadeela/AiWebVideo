@@ -187,13 +187,11 @@ export function HomePage() {
                   key={intent}
                   type="button"
                   onClick={() => openCreationIntent(intent)}
-                  className="group flex min-h-[220px] flex-col rounded-[26px] border border-white/[.08] bg-white/[.025] p-5 text-left transition duration-300 hover:-translate-y-1 hover:border-white/[.16] hover:bg-white/[.04]"
+                  className="group flex min-h-[185px] flex-col rounded-[24px] border border-white/[.07] bg-white/[.025] p-5 text-left transition duration-300 hover:-translate-y-1 hover:border-white/[.16] hover:bg-white/[.04]"
                 >
-                  <span className={`flex h-10 w-10 items-center justify-center rounded-xl border border-white/[.08] bg-black/20 ${accent}`}><Icon size={18} /></span>
-                  <p className={`mt-auto pt-8 font-utility text-[8px] uppercase tracking-[.16em] ${accent}`}>{label}</p>
-                  <h3 className="mt-2 font-display text-base font-semibold leading-6 text-white">{title}</h3>
-                  <p className="mt-2 text-[11px] leading-5 text-text-muted">{body}</p>
-                  <span className="mt-4 inline-flex items-center gap-1.5 text-[10px] font-semibold text-white">Configure creator <ArrowRight size={12} className="transition group-hover:translate-x-1" /></span>
+                  <span className={`feature-icon-surface flex h-11 w-11 items-center justify-center rounded-xl ${accent}`}><Icon size={20} strokeWidth={1.7} /></span>
+                  <h3 className="mt-auto pt-6 font-display text-base font-semibold leading-6 text-white">{title}</h3>
+                  <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-text-muted group-hover:text-white">Create <ArrowRight size={14} className="transition group-hover:translate-x-1" /></span>
                 </button>
               ))}
             </div>
@@ -345,7 +343,7 @@ export function HomePage() {
               <div>
                 <p className="font-utility text-[10px] uppercase tracking-[.2em] text-mint">Pricing preview</p>
                 <h2 className="mt-4 font-display text-3xl font-bold tracking-[-.04em] text-white sm:text-4xl">Know the cost before generation.</h2>
-                <p className="mt-3 max-w-xl text-xs leading-6 text-text-muted">Website analysis and screenshots are free. Paid credits start only when you choose AI planning or generation.</p>
+                <p className="mt-3 max-w-xl text-sm leading-6 text-text-muted">See the exact credit quote before creating.</p>
               </div>
               <a href="/pricing" className="inline-flex items-center gap-2 text-xs font-semibold text-white transition hover:text-mint">See plans and top-ups <ArrowRight size={14} /></a>
             </div>

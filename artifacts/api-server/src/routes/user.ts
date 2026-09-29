@@ -97,6 +97,8 @@ async function revokeProviderSessions(firebaseUid: string | null): Promise<void>
 // GET /api/user/me
 router.get('/me', requireAuth, async (req, res) => {
   try {
+    const { settleGrowthCredits } = await import('./growth.js');
+    const growth = await settleGrowthCredits(req.user!.id);
     // Refresh the cookie on account use and migrate legacy bearer sessions.
     setSessionCookie(res, req.user!.id, req.user!.sessionVersion);
     res.json({
@@ -104,6 +106,9 @@ router.get('/me', requireAuth, async (req, res) => {
       email: req.user!.email,
       plan: req.user!.plan,
       creditsBalance: req.user!.creditsBalance,
+      // The response middleware scales production wallet fields; this distinct
+      // starter field is already in customer-facing units.
+      starterCreditsBalance: growth?.starterBalanceDisplay ?? 0,
       isAdmin: req.user!.isAdmin,
       accountStatus: req.user!.accountStatus,
       authProvider: req.user!.authProvider,
@@ -284,7 +289,7 @@ router.get('/usage', requireAuth, async (req, res) => {
 
 // Legacy top-up endpoint kept as a safe pointer to the server-owned catalog.
 router.post('/topup', requireAuth, async (_req, res) => {
-  res.status(400).json({ error: 'Use the checkout endpoint with plan topup100.', code: 'USE_CHECKOUT' });
+  res.status(400).json({ error: 'Use the pricing catalog to choose a credit pack.', code: 'USE_CHECKOUT' });
 });
 
 // POST /api/auth/login (local JWT auth) — registered at /login when mounted at /auth

@@ -5,7 +5,7 @@ import { requireAuth } from '../lib/auth.js';
 import { query } from '../lib/pool.js';
 import { AppError, sendError } from '../lib/errors.js';
 import { grantCreditsOnce } from '../lib/billing.js';
-import { BILLING_CREDIT_PRODUCTS } from '../lib/billing-products.js';
+import { BILLING_PRODUCTS, creatorIntentForProductId, type BillingProductId } from '../lib/billing-products.js';
 import {
   CREDIT_DISPLAY_MULTIPLIER,
   WELCOME_OFFER_PRODUCTS,
@@ -29,21 +29,12 @@ function customerCredits(internalCredits: number) {
 }
 
 /** The server owns all prices and grants. The browser submits only a product id. */
-export const PRODUCTS = {
-  creator: { ...BILLING_CREDIT_PRODUCTS.creator, mode: 'subscription', amountUsd: 39, name: 'Creator' },
-  pro: { ...BILLING_CREDIT_PRODUCTS.pro, mode: 'subscription', amountUsd: 99, name: 'Pro' },
-  agency: { ...BILLING_CREDIT_PRODUCTS.agency, mode: 'subscription', amountUsd: 249, name: 'Agency' },
-  single8: { ...BILLING_CREDIT_PRODUCTS.single8, mode: 'payment', amountUsd: 9.99, name: 'Quick Video' },
-  single48: { ...BILLING_CREDIT_PRODUCTS.single48, mode: 'payment', amountUsd: 52.99, name: 'Full Marketing Video' },
-  single144: { ...BILLING_CREDIT_PRODUCTS.single144, mode: 'payment', amountUsd: 149.99, name: 'Extended Video' },
-  topup50: { ...BILLING_CREDIT_PRODUCTS.topup50, mode: 'payment', amountUsd: 14.99, name: '250 Credits' },
-  topup100: { ...BILLING_CREDIT_PRODUCTS.topup100, mode: 'payment', amountUsd: 28.99, name: '500 Credits' },
-  topup250: { ...BILLING_CREDIT_PRODUCTS.topup250, mode: 'payment', amountUsd: 69.99, name: '1,250 Credits' },
-} as const;
+export const PRODUCTS = BILLING_PRODUCTS;
 
 router.get('/catalog', (_req, res) => {
   res.setHeader('Cache-Control', 'public, max-age=300');
-  res.json(Object.entries(PRODUCTS).map(([id, product]) => ({ id, name: product.name, mode: product.mode, credits: product.credits, amountUsd: product.amountUsd })));
+  res.json(Object.entries(PRODUCTS).map(([id, product]) => ({ id, name: product.name, mode: product.mode, type: product.type,
+    credits: product.credits, displayCredits: product.displayCredits, amountUsd: product.amountUsd, scope: product.scope })));
 });
 
 const CHECKOUT_FEE_RATE = 0.0401;
@@ -54,27 +45,19 @@ function roundMoney(value: number) {
 }
 
 /**
- * Customer-facing prices stay unchanged until checkout.
- * At checkout we gross the charge up to cover the configured payment fee,
- * then use a clean x.99 total.
+ * The catalog price already covers processor fees and is the exact charge.
  */
 export function checkoutTotalUsd(baseAmountUsd: number) {
-  const base = roundMoney(Math.max(0, Number(baseAmountUsd) || 0));
-  if (base <= 0) return 0;
-  const minimumGross = (base + CHECKOUT_FIXED_FEE_USD) / (1 - CHECKOUT_FEE_RATE);
-  let marketingTotal = Math.floor(minimumGross) + 0.99;
-  if (marketingTotal + 0.000001 < minimumGross) marketingTotal += 1;
-  return roundMoney(marketingTotal);
+  return roundMoney(Math.max(0, Number(baseAmountUsd) || 0));
 }
 
 export function checkoutFeeUsd(baseAmountUsd: number) {
-  const base = roundMoney(Math.max(0, Number(baseAmountUsd) || 0));
-  return roundMoney(Math.max(0, checkoutTotalUsd(base) - base));
+  return roundMoney(checkoutTotalUsd(baseAmountUsd) * CHECKOUT_FEE_RATE + CHECKOUT_FIXED_FEE_USD);
 }
 
 export type ProductId = keyof typeof PRODUCTS;
 type SubscriptionProductId = 'creator' | 'pro' | 'agency';
-const PAYPAL_PRICING_VERSION = '2026-09-checkout-fees-v2';
+const PAYPAL_PRICING_VERSION = '2026-09-creator-catalog-v3';
 
 interface PayPalRuntimeSettings {
   environment: 'sandbox' | 'live';
@@ -88,6 +71,8 @@ export type PayPalConnectionState = 'not_checked' | 'ready' | 'credentials_rejec
 let paypalConnectionState: PayPalConnectionState = 'not_checked';
 
 interface PendingPayment {
+  id: string;
+  product_id: string | null;
   user_id: string;
   amount_usd: string | number;
   currency: string;
@@ -506,7 +491,7 @@ router.post('/checkout', requireAuth, async (req, res) => {
     await query(
       `INSERT INTO payments(user_id,provider,provider_ref,kind,amount_usd,currency,credits_granted,plan,product_id,status)
        VALUES ($1,'paypal',$2,'one_time',$3,'USD',$4,$5,$6,'pending') ON CONFLICT(provider,provider_ref) DO NOTHING`,
-      [req.user!.id, orderId, checkoutAmountUsd, product.credits, product.plan, plan],
+      [req.user!.id, orderId, checkoutAmountUsd, product.scope ? 0 : product.credits, product.plan, plan],
     );
     res.json({ checkoutUrl: url });
   } catch (error) { sendError(res, error); }
@@ -530,7 +515,9 @@ router.get('/return', async (req, res) => {
       logger.warn({ err: captureError, orderId }, '[paypal] capture response needs reconciliation');
       await grantOneTimePayment(orderId);
     }
-    res.redirect(`${appUrl()}/dashboard?checkout=success${jobId ? `&job=${encodeURIComponent(jobId)}` : ''}`);
+    const paid = await query<{ product_id: string | null }>('SELECT product_id FROM payments WHERE provider_ref=$1 LIMIT 1',[orderId]);
+    const intent = !jobId ? creatorIntentForProductId(paid.rows[0]?.product_id) : null;
+    res.redirect(`${appUrl()}/dashboard?checkout=success${jobId ? `&job=${encodeURIComponent(jobId)}` : ''}${intent ? `&create=${intent}` : ''}`);
   } catch (error) {
     logger.error({ err: error, orderId }, '[paypal] capture return failed');
     res.redirect(redirectFail);
@@ -539,18 +526,30 @@ router.get('/return', async (req, res) => {
 
 async function grantOneTimePayment(orderId: string, suppliedOrder?: Record<string, unknown>) {
   const { rows } = await query<PendingPayment>(
-    `SELECT user_id,amount_usd,currency,credits_granted,plan,status FROM payments
+      `SELECT id,product_id,user_id,amount_usd,currency,credits_granted,plan,status FROM payments
      WHERE provider='paypal' AND provider_ref=$1 LIMIT 1`, [orderId],
   );
   const payment = rows[0];
   if (!payment) throw new Error('Unknown order.');
+  if (payment.status === 'refunded' || payment.status === 'reversed') throw new Error('This payment was reversed.');
   if (payment.status === 'paid') {
     await sendOneTimeReceipt(orderId, payment);
     return;
   }
   const order = suppliedOrder ?? await paypalFetch(`/v2/checkout/orders/${encodeURIComponent(orderId)}`, { method: 'GET' });
   const verified = validateCompletedOrder(order, { orderId, userId: payment.user_id, amountUsd: Number(payment.amount_usd), currency: payment.currency });
-  await grantCreditsOnce({ key: `paypal:order:${orderId}`, userId: payment.user_id, credits: payment.credits_granted, reason: `Completed purchase ${orderId}` });
+  const purchased = payment.product_id ? PRODUCTS[payment.product_id as ProductId] : null;
+  if (purchased?.scope) {
+    const scope = purchased.scope;
+    await query(`INSERT INTO one_time_generation_entitlements
+      (user_id,payment_id,product_id,feature,model_id,duration_seconds,quality,audio_mode,credit_value,remaining_credits)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$9) ON CONFLICT(payment_id) DO NOTHING`,
+      [payment.user_id,payment.id,payment.product_id,scope.feature,scope.modelId,
+        scope.durationSeconds ?? null,scope.quality,scope.audioMode,purchased.credits]);
+  } else {
+    await grantCreditsOnce({ key: `paypal:order:${orderId}`, userId: payment.user_id,
+      credits: payment.credits_granted, reason: `Completed purchase ${orderId}` });
+  }
   await query("UPDATE payments SET status='paid',provider_capture_ref=$2 WHERE provider='paypal' AND provider_ref=$1", [orderId, verified.captureId]);
   if (verified.payerId) await query('UPDATE users SET paypal_payer_id=$1,updated_at=NOW() WHERE id=$2', [verified.payerId, payment.user_id]);
   await sendOneTimeReceipt(orderId, payment);
@@ -640,10 +639,27 @@ async function verifyWebhookSignature(headers: Record<string, unknown>, body: un
   return result.verification_status === 'SUCCESS';
 }
 
-async function subscriptionProduct(planId: string): Promise<{ id: SubscriptionProductId; product: typeof PRODUCTS[SubscriptionProductId] } | null> {
+type SubscriptionMatch = { id: SubscriptionProductId; product: typeof PRODUCTS[SubscriptionProductId]; legacy?: boolean };
+async function subscriptionProduct(planId: string): Promise<SubscriptionMatch | null> {
   const runtime = await ensureRuntimeSettings();
   const id = SUBSCRIPTION_IDS.find((candidate) => runtime.planIds[candidate] === planId);
-  return id ? { id, product: PRODUCTS[id] } : null;
+  if (id) return { id, product: PRODUCTS[id] };
+  const { rows } = await query<{ value: { environment?: string; planIds?: Record<string,string> } }>(
+    "SELECT value FROM system_settings WHERE key='paypal_runtime_legacy' LIMIT 1");
+  const legacy = rows[0]?.value;
+  if (legacy?.environment !== paypalEnvironment()) return null;
+  const previousId = SUBSCRIPTION_IDS.find((candidate) => legacy.planIds?.[candidate] === planId);
+  if (!previousId) return null;
+  const old = { creator: { amountUsd: 39, credits: 150 }, pro: { amountUsd: 99, credits: 400 },
+    agency: { amountUsd: 249, credits: 1000 } }[previousId];
+  // The historical PayPal plan price included a checkout fee and ended in .99.
+  const minimumGross = (old.amountUsd + CHECKOUT_FIXED_FEE_USD) / (1 - CHECKOUT_FEE_RATE);
+  let renewalPrice = Math.floor(minimumGross) + 0.99;
+  if (renewalPrice < minimumGross) renewalPrice += 1;
+  return { id: previousId, legacy: true, product: {
+    ...PRODUCTS[previousId], credits: old.credits,
+    amountUsd: roundMoney(renewalPrice),
+  } };
 }
 
 function verifySubscriptionSaleAmount(resource: Record<string, unknown>, expectedUsd: number) {
@@ -698,6 +714,8 @@ async function sendOneTimeReceipt(orderId: string, payment: PendingPayment) {
       credits: customerCredits(payment.credits_granted),
       amountUsd: Number(payment.amount_usd),
       reference: orderId,
+      purchaseName: payment.product_id ? BILLING_PRODUCTS[payment.product_id as BillingProductId]?.scope
+        ? BILLING_PRODUCTS[payment.product_id as BillingProductId].name : undefined : undefined,
     }),
   );
   await query(

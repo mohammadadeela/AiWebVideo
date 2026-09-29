@@ -26,7 +26,9 @@ export const MAX_PROVIDER_COST_PER_INTERNAL_CREDIT_USD = BASE_PROVIDER_COST_PER_
 export const MIN_PROVIDER_MULTIPLE = 2;
 
 /** The welcome price discount is intentionally limited to one-time credit packs. */
-export const WELCOME_OFFER_PRODUCTS = new Set(['topup50', 'topup100', 'topup250']);
+// No promotional price may undercut the live safety floor. Re-enable a pack
+// here only after its discounted checkout price passes the same cost audit.
+export const WELCOME_OFFER_PRODUCTS = new Set<string>();
 
 function money(value: number): number {
   return Math.round((Math.max(0, Number(value) || 0) + Number.EPSILON) * 100) / 100;

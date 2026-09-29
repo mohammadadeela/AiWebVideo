@@ -46,6 +46,7 @@ import type { JobStatusResponse, JobWorkflowState } from "../types.js";
 import type { Storyboard } from "../lib/gemini.js";
 import { generationModelForMode, imageModelCreditsPerImage } from "../lib/generation-models.js";
 import { providerBrief } from "../lib/reference-context.js";
+import { creationScope, hasScopedEntitlement } from "../lib/entitlements.js";
 
 const router = Router();
 const MAX_REFERENCE_CAPTURES = MAX_VIDEO_SECONDS / VIDEO_SCENE_SECONDS;
@@ -611,11 +612,16 @@ router.post("/:id/preflight", requireAuth, async (req, res) => {
       (job.capture_metadata as CaptureMeta | null)?.studioKind,
     );
     const balance = req.user!.creditsBalance;
+    const scoped = creationScope({ studioKind: (job.capture_metadata as CaptureMeta | null)?.studioKind,
+      mode: input.mode, modelId: quote.modelId ?? 'cinema-2', durationSeconds: input.durationSeconds,
+      outputQuality: input.outputQuality, audioMode: input.audioMode });
+    const entitlementAvailable = await hasScopedEntitlement(req.user!.id, scoped, quote.totalCredits);
     res.json({
       ...quote,
       balance,
       shortfall: Math.max(0, quote.totalCredits - balance),
-      affordable: req.user!.isAdmin || balance >= quote.totalCredits,
+      entitlementAvailable,
+      affordable: req.user!.isAdmin || entitlementAvailable || balance >= quote.totalCredits,
     });
   } catch (err) {
     sendError(res, err);
@@ -720,7 +726,11 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
       selectedGenerationModel.id,
       (job.capture_metadata as CaptureMeta | null)?.studioKind,
     );
-    if (!req.user!.isAdmin && req.user!.creditsBalance < planningQuote.totalCredits) {
+    const scope = creationScope({ studioKind: (job.capture_metadata as CaptureMeta | null)?.studioKind,
+      mode, modelId: selectedGenerationModel.id, durationSeconds, outputQuality,
+      audioMode: planningAudioMode });
+    const entitlementAvailable = await hasScopedEntitlement(req.user!.id, scope, planningQuote.totalCredits);
+    if (!req.user!.isAdmin && !entitlementAvailable && req.user!.creditsBalance < planningQuote.totalCredits) {
       const shortfall = planningQuote.totalCredits - req.user!.creditsBalance;
       throw new AppError(
         `This production needs ${planningQuote.totalCredits} credits. You have ${req.user!.creditsBalance}, so add ${shortfall} more before AI generation starts. Your saved source and references remain available, and no paid AI/provider API was used.`,
@@ -775,8 +785,8 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
     }
 
     // Atomically reserve the complete production budget before any paid AI or
-    // media-provider call. Capture/screenshots have already happened for free.
-    const reservation = await reserveGenerationCredits(job.id, req.user!.id, planningQuote.totalCredits);
+    // media-provider call. The separate website-capture allowance was settled earlier.
+    const reservation = await reserveGenerationCredits(job.id, req.user!.id, planningQuote.totalCredits, scope);
     if (!reservation.ok && reservation.reason === "insufficient_credits") {
       throw new AppError(
         `This production needs ${planningQuote.totalCredits} credits. Your available balance changed before generation could start. Add credits and try again. No paid AI/provider API was used.`,

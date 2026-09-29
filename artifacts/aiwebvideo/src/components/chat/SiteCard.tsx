@@ -47,7 +47,7 @@ export function SiteCard({ sourceUrl, metadata }: { sourceUrl: string; metadata:
           <p className="font-utility text-[9px] font-semibold uppercase tracking-[.16em] text-mint">Website connected</p>
           <p className="mt-1 text-sm font-semibold text-white">We found {displayName}.</p>
           <p className="mt-1 text-[11px] leading-5 text-text-muted">
-            This is real context from your website — not a demo. The capture is free and nothing has been generated or charged yet.
+            Your website context is saved and ready for a production.
           </p>
           <div className="mt-3 grid gap-2 text-[10px] text-text-muted sm:grid-cols-3">
             <span className="flex items-center gap-1.5 rounded-lg bg-black/15 px-2.5 py-2"><Check size={12} className="text-mint" />Website reached</span>

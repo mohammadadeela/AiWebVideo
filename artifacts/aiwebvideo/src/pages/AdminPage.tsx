@@ -167,6 +167,7 @@ function UserRow({
             <span>Spent <b className="text-text-muted">{number(user.credits_used)}</b></span>
             <span>Refunded <b className="text-text-muted">{number(user.credits_refunded)}</b></span>
             <span>Added <b className="text-text-muted">{number(user.credits_added)}</b></span>
+            <span>Starter <b className="text-text-muted">{number(user.starter_credits_balance)}</b></span>
           </div>
         </div>
       </td>

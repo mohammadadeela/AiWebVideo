@@ -76,16 +76,18 @@ test('generic capture webhook cannot double-grant managed renewal credits', asyn
   assert.match(index, /ensureSubscriptionReceiptGuard\(\)/);
 });
 
-test('Quick Video uses the normal 9.99 base price consistently before checkout fees', async () => {
+test('Create Once video uses the current server catalog and exact displayed checkout price', async () => {
   const pricing = await source('../aiwebvideo/src/components/landing/PricingTable.tsx');
   const paywall = await source('../aiwebvideo/src/components/chat/PaywallModal.tsx');
   const paypal = await source('src/routes/paypal.ts');
+  const products = await source('src/lib/billing-products.ts');
   const index = await source('src/index.ts');
-  assert.match(paypal, /single8:[^\n]*amountUsd: 9\.99/);
-  assert.match(pricing, /price: "\$9\.99"/);
-  assert.match(pricing, /amountUsd: 9\.99/);
-  assert.match(paywall, /single8[^\n]*amountUsd: 9\.99/);
+  assert.match(products, /once_video_8: once\('video', 8, 2\.49\)/);
+  assert.match(paypal, /export const PRODUCTS = BILLING_PRODUCTS/);
+  assert.match(pricing, /fetchBillingCatalog/);
+  assert.match(paywall, /fetchBillingCatalog/);
   assert.match(paypal, /checkoutTotalUsd/);
+  assert.match(paypal, /return roundMoney\(Math\.max\(0, Number\(baseAmountUsd\) \|\| 0\)\)/);
   assert.doesNotMatch(index, /applyTemporaryPaymentTestPricing/);
 });
 

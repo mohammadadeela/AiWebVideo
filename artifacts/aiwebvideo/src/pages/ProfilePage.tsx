@@ -97,7 +97,6 @@ export function ProfilePage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [showTopupCheckout, setShowTopupCheckout] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
@@ -134,10 +133,7 @@ export function ProfilePage() {
     [jobs],
   );
 
-  function buyCredits() {
-    setError(null);
-    setShowTopupCheckout(true);
-  }
+  function buyCredits() { window.location.assign('/pricing#buy-credits'); }
 
   async function stopRenewal(subscriptionId: string) {
     setBusy(true);
@@ -648,15 +644,6 @@ export function ProfilePage() {
         </section>
       </main>
       <Footer />
-      {showTopupCheckout && (
-        <SecureCheckoutModal
-          plan="topup100"
-          productName="500 production credits"
-          amountUsd={28.99}
-          credits={500}
-          onClose={() => setShowTopupCheckout(false)}
-        />
-      )}
       {showAuthModal && (
         <AuthModal
           onClose={() => setShowAuthModal(false)}

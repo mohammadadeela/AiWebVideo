@@ -259,7 +259,7 @@ router.get('/reports', async (req, res) => {
       productId,
       name: product.name,
       type: product.mode,
-      category: product.mode === 'subscription' ? 'subscription' : productId.startsWith('single') ? 'video package' : 'credit pack',
+      category: product.type === 'create_once' ? 'create once' : product.type === 'plan' ? 'subscription' : 'credit pack',
       priceUsd: product.amountUsd,
       credits: product.credits,
       period: byPeriodProduct.get(productId) ?? {},
@@ -444,7 +444,7 @@ router.get('/users', async (req, res) => {
     };
     const rows = await query<Record<string, unknown>>(
       `SELECT
-         u.id,u.email,u.plan,u.credits_balance,u.is_admin,u.account_status,u.created_at,u.updated_at,
+         u.id,u.email,u.plan,u.credits_balance,u.starter_credits_balance,u.starter_granted_at,u.is_admin,u.account_status,u.created_at,u.updated_at,
          u.email_verified,u.auth_provider,u.last_sign_in_at,
          CASE WHEN u.paypal_payer_id IS NOT NULL THEN TRUE ELSE FALSE END has_paypal_payer,
          (SELECT COUNT(*)::int FROM jobs j WHERE j.user_id=u.id AND j.deleted_at IS NULL) AS job_count,
@@ -506,13 +506,13 @@ router.get('/users', async (req, res) => {
 router.get('/users/:id', async (req, res) => {
   try {
     const account = await query<Record<string, unknown>>(
-      `SELECT id,email,plan,credits_balance,is_admin,account_status,email_verified,auth_provider,last_sign_in_at,created_at,updated_at,
+      `SELECT id,email,plan,credits_balance,starter_credits_balance,starter_granted_at,is_admin,account_status,email_verified,auth_provider,last_sign_in_at,created_at,updated_at,
         CASE WHEN paypal_payer_id IS NOT NULL THEN TRUE ELSE FALSE END has_paypal_payer
        FROM users WHERE id=$1`,
       [req.params.id],
     );
     if (!account.rows[0]) throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
-    const [subscriptions, payments, credits, productions] = await Promise.all([
+    const [subscriptions, payments, credits, productions, starterCaptures, entitlements] = await Promise.all([
       query<Record<string, unknown>>(
         `SELECT id,plan,status,auto_renew,current_period_start,current_period_end,created_at,updated_at,
           CASE WHEN paypal_subscription_id IS NOT NULL THEN 'payment' ELSE 'manual' END provider
@@ -525,8 +525,16 @@ router.get('/users/:id', async (req, res) => {
       query<Record<string, unknown>>(
         `SELECT id,title,source_url,mode,status,progress,credits_spent,generation_provider,generation_cost_usd,created_at,updated_at
          FROM jobs WHERE user_id=$1 AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 30`, [req.params.id]),
+      query<Record<string, unknown>>(
+        `SELECT job_id,amount,source,status,created_at FROM starter_capture_reservations
+         WHERE user_id=$1 ORDER BY created_at DESC LIMIT 30`,[req.params.id]),
+      query<Record<string, unknown>>(
+        `SELECT product_id,feature,model_id,duration_seconds,quality,audio_mode,credit_value,remaining_credits,status,created_at
+         FROM one_time_generation_entitlements WHERE user_id=$1 ORDER BY created_at DESC LIMIT 30`,[req.params.id]),
     ]);
-    res.json({ user: account.rows[0], subscriptions: subscriptions.rows, payments: payments.rows, credits: credits.rows, productions: productions.rows });
+    res.json({ user: account.rows[0], subscriptions: subscriptions.rows, payments: payments.rows,
+      credits: credits.rows, productions: productions.rows, starterCaptures: starterCaptures.rows,
+      entitlements: entitlements.rows });
   } catch (error) { sendError(res, error); }
 });
 

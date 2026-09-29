@@ -23,6 +23,7 @@ const studioSql = await readFile(
   'utf8',
 );
 const inspirationSql = await readFile(fileURLToPath(new URL('./inspiration.sql', import.meta.url)), 'utf8');
+const creatorBillingSql = await readFile(fileURLToPath(new URL('./creator-billing.sql', import.meta.url)), 'utf8');
 
 const client = new pg.Client({
   connectionString: process.env.DATABASE_URL,
@@ -51,6 +52,7 @@ try {
   await client.query(managedSubscriptionsSql);
   await client.query(studioSql);
   await client.query(inspirationSql);
+  await client.query(creatorBillingSql);
 
   // Fail deployment before restarting the application if a legacy database
   // still cannot satisfy the exact columns used by account/billing queries.
@@ -103,6 +105,10 @@ try {
     a.kind
     FROM studio_assets a LIMIT 0`);
   await client.query('SELECT m.id, m.status, f.feature_id FROM inspiration_media m LEFT JOIN inspiration_features f ON f.media_id=m.id LIMIT 0');
+  await client.query('SELECT starter_credits_balance,starter_granted_at FROM users LIMIT 0');
+  await client.query('SELECT job_id,status,source FROM starter_capture_reservations LIMIT 0');
+  await client.query('SELECT payment_id,feature,model_id,remaining_credits FROM one_time_generation_entitlements LIMIT 0');
+  await client.query('SELECT job_id,entitlement_id,amount FROM one_time_entitlement_redemptions LIMIT 0');
 
   console.log('Database schema is up to date.');
 } finally {

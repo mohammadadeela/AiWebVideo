@@ -240,7 +240,7 @@ export function saveJobWorkflow(jobId: string, state: JobWorkflowState) {
 }
 
 export function fetchMe() {
-  return request<{ id: string; email: string; plan: string; creditsBalance: number; isAdmin: boolean; accountStatus: string; authProvider: string; supportsPasswordChange: boolean }>('/api/user/me');
+  return request<{ id: string; email: string; plan: string; creditsBalance: number; starterCreditsBalance: number; isAdmin: boolean; accountStatus: string; authProvider: string; supportsPasswordChange: boolean }>('/api/user/me');
 }
 
 export interface AdminSettings {
@@ -325,7 +325,9 @@ export function extractProductReference(url: string) {
   return request<{ title: string; description: string; url: string; images: string[] }>('/api/product-reference/extract', { method: 'POST', body: JSON.stringify({ url }) });
 }
 export function fetchBillingCatalog() {
-  return request<Array<{ id: CheckoutId; name: string; mode: 'payment' | 'subscription'; credits: number; amountUsd: number }>>('/api/paypal/catalog');
+  return request<Array<{ id: CheckoutId; name: string; mode: 'payment' | 'subscription'; type: 'create_once' | 'credits' | 'plan';
+    credits: number; displayCredits: number; amountUsd: number; scope?: { feature: string; modelId: string;
+      durationSeconds?: number; quality: string; audioMode: string } }>>('/api/paypal/catalog');
 }
 export function fetchAdminInspiration(filters: { feature?: InspirationFeature; type?: 'image' | 'video'; status?: string; search?: string } = {}) {
   const params = new URLSearchParams();
@@ -396,7 +398,11 @@ export function saveJobMessage(
   });
 }
 
-export type CheckoutId = 'creator' | 'pro' | 'agency' | 'single8' | 'single48' | 'single144' | 'topup50' | 'topup100' | 'topup250';
+export type CheckoutId = 'creator' | 'pro' | 'agency' | 'credits50' | 'credits100' | 'credits250' | 'credits500' | 'credits1000'
+  | 'once_website_8' | 'once_website_16' | 'once_website_32' | 'once_video_8' | 'once_video_16' | 'once_video_32'
+  | 'once_product_video_8' | 'once_product_video_16' | 'once_product_video_32'
+  | 'once_product_photo_4' | 'once_product_photo_8' | 'once_product_photo_12'
+  | 'once_interior_4' | 'once_interior_8' | 'once_interior_12';
 
 export function startCheckout(plan: CheckoutId, jobId?: string | null) {
   return request<{ checkoutUrl: string }>('/api/paypal/checkout', {
@@ -406,7 +412,7 @@ export function startCheckout(plan: CheckoutId, jobId?: string | null) {
 }
 
 export function startTopup() {
-  return startCheckout('topup100');
+  return startCheckout('credits100');
 }
 
 export interface SubscriptionSummary {

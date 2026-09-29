@@ -217,14 +217,15 @@ async function sendAccountEmail(input: { to: string; subject: string; title: str
   }
 }
 
-export async function sendCreditPurchaseEmail(input: { to: string; credits: number; amountUsd: number; reference: string; paidAt?: Date }) {
+export async function sendCreditPurchaseEmail(input: { to: string; credits: number; amountUsd: number; reference: string; paidAt?: Date; purchaseName?: string }) {
+  const scoped = Boolean(input.purchaseName);
   return sendAccountEmail({
     to: input.to,
-    subject: `Your ${BRAND_NAME} credit purchase receipt`,
-    title: 'Credits added to your account',
-    intro: 'Your payment was confirmed and your production credits are ready to use.',
+    subject: `Your ${BRAND_NAME} purchase receipt`,
+    title: scoped ? `${input.purchaseName} ready` : 'Credits added to your account',
+    intro: scoped ? 'Your Create Once purchase is ready for the selected creation.' : 'Your payment was confirmed and your production credits are ready to use.',
     rows: [
-      ['Credits added', `${input.credits} credits`],
+      ...(scoped ? [['Purchase', input.purchaseName!] as [string, string]] : [['Credits added', `${input.credits} credits`] as [string, string]]),
       ['Amount paid', `$${input.amountUsd.toFixed(2)} USD`],
       ['Receipt', input.reference],
       ['Date', (input.paidAt ?? new Date()).toISOString().slice(0, 10)],
