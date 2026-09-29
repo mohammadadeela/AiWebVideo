@@ -199,7 +199,10 @@ function doneResultMessage(
 
   return (
     <div data-generated-result="true" className="space-y-3 scroll-mt-3">
-      <p>{label}</p>
+      <div className="inline-flex items-center gap-1.5 rounded-full border border-mint/15 bg-mint/[.06] px-2.5 py-1 text-[9px] font-semibold text-mint">
+        <span aria-hidden="true">✓</span>
+        {label}
+      </div>
       {job.errorMessage && (
         <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
           {job.errorMessage}
@@ -224,7 +227,7 @@ function doneResultMessage(
   );
 }
 
-const HIDDEN_RESTORED_MESSAGE_KINDS = new Set(["source_continuation"]);
+const HIDDEN_RESTORED_MESSAGE_KINDS = new Set(["source_continuation", "storyboard"]);
 
 function resultSourceKind(
   job: Pick<JobStatusResponse, "sourceUrl" | "captureMetadata">,
@@ -249,7 +252,10 @@ function restoredMessageContent(
   if (message.kind === "result" && assets.length > 0) {
     return (
       <div data-generated-result="true" className="space-y-3 scroll-mt-3">
-        <p>{message.content}</p>
+        <div className="inline-flex items-center gap-1.5 rounded-full border border-mint/15 bg-mint/[.06] px-2.5 py-1 text-[9px] font-semibold text-mint">
+          <span aria-hidden="true">✓</span>
+          {message.content}
+        </div>
         <ResultGrid assets={assets} onUnlock={onUnlock} sourceKind={sourceKind}
           onGeneratedPhotoSelectionChange={onGeneratedPhotoSelectionChange}
           selectedGeneratedPhotoIds={selectedGeneratedPhotoIds} />
@@ -268,43 +274,30 @@ function storyboardSummaryMessage(
   const sb = job.storyboard;
   if (!sb) return null;
   const scenes = Array.isArray(sb.scenes) ? sb.scenes.filter((scene) => scene && typeof scene === "object") : [];
-  const ideas = Array.isArray(sb.ideas) ? sb.ideas.filter((idea): idea is string => typeof idea === "string") : [];
   return (
-    <div className="space-y-2">
-      <p className="font-semibold text-text-primary">{sb.concept || "Production plan"}</p>
-      <p className="text-text-muted">
-        {isImageMode(mode)
-          ? `${scenes.length} marketing image${scenes.length === 1 ? "" : "s"}.`
-          : `One continuous ${sb.targetDurationSeconds || scenes.reduce((s, x) => s + (Number(x.durationSeconds) || 0), 0)}s video · ${scenes.length} internal timeline beat${scenes.length === 1 ? "" : "s"}.`}
-      </p>
-      <p className="font-utility text-[11px] text-mint">
-        {isImageMode(mode)
-          ? `Creative photo editing · ${sb.aspectRatio ?? aspectRatio} · ${sb.outputQuality === "4k" ? "4K master" : "1080p"}`
-          : `Studio quality · ${sb.aspectRatio ?? aspectRatio} · ${sb.outputQuality === "4k" ? "4K master" : "1080p"} · ${sb.frameRate ?? frameRate} FPS`}
-      </p>
-      <div className="space-y-1.5">
-        {scenes.map((scene, index) => (
-          <div key={scene.sceneNumber ?? index} className="rounded-xl border border-white/5 bg-white/[.025] px-3 py-2">
-            <p className="text-[10px] font-semibold uppercase tracking-[.14em] text-violet">
-              {isImageMode(mode) ? (mode === "icon" ? "Icon" : "Image") : "Beat"} {scene.sceneNumber ?? index + 1}
-            </p>
-            <p className="mt-1 text-xs leading-relaxed text-text-muted">
-              {scene.shotDescription || "Timeline beat ready"}
-            </p>
-          </div>
-        ))}
+    <details className="rounded-xl border border-white/[.07] bg-white/[.025] px-3 py-2.5 text-xs text-text-muted">
+      <summary className="cursor-pointer text-[10px] font-semibold text-white/65 hover:text-white">
+        Production plan · {scenes.length} {isImageMode(mode) ? "image" : "beat"}{scenes.length === 1 ? "" : "s"}
+      </summary>
+      <div className="mt-2 space-y-2 border-t border-white/[.055] pt-2">
+        <p className="text-[11px] font-semibold text-text-primary">{sb.concept || "Production plan"}</p>
+        <p className="font-utility text-[9px] text-mint">
+          {isImageMode(mode)
+            ? "Creative photo editing · " + (sb.aspectRatio ?? aspectRatio) + " · " + (sb.outputQuality === "4k" ? "4K master" : "1080p")
+            : (sb.aspectRatio ?? aspectRatio) + " · " + (sb.outputQuality === "4k" ? "4K master" : "1080p") + " · " + (sb.frameRate ?? frameRate) + " FPS"}
+        </p>
+        <div className="space-y-1.5">
+          {scenes.map((scene, index) => (
+            <div key={scene.sceneNumber ?? index} className="rounded-lg border border-white/[.05] bg-black/10 px-2.5 py-2">
+              <p className="text-[8px] font-semibold uppercase tracking-[.12em] text-violet">
+                {isImageMode(mode) ? "Image" : "Beat"} {scene.sceneNumber ?? index + 1}
+              </p>
+              <p className="mt-1 text-[10px] leading-4 text-text-muted">{scene.shotDescription || "Direction ready"}</p>
+            </div>
+          ))}
+        </div>
       </div>
-      {ideas.length > 0 && (
-        <details className="text-xs text-text-muted">
-          <summary className="cursor-pointer text-text-dim hover:text-text-muted">Other creative directions</summary>
-          <ul className="mt-1 space-y-1 list-disc list-inside">
-            {ideas.map((idea, i) => (
-              <li key={i}>{idea}</li>
-            ))}
-          </ul>
-        </details>
-      )}
-    </div>
+    </details>
   );
 }
 
@@ -875,7 +868,7 @@ export function ChatWidget({
             content: <SiteCard sourceUrl={saved.sourceUrl} metadata={saved.captureMetadata} />,
           });
         }
-        if (saved.storyboard) {
+        if (saved.storyboard && resumedStage === "ready_to_render") {
           rebuilt.push({
             id: nextId(),
             role: "bot",
@@ -1121,7 +1114,9 @@ export function ChatWidget({
       storyboardedRef.current = true;
       const usedSceneIds = Array.from(new Set((job.storyboard.sceneCaptureIds ?? []).flat().filter(Boolean)));
       if (usedSceneIds.length) setSelectedCaptureIds(usedSceneIds);
-      pushBot(storyboardSummaryMessage(job, mode, aspectRatio, frameRate));
+      if (!isSignedIn || manualRenderAfterPlan) {
+        pushBot(storyboardSummaryMessage(job, mode, aspectRatio, frameRate));
+      }
       if (!isSignedIn) {
         pushBot(
           "Your production plan is ready. Sign in to continue automatically into final generation, or unlock when you’re ready.",
@@ -1140,7 +1135,6 @@ export function ChatWidget({
       }
       if (!autoRenderRef.current) {
         autoRenderRef.current = true;
-        pushBot("Storyboard locked. Starting final generation automatically in this same chat.");
         void handleGenerate();
         return;
       }
@@ -1575,9 +1569,6 @@ Promotion direction: ${brief}` : normalized);
     setSelectedCaptureIds(captureIds);
     setAudioMode(request.audioMode);
     setNarrationLanguage(request.narrationLanguage);
-    pushBot(
-      `The website capture is ready and visible below. I selected ${usefulPageCount} strong story beat${usefulPageCount === 1 ? "" : "s"} and a ${durationLabel(smartDuration)} production. Now I’m directing the hook, scene order, motion and ending.`,
-    );
     storyboardedRef.current = false;
     setStage("storyboarding");
     try {
@@ -1974,29 +1965,6 @@ ${request.prompt}`
     setBusy(true);
     storyboardedRef.current = true;
     setStage("storyboarding");
-    pushBot(
-      productionKind === "product-photos"
-        ? "Planning a product photo campaign from your real references and direction."
-        : productionKind === "product-video"
-          ? "Planning a product film around the real references, pacing, movement and final hero moment."
-          : productionKind === "talking-scene"
-            ? "Planning the performance, dialogue timing, camera and scene flow."
-            : productionKind === "ai-video"
-              ? "Planning one continuous AI video from your idea and references."
-              : mode === "photos"
-                ? "Planning campaign images from the website source and your direction."
-                : mode === "icon"
-                  ? "Planning four distinct square icon concepts from the website’s real identity, captured icon/logo, colors, purpose, and your direction."
-                  : mode === "both"
-                    ? "Planning one campaign from the captured website states and brand references, with coordinated video and campaign photography."
-                    : mode === "demo"
-                      ? "Planning a true AI-generated cinematic brand film grounded in your real logo, products, UI, and captured brand content. Each scene will be generated as video rather than created by moving screenshots with code."
-                      : mode === "mockup"
-                        ? "Planning a fast, AI-generated social-feed-style reveal of your real pages/photos — the flip-through style used to advertise products and digital downloads on TikTok, Reels, and Pinterest."
-                        : mode === "custom"
-                          ? "Planning your custom concept as real AI-generated video, grounded in your captured pages/photos."
-                          : "Planning one continuous AI-generated website film from your real saved captures. The screenshots are grounding references for the full film, not separate clips. Visible UI text, prices, products and branding must stay faithful to the captured website.",
-    );
     try {
       const requestedJobId = jobId;
       const response = await requestStoryboard(requestedJobId, mode, vibe, durationSeconds, featuresText ?? undefined, {
@@ -2102,27 +2070,6 @@ ${request.prompt}`
     renderedRef.current = false;
     setStage("rendering");
     const isVideo = !isImageMode(mode);
-    pushBot(
-      productionKind === "product-photos"
-        ? "Generating the product photo campaign now. The real references stay grounded while the campaign styling follows your direction."
-        : productionKind === "product-video"
-          ? `Generating the ${durationLabel(durationSeconds)} product film now, with the selected format and product references locked to this production.`
-          : productionKind === "talking-scene"
-            ? `Generating the ${durationLabel(durationSeconds)} talking scene now, including performance, camera and selected audio direction.`
-            : productionKind === "ai-video"
-              ? `Generating the ${durationLabel(durationSeconds)} AI video now from the approved scene direction.`
-              : mode === "photos"
-                ? "Generating the website campaign image set now, grounded in the captured brand and product references."
-                : mode === "icon"
-                  ? "Creating four polished square website-icon concepts. Each one uses a different professional direction while staying grounded in the real site, brand colors and captured mark."
-                  : mode === "both"
-                    ? `Creating both deliverables in parallel: a true AI-generated ${durationLabel(durationSeconds)} website video grounded in the selected site states, plus four AI marketing photos based on the captured brand/products.`
-                    : mode === "demo"
-                      ? `Directing a ${durationLabel(durationSeconds)} cinematic brand film from your real logo, products, UI and captured brand content. Longer productions are rendered as connected premium shots with consistent visual direction and continuity.`
-                      : isVideo && durationSeconds > 8
-                        ? `Generating a ${durationLabel(durationSeconds)} AI video from your selected real website references. Important actions resolve naturally, and longer productions use connected premium shots with consistent subjects, camera language and visual direction.`
-                        : "Generating a complete short AI-video beat from the strongest real website state. The key action is planned to finish inside the clip instead of being cut off, while visible UI text and brand details must stay faithful to the reference.",
-    );
     try {
       const renderResponse = await requestRender(jobId, audioMode, narrationLanguage);
       if (typeof renderResponse.creditsRemaining === "number") {
@@ -2667,6 +2614,7 @@ ${request.prompt}`
                   sceneAssignments={sceneAssignments}
                   brandMarkUrl={projectCaptureMetadata?.logoUrl ?? null}
                   brandName={websiteBrandName(job?.sourceUrl, projectCaptureMetadata?.title)}
+                  storyboard={job?.storyboard ?? null}
                 />
               </div>
             )}
