@@ -115,9 +115,6 @@ export function ChatWidget({
       autoFollowRef.current = false;
       userScrollIntentRef.current = true;
       setShowJumpToLatest(element.scrollHeight > element.clientHeight + 4);
-      // Cancels an in-flight smooth follow in browsers that otherwise keep
-      // animating after a wheel/touch gesture begins.
-      element.scrollTo({ top: element.scrollTop, behavior: "auto" });
     };
 
     const scheduleFollow = (element: HTMLElement, markUnread: boolean) => {
@@ -153,14 +150,26 @@ export function ChatWidget({
       const onScroll = () => {
         const currentTop = element.scrollTop;
         const movingUp = currentTop < lastScrollTopRef.current - 1;
+        const distanceFromBottom = element.scrollHeight - currentTop - element.clientHeight;
+        const trulyAtBottom = distanceFromBottom <= 12;
+
         if (movingUp) {
           autoFollowRef.current = false;
           userScrollIntentRef.current = true;
         }
 
-        if (isNearBottom(element)) {
+        if (userScrollIntentRef.current) {
+          if (trulyAtBottom) {
+            autoFollowRef.current = true;
+            userScrollIntentRef.current = false;
+            setShowJumpToLatest(false);
+            setHasUnseenBelow(false);
+          } else {
+            autoFollowRef.current = false;
+            setShowJumpToLatest(element.scrollHeight > element.clientHeight + 4);
+          }
+        } else if (isNearBottom(element)) {
           autoFollowRef.current = true;
-          userScrollIntentRef.current = false;
           setShowJumpToLatest(false);
           setHasUnseenBelow(false);
         } else {
