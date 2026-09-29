@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Check, Clock3, Film, Globe2, Image, LoaderCircle, PackageOpen, ShieldCheck, X } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, Clock3, Film, Globe2, Image, LoaderCircle, PackageOpen, ShieldCheck, X } from "lucide-react";
 import { fetchJob, request } from "@/lib/api-client";
 import { getActiveJobId } from "@/lib/guestSession";
-import type { JobAsset, JobStatus } from "./types";
+import type { JobAsset, JobStatus, Storyboard } from "./types";
 import type { CaptureMediaItem } from "./MediaPlanningPanel";
 import {
   AlertDialog,
@@ -28,13 +28,62 @@ type Settings = {
   frameRate: number | null;
 };
 
-const KIND: Record<ProductionKind, { label: string; Icon: typeof Film }> = {
-  "website-video": { label: "Website campaign", Icon: Globe2 },
-  "ai-video": { label: "AI video", Icon: Film },
-  "product-photos": { label: "Product photos", Icon: PackageOpen },
-  "campaign-photos": { label: "Campaign photos", Icon: Image },
-  "product-video": { label: "Product video", Icon: PackageOpen },
-  "talking-scene": { label: "Talking scene", Icon: Film },
+const KIND: Record<ProductionKind, {
+  label: string;
+  Icon: typeof Film;
+  accentText: string;
+  accentBg: string;
+  accentBorder: string;
+  accentDot: string;
+}> = {
+  "website-video": {
+    label: "Website campaign",
+    Icon: Globe2,
+    accentText: "text-mint",
+    accentBg: "bg-mint/[.08]",
+    accentBorder: "border-mint/20",
+    accentDot: "bg-mint shadow-[0_0_10px_rgba(52,217,196,.72)]",
+  },
+  "ai-video": {
+    label: "AI video",
+    Icon: Film,
+    accentText: "text-violet",
+    accentBg: "bg-violet/[.09]",
+    accentBorder: "border-violet/20",
+    accentDot: "bg-violet shadow-[0_0_10px_rgba(139,92,246,.72)]",
+  },
+  "product-photos": {
+    label: "Product photos",
+    Icon: PackageOpen,
+    accentText: "text-pink",
+    accentBg: "bg-pink/[.08]",
+    accentBorder: "border-pink/20",
+    accentDot: "bg-pink shadow-[0_0_10px_rgba(236,72,153,.72)]",
+  },
+  "campaign-photos": {
+    label: "Campaign photos",
+    Icon: Image,
+    accentText: "text-violet",
+    accentBg: "bg-violet/[.09]",
+    accentBorder: "border-violet/20",
+    accentDot: "bg-violet shadow-[0_0_10px_rgba(139,92,246,.72)]",
+  },
+  "product-video": {
+    label: "Product video",
+    Icon: PackageOpen,
+    accentText: "text-pink",
+    accentBg: "bg-pink/[.08]",
+    accentBorder: "border-pink/20",
+    accentDot: "bg-pink shadow-[0_0_10px_rgba(236,72,153,.72)]",
+  },
+  "talking-scene": {
+    label: "Talking scene",
+    Icon: Film,
+    accentText: "text-gold",
+    accentBg: "bg-gold/[.08]",
+    accentBorder: "border-gold/20",
+    accentDot: "bg-gold shadow-[0_0_10px_rgba(251,191,36,.72)]",
+  },
 };
 
 function formatEta(seconds: number | null | undefined) {
@@ -57,6 +106,51 @@ function cleanAudio(value: string) {
   return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function humanThinkingText(
+  status: JobStatus,
+  statusMessage: string | null | undefined,
+  productionKind: ProductionKind,
+  generatedPhotoCount: number,
+  hasGeneratedVideo: boolean,
+) {
+  const message = (statusMessage ?? "").toLowerCase();
+  const photoMode = productionKind === "product-photos" || productionKind === "campaign-photos";
+
+  if (status === "done") return "Generated successfully";
+  if (status === "failed") return "Generation needs attention";
+  if (status === "cancelled") return "Generation stopped";
+  if (status === "queued") return "Preparing your production";
+  if (status === "capturing") {
+    return productionKind === "website-video" ? "Reading your website" : "Reading your references";
+  }
+  if (status === "captured" || status === "storyboarding") {
+    if (/camera|movement|motion|direct/.test(message)) return "Directing camera movement";
+    return "Choosing the strongest story beat";
+  }
+  if (status === "rendering") {
+    if (photoMode) {
+      if (generatedPhotoCount >= 4) return "Finishing your images";
+      return "Creating image " + Math.min(4, generatedPhotoCount + 1);
+    }
+    if (hasGeneratedVideo || /finish|final|assembl|master|download|continu|upload/.test(message)) {
+      return "Finishing touches";
+    }
+    const sceneMatch = message.match(/scene\s+(\d+)/i);
+    if (sceneMatch) return "Rendering scene " + sceneMatch[1];
+    if (/camera|movement|motion|direct/.test(message)) return "Directing camera movement";
+    return "Rendering your scene";
+  }
+  return "Working on your production";
+}
+
+function formatElapsed(seconds: number) {
+  const safe = Math.max(0, Math.round(seconds));
+  if (safe < 60) return safe + "s";
+  const minutes = Math.floor(safe / 60);
+  const remainder = safe % 60;
+  return minutes + "m " + String(remainder).padStart(2, "0") + "s";
+}
+
 function cancellationErrorMessage(error: unknown) {
   if (error instanceof Error && error.message.trim()) return error.message;
   return "We couldn't stop this production right now. Please try again.";
@@ -76,6 +170,7 @@ export function GenerationCanvas({
   sceneAssignments = {},
   brandMarkUrl = null,
   brandName = null,
+  storyboard = null,
 }: {
   jobId?: string | null;
   status: JobStatus;
@@ -90,6 +185,7 @@ export function GenerationCanvas({
   sceneAssignments?: Record<string, number>;
   brandMarkUrl?: string | null;
   brandName?: string | null;
+  storyboard?: Storyboard | null;
 }) {
   const [settings, setSettings] = useState<Settings>({ quality: null, duration: null, audio: null, frameRate: null });
   const [liveAssets, setLiveAssets] = useState<JobAsset[]>([]);
@@ -99,8 +195,10 @@ export function GenerationCanvas({
   const [stopSubmitting, setStopSubmitting] = useState(false);
   const [stopRequested, setStopRequested] = useState(false);
   const [stopError, setStopError] = useState<string | null>(null);
-  const panelRef = useRef<HTMLElement>(null);
-  const lastActivityRef = useRef("");
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [localElapsedSeconds, setLocalElapsedSeconds] = useState(0);
+  const [showSlowReassurance, setShowSlowReassurance] = useState(false);
+  const startedAtRef = useRef(Date.now());
   const copy = KIND[productionKind];
   const Icon = copy.Icon;
   const settled = ["done", "failed", "cancelled"].includes(status);
