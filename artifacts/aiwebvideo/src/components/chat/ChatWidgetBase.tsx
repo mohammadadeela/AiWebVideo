@@ -2163,11 +2163,6 @@ ${request.prompt}`
     storyboardedRef.current = true;
     renderedRef.current = false;
     pushUser(label);
-    pushBot(
-      isImageMode(mode)
-        ? "Creating a fresh image direction from the same project references. Your finished images stay in this conversation."
-        : "Creating a fresh scene direction from the same project source. Your finished video stays in this conversation.",
-    );
     setStage("storyboarding");
     try {
       // The storyboard endpoint automatically creates an immutable child job
