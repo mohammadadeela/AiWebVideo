@@ -391,7 +391,7 @@ export function GenerationCanvas({
                 <div className="min-w-0 flex items-center gap-1.5">
                   <p
                     key={thinkingText}
-                    className="animate-fade-in min-w-0 truncate text-[12px] font-semibold text-white"
+                    className="animate-fade-in-up min-w-0 truncate text-[12px] font-semibold text-white"
                   >
                     {thinkingText}
                   </p>
