@@ -355,202 +355,209 @@ export function GenerationCanvas({
   return (
     <>
       <section
-        ref={panelRef}
         className="relative w-full overflow-hidden rounded-[20px] border border-white/[.09] bg-[#0d0a18]/95 shadow-[0_22px_64px_-42px_rgba(139,92,246,.82)]"
-        aria-label={`${copy.label} generation progress`}
+        aria-label={copy.label + " generation progress"}
         aria-live="polite"
         aria-atomic="false"
       >
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_-10%,rgba(139,92,246,.16),transparent_36%),radial-gradient(circle_at_100%_100%,rgba(52,217,196,.065),transparent_28%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_-10%,rgba(139,92,246,.14),transparent_34%),radial-gradient(circle_at_100%_100%,rgba(52,217,196,.05),transparent_28%)]" />
         <div className="relative p-3.5 sm:p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2.5">
-            <div className="flex min-w-0 items-center gap-2.5">
-              <span
-                className={`flex h-9 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/[.09] bg-white/[.045] text-mint ${brandMarkUrl && productionKind === "website-video" ? "min-w-9 max-w-[112px] px-1.5" : "w-9"}`}
-              >
-                {brandMarkUrl && productionKind === "website-video" ? (
-                  <img
-                    src={brandMarkUrl}
-                    alt={brandName ? `${brandName} logo` : "Website logo"}
-                    className="max-h-5 max-w-[88px] object-contain"
-                  />
-                ) : (
-                  <Icon size={15} />
-                )}
-              </span>
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <p className="truncate text-[12px] font-semibold text-white">
-                    {settled ? phase(status) : "Generating your result"}
+          <div className="flex items-start gap-3">
+            <span
+              className={"flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl border " + copy.accentBorder + " " + copy.accentBg + " " + copy.accentText}
+              aria-hidden="true"
+            >
+              {brandMarkUrl && productionKind === "website-video" ? (
+                <img
+                  src={brandMarkUrl}
+                  alt=""
+                  className="max-h-5 max-w-7 object-contain"
+                />
+              ) : (
+                <Icon size={15} className={!settled ? "animate-pulse-soft" : ""} />
+              )}
+            </span>
+
+            <div className="min-w-0 flex-1">
+              <div className="flex min-h-6 items-center gap-2">
+                {!settled ? (
+                  <span className={"h-2 w-2 shrink-0 animate-pulse rounded-full " + copy.accentDot} aria-hidden="true" />
+                ) : status === "done" ? (
+                  <span className="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-mint/10 text-mint" aria-hidden="true">
+                    <Check size={10} />
+                  </span>
+                ) : null}
+
+                <div className="min-w-0 flex items-center gap-1.5">
+                  <p
+                    key={thinkingText}
+                    className="animate-fade-in min-w-0 truncate text-[12px] font-semibold text-white"
+                  >
+                    {thinkingText}
                   </p>
                   {!settled && (
-                    <span className="inline-flex items-center gap-1 rounded-full border border-mint/15 bg-mint/[.07] px-1.5 py-0.5 font-utility text-[7px] uppercase tracking-[.12em] text-mint">
-                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-mint shadow-[0_0_10px_rgba(52,217,196,.65)]" aria-hidden="true" />
-                      Live
+                    <span className={"inline-flex shrink-0 items-end gap-[3px] " + copy.accentText} aria-label="Working">
+                      {[0, 1, 2].map((dot) => (
+                        <span
+                          key={dot}
+                          className="h-1 w-1 rounded-full bg-current animate-typing-dot"
+                          style={{ animationDelay: dot * 160 + "ms" }}
+                          aria-hidden="true"
+                        />
+                      ))}
                     </span>
                   )}
                 </div>
-                <p className="mt-0.5 truncate text-[9px] text-text-dim">{statusMessage || phase(status)}</p>
               </div>
-            </div>
-            <div className="flex items-center gap-2.5">
-              {eta && !settled && (
-                <span className="hidden items-center gap-1 text-[8px] text-text-dim sm:flex">
-                  <Clock3 size={10} /> {eta}
-                </span>
-              )}
-              <span className="rounded-full border border-white/[.08] bg-black/20 px-2 py-1 font-utility text-[9px] font-semibold text-white">{safeProgress}%{progressIsEstimated ? " est." : ""}</span>
-            </div>
-          </div>
 
-          {photoMode ? (
-            <div className="mt-3">
-              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p className="text-[10px] font-semibold text-white">Live image generation</p>
-                  <p className="mt-0.5 text-[8px] text-text-dim">Each slot fills immediately when its real generated image becomes available.</p>
-                </div>
-                <span className="rounded-full border border-white/[.07] bg-white/[.025] px-2 py-1 text-[8px] text-white/60">{generatedPhotos.length}/4 ready</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {Array.from({ length: 4 }).map((_, index) => {
-                  const asset = generatedPhotos[index];
-                  return (
-                    <div
-                      key={asset?.id ?? index}
-                      className="relative aspect-[4/5] overflow-hidden rounded-xl border border-white/[.08] bg-[linear-gradient(145deg,#171229,#0a0813)]"
-                    >
-                      {asset ? (
-                        <img src={asset.url} alt={`Generated photo ${index + 1}`} className="h-full w-full object-cover" loading="eager" decoding="async" />
-                      ) : (
-                        <>
-                          {sourcePreview && <img src={sourcePreview.url} alt="" className="absolute inset-0 h-full w-full scale-105 object-cover opacity-[.12] blur-[2px]" />}
-                          <div className="generation-soft-flash pointer-events-none absolute inset-0" />
-                          <div className="absolute inset-0 bg-[radial-gradient(circle_at_35%_28%,rgba(139,92,246,.18),transparent_36%)]" />
-                          <div className="relative flex h-full flex-col items-center justify-center gap-1.5">
-                            <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-violet/20 bg-violet/[.09] text-violet">
-                              <LoaderCircle size={13} className={!settled ? "animate-spin" : ""} />
-                            </span>
-                            <span className="text-[8px] font-semibold text-white/75">Creating photo {index + 1}</span>
-                          </div>
-                        </>
-                      )}
-                      {asset && <span className="absolute right-1.5 top-1.5 inline-flex items-center gap-1 rounded-full border border-mint/20 bg-black/55 px-1.5 py-0.5 text-[7px] font-semibold text-mint backdrop-blur"><Check size={8} />Ready</span>}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ) : (
-            <div className="mt-3 grid gap-2.5 sm:grid-cols-[minmax(0,1fr)_150px]">
-              <div className="relative h-40 overflow-hidden rounded-2xl border border-white/[.08] bg-[#080611] sm:h-44">
-                {generatedVideo ? (
-                  <video src={generatedVideo.url} autoPlay muted loop playsInline preload="metadata" className="h-full w-full object-contain" />
-                ) : sourceRecording ? (
-                  <video src={sourceRecording.url} autoPlay muted loop playsInline preload="metadata" className="h-full w-full object-cover opacity-55" />
-                ) : sourcePreview ? (
-                  <img src={sourcePreview.url} alt={sourcePreview.title} className="h-full w-full object-cover object-top opacity-55" loading="eager" decoding="async" />
-                ) : (
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_42%_36%,rgba(139,92,246,.2),transparent_32%),linear-gradient(145deg,#171229,#080611)]" />
-                )}
-                {!generatedVideo && <div className="generation-soft-flash pointer-events-none absolute inset-0" />}
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/15" />
-                <div className="absolute left-2.5 top-2.5 inline-flex items-center gap-1.5 rounded-full border border-mint/20 bg-black/55 px-2 py-1 text-[7px] font-semibold uppercase tracking-[.1em] text-mint backdrop-blur">
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-mint" />
-                  {generatedVideo ? "Live output" : "Live canvas"}
-                </div>
-                <div className="absolute inset-x-0 bottom-0 p-3">
-                  <p className="text-[10px] font-semibold text-white">{generatedVideo ? "Generated video is arriving" : phase(status)}</p>
-                  <p className="mt-0.5 max-w-[520px] text-[8px] leading-4 text-white/55">{generatedVideo ? "Showing the real generated media as soon as the backend exposes it." : statusMessage || (sourcePreview || sourceRecording ? "Veo is generating the next premium shot from your selected references and creative direction." : "Preparing your production.")}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-1">
-                <div className="rounded-xl border border-white/[.07] bg-white/[.025] p-2.5">
-                  <p className="font-utility text-[7px] uppercase tracking-[.13em] text-text-dim">Current stage</p>
-                  <p className="mt-1 text-[10px] font-semibold text-white">{liveStage}</p>
-                  <p className="mt-1 line-clamp-2 text-[8px] leading-4 text-white/45">{statusMessage || "Production is progressing."}</p>
-                  {elapsedLabel && <p className="mt-1 text-[7px] font-medium text-mint/75">{elapsedLabel}</p>}
-                </div>
-                <div className="rounded-xl border border-white/[.07] bg-white/[.025] p-2.5">
-                  <p className="font-utility text-[7px] uppercase tracking-[.13em] text-text-dim">Output</p>
-                  <p className="mt-1 text-[10px] font-semibold text-white">{aspectRatio}{settings.quality ? ` · ${settings.quality === "4k" ? "4K" : settings.quality}` : ""}</p>
-                  <p className="mt-1 text-[8px] leading-4 text-white/45">{settings.duration ? `${settings.duration}s` : "Selected duration"}{settings.audio ? ` · ${cleanAudio(settings.audio)}` : ""}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="mt-3 flex items-center gap-3">
-            <div
-              className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-white/[.06]"
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={safeProgress}
-            >
-              <div className="h-full rounded-full bg-signature shadow-[0_0_14px_rgba(236,72,153,.28)] transition-[width] duration-700" style={{ width: `${safeProgress}%` }} />
-            </div>
-            {eta && !settled && <span className="shrink-0 text-[8px] text-text-dim sm:hidden">{eta}</span>}
-          </div>
-
-          <div className="mt-2.5 flex flex-wrap gap-1.5">
-            {chips.map((chip) => (
-              <span
-                key={chip}
-                className="rounded-full border border-white/[.07] bg-white/[.025] px-2 py-1 text-[8px] capitalize text-white/75"
-              >
-                {chip}
-              </span>
-            ))}
-          </div>
-
-          {visibleReferences.length > 0 && (
-            <div className="mt-3 border-t border-white/[.055] pt-2.5">
-              <div className="mb-1.5 flex items-center justify-between gap-2">
-                <p className="text-[8px] font-semibold text-white/65">Live inputs</p>
-                <p className="text-[7px] text-text-dim">Using your real references</p>
-              </div>
-              <div className="chat-scroll flex gap-1.5 overflow-x-auto pb-0.5">
-                {visibleReferences.map((item) => (
+              <div className="mt-2.5 flex items-center gap-3">
+                <div
+                  className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-white/[.065]"
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={safeProgress}
+                >
                   <div
-                    key={item.id}
-                    className="relative w-20 shrink-0 overflow-hidden rounded-lg border border-white/[.07] bg-black/20"
-                  >
-                    <div className="aspect-video overflow-hidden">
-                      <img
-                        src={item.url}
-                        alt={item.title}
-                        loading="eager"
-                        decoding="async"
-                        className="h-full w-full object-cover object-top"
-                      />
-                    </div>
-                    {sceneAssignments[item.id] ? (
-                      <span className="absolute right-1 top-1 rounded-full bg-violet px-1 py-0.5 text-[6px] font-bold text-white">
-                        R{sceneAssignments[item.id]}
-                      </span>
-                    ) : null}
-                  </div>
-                ))}
+                    className="h-full rounded-full bg-signature shadow-[0_0_14px_rgba(236,72,153,.25)] transition-[width] duration-700"
+                    style={{ width: safeProgress + "%" }}
+                  />
+                </div>
+                <span className="shrink-0 font-utility text-[8px] font-semibold text-white/60">
+                  {safeProgress}% · {elapsedLabel}
+                </span>
               </div>
-            </div>
-          )}
 
-          <div className="mt-3 flex items-center justify-between gap-2.5 border-t border-white/[.06] pt-2.5">
-            <p className="min-w-0 flex-1 truncate text-[8px] text-text-dim">
-              {progressIsEstimated ? "Estimated progress · provider generation time varies. Live stage and elapsed time are real." : "Live progress is saved. You can leave this chat and return without stopping generation."}
-            </p>
-            {onCancel && !settled && (
-              <button
-                type="button"
-                onClick={() => void openStopDialog()}
-                disabled={effectiveCancelling}
-                className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-white/[.08] bg-white/[.02] px-2.5 text-[8px] font-semibold text-text-muted transition hover:border-pink/30 hover:bg-pink/[.04] hover:text-pink disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {effectiveCancelling ? <LoaderCircle size={10} className="animate-spin" /> : <X size={10} />}
-                {effectiveCancelling ? "Stopping…" : "Stop"}
-              </button>
-            )}
+              {showSlowReassurance && !settled && (
+                <p className="mt-2 text-[9px] leading-4 text-white/38">
+                  Still working — high-quality renders can take a little longer.
+                </p>
+              )}
+
+              <div className="mt-2.5 flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => setDetailsOpen((open) => !open)}
+                  className="inline-flex min-h-7 items-center gap-1 text-[9px] font-semibold text-white/42 transition hover:text-white/75"
+                  aria-expanded={detailsOpen}
+                >
+                  {detailsOpen ? "Hide details" : "Show details"}
+                  <ChevronDown size={11} className={"transition-transform " + (detailsOpen ? "rotate-180" : "")} />
+                </button>
+
+                {onCancel && !settled && (
+                  <button
+                    type="button"
+                    onClick={() => void openStopDialog()}
+                    disabled={effectiveCancelling}
+                    className="inline-flex min-h-7 items-center gap-1 rounded-lg border border-white/[.08] bg-white/[.02] px-2.5 text-[8px] font-semibold text-text-muted transition hover:border-pink/30 hover:bg-pink/[.04] hover:text-pink disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {effectiveCancelling ? <LoaderCircle size={10} className="animate-spin" /> : <X size={10} />}
+                    {effectiveCancelling ? "Stopping…" : "Stop"}
+                  </button>
+                )}
+              </div>
+
+              {detailsOpen && (
+                <div className="mt-2.5 space-y-3 rounded-2xl border border-white/[.075] bg-white/[.025] p-3">
+                  <div>
+                    <p className="font-utility text-[7px] uppercase tracking-[.14em] text-white/32">Direction</p>
+                    <p className="mt-1 text-[10px] leading-4 text-white/70">
+                      {storyboardIntent || statusMessage || "Your production direction is being prepared."}
+                    </p>
+                  </div>
+
+                  {storyboardScenes.length > 0 && (
+                    <div className="space-y-1.5">
+                      {storyboardScenes.map((scene, index) => (
+                        <div key={scene.sceneNumber ?? index} className="rounded-xl border border-white/[.055] bg-black/10 px-2.5 py-2">
+                          <p className={"text-[8px] font-semibold " + copy.accentText}>
+                            {photoMode ? "Image" : "Beat"} {scene.sceneNumber ?? index + 1}
+                          </p>
+                          <p className="mt-1 text-[9px] leading-4 text-white/48">
+                            {scene.shotDescription || "Direction ready"}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap gap-1.5">
+                    {chips.map((chip) => (
+                      <span
+                        key={chip}
+                        className="rounded-full border border-white/[.07] bg-black/15 px-2 py-1 text-[8px] capitalize text-white/65"
+                      >
+                        {chip}
+                      </span>
+                    ))}
+                  </div>
+
+                  {visibleReferences.length > 0 && (
+                    <div>
+                      <p className="mb-1.5 text-[8px] font-semibold text-white/45">References</p>
+                      <div className="chat-scroll flex gap-2 overflow-x-auto pb-1">
+                        {visibleReferences.map((item) => (
+                          <div key={item.id} className="w-24 shrink-0">
+                            <div className="relative aspect-video overflow-hidden rounded-lg border border-white/[.07] bg-black/20">
+                              <img
+                                src={item.url}
+                                alt={item.title}
+                                loading="eager"
+                                decoding="async"
+                                className="h-full w-full object-cover object-top"
+                              />
+                              {sceneAssignments[item.id] ? (
+                                <span className="absolute right-1 top-1 rounded-full bg-violet px-1 py-0.5 text-[6px] font-bold text-white">
+                                  R{sceneAssignments[item.id]}
+                                </span>
+                              ) : null}
+                            </div>
+                            <p className="mt-1 truncate text-[7px] text-white/38" title={item.title}>{item.title}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {(generatedVideo || generatedPhotos.length > 0) && (
+                    <div>
+                      <p className="mb-1.5 text-[8px] font-semibold text-white/45">Live output</p>
+                      {generatedVideo ? (
+                        <video
+                          src={generatedVideo.url}
+                          muted
+                          playsInline
+                          preload="metadata"
+                          className="max-h-40 w-full rounded-xl border border-white/[.07] bg-black object-contain"
+                        />
+                      ) : (
+                        <div className="chat-scroll flex gap-2 overflow-x-auto pb-1">
+                          {generatedPhotos.map((asset, index) => (
+                            <img
+                              key={asset.id}
+                              src={asset.url}
+                              alt={"Generated photo " + (index + 1)}
+                              className="h-20 w-16 shrink-0 rounded-lg border border-white/[.07] object-cover"
+                              loading="eager"
+                              decoding="async"
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <p className="border-t border-white/[.055] pt-2 text-[8px] leading-4 text-white/28">
+                    {progressIsEstimated
+                      ? "The percentage is a conservative render estimate; the live stage and elapsed timer continue updating."
+                      : eta
+                        ? "Current estimate: " + eta + ". Progress is saved if you leave and return."
+                        : "Progress is saved if you leave this chat and return."}
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </section>
