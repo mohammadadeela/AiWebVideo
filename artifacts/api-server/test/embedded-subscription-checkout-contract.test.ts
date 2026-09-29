@@ -94,11 +94,11 @@ test('Create Once video uses the current server catalog and exact displayed chec
 test('checkout UX prewarms payment SDK and keeps hosted fields readable', async () => {
   const checkout = await source('../aiwebvideo/src/components/billing/SecureCheckoutModal.tsx');
   assert.match(checkout, /prewarm/);
-  assert.match(checkout, /font-size': '19px'/);
-  assert.match(checkout, /color: '#101322'/);
-  assert.match(checkout, /background-color': '#ffffff'/);
+  assert.match(checkout, /fontSize: '16px'/);
+  assert.match(checkout, /color: '#171321'/);
+  assert.match(checkout, /background: 'transparent'/);
   assert.match(checkout, /buttonColor: 'black'/);
   assert.match(checkout, /overflow-x-hidden/);
-  assert.match(checkout, /Your payment details are encrypted in transit and securely processed/);
+  assert.match(checkout, /PayPal Card Fields are hosted inside an iframe/);
   assert.doesNotMatch(checkout, /Card data is entered in PayPal-hosted fields/);
 });

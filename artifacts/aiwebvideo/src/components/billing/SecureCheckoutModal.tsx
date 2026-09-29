@@ -12,7 +12,7 @@ import {
   WalletCards,
   X,
 } from 'lucide-react';
-import { ApiError, request, type CheckoutId } from '@/lib/api-client';
+import { ApiError, request, startCheckout, type CheckoutId } from '@/lib/api-client';
 
 interface CheckoutConfig {
   configured: boolean;
@@ -568,6 +568,18 @@ export function SecureCheckoutModal({
     }
   }
 
+  async function continueWithPayPal() {
+    if (submitting) return;
+    setPaymentState('processing');
+    setError(null);
+    try {
+      const { checkoutUrl } = await startCheckout(plan, jobId);
+      window.location.assign(checkoutUrl);
+    } catch (checkoutError) {
+      markError(checkoutError);
+    }
+  }
+
   async function payWithSavedCard(method: SavedMethod) {
     if (submitting) return;
     setProcessingSavedMethodId(method.id);
@@ -850,6 +862,11 @@ export function SecureCheckoutModal({
               {error && (
                 <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-rose-400/20 bg-rose-500/[.07] p-3 text-[11px] leading-5 text-rose-200" role="alert" aria-live="polite"><AlertCircle size={15} className="mt-0.5 shrink-0" /><span>{error}</span></div>
               )}
+
+              <button type="button" onClick={() => void continueWithPayPal()} disabled={submitting}
+                className="mt-4 min-h-11 w-full rounded-xl border border-white/10 px-4 text-sm font-semibold text-white/75 transition hover:bg-white/5 hover:text-white disabled:opacity-50">
+                Buy with PayPal
+              </button>
 
             </main>
           </div>

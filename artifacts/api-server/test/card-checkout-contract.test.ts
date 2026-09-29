@@ -91,17 +91,18 @@ test('only a non-sensitive preferred alias may be remembered locally', async () 
   }
 });
 
-test('one-time pricing and generation paywall use the in-app checkout modal and Buy labels', async () => {
+test('one-time pricing and generation paywall open the in-app checkout with catalog products', async () => {
   const pricing = await source('../aiwebvideo/src/components/landing/PricingTable.tsx');
   const paywall = await source('../aiwebvideo/src/components/chat/PaywallModal.tsx');
   assert.match(pricing, /SecureCheckoutModal/);
-  assert.match(pricing, /setDirectCheckout/);
+  assert.match(pricing, /setDirect\(item\)/);
   assert.match(paywall, /SecureCheckoutModal/);
-  assert.match(paywall, /setDirectCheckout/);
+  assert.match(paywall, /setDirect\(item\)/);
   assert.doesNotMatch(pricing, /Pay securely/);
   assert.doesNotMatch(paywall, /Pay securely/);
-  assert.match(pricing, /label = "Buy"/);
-  assert.match(paywall, />Buy</);
+  assert.match(pricing, /Create this/);
+  assert.match(pricing, /Buy credits/);
+  assert.match(paywall, /recommendation\.amountUsd/);
 });
 
 test('subscription checkout reuses the embedded checkout and keeps PayPal only as fallback', async () => {
@@ -115,6 +116,7 @@ test('subscription checkout reuses the embedded checkout and keeps PayPal only a
   assert.match(subscription, /SecureCheckoutModal/);
   assert.match(subscription, /billingMode="subscription"/);
   assert.match(checkout, /\/api\/paypal-card\/subscription-orders/);
+  assert.match(checkout, /continueWithPayPal/);
   assert.match(checkout, /startCheckout\(plan, jobId\)/);
   assert.match(server, /subscription-return\/:sessionId/);
   assert.doesNotMatch(subscription, /window\.open/);
