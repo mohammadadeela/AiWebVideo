@@ -196,7 +196,7 @@ function nameForUrl(value: string) {
 }
 
 const eventSchema = z.object({
-  event: z.enum(['ideas_opened','idea_clicked','idea_to_generate_conversion','idea_generation_success','idea_generation_failure','studio_opened','studio_exported']),
+  event: z.enum(['ideas_opened','idea_clicked','idea_to_generate_conversion','idea_generation_success','idea_generation_failure','studio_opened','studio_exported','inspiration_selected']),
   ideaId: z.string().max(120).optional(),
   feature: z.string().max(80).optional(),
   projectId: z.string().uuid().optional(),

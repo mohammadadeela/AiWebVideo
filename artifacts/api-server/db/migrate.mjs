@@ -22,6 +22,7 @@ const studioSql = await readFile(
   fileURLToPath(new URL('./studio.sql', import.meta.url)),
   'utf8',
 );
+const inspirationSql = await readFile(fileURLToPath(new URL('./inspiration.sql', import.meta.url)), 'utf8');
 
 const client = new pg.Client({
   connectionString: process.env.DATABASE_URL,
@@ -49,6 +50,7 @@ try {
   await client.query(sql);
   await client.query(managedSubscriptionsSql);
   await client.query(studioSql);
+  await client.query(inspirationSql);
 
   // Fail deployment before restarting the application if a legacy database
   // still cannot satisfy the exact columns used by account/billing queries.
@@ -100,6 +102,7 @@ try {
     a.storage_url,
     a.kind
     FROM studio_assets a LIMIT 0`);
+  await client.query('SELECT m.id, m.status, f.feature_id FROM inspiration_media m LEFT JOIN inspiration_features f ON f.media_id=m.id LIMIT 0');
 
   console.log('Database schema is up to date.');
 } finally {

@@ -45,8 +45,7 @@ import {
   type WorkflowStage,
 } from "./types";
 import { normalizeWebsiteUrl } from "@/lib/websiteUrl";
-import { INTERIOR_MASTER_PROMPT } from "@/lib/creativeIdeas";
-import { estimateRenderCredits } from "@/lib/credits";
+import { displayCredits, estimateInternalRenderCredits } from "@/lib/credits";
 import { defaultModelFor } from "@/lib/generationModels";
 import {
   clearLocalJobWorkflow,
@@ -399,11 +398,12 @@ export function ChatWidget({
     audioMode: AudioMode;
     narrationLanguage: string;
     modelId: string;
+    inspirationMediaId?: string;
   } | null>(null);
 
   const pollingActive = stage === "capturing" || stage === "storyboarding" || stage === "rendering";
   const { job, error: pollError } = useJobPolling(jobId, pollingActive);
-  const estimatedCredits = estimateRenderCredits(
+  const estimatedCredits = estimateInternalRenderCredits(
     mode,
     skipVoiceover,
     job?.storyboard?.targetDurationSeconds || durationSeconds,
@@ -1236,6 +1236,7 @@ export function ChatWidget({
       audioMode: settings.audioMode,
       narrationLanguage: settings.narrationLanguage,
       modelId: settings.modelId,
+      inspirationMediaId: settings.inspirationMediaId,
     };
     setMode(settings.mode);
     setCreativeBrief(brief);
@@ -1349,6 +1350,10 @@ export function ChatWidget({
         outputQuality: request.outputQuality,
         audioMode: request.audioMode,
         modelId: request.modelId,
+        inspirationMediaId: request.inspirationMediaId,
+        productUrl: request.productUrl,
+        productImageUrls: request.productImageUrls,
+        architecture: request.architecture,
       },
       attachmentDraftKey,
     });
@@ -1359,6 +1364,8 @@ export function ChatWidget({
           ? "scenario"
           : request.studioKind === "interior"
             ? "interior"
+            : request.studioKind === "architecture"
+              ? "architecture"
             : request.mode === "photos"
               ? "photo"
               : "product-video";
@@ -1380,6 +1387,7 @@ export function ChatWidget({
       audioMode: settings.audioMode,
       narrationLanguage: settings.narrationLanguage,
       modelId: settings.modelId,
+      inspirationMediaId: settings.inspirationMediaId,
     };
     setMode(settings.mode);
     setModelId(settings.modelId);
@@ -1438,7 +1446,7 @@ Promotion direction: ${brief}` : normalized);
       const setupSummary = pendingRequest
         ? `Setup: ${MODE_OPTIONS.find((option) => option.mode === pendingRequest.mode)?.label ?? "Website video"} · ${pendingRequest.durationSeconds === "auto" ? "Auto duration" : `${pendingRequest.durationSeconds}s`} · ${pendingRequest.aspectRatio} · ${pendingRequest.outputQuality} · ${pendingRequest.audioMode === "voice_music" ? `Narration ${pendingRequest.narrationLanguage.toUpperCase()}` : pendingRequest.audioMode.replace(/_/g, " ")}`
         : undefined;
-      const res = await startCapture(normalized, brief, setupSummary);
+      const res = await startCapture(normalized, brief, setupSummary, pendingRequest?.inspirationMediaId);
       selectJobId(res.jobId);
       if (isPublicCreatorPath() && !isSignedIn && pendingWebsiteAttachmentsRef.current.length) {
         await savePhotoDraft(
@@ -1720,12 +1728,7 @@ Promotion direction: ${brief}` : normalized);
   }
 
   async function performStudioSubmit(request: StudioGenerationRequest) {
-    const effectiveStudioPrompt = request.studioKind === "interior"
-      ? `${INTERIOR_MASTER_PROMPT}
-
-USER DESIGN BRIEF (highest-priority creative direction):
-${request.prompt}`
-      : request.prompt;
+    const effectiveStudioPrompt = request.prompt;
     setBusy(true);
     setActiveCaptureMetadata(null);
     setSelectedCaptureIds([]);
@@ -1740,7 +1743,7 @@ ${request.prompt}`
     storyboardedRef.current = false;
     renderedRef.current = false;
     pushUser(
-      request.studioKind === "interior"
+      request.studioKind === "interior" || request.studioKind === "architecture"
         ? `Create an interior design${request.prompt ? ` · ${request.prompt}` : ""}`
         : request.studioKind === "product"
         ? request.mode === "photos"
@@ -1749,7 +1752,7 @@ ${request.prompt}`
         : request.prompt,
     );
     pushBot(
-      request.studioKind === "interior"
+      request.studioKind === "interior" || request.studioKind === "architecture"
         ? request.mode === "photos"
           ? "I’m cross-checking your space references, measurements and architectural constraints before creating the interior concept. The result will stay grounded in the supplied geometry."
           : "I’m building a continuous architectural walkthrough from your references, measurements and design direction. The camera path will stay consistent with the supplied space."
@@ -1764,19 +1767,6 @@ ${request.prompt}`
       setIsSignedIn(true);
       setIsAdmin(account.isAdmin);
       setCreditBalance(account.creditsBalance);
-      const required = estimateRenderCredits(
-        request.mode,
-        request.audioMode !== "voice_music",
-        request.durationSeconds,
-        request.outputQuality,
-        request.modelId,
-      );
-      if (account.creditsBalance < required) {
-        setPaywallContext(`Add ${required - account.creditsBalance} credits to start this AI production`);
-        setShowPaywall(true);
-        setStage("awaiting_url");
-        return;
-      }
       const upload = await uploadStudioMedia({
         files: request.files,
         studioKind: request.studioKind,
@@ -1787,6 +1777,10 @@ ${request.prompt}`
         outputQuality: request.outputQuality,
         modelId: request.modelId,
         ideaPrompt: effectiveStudioPrompt || undefined,
+        inspirationMediaId: request.inspirationMediaId,
+        productUrl: request.productUrl,
+        productImageUrls: request.productImageUrls,
+        architecture: request.architecture,
       });
       selectJobId(upload.jobId);
       onJobCreated?.(upload.jobId);
@@ -2097,11 +2091,11 @@ ${request.prompt}`
         setStage("ready_to_render");
         showLockedTeaser();
       } else if (err instanceof ApiError && err.code === "INSUFFICIENT_CREDITS") {
-        const required = estimateRenderCredits(mode, skipVoiceover, durationSeconds, outputQuality);
+        const required = estimateInternalRenderCredits(mode, skipVoiceover, durationSeconds, outputQuality, modelId);
         const shortfall = Math.max(0, required - creditBalance);
-        setPaywallContext(`Add ${shortfall} credit${shortfall === 1 ? "" : "s"} to generate this saved production`);
+        setPaywallContext(`Add ${displayCredits(shortfall)} credits to generate this saved production`);
         pushBot(
-          `This production needs ${required} credits. You have ${creditBalance}, so you need ${shortfall} more. Nothing was charged and your project is saved. Choose a shorter version, reduce the selected media, or add credits.`,
+          `This production needs ${displayCredits(required)} credits. You have ${displayCredits(creditBalance)}, so you need ${displayCredits(shortfall)} more. Your project is saved.`,
         );
         setStage("ready_to_render");
         setShowPaywall(true);
@@ -2862,8 +2856,8 @@ ${request.prompt}`
                     </div>
                     <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 font-utility text-[10px] text-white">
                       {estimatedAdditionalCredits > 0
-                        ? `${estimatedAdditionalCredits} more credits`
-                        : `${estimatedCredits} credits reserved`}
+                        ? `${displayCredits(estimatedAdditionalCredits)} more credits`
+                        : `${displayCredits(estimatedCredits)} credits reserved`}
                     </span>
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-2 text-[10px] text-text-muted sm:grid-cols-4">
@@ -2892,9 +2886,9 @@ ${request.prompt}`
                   </div>
                   {isSignedIn && (
                     <p className="mt-3 text-[10px] font-semibold text-text-muted">
-                      Balance: {creditBalance}
+                      Balance: {displayCredits(creditBalance)}
                       {estimatedShortfall > 0
-                        ? ` · ${estimatedShortfall} more credits needed`
+                        ? ` · ${displayCredits(estimatedShortfall)} more credits needed`
                         : estimatedAdditionalCredits > 0
                           ? " · ready for the final charge"
                           : " · ready — no second charge for this production"}
@@ -2912,8 +2906,8 @@ ${request.prompt}`
                           ? "Start final photo generation · credits reserved"
                           : "Start final video generation · credits reserved"
                         : mode === "photos"
-                          ? `Generate the AI photo campaign · ${estimatedAdditionalCredits} more credits`
-                          : `Generate the final video · ${estimatedAdditionalCredits} more credits`
+                          ? `Generate the AI photo campaign · ${displayCredits(estimatedAdditionalCredits)} more credits`
+                          : `Generate the final video · ${displayCredits(estimatedAdditionalCredits)} more credits`
                     : "Sign in and generate"}
                 </Button>
                 {isSignedIn && estimatedShortfall > 0 && (
@@ -2950,7 +2944,7 @@ ${request.prompt}`
                     disabled={busy}
                   >
                     {nextVersionShortfall > 0
-                      ? `Add ${nextVersionShortfall} credits for another version`
+                      ? `Add ${displayCredits(nextVersionShortfall)} credits for another version`
                       : `${
                           productionKind === "product-photos" || productionKind === "campaign-photos"
                             ? "Create another photo set"
@@ -2961,7 +2955,7 @@ ${request.prompt}`
                                 : productionKind === "ai-video"
                                   ? "Create another video"
                                   : "Create another campaign cut"
-                        } · ${estimatedCredits} credits`}
+                        } · ${displayCredits(estimatedCredits)} credits`}
                   </Button>
                   <Button
                     variant="secondary"
@@ -3175,6 +3169,7 @@ ${request.prompt}`
           currentBalance={creditBalance}
           reservedCredits={job?.creditsSpent ?? 0}
           jobId={jobId}
+          modelId={modelId}
         />
       )}
       {showAuthModal && (

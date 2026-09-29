@@ -6,11 +6,21 @@ import { addJobMessage, createUploadJob, getJob, updateJob } from '../lib/querie
 import { requireAuth, tryAuth } from '../lib/auth.js';
 import { AppError, sendError } from '../lib/errors.js';
 import { saveImageFile } from '../lib/capture.js';
-import { MAX_VIDEO_SECONDS, MIN_VIDEO_SECONDS, videoCreditCost } from '../lib/credits.js';
+import { MAX_VIDEO_SECONDS, MIN_VIDEO_SECONDS } from '../lib/credits.js';
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_PHOTOS, normalizeUploadToJpeg, sanitizeUploadTitle, uploadPhotoLabel } from '../lib/uploads.js';
 import { generationModelForMode } from '../lib/generation-models.js';
+import { query } from '../lib/pool.js';
+import { ensureLocalAsset } from '../lib/r2-storage.js';
+import { readPublicUrl } from '../lib/external-reference.js';
+import { coordinatesFromMapsUrl, isGoogleMapsUrl } from '../lib/maps-url.js';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { z } from 'zod';
 
 const router = Router();
+const run = promisify(execFile);
 
 const fileFilter: NonNullable<Parameters<typeof multer>[0]>['fileFilter'] = (_req, file, cb) => {
   // HEIC/HEIF intentionally excluded: normalizeUploadToJpeg() shells out to
@@ -74,11 +84,30 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
     }
 
     const files = (req.files as Express.Multer.File[] | undefined) ?? [];
+    const productUrl = typeof req.body?.productUrl === 'string' ? req.body.productUrl.slice(0, 2048) : null;
+    let productImageUrls: string[] = [];
+    if (req.body?.productImageUrls) {
+      try { productImageUrls = JSON.parse(req.body.productImageUrls); } catch { throw new AppError('Choose valid product images.', 400, 'INVALID_PRODUCT_IMAGES'); }
+      if (!Array.isArray(productImageUrls) || productImageUrls.length > 6 || productImageUrls.some((url) => typeof url !== 'string' || url.length > 2048)) throw new AppError('Choose up to six product images.', 400, 'INVALID_PRODUCT_IMAGES');
+    }
+    const inspirationId = typeof req.body?.inspirationMediaId === 'string' ? req.body.inspirationMediaId : null;
     const ideaPrompt = typeof req.body?.ideaPrompt === 'string' ? req.body.ideaPrompt.trim() : '';
     if (ideaPrompt.length > 8000) {
       throw new AppError('Your prompt is longer than 8,000 characters. Shorten it slightly so every detail can be sent without hidden truncation.', 400, 'PROMPT_TOO_LONG');
     }
-    const studioKind = ['product', 'idea', 'scenario', 'interior'].includes(req.body?.studioKind) ? req.body.studioKind as 'product' | 'idea' | 'scenario' | 'interior' : null;
+    const studioKind = ['product', 'idea', 'scenario', 'interior', 'architecture'].includes(req.body?.studioKind) ? req.body.studioKind as 'product' | 'idea' | 'scenario' | 'interior' | 'architecture' : null;
+    let architectureInput: unknown = {};
+    if (studioKind === 'architecture') {
+      try { architectureInput = JSON.parse(req.body?.architecture || '{}'); }
+      catch { throw new AppError('Check the architecture site details.', 400, 'INVALID_SITE_DETAILS'); }
+    }
+    const architecture = studioKind === 'architecture' ? z.object({
+      location: z.string().max(2048).optional(), mapUrl: z.string().url().max(2048).optional(),
+      latitude: z.number().min(-90).max(90).optional(), longitude: z.number().min(-180).max(180).optional(),
+      plotWidth: z.number().positive().max(100_000).optional(), plotDepth: z.number().positive().max(100_000).optional(),
+      floors: z.number().int().positive().max(200).optional(), setback: z.number().min(0).max(10_000).optional(),
+      estimatedScale: z.boolean().optional(),
+    }).parse(architectureInput) : null;
     const studioMode = ['video', 'photos', 'both', 'custom'].includes(req.body?.mode) ? req.body.mode as 'video' | 'photos' | 'both' | 'custom' : null;
     const studioAudioMode = ['voice_music', 'native_audio', 'music_only', 'silent'].includes(req.body?.audioMode)
       ? req.body.audioMode as 'voice_music' | 'native_audio' | 'music_only' | 'silent'
@@ -91,6 +120,16 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
       && requestedDuration <= MAX_VIDEO_SECONDS
       ? requestedDuration
       : null;
+    let inspiration: { id: string; media_type: string; thumbnail_url: string; media_url: string; duration_seconds: number | null } | null = null;
+    if (inspirationId) {
+      if (!/^[0-9a-f-]{36}$/i.test(inspirationId)) throw new AppError('Invalid inspiration.', 400, 'INVALID_INSPIRATION');
+      const expectedFeature = studioKind === 'product' ? studioMode === 'photos' ? 'photo' : 'product-video'
+        : studioKind === 'idea' ? 'video' : studioKind === 'scenario' ? 'scenario' : studioKind;
+      const found = await query<{ id: string; media_type: string; thumbnail_url: string; media_url: string; duration_seconds: number | null }>(`SELECT m.id,m.media_type,m.thumbnail_url,m.media_url,m.duration_seconds FROM inspiration_media m
+        WHERE m.id=$1 AND m.status='published' AND EXISTS (SELECT 1 FROM inspiration_features f WHERE f.media_id=m.id AND f.feature_id=$2)`, [inspirationId, expectedFeature]);
+      if (!found.rows[0]) throw new AppError('This inspiration is unavailable for the selected feature.', 404, 'INSPIRATION_UNAVAILABLE');
+      inspiration = found.rows[0];
+    }
 
     if (studioKind) {
       if (!req.user) throw new AppError('Sign in before starting an AI Studio generation.', 401, 'AUTH_REQUIRED');
@@ -102,32 +141,34 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
       if ((studioKind === 'idea' || studioKind === 'scenario') && studioMode !== 'custom') {
         throw new AppError('Custom Idea and Scenario productions use the independent custom-video engine.', 400, 'INVALID_STUDIO_MODE');
       }
-      if (studioKind === 'interior' && !['photos', 'custom'].includes(studioMode)) {
+      if ((studioKind === 'interior' || studioKind === 'architecture') && !['photos', 'custom'].includes(studioMode)) {
         throw new AppError('Interior Design uses image generation or custom video mode.', 400, 'INVALID_STUDIO_MODE');
       }
       if (studioKind === 'interior' && !files.length) {
         throw new AppError('Upload at least one interior photo, plan, sketch, elevation, or reference image.', 400, 'INTERIOR_REFERENCE_REQUIRED');
       }
-      if (studioKind === 'product' && !files.length) {
-        throw new AppError('Upload at least one real product photo before generating a product campaign.', 400, 'PRODUCT_PHOTO_REQUIRED');
+      if (studioKind === 'architecture') {
+        if (!files.length) throw new AppError('Add a site screenshot or photo and building references.', 400, 'SITE_REFERENCE_REQUIRED');
+        if (!architecture?.location && !architecture?.mapUrl) throw new AppError('Add a Maps link or address.', 400, 'LOCATION_REQUIRED');
+        if (!architecture.estimatedScale && (!architecture.plotWidth || !architecture.plotDepth)) throw new AppError('Add plot width and depth or choose estimated site scale.', 400, 'PLOT_DIMENSIONS_REQUIRED');
+        if (architecture.mapUrl && !isGoogleMapsUrl(architecture.mapUrl)) throw new AppError('Use a Google Maps link.', 400, 'INVALID_MAP_LINK');
+        if (architecture.mapUrl) {
+          const position = coordinatesFromMapsUrl(new URL(architecture.mapUrl));
+          if (position) { architecture.latitude = position.latitude; architecture.longitude = position.longitude; }
+          else { delete architecture.latitude; delete architecture.longitude; }
+        } else { delete architecture.latitude; delete architecture.longitude; }
+      }
+      if (studioKind === 'product' && !files.length && !productImageUrls.length) {
+        throw new AppError('Add your product to continue.', 400, 'PRODUCT_PHOTO_REQUIRED');
       }
       const selectedModel = generationModelForMode(publicModelId, studioMode, studioKind);
       if (studioQuality === '4k' && !selectedModel.supports4k) {
         throw new AppError('The selected AiWebVideo model does not support 4K. Choose 1080p or a higher model.', 400, 'MODEL_QUALITY_UNSUPPORTED');
       }
-      const requiredCredits = videoCreditCost(
-        studioMode,
-        studioAudioMode !== 'voice_music',
-        studioDuration,
-        studioQuality,
-        selectedModel.id,
-        studioKind,
-      );
-      if (req.user.creditsBalance < requiredCredits) {
-        throw new AppError(`This production needs ${requiredCredits} credits. Add credits before generation starts.`, 402, 'INSUFFICIENT_CREDITS');
-      }
+      // This endpoint stores references only. The storyboard preflight reserves
+      // credits before its first paid provider call, leaving the draft resumable.
     }
-    if (!files.length && !ideaPrompt) {
+    if (!files.length && !productImageUrls.length && !ideaPrompt) {
       throw new AppError('Please attach at least one photo, or describe your idea so we can generate a starting image.', 400, 'NO_FILES');
     }
     if (!files.length && ideaPrompt && !studioKind) {
@@ -188,6 +229,39 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
       const screenshotUrl = await saveImageFile(job.id, filename, jpeg);
       pages.push({ url: `upload://${job.id}/${index}`, title: uploadPhotoLabel(index, file.originalname), screenshotUrl });
     }
+    for (const [index, imageUrl] of productImageUrls.entries()) {
+      const source = await readPublicUrl(imageUrl, 10 * 1024 * 1024, /^image\/(?:jpeg|png|webp)$/);
+      const jpeg = await normalizeUploadToJpeg(source.buffer);
+      const filename = pages.length ? `page-${files.length + index + 1}.jpg` : 'screenshot-full.jpg';
+      const screenshotUrl = await saveImageFile(job.id, filename, jpeg);
+      pages.push({ url: `product-reference://${index}`, title: `Product image ${index + 1}`, screenshotUrl });
+    }
+    if (inspiration) {
+      const filename = path.basename(new URL(inspiration.thumbnail_url, 'http://local').pathname);
+      const local = await ensureLocalAsset('marketing', filename);
+      if (!local) throw new AppError('The selected inspiration image is unavailable. Choose another.', 404, 'INSPIRATION_ASSET_MISSING');
+      const jpeg = await normalizeUploadToJpeg(await fs.readFile(local));
+      const referenceName = pages.length ? `page-${files.length + 1}.jpg` : 'screenshot-full.jpg';
+      const screenshotUrl = await saveImageFile(job.id, referenceName, jpeg);
+      pages.push({ url: `inspiration://${inspiration.id}`, title: inspiration.media_type === 'video' ? 'Inspiration video visual direction' : 'Inspiration composition and lighting', screenshotUrl });
+      if (inspiration.media_type === 'video') {
+        const videoName = path.basename(new URL(inspiration.media_url, 'http://local').pathname);
+        const videoPath = await ensureLocalAsset('marketing', videoName);
+        if (videoPath && inspiration.duration_seconds) {
+          for (const [index, fraction] of [0.3, 0.6, 0.9].entries()) {
+            const frameFile = path.join(path.dirname(videoPath), `${job.id}-${index}.jpg`);
+            try {
+              await run('ffmpeg', ['-y', '-ss', String(Number(inspiration.duration_seconds) * fraction), '-i', videoPath, '-frames:v', '1', '-vf', 'scale=960:-2', frameFile], { timeout: 20_000 });
+              const frame = await normalizeUploadToJpeg(await fs.readFile(frameFile));
+              const filename = `page-${files.length + index + 20}.jpg`;
+              const frameUrl = await saveImageFile(job.id, filename, frame);
+              pages.push({ url: `inspiration://${inspiration.id}/frame-${index}`, title: `Inspiration motion frame ${index + 1}`, screenshotUrl: frameUrl });
+            } catch { /* retain available frames */ }
+            finally { await fs.rm(frameFile, { force: true }).catch(() => {}); }
+          }
+        }
+      }
+    }
 
     // Text-only Custom Idea and Scenario jobs never call an image provider at
     // upload time. The paid render transaction is the first expensive model
@@ -222,6 +296,11 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
         title,
         sourceType: studioKind ? 'studio' : 'upload',
         studioKind,
+        inspirationMediaId: inspiration?.id ?? null,
+        inspirationMediaType: inspiration?.media_type ?? null,
+        productUrl,
+        productImageUrls: productImageUrls.length,
+        architecture,
         ideaPrompt: studioKind ? ideaPrompt : null,
         description: null,
         logoUrl: null,

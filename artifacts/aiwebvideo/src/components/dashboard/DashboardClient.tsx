@@ -11,13 +11,11 @@ import { watchAuthState } from "@/lib/firebase/client";
 import { deleteSavedChat, fetchMe, fetchUserJobs, updateSavedChat, type UserJobSummary } from "@/lib/api-client";
 import { type JobMode } from "@/components/chat/types";
 import {
-  CircleUserRound,
   MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
   Pin,
   Search,
-  ShieldCheck,
   Trash2,
   X,
 } from "lucide-react";
@@ -83,7 +81,8 @@ export function DashboardClient() {
       requested === "photo" ||
       requested === "product-video" ||
       requested === "scenario" ||
-      requested === "interior"
+      requested === "interior" ||
+      requested === "architecture"
       ? requested
       : undefined;
   }, []);
@@ -470,30 +469,7 @@ export function DashboardClient() {
         </div>
         {me && (
           <div className="mt-3 space-y-2">
-            {me.isAdmin && (
-              <Link
-                href="/admin"
-                className="flex items-center gap-2 rounded-xl border border-violet/25 bg-violet/10 px-3 py-2.5 text-xs font-semibold text-violet transition hover:bg-violet/15"
-              >
-                <ShieldCheck size={15} />
-                Admin control center
-              </Link>
-            )}
-            <Link
-              href="/profile"
-              className="flex items-center gap-2.5 rounded-xl border border-border bg-panel/60 p-2.5 transition hover:bg-panel sm:gap-3 sm:p-3"
-            >
-              <span className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-panel-alt text-text-primary sm:h-9 sm:w-9">
-                <CircleUserRound size={19} strokeWidth={1.8} aria-hidden="true" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-xs font-semibold text-text-primary">{me.email}</span>
-                <span className="block text-[10px] capitalize text-text-muted">
-                  {me.plan} · {formatCredits(me.creditsBalance)} credits
-                </span>
-              </span>
-              <span className="text-text-dim">›</span>
-            </Link>
+            <UserMenu email={me.email} plan={me.plan} creditsBalance={me.creditsBalance} isAdmin={me.isAdmin} sidebar />
           </div>
         )}
       </aside>
@@ -522,22 +498,12 @@ export function DashboardClient() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {me?.isAdmin && (
-              <Link
-                href="/admin"
-                className="hidden items-center gap-2 rounded-xl border border-violet/25 bg-violet/10 px-3 py-2 text-xs font-semibold text-violet transition hover:bg-violet/15 md:flex"
-              >
-                <ShieldCheck size={14} />
-                Admin
-              </Link>
-            )}
             <Link
               href={me && me.creditsBalance <= 0 ? "/pricing#buy-credits" : "/pricing"}
               className={`hidden rounded-full border px-3 py-1.5 text-xs sm:block ${me && me.creditsBalance <= 0 ? "border-violet/40 bg-violet/10 font-semibold text-violet hover:bg-violet/15" : "border-border bg-panel text-text-muted hover:text-text-primary"}`}
             >
               {me && me.creditsBalance <= 0 ? "Recharge credits" : `${formatCredits(me?.creditsBalance)} credits`}
             </Link>
-            {me && <UserMenu email={me.email} plan={me.plan} creditsBalance={me.creditsBalance} isAdmin={me.isAdmin} />}
           </div>
         </header>
 

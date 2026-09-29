@@ -259,7 +259,7 @@ export function fetchStudioExport(exportId: string) {
   return request<{ id: string; project_id: string; status: string; resolution: string; format: string; progress: number; storage_url: string | null; error: string | null; render_time_ms: number; created_at: string; updated_at: string }>(`/api/studio/exports/${encodeURIComponent(exportId)}`);
 }
 
-export function trackStudioEvent(input: { event: 'ideas_opened' | 'idea_clicked' | 'idea_to_generate_conversion' | 'idea_generation_success' | 'idea_generation_failure' | 'studio_opened' | 'studio_exported'; ideaId?: string; feature?: string; projectId?: string; metadata?: Record<string,string|number|boolean|null> }) {
+export function trackStudioEvent(input: { event: 'ideas_opened' | 'idea_clicked' | 'idea_to_generate_conversion' | 'idea_generation_success' | 'idea_generation_failure' | 'studio_opened' | 'studio_exported' | 'inspiration_selected'; ideaId?: string; feature?: string; projectId?: string; metadata?: Record<string,string|number|boolean|null> }) {
   return request<void>('/api/studio/events', { method: 'POST', body: JSON.stringify(input) }).catch(() => undefined);
 }
 

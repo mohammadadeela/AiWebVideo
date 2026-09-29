@@ -41,6 +41,11 @@ export const PRODUCTS = {
   topup250: { ...BILLING_CREDIT_PRODUCTS.topup250, mode: 'payment', amountUsd: 69.99, name: '1,250 Credits' },
 } as const;
 
+router.get('/catalog', (_req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=300');
+  res.json(Object.entries(PRODUCTS).map(([id, product]) => ({ id, name: product.name, mode: product.mode, credits: product.credits, amountUsd: product.amountUsd })));
+});
+
 const CHECKOUT_FEE_RATE = 0.0401;
 const CHECKOUT_FIXED_FEE_USD = 0.35;
 

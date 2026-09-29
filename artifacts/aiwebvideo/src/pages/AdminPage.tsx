@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/app-button';
 import { Switch } from '@/components/ui/switch';
 import { Wordmark } from '@/components/ui/Wordmark';
 import { AdminReports } from '@/components/admin/AdminReports';
+import { InspirationManager } from '@/components/admin/InspirationManager';
 import {
   fetchAdminAudit, fetchAdminJobs, fetchAdminOverview, fetchAdminReports, fetchAdminUsers, fetchAdminUserDetails, fetchMe,
   saveAdminSettings, updateAdminJob, updateAdminUser, saveMarketingSettings, uploadMarketingAsset,
@@ -13,7 +14,7 @@ import {
 import { watchAuthState } from '@/lib/firebase/client';
 import { useSeo } from '@/lib/useSeo';
 
-type Tab = 'overview' | 'reports' | 'landing' | 'users' | 'jobs' | 'providers' | 'audit';
+type Tab = 'overview' | 'reports' | 'landing' | 'inspiration' | 'users' | 'jobs' | 'providers' | 'audit';
 type Row = Record<string, unknown>;
 type MetricCard = [label: string, value: string, icon: ComponentType<LucideProps>, hint: string];
 const LANDING_VIDEO_LIMIT = 30;
@@ -21,6 +22,7 @@ const tabs: Array<{ id: Tab; label: string; icon: typeof LayoutDashboard }> = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'reports', label: 'Money reports', icon: BarChart3 },
   { id: 'landing', label: 'Homepage videos', icon: GalleryVerticalEnd },
+  { id: 'inspiration', label: 'Inspiration media', icon: GalleryVerticalEnd },
   { id: 'users', label: 'Users', icon: Users },
   { id: 'jobs', label: 'Productions', icon: FileVideo },
   { id: 'providers', label: 'AI & controls', icon: SlidersHorizontal },
@@ -30,6 +32,7 @@ const adminPathByTab: Record<Tab, string> = {
   overview: '/admin',
   reports: '/admin/reports',
   landing: '/admin/landing',
+  inspiration: '/admin/inspiration',
   users: '/admin/users',
   jobs: '/admin/productions',
   providers: '/admin/controls',
@@ -568,10 +571,11 @@ export function AdminPage() {
     </aside>
 
     <main className="min-w-0 flex-1 p-4 sm:p-7 lg:p-10">
-      <header className="sticky top-3 z-30 flex flex-col justify-between gap-4 rounded-2xl border border-white/10 bg-bg/90 p-4 shadow-2xl backdrop-blur-xl sm:flex-row sm:items-center"><div><p className="text-xs font-semibold uppercase tracking-[.16em] text-violet">Operations</p><h1 className="mt-1 font-display text-2xl font-bold text-text-primary sm:text-3xl">Admin control center</h1><p className="mt-1 text-sm text-text-muted">Users, productions, Gemini costs, availability, and safety controls.</p></div><div className="flex gap-2">{tab === 'landing' && <Button disabled={busy || !dirty} onClick={() => void saveLanding()}><Save size={15} /> {dirty ? 'Save landing page' : 'Saved'}</Button>}{tab === 'providers' && <Button disabled={busy} onClick={() => void saveSettings()}><Save size={15} /> Save controls</Button>}<Button variant="secondary" disabled={busy} onClick={() => void refresh()}><RefreshCw size={15} className={busy ? 'animate-spin' : ''} /> Refresh</Button></div></header>
+      <header className="sticky top-3 z-30 flex flex-col justify-between gap-4 rounded-2xl border border-white/10 bg-bg/90 p-4 shadow-2xl backdrop-blur-xl sm:flex-row sm:items-center"><div><p className="text-xs font-semibold uppercase tracking-[.16em] text-violet">Admin</p><h1 className="mt-1 font-display text-xl font-bold text-text-primary sm:text-2xl">{tabs.find((item) => item.id === tab)?.label}</h1></div><div className="flex gap-2">{tab === 'landing' && <Button disabled={busy || !dirty} onClick={() => void saveLanding()}><Save size={15} /> {dirty ? 'Save landing page' : 'Saved'}</Button>}{tab === 'providers' && <Button disabled={busy} onClick={() => void saveSettings()}><Save size={15} /> Save controls</Button>}{tab !== 'inspiration' && <Button variant="secondary" disabled={busy} onClick={() => void refresh()}><RefreshCw size={15} className={busy ? 'animate-spin' : ''} /> Refresh</Button>}</div></header>
       {message && <div className="mt-5 rounded-xl border border-violet/25 bg-violet/10 px-4 py-3 text-sm text-text-muted">{message}</div>}
 
       {tab === 'reports' && <AdminReports report={reports} range={reportRange} loading={reportsLoading} onRangeChange={(nextRange) => { setMessage(null); setReportRange(nextRange); }} />}
+      {tab === 'inspiration' && <InspirationManager />}
 
       {tab === 'overview' && <div className="mt-7 space-y-6">
         <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{([
@@ -715,7 +719,7 @@ export function AdminPage() {
         </>}
         {tab === 'jobs' && <>
           <select value={jobSearchBy} onChange={(event) => setJobSearchBy(event.target.value as typeof jobSearchBy)} className="rounded-xl border border-border bg-bg px-3 py-3 text-xs text-text-primary"><option value="all">Search everything</option><option value="title">Title only</option><option value="id">Production ID</option><option value="url">Source URL</option><option value="user">User email</option><option value="provider">Provider</option><option value="error">Status / error</option></select>
-          <select value={jobFeature} onChange={(event) => setJobFeature(event.target.value)} className="rounded-xl border border-border bg-panel px-3 py-3 text-xs text-text-primary"><option value="all">All features</option><option value="website-video">Website Video</option><option value="ai-video">AI Video</option><option value="ai-images">AI Images</option><option value="product-photos">Product Photos</option><option value="product-video">Product Video</option><option value="talking-scene">Talking Scene</option><option value="interior-design">Interior Design</option></select>
+          <select value={jobFeature} onChange={(event) => setJobFeature(event.target.value)} className="rounded-xl border border-border bg-panel px-3 py-3 text-xs text-text-primary"><option value="all">All features</option><option value="website-video">Website Video</option><option value="ai-video">AI Video</option><option value="ai-images">AI Images</option><option value="product-photos">Product Photos</option><option value="product-video">Product Video</option><option value="talking-scene">Talking Scene</option><option value="interior-design">Interior Design</option><option value="architecture">Architecture</option></select>
           <select value={jobStatus} onChange={(event) => setJobStatus(event.target.value)} className="rounded-xl border border-border bg-panel px-3 py-3 text-xs text-text-primary"><option value="all">All statuses</option><option value="queued">Queued</option><option value="capturing">Capturing</option><option value="captured">Captured</option><option value="storyboarding">Direction</option><option value="rendering">Rendering</option><option value="done">Completed</option><option value="failed">Failed</option><option value="cancelled">Cancelled</option></select>
           <select value={jobProvider} onChange={(event) => setJobProvider(event.target.value as typeof jobProvider)} className="rounded-xl border border-border bg-panel px-3 py-3 text-xs text-text-primary"><option value="all">All providers</option><option value="gemini">Gemini</option><option value="other">Other provider</option><option value="unassigned">Not assigned</option></select>
           <select value={jobCreated} onChange={(event) => setJobCreated(event.target.value as typeof jobCreated)} className="rounded-xl border border-border bg-panel px-3 py-3 text-xs text-text-primary"><option value="all">Created any time</option><option value="today">Today</option><option value="7d">Last 7 days</option><option value="30d">Last 30 days</option><option value="year">Last year</option></select>

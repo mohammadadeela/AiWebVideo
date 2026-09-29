@@ -17,6 +17,7 @@ import { Hero } from "@/components/landing/Hero";
 import { Nav } from "@/components/landing/Nav";
 import { Footer } from "@/components/landing/Footer";
 import { VideoShowcase } from "@/components/landing/VideoShowcase";
+import { InspirationGallery } from "@/components/inspiration/InspirationGallery";
 import { useSeo } from "@/lib/useSeo";
 import type { CreationIntent } from "@/components/chat/WebsiteBriefForm";
 import { estimateRenderCredits } from "@/lib/credits";
@@ -158,6 +159,7 @@ export function HomePage() {
       <main>
         <Hero />
         <VideoShowcase />
+        <InspirationGallery />
 
         <section className="border-b border-white/[.06] bg-black/10" aria-label="Product advantages">
           <div className="mx-auto grid max-w-7xl grid-cols-2 divide-x divide-white/[.06] px-5 sm:grid-cols-4">

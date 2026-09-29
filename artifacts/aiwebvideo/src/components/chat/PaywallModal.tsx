@@ -2,26 +2,27 @@ import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { SecureCheckoutModal } from '@/components/billing/SecureCheckoutModal';
 import { SubscriptionCheckoutModal } from '@/components/billing/SubscriptionCheckoutModal';
-import type { CheckoutId } from '@/lib/api-client';
-import { displayCredits, estimateRenderCredits } from '@/lib/credits';
+import { fetchBillingCatalog, type CheckoutId } from '@/lib/api-client';
+import { displayCredits, estimateInternalRenderCredits } from '@/lib/credits';
 import { discountedPrice, fetchWelcomeGrowthOffer, formatUsd, formatWelcomeCountdown, type WelcomeGrowthOffer } from '@/lib/growth';
+import { recommendCreditOption } from '@/lib/creditRecommendation';
 
 const PAYWALL_PLANS = [
-  { id: 'creator' as const, name: 'Creator', price: 39, credits: 150, pitch: 'For regular creators', highlight: false },
-  { id: 'pro' as const, name: 'Pro', price: 99, credits: 400, pitch: 'Best for weekly marketing', highlight: true },
-  { id: 'agency' as const, name: 'Agency', price: 249, credits: 1000, pitch: 'For client and agency production', highlight: false },
+  { id: 'creator' as const, name: 'Creator', pitch: 'For regular creators', highlight: false },
+  { id: 'pro' as const, name: 'Pro', pitch: 'Best for weekly marketing', highlight: true },
+  { id: 'agency' as const, name: 'Agency', pitch: 'For client and agency production', highlight: false },
 ];
 
 const VIDEO_PACKS = [
-  { id: 'single8' as const, name: 'Quick Video', label: '8s video pack', amountUsd: 9.99, credits: 38 },
-  { id: 'single48' as const, name: 'Full Marketing Video', label: '48s video pack', amountUsd: 52.99, credits: 198 },
-  { id: 'single144' as const, name: 'Extended Video', label: '144s video pack', amountUsd: 149.99, credits: 582 },
+  { id: 'single8' as const, name: 'Quick Video', label: '8s video pack' },
+  { id: 'single48' as const, name: 'Full Marketing Video', label: '48s video pack' },
+  { id: 'single144' as const, name: 'Extended Video', label: '144s video pack' },
 ];
 
 const CREDIT_PACKS = [
-  { id: 'topup50' as const, credits: 50, amountUsd: 14.99, note: 'Quick refill' },
-  { id: 'topup100' as const, credits: 100, amountUsd: 28.99, note: 'Small production balance' },
-  { id: 'topup250' as const, credits: 250, amountUsd: 69.99, note: 'For several productions' },
+  { id: 'topup50' as const, note: 'Quick refill' },
+  { id: 'topup100' as const, note: 'Small production balance' },
+  { id: 'topup250' as const, note: 'For several productions' },
 ];
 
 type Tab = 'plans' | 'credits' | 'video';
@@ -41,7 +42,6 @@ type SubscriptionCheckout = {
 
 export function PaywallModal({
   onClose,
-  context,
   durationSeconds = 8,
   mode = 'video',
   outputQuality = '1080p',
@@ -49,6 +49,7 @@ export function PaywallModal({
   currentBalance = 0,
   reservedCredits = 0,
   jobId,
+  modelId,
 }: {
   onClose: () => void;
   context?: string;
@@ -59,21 +60,28 @@ export function PaywallModal({
   currentBalance?: number;
   reservedCredits?: number;
   jobId?: string | null;
+  modelId?: string;
 }) {
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>(() =>
-    mode !== 'photos' && mode !== 'icon' && mode !== 'both' && outputQuality === '1080p' && [8, 48, 144].includes(durationSeconds)
-      ? 'video'
-      : 'credits',
-  );
+  const [tab, setTab] = useState<Tab>('credits');
   const [welcomeOffer, setWelcomeOffer] = useState<WelcomeGrowthOffer | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [directCheckout, setDirectCheckout] = useState<DirectCheckout | null>(null);
   const [subscriptionCheckout, setSubscriptionCheckout] = useState<SubscriptionCheckout | null>(null);
+  const [catalog, setCatalog] = useState<Awaited<ReturnType<typeof fetchBillingCatalog>>>([]);
+  useEffect(() => {
+    const close = (event: KeyboardEvent) => { if (event.key === 'Escape' && !directCheckout && !subscriptionCheckout) onClose(); };
+    document.addEventListener('keydown', close);
+    return () => document.removeEventListener('keydown', close);
+  }, [directCheckout, subscriptionCheckout, onClose]);
+  const creditPacks = useMemo(() => CREDIT_PACKS.flatMap((pack) => { const product = catalog.find((item) => item.id === pack.id); return product ? [{ ...pack, credits: product.credits, amountUsd: product.amountUsd }] : []; }), [catalog]);
+  const videoPacks = useMemo(() => VIDEO_PACKS.flatMap((pack) => { const product = catalog.find((item) => item.id === pack.id); return product ? [{ ...pack, credits: product.credits, amountUsd: product.amountUsd }] : []; }), [catalog]);
+  const plans = useMemo(() => PAYWALL_PLANS.flatMap((plan) => { const product = catalog.find((item) => item.id === plan.id); return product ? [{ ...plan, credits: product.credits, price: product.amountUsd }] : []; }), [catalog]);
 
   useEffect(() => {
     let cancelled = false;
     fetchWelcomeGrowthOffer().then((offer) => { if (!cancelled) setWelcomeOffer(offer); }).catch(() => {});
+    fetchBillingCatalog().then((products) => { if (!cancelled) setCatalog(products); }).catch(() => setError('Purchase options could not be loaded. Please try again.'));
     return () => { cancelled = true; };
   }, []);
 
@@ -86,28 +94,26 @@ export function PaywallModal({
   const activeOffer = welcomeOffer?.active && welcomeOffer.discountPercent > 0 && new Date(welcomeOffer.expiresAt).getTime() > now
     ? welcomeOffer
     : null;
-  const requiredCredits = estimateRenderCredits(mode, skipVoiceover, durationSeconds, outputQuality);
+  const requiredCredits = estimateInternalRenderCredits(mode, skipVoiceover, durationSeconds, outputQuality, modelId);
   const fundedCredits = currentBalance + reservedCredits;
   const shortfall = Math.max(0, requiredCredits - fundedCredits);
   const eligibleVideoPacks = useMemo(() => mode !== 'photos' && mode !== 'icon' && mode !== 'both' && outputQuality === '1080p'
-    ? VIDEO_PACKS.filter((pack) => fundedCredits + displayCredits(pack.credits) >= requiredCredits)
-    : [], [fundedCredits, mode, outputQuality, requiredCredits]);
-  const bestCreditPackId = useMemo(() => CREDIT_PACKS.find((pack) => fundedCredits + displayCredits(pack.credits) >= requiredCredits)?.id ?? null, [fundedCredits, requiredCredits]);
-  const eligiblePlans = useMemo(() => PAYWALL_PLANS.filter((plan) => fundedCredits + displayCredits(plan.credits) >= requiredCredits), [fundedCredits, requiredCredits]);
-  const exactVideoPack = useMemo(() => {
-    if (mode === 'photos' || mode === 'icon' || mode === 'both' || outputQuality !== '1080p') return null;
-    const id = durationSeconds === 8 ? 'single8' : durationSeconds === 48 ? 'single48' : durationSeconds === 144 ? 'single144' : null;
-    return id ? VIDEO_PACKS.find((pack) => pack.id === id) ?? null : null;
-  }, [durationSeconds, mode, outputQuality]);
+    ? videoPacks.filter((pack) => fundedCredits + pack.credits >= requiredCredits)
+    : [], [fundedCredits, mode, outputQuality, requiredCredits, videoPacks]);
+  const bestCreditPackId = useMemo(() => creditPacks.find((pack) => fundedCredits + pack.credits >= requiredCredits)?.id ?? null, [fundedCredits, requiredCredits, creditPacks]);
+  const eligiblePlans = useMemo(() => plans.filter((plan) => fundedCredits + plan.credits >= requiredCredits), [fundedCredits, requiredCredits, plans]);
+  const recommended = useMemo(() => recommendCreditOption(catalog, requiredCredits, fundedCredits,
+    (product) => activeOffer && activeOffer.eligibleProducts.includes(product.id) ? discountedPrice(product.amountUsd, activeOffer.discountPercent) : product.amountUsd,
+  ), [catalog, fundedCredits, requiredCredits, activeOffer]);
 
   function chooseSubscription(planId: 'creator' | 'pro' | 'agency') {
     setError(null);
-    const plan = PAYWALL_PLANS.find((item) => item.id === planId);
+    const plan = catalog.find((item) => item.id === planId);
     if (!plan) return;
     setSubscriptionCheckout({
-      plan: plan.id,
+      plan: planId,
       planName: plan.name,
-      amountUsd: plan.price,
+      amountUsd: plan.amountUsd,
       credits: displayCredits(plan.credits),
     });
   }
@@ -124,15 +130,8 @@ export function PaywallModal({
         <div className={`w-full max-w-lg max-h-[92dvh] overflow-y-auto overscroll-contain rounded-t-[24px] border border-white/10 bg-[#120e22]/96 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl animate-fade-in-up transition-opacity duration-150 sm:max-h-[90vh] sm:rounded-3xl sm:p-5 ${directCheckout || subscriptionCheckout ? 'invisible opacity-0' : 'visible opacity-100'}`} onClick={(e) => e.stopPropagation()}>
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="font-utility text-[9px] font-semibold uppercase tracking-[.16em] text-mint">Your project is saved</p>
-              <p className="mt-1 font-display text-lg font-bold text-white">Finish this production</p>
-              <p className="mt-1 text-xs leading-5 text-text-muted">
-                The source, references and creative setup are ready. Nothing is charged until you choose a checkout option below.
-              </p>
-              <p className="mt-2 text-[11px] font-medium text-white/75">
-                {durationSeconds}s · {outputQuality === '4k' ? '4K' : '1080p'} · {requiredCredits.toLocaleString()} credits required
-              </p>
-              {context && <p className="mt-1 text-[10px] leading-4 text-text-dim">{context}</p>}
+              <p className="font-display text-lg font-bold text-white">Add {displayCredits(shortfall).toLocaleString()} credits</p>
+              <p className="mt-1 text-xs text-text-muted">{displayCredits(requiredCredits).toLocaleString()} needed · {displayCredits(fundedCredits).toLocaleString()} available</p>
             </div>
             <button type="button" onClick={onClose} disabled={Boolean(directCheckout || subscriptionCheckout)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 text-base text-text-muted hover:bg-white/5 hover:text-white disabled:opacity-40" aria-label="Close">×</button>
           </div>
@@ -144,25 +143,21 @@ export function PaywallModal({
             </div>
           )}
 
-          {exactVideoPack && shortfall > 0 && (
+          {recommended && shortfall > 0 && (
             <button
               type="button"
-              onClick={() => setDirectCheckout({
-                plan: exactVideoPack.id,
-                productName: exactVideoPack.name,
-                amountUsd: exactVideoPack.amountUsd,
-                originalAmountUsd: exactVideoPack.amountUsd,
-                credits: displayCredits(exactVideoPack.credits),
-              })}
-              className="mt-4 flex w-full items-center justify-between rounded-2xl border border-violet/45 bg-gradient-to-br from-violet/[.13] via-pink/[.07] to-transparent p-4 text-left shadow-[0_20px_60px_-36px_rgba(139,92,246,.9)] transition hover:border-violet/70 hover:bg-violet/[.12]"
+              onClick={() => recommended.mode === 'subscription'
+                ? chooseSubscription(recommended.id as 'creator' | 'pro' | 'agency')
+                : setDirectCheckout({ plan: recommended.id, productName: recommended.name, amountUsd: recommended.price, originalAmountUsd: recommended.amountUsd, credits: displayCredits(recommended.credits) })}
+              className="mt-4 flex w-full items-center justify-between rounded-2xl border border-violet/45 bg-violet/[.08] p-4 text-left transition hover:border-violet/70"
             >
               <div>
-                <p className="font-utility text-[8px] font-semibold uppercase tracking-[.15em] text-violet">Fastest path</p>
-                <p className="mt-1 text-sm font-bold text-white">Generate this {durationSeconds}s video</p>
-                <p className="mt-1 text-[11px] text-text-muted">One-time purchase · no subscription required</p>
+                <p className="text-[10px] font-semibold text-violet">Recommended</p>
+                <p className="mt-1 text-sm font-bold text-white">{recommended.name}</p>
+                <p className="mt-1 text-[11px] text-text-muted">{displayCredits(recommended.credits).toLocaleString()} credits{recommended.mode === 'subscription' ? '/month' : ''}</p>
               </div>
               <div className="text-right">
-                <p className="font-display text-xl font-bold text-white">{formatUsd(exactVideoPack.amountUsd)}</p>
+                <p className="font-display text-xl font-bold text-white">{formatUsd(recommended.price)}</p>
                 <p className="text-[10px] font-semibold text-mint">Buy</p>
               </div>
             </button>
@@ -176,7 +171,7 @@ export function PaywallModal({
 
           {tab === 'credits' && (
             <div className="mt-4 space-y-2.5">
-              {CREDIT_PACKS.map((pack) => {
+              {creditPacks.filter((pack) => fundedCredits + pack.credits >= requiredCredits).map((pack) => {
                 const discounted = activeOffer && activeOffer.eligibleProducts.includes(pack.id)
                   ? discountedPrice(pack.amountUsd, activeOffer.discountPercent)
                   : pack.amountUsd;
@@ -206,7 +201,7 @@ export function PaywallModal({
                   </button>
                 );
               })}
-              {shortfall > displayCredits(250) && <p className="rounded-xl border border-white/10 bg-white/[.03] p-3 text-[11px] leading-5 text-text-muted">This setup needs {shortfall.toLocaleString()} additional credits. Combine top-ups or choose a larger monthly plan.</p>}
+              {shortfall > 250 && <p className="rounded-xl border border-white/10 bg-white/[.03] p-3 text-[11px] leading-5 text-text-muted">This setup needs {displayCredits(shortfall).toLocaleString()} additional credits. Choose a larger plan.</p>}
             </div>
           )}
 
@@ -240,7 +235,7 @@ export function PaywallModal({
 
           {tab === 'plans' && (
             <div className="mt-4 space-y-2.5">
-              {(eligiblePlans.length ? eligiblePlans : PAYWALL_PLANS).map((p) => (
+              {eligiblePlans.map((p) => (
                 <button key={p.id} onClick={() => chooseSubscription(p.id)} className={`flex w-full items-center justify-between rounded-2xl border p-4 text-left transition ${p.highlight ? 'border-violet/55 bg-signature-soft' : 'border-white/10 bg-white/[.025] hover:border-violet/30'}`}>
                   <div><p className="text-sm font-bold text-white">{p.name}{p.highlight && <span className="ml-2 rounded-full bg-signature px-2 py-0.5 text-[9px]">Popular</span>}</p><p className="mt-1 text-xs text-text-muted">{displayCredits(p.credits).toLocaleString()} credits/mo · {p.pitch}</p></div>
                   <div className="text-right"><p className="font-display text-xl font-bold text-white">${p.price}<span className="text-[10px] font-normal text-text-dim">/mo</span></p><p className="text-[10px] font-semibold text-mint">Buy</p></div>

@@ -9,6 +9,7 @@ export interface WebsiteHandoffSettings {
   audioMode: AudioMode;
   narrationLanguage: string;
   modelId: PublicModelId;
+  inspirationMediaId?: string;
 }
 
 export interface WebsiteCreatorHandoff {
@@ -22,7 +23,7 @@ export interface WebsiteCreatorHandoff {
 export interface StudioCreatorHandoff {
   kind: "studio";
   request: {
-    studioKind: "product" | "idea" | "scenario" | "interior";
+    studioKind: "product" | "idea" | "scenario" | "interior" | "architecture";
     prompt: string;
     mode: "photos" | "video" | "custom";
     durationSeconds: number;
@@ -30,6 +31,10 @@ export interface StudioCreatorHandoff {
     outputQuality: "1080p" | "4k";
     audioMode: AudioMode;
     modelId: PublicModelId;
+    inspirationMediaId?: string;
+    productUrl?: string;
+    productImageUrls?: string[];
+    architecture?: Record<string, string | number | boolean | undefined>;
   };
   attachmentDraftKey?: string;
 }

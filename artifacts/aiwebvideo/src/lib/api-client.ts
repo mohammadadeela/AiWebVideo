@@ -67,13 +67,17 @@ export async function uploadStudioMedia(opts: {
   files?: File[];
   title?: string;
   ideaPrompt?: string;
-  studioKind: 'product' | 'idea' | 'scenario' | 'interior';
+  studioKind: 'product' | 'idea' | 'scenario' | 'interior' | 'architecture';
   mode: JobMode;
   durationSeconds: number;
   audioMode: AudioMode;
   aspectRatio: '16:9' | '9:16' | '1:1';
   outputQuality: '1080p' | '4k';
   modelId?: string;
+  inspirationMediaId?: string;
+  productUrl?: string;
+  productImageUrls?: string[];
+  architecture?: Record<string, string | number | boolean | undefined>;
 }) {
   const token = await getIdToken();
   const form = new FormData();
@@ -87,6 +91,10 @@ export async function uploadStudioMedia(opts: {
   form.append('aspectRatio', opts.aspectRatio);
   form.append('outputQuality', opts.outputQuality);
   if (opts.modelId) form.append('modelId', opts.modelId);
+  if (opts.inspirationMediaId) form.append('inspirationMediaId', opts.inspirationMediaId);
+  if (opts.productUrl) form.append('productUrl', opts.productUrl);
+  if (opts.productImageUrls?.length) form.append('productImageUrls', JSON.stringify(opts.productImageUrls));
+  if (opts.architecture) form.append('architecture', JSON.stringify(opts.architecture));
   const res = await fetch('/api/uploads', {
     method: 'POST',
     signal: AbortSignal.timeout(10 * 60_000),
@@ -117,10 +125,10 @@ export async function uploadPrivatePages(jobId: string, files: File[]) {
   return data as { jobId: string; added: number };
 }
 
-export function startCapture(url: string, creativeBrief: string, setupSummary?: string) {
+export function startCapture(url: string, creativeBrief: string, setupSummary?: string, inspirationMediaId?: string) {
   return request<{ jobId: string; status: string }>('/api/capture', {
     method: 'POST',
-    body: JSON.stringify({ url, creativeBrief, ...(setupSummary ? { setupSummary } : {}) }),
+    body: JSON.stringify({ url, creativeBrief, ...(setupSummary ? { setupSummary } : {}), ...(inspirationMediaId ? { inspirationMediaId } : {}) }),
   });
 }
 
@@ -295,6 +303,46 @@ export async function uploadMarketingAsset(file: File) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new ApiError(data.error || 'The marketing asset could not be uploaded.', res.status, data.code);
   return data as { url: string; kind: 'video' | 'image' };
+}
+
+export type InspirationFeature = 'website' | 'video' | 'photo' | 'product-video' | 'scenario' | 'interior' | 'architecture';
+export interface InspirationMedia {
+  id: string; type: 'image' | 'video'; url: string; thumbnailUrl: string;
+  width: number | null; height: number | null; durationSeconds: number | null;
+  status: 'draft' | 'published' | 'hidden'; featured: boolean; sortOrder: number;
+  adminTitle: string | null; createdAt: string; features: InspirationFeature[];
+}
+export function fetchInspiration(filters: { feature?: InspirationFeature; type?: 'image' | 'video'; offset?: number; limit?: number } = {}) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) if (value !== undefined) params.set(key, String(value));
+  return request<{ items: InspirationMedia[]; hasMore: boolean }>(`/api/inspiration?${params}`);
+}
+export function fetchInspirationItem(id: string) { return request<InspirationMedia>(`/api/inspiration/${encodeURIComponent(id)}`); }
+export function resolveArchitectureLocation(link: string) {
+  return request<{ latitude?: number; longitude?: number; label: string | null; resolvedUrl: string; scale: 'unknown'; imageryAvailable: false }>('/api/architecture/location', { method: 'POST', body: JSON.stringify({ link }) });
+}
+export function extractProductReference(url: string) {
+  return request<{ title: string; description: string; url: string; images: string[] }>('/api/product-reference/extract', { method: 'POST', body: JSON.stringify({ url }) });
+}
+export function fetchBillingCatalog() {
+  return request<Array<{ id: CheckoutId; name: string; mode: 'payment' | 'subscription'; credits: number; amountUsd: number }>>('/api/paypal/catalog');
+}
+export function fetchAdminInspiration(filters: { feature?: InspirationFeature; type?: 'image' | 'video'; status?: string; search?: string } = {}) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) if (value) params.set(key, value);
+  return request<{ items: InspirationMedia[] }>(`/api/inspiration/admin/items?${params}`);
+}
+export async function uploadInspiration(files: File[]) {
+  const token = await getIdToken();
+  const body = new FormData();
+  files.forEach((file) => body.append('files', file));
+  const res = await fetch('/api/inspiration/admin/upload', { method: 'POST', credentials: 'same-origin', signal: AbortSignal.timeout(180_000), headers: token ? { Authorization: `Bearer ${token}` } : undefined, body });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new ApiError(data.error || 'Upload failed.', res.status, data.code);
+  return data as { items: Array<{ id: string; duplicate: boolean }> };
+}
+export function updateInspirationBulk(patch: { ids: string[]; features?: InspirationFeature[]; status?: InspirationMedia['status']; featured?: boolean; sortOrder?: number; delete?: boolean }) {
+  return request<{ updated: number }>('/api/inspiration/admin/bulk', { method: 'PATCH', body: JSON.stringify(patch) });
 }
 
 export interface UserJobSummary {
