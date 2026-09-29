@@ -209,30 +209,21 @@ export function GenerationCanvas({
   const effectiveCancelling = Boolean(cancelling || stopSubmitting || stopRequested);
   const generatedPhotos = useMemo(() => liveAssets.filter((asset) => asset.type === "photo").slice(-4), [liveAssets]);
   const generatedVideo = useMemo(() => [...liveAssets].reverse().find((asset) => asset.type === "video") ?? null, [liveAssets]);
-  const sourceRecording = useMemo(() => [...liveAssets].reverse().find((asset) => asset.type === "recording") ?? null, [liveAssets]);
-  const sourcePreview = visibleReferences[0] ?? null;
   const progressIsEstimated = !settled && status === "rendering" && !generatedVideo;
-  const liveStage = useMemo(() => {
-    const message = (statusMessage ?? "").toLowerCase();
-    if (message.includes("veo is generating") || message.includes("veo is starting")) return "Veo rendering";
-    if (message.includes("premium scene") && message.includes("ready")) return "Scene completed";
-    if (message.includes("assembling")) return "Assembling";
-    if (message.includes("finishing")) return "Finalizing";
-    if (message.includes("starting")) return "Starting";
-    if (status === "storyboarding") return "Creative planning";
-    if (status === "capturing") return "Reading references";
-    return phase(status);
-  }, [status, statusMessage]);
-  const elapsedLabel = useMemo(() => {
+  const backendElapsedSeconds = useMemo(() => {
     const match = statusMessage?.match(/(\d+)s elapsed/i);
-    if (!match) return null;
+    if (!match) return 0;
     const seconds = Number(match[1]);
-    if (!Number.isFinite(seconds)) return null;
-    if (seconds < 60) return `${seconds}s elapsed`;
-    const minutes = Math.floor(seconds / 60);
-    const remainder = seconds % 60;
-    return `${minutes}m ${String(remainder).padStart(2, "0")}s elapsed`;
+    return Number.isFinite(seconds) ? seconds : 0;
   }, [statusMessage]);
+  const elapsedSeconds = Math.max(localElapsedSeconds, backendElapsedSeconds);
+  const elapsedLabel = formatElapsed(elapsedSeconds);
+  const thinkingText = useMemo(
+    () => humanThinkingText(status, statusMessage, productionKind, generatedPhotos.length, Boolean(generatedVideo)),
+    [generatedPhotos.length, generatedVideo, productionKind, status, statusMessage],
+  );
+  const storyboardScenes = Array.isArray(storyboard?.scenes) ? storyboard.scenes : [];
+  const storyboardIntent = storyboard?.concept?.trim() || storyboard?.creativeBrief?.trim() || null;
 
   useEffect(() => {
     const id = jobId ?? getActiveJobId();
@@ -286,38 +277,26 @@ export function GenerationCanvas({
     setStopRequested(false);
     setStopError(null);
     setLiveAssets([]);
+    setDetailsOpen(false);
+    setLocalElapsedSeconds(0);
+    setShowSlowReassurance(false);
+    startedAtRef.current = Date.now();
   }, [jobId]);
 
-  // Keep the live production panel softly in view while new chat updates are
-  // inserted above it. This mirrors ChatGPT-style streaming: older updates move
-  // upward, while the user remains anchored on the current generation state.
   useEffect(() => {
     if (settled) return;
-    const activityKey = `${status}:${statusMessage ?? ""}:${Math.floor(safeProgress / 5)}:${liveAssets.length}`;
-    if (lastActivityRef.current === activityKey) return;
-    lastActivityRef.current = activityKey;
+    const tick = () => setLocalElapsedSeconds(Math.max(0, Math.floor((Date.now() - startedAtRef.current) / 1000)));
+    tick();
+    const timer = window.setInterval(tick, 1000);
+    return () => window.clearInterval(timer);
+  }, [jobId, settled]);
 
-    const timer = window.setTimeout(() => {
-      const panel = panelRef.current;
-      if (!panel) return;
-      const scroller = panel.closest(".chat-scroll") as HTMLElement | null;
-      if (!scroller) return;
-
-      const panelRect = panel.getBoundingClientRect();
-      const scrollerRect = scroller.getBoundingClientRect();
-      const outsideComfortZone = panelRect.top < scrollerRect.top + 8 || panelRect.bottom > scrollerRect.bottom - 12;
-      if (!outsideComfortZone) return;
-
-      const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-      const targetTop = Math.max(0, scroller.scrollTop + panelRect.top - scrollerRect.top - 8);
-      scroller.scrollTo({
-        top: targetTop,
-        behavior: reducedMotion ? "auto" : "smooth",
-      });
-    }, 70);
-
+  useEffect(() => {
+    setShowSlowReassurance(false);
+    if (settled) return;
+    const timer = window.setTimeout(() => setShowSlowReassurance(true), 22_000);
     return () => window.clearTimeout(timer);
-  }, [liveAssets.length, safeProgress, settled, status, statusMessage]);
+  }, [settled, thinkingText]);
 
   const chips = useMemo(() => {
     const values: string[] = [copy.label, aspectRatio];
