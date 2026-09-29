@@ -18,6 +18,7 @@ import { Nav } from "@/components/landing/Nav";
 import { Footer } from "@/components/landing/Footer";
 import { Button } from "@/components/ui/app-button";
 import { AuthModal } from "@/components/auth/AuthModal";
+import { SiteIcon } from "@/components/chat/SiteIcon";
 import { SecureCheckoutModal } from "@/components/billing/SecureCheckoutModal";
 import { formatCredits } from "@/components/account/UserMenu";
 import { watchAuthState } from "@/lib/firebase/client";
@@ -564,9 +565,10 @@ export function ProfilePage() {
                         />
                       )}
                     </div>
+                    <SiteIcon url={job.logoUrl} size={30} />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-text-primary">{job.title}</p>
-                      <p className="mt-1 text-xs capitalize text-text-dim">{job.mode} · {job.status}</p>
+                      <p className="mt-1 text-xs capitalize text-text-dim">{job.featureLabel} · {job.status === 'captured' ? 'Ready to continue' : job.status === 'done' ? 'Completed' : job.status}</p>
                     </div>
                     <span className="text-text-dim" aria-hidden="true">›</span>
                   </Link>

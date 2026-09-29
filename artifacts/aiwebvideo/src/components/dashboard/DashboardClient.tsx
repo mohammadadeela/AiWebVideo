@@ -22,6 +22,7 @@ import {
   X,
 } from "lucide-react";
 import { clearActiveJobId, setActiveJobId } from "@/lib/guestSession";
+import { SiteIcon } from "@/components/chat/SiteIcon";
 
 interface Me {
   email: string;
@@ -43,8 +44,17 @@ function relativeTime(value: string) {
 
 function statusLabel(status: string, progress: number) {
   if (status === "captured") return "Ready to continue";
-  if (ACTIVE_STATUSES.has(status)) return `Running · ${Math.max(0, Math.min(100, Math.round(progress)))}%`;
-  return status;
+  if (status === "done") return "Completed";
+  if (ACTIVE_STATUSES.has(status)) return `Generating... · ${Math.max(0, Math.min(100, Math.round(progress)))}%`;
+  if (status === "failed") return "Needs attention";
+  return "Draft";
+}
+
+function projectLabel(item: UserJobSummary) {
+  const title = (item.title || "").replace(/\(?https?:\/\/\S+\)?/gi, "").replace(/\b[0-9a-f]{8}-[0-9a-f-]{27,}\b/gi, "").replace(/[()]+/g, "").trim();
+  const plain = title.replace(/^(?:Website Video|AI Video|Product Video)\s*[·:—-]?\s*(?:Ready to continue|Completed|Generating\.{0,3})?\s*[·:—-]?\s*/i, "").trim();
+  if (plain && !/^(?:Website Video|AI Video|Product Video|Ready to continue)$/i.test(plain)) return plain.slice(0, 54);
+  try { return new URL(item.sourceUrl).hostname.replace(/^www\./, ""); } catch { return item.featureLabel || "Project"; }
 }
 
 export function DashboardClient() {
@@ -166,7 +176,7 @@ export function DashboardClient() {
   const runningJobs = useMemo(() => jobs.filter((job) => ACTIVE_STATUSES.has(job.status)), [jobs]);
 
   const filteredJobs = useMemo(
-    () => jobs.filter((job) => `${job.title} ${job.sourceUrl} ${job.mode} ${job.featureLabel ?? ""}`.toLowerCase().includes(query.toLowerCase())),
+    () => jobs.filter((job) => `${projectLabel(job)} ${job.sourceUrl} ${job.mode} ${job.featureLabel ?? ""}`.toLowerCase().includes(query.toLowerCase())),
     [jobs, query],
   );
 
@@ -338,7 +348,7 @@ export function DashboardClient() {
                   }}
                   className="block rounded-lg px-2 py-1.5 text-left transition hover:bg-white/5"
                 >
-                  <p className="truncate text-[11px] font-medium text-text-primary">{job.title}</p>
+                  <p className="truncate text-[11px] font-medium text-text-primary">{projectLabel(job)}</p>
                   <div className="mt-1 flex items-center gap-2">
                     <span className="h-1 flex-1 overflow-hidden rounded-full bg-white/10">
                       <span
@@ -356,11 +366,26 @@ export function DashboardClient() {
               ))}
             </div>
           )}
+          {filteredJobs.some((item) => item.pinned) && (
+            <div className="mb-4 space-y-1">
+              <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-[.16em] text-text-dim">Pinned projects</p>
+              {filteredJobs.filter((item) => item.pinned).map((item) => (
+                <div key={item.id} className="flex items-center gap-1 rounded-xl hover:bg-white/5">
+                  <a href={`/dashboard?job=${encodeURIComponent(item.id)}`} onClick={(event) => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); openProject(item.id); }} className="flex min-w-0 flex-1 items-center gap-2 px-2 py-2">
+                    <SiteIcon url={item.logoUrl} size={27} />
+                    <span className="min-w-0 flex-1"><span className="block truncate text-xs text-white">{projectLabel(item)}</span><span className="block truncate text-[10px] text-text-dim">{statusLabel(item.status, item.progress)}</span></span>
+                    {(item.previewUrl || item.screenshotUrl) && <img src={item.previewUrl || item.screenshotUrl || ""} alt="" loading="lazy" className="h-8 w-10 rounded-md object-cover object-top" />}
+                  </a>
+                  <button type="button" onClick={() => void togglePin(item)} title="Unpin project" aria-label={`Unpin ${projectLabel(item)}`} className="rounded-lg p-2 text-text-dim hover:text-white"><Pin size={13} className="fill-violet" /></button>
+                </div>
+              ))}
+            </div>
+          )}
           <p className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-[.16em] text-text-dim">
             Recent projects
           </p>
           <div className="space-y-1">
-            {filteredJobs.map((item) => (
+            {filteredJobs.filter((item) => !item.pinned).map((item) => (
               <div
                 key={item.id}
                 className={`group relative rounded-xl transition-colors ${(selectedJobId ?? composerJobId) === item.id ? "bg-white/10" : "hover:bg-white/5"}`}
@@ -379,6 +404,7 @@ export function DashboardClient() {
                   className="block w-full px-3 py-2.5 pr-9 text-left"
                 >
                   <div className="flex items-center gap-2">
+                    <SiteIcon url={item.logoUrl} size={27} />
                     {(item.previewUrl || item.screenshotUrl) && (
                       <img src={item.previewUrl || item.screenshotUrl || ""} alt="" loading="lazy" className="h-8 w-8 shrink-0 rounded-lg border border-white/10 object-cover" />
                     )}
@@ -386,7 +412,7 @@ export function DashboardClient() {
                       className={`h-1.5 w-1.5 shrink-0 rounded-full ${item.status === "done" ? "bg-mint" : item.status === "failed" ? "bg-pink" : "bg-violet animate-pulse-soft"}`}
                     />
                     {item.pinned && <Pin size={11} className="shrink-0 fill-violet text-violet" />}
-                    <span className="min-w-0 flex-1 truncate text-xs font-medium text-text-primary">{item.title}</span>
+                    <span className="min-w-0 flex-1 truncate text-xs font-medium text-text-primary">{projectLabel(item)}</span>
                     <span className="text-[10px] text-text-dim">{relativeTime(item.updatedAt)}</span>
                   </div>
                   <div className="mt-1 flex items-center gap-2 pl-3.5">
@@ -409,7 +435,7 @@ export function DashboardClient() {
                   type="button"
                   onClick={() => setActionMenuId((value) => (value === item.id ? null : item.id))}
                   className="absolute right-1 top-1 flex h-10 w-10 items-center justify-center rounded-lg text-text-dim opacity-100 hover:bg-white/10 hover:text-text-primary sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
-                  aria-label={`Production options for ${item.title}`}
+                  aria-label={`Production options for ${projectLabel(item)}`}
                 >
                   <MoreHorizontal size={15} />
                 </button>

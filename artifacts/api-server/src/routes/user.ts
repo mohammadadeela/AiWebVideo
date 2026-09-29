@@ -21,6 +21,14 @@ import { classifyAdminProduction } from '../lib/admin-production.js';
 
 const router = Router();
 
+function historyTitle(title: string | null, sourceUrl: string, featureLabel: string) {
+  const cleaned = (title || '').replace(/\(?https?:\/\/\S+\)?/gi, '').replace(/\b[0-9a-f]{8}-[0-9a-f-]{27,}\b/gi, '')
+    .replace(/^(?:Website Video|AI Video|Product Video)\s*[·:—-]?\s*(?:Ready to continue|Completed|Generating\.{0,3})?\s*[·:—-]?\s*/i, '')
+    .replace(/[()]+/g, '').trim();
+  if (cleaned && !/^(?:Ready to continue|Completed|Generating\.{0,3})$/i.test(cleaned)) return cleaned.slice(0, 60);
+  try { return new URL(sourceUrl).hostname.replace(/^www\./, ''); } catch { return featureLabel || 'Project'; }
+}
+
 const CODE_TTL_MS = 10 * 60 * 1000;
 const MAX_CODE_ATTEMPTS = 5;
 const CODE_REQUEST_WINDOW_MS = 60 * 1000;
@@ -113,6 +121,24 @@ router.post('/logout', (_req, res) => {
   res.json({ signedOut: true });
 });
 
+// GET /api/user/brand-profiles — account-owned capture context.
+// Shared saved brand context for other production tools. Derived during free
+// capture, stored with the job, and available after the guest claims it.
+router.get('/brand-profiles', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await query<{ id: string; source_url: string; capture_metadata: { brandProfile?: { summary?: string; colors?: string[] } } | null; updated_at: string }>(
+      `SELECT id,source_url,capture_metadata,updated_at FROM jobs
+       WHERE user_id=$1 AND deleted_at IS NULL AND capture_metadata->'brandProfile' IS NOT NULL
+       ORDER BY updated_at DESC LIMIT 500`, [req.user!.id],
+    );
+    res.json({ profiles: rows.flatMap((job) => {
+      const metadata = job.capture_metadata;
+      const profile = metadata?.brandProfile;
+      return profile?.summary ? [{ jobId: job.id, sourceUrl: job.source_url, summary: profile.summary, colors: profile.colors ?? [], updatedAt: job.updated_at }] : [];
+    }) });
+  } catch (error) { sendError(res, error); }
+});
+
 // GET /api/user/jobs — real account history, newest first.
 router.get('/jobs', requireAuth, async (req, res) => {
   try {
@@ -128,13 +154,13 @@ router.get('/jobs', requireAuth, async (req, res) => {
     const previewByJob = new Map(photos.rows.map((asset) => [asset.job_id, asset.storage_url]));
     res.json({
       jobs: jobs.map((job) => {
-        const metadata = job.capture_metadata as { title?: string; screenshotUrl?: string } | null;
+        const metadata = job.capture_metadata as { title?: string; screenshotUrl?: string; logoUrl?: string } | null;
         const feature = classifyAdminProduction({ mode: job.mode, captureMetadata: metadata, workflowState: job.workflow_state });
         let fallbackTitle = job.source_url;
         try { fallbackTitle = new URL(job.source_url).hostname.replace(/^www\./, ''); } catch { /* keep URL */ }
         return {
           id: job.id,
-          title: job.title || metadata?.title || fallbackTitle,
+          title: historyTitle(job.title || metadata?.title || fallbackTitle, job.source_url, feature.label),
           sourceUrl: job.source_url,
           status: job.status,
           progress: job.progress,
@@ -142,6 +168,7 @@ router.get('/jobs', requireAuth, async (req, res) => {
           featureType: feature.type,
           featureLabel: feature.label,
           screenshotUrl: metadata?.screenshotUrl ? signPrivateAssetUrl(metadata.screenshotUrl) : null,
+          logoUrl: metadata?.logoUrl ? signPrivateAssetUrl(metadata.logoUrl) : null,
           previewUrl: previewByJob.has(job.id) ? signPrivateAssetUrl(previewByJob.get(job.id)!) : null,
           pinned: job.pinned,
           updatedAt: job.updated_at,

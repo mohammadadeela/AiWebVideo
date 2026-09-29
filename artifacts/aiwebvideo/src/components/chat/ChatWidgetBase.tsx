@@ -3,6 +3,8 @@ import { ChatBubble } from "./ChatBubble";
 import { QuickReplyChips } from "./QuickReplyChips";
 import { ChatInputBar } from "./ChatInputBar";
 import { SiteCard } from "./SiteCard";
+import { SiteIcon } from "./SiteIcon";
+import { publicPlanningCopy } from "./publicCopy";
 import { GeneratedPhotoPicker, ResultGrid } from "./ResultGrid";
 import { Button } from "@/components/ui/app-button";
 import { AuthModal } from "@/components/auth/AuthModal";
@@ -280,7 +282,7 @@ function storyboardSummaryMessage(
         Production plan · {scenes.length} {isImageMode(mode) ? "image" : "beat"}{scenes.length === 1 ? "" : "s"}
       </summary>
       <div className="mt-2 space-y-2 border-t border-white/[.055] pt-2">
-        <p className="text-[11px] font-semibold text-text-primary">{sb.concept || "Production plan"}</p>
+        <p className="text-[11px] font-semibold text-text-primary">{publicPlanningCopy(sb.concept, "Production plan")}</p>
         <p className="font-utility text-[9px] text-mint">
           {isImageMode(mode)
             ? "Creative photo editing · " + (sb.aspectRatio ?? aspectRatio) + " · " + (sb.outputQuality === "4k" ? "4K master" : "1080p")
@@ -292,7 +294,7 @@ function storyboardSummaryMessage(
               <p className="text-[8px] font-semibold uppercase tracking-[.12em] text-violet">
                 {isImageMode(mode) ? "Image" : "Beat"} {scene.sceneNumber ?? index + 1}
               </p>
-              <p className="mt-1 text-[10px] leading-4 text-text-muted">{scene.shotDescription || "Direction ready"}</p>
+              <p className="mt-1 text-[10px] leading-4 text-text-muted">{publicPlanningCopy(scene.shotDescription, "Direction ready")}</p>
             </div>
           ))}
         </div>
@@ -1065,20 +1067,31 @@ export function ChatWidget({
       return;
     }
 
+    // Capture and its analysis remain visible before any paid planning starts.
+    // The explicit Continue action alone can advance to the AI provider.
     if (!isSignedIn) {
-      pushBot("Your capture is ready. Sign in once to save it to your account and continue into the production plan.");
       pendingActionRef.current = async () => {
         await claimJob(job.id);
-        await startWebsiteStoryboard(job.id, metadata);
+        setStage("preview_ready");
       };
-      setShowAuthModal(true);
-      setStage("preview_ready");
-      return;
     }
-
-    // Optional private/reference images are already available in the composer;
-    // once ownership is established we continue straight into direction.
-    void startWebsiteStoryboard(job.id, metadata);
+    const request = websiteRequestRef.current;
+    const previewWorkflow: JobWorkflowState = {
+      savedAt: Date.now(), stage: "preview_ready", mode: request?.mode ?? mode,
+      durationSeconds: request?.durationSeconds === "auto" || request?.durationSeconds === undefined
+        ? durationSeconds : request.durationSeconds,
+      featuresText, creativeBrief: request?.brief ?? creativeBrief,
+      aspectRatio: request?.aspectRatio ?? aspectRatio,
+      outputQuality: request?.outputQuality ?? outputQuality,
+      frameRate, selectedCaptureIds: autoSelectCaptureIds(metadata, 8),
+      audioMode: request?.audioMode ?? audioMode,
+      narrationLanguage: request?.narrationLanguage ?? narrationLanguage,
+      websiteAutoFlow: Boolean(request), manualRenderAfterPlan: true,
+      requestedDurationSeconds: request?.durationSeconds,
+    };
+    saveLocalJobWorkflow(job.id, previewWorkflow);
+    void saveJobWorkflow(job.id, previewWorkflow).catch(() => {});
+    setStage("preview_ready");
   }, [job, jobId, stage, isSignedIn]);
 
   // Storyboard stage
@@ -1271,7 +1284,7 @@ export function ChatWidget({
           : request.durationSeconds;
       const workflow: JobWorkflowState = {
         savedAt: Date.now(),
-        stage: "capturing",
+        stage: "preview_ready",
         mode: request.mode,
         durationSeconds: seconds,
         featuresText: null,
@@ -1413,7 +1426,7 @@ export function ChatWidget({
       pushBot(error instanceof Error ? error.message : "Enter a valid website name.");
       return;
     }
-    pushUser(brief ? `${normalized}
+    pushUser(brief && !/^Goal:\s*Use real ecommerce pages/i.test(brief.trim()) ? `${normalized}
 Promotion direction: ${brief}` : normalized);
     setActiveCaptureMetadata(null);
     setSelectedCaptureIds([]);
@@ -2519,6 +2532,7 @@ ${request.prompt}`
         className={`${immersive || (streamlinedInitialComposer && stage === "awaiting_url") ? "hidden" : "relative flex items-center gap-3 border-b border-border bg-white/[.018] px-4 py-3.5 sm:px-5"}`}
       >
         <img src="/logo.svg" alt="" width={26} height={26} className="shrink-0 rounded-md" />
+        {projectCaptureMetadata?.logoUrl && <SiteIcon url={projectCaptureMetadata.logoUrl} size={26} />}
         <div className="min-w-0 flex-1">
           <p className="font-display text-[13.5px] font-semibold text-text-primary">AiWebVideo Director</p>
           <p className="flex items-center gap-1.5 text-[11px] text-text-muted">
@@ -2648,10 +2662,26 @@ ${request.prompt}`
                   <p className="mt-1 text-[11px] leading-5 text-text-muted">
                     These are your real website pages, favicon and brand signals. The free preview proves the source is connected before you decide whether to pay for AI production.
                   </p>
-                  <div className="mt-3 grid gap-2 text-[10px] text-text-muted sm:grid-cols-3">
-                    <span className="rounded-lg bg-black/15 px-2.5 py-2">{projectCaptureMetadata?.pageCount ?? liveReferenceItems.length} useful page{(projectCaptureMetadata?.pageCount ?? liveReferenceItems.length) === 1 ? "" : "s"} saved</span>
-                    <span className="rounded-lg bg-black/15 px-2.5 py-2">{durationLabel(durationSeconds)} · {aspectRatio}</span>
-                    <span className="rounded-lg bg-black/15 px-2.5 py-2">{outputQuality === "4k" ? "4K" : "1080p"} · {audioMode === "voice_music" ? "Narrated" : audioMode === "native_audio" ? "Scene audio" : audioMode === "music_only" ? "Music" : "Silent"}</span>
+                  <div className="mt-3 rounded-xl border border-white/10 bg-black/15 p-3">
+                    <div className="mb-2 flex items-center gap-2">
+                      <SiteIcon url={projectCaptureMetadata?.logoUrl} size={32} />
+                      <span className="text-[11px] font-semibold text-white">{projectCaptureMetadata?.pageCount ?? liveReferenceItems.length} useful page{(projectCaptureMetadata?.pageCount ?? liveReferenceItems.length) === 1 ? "" : "s"} saved</span>
+                      <div className="ml-auto flex gap-1" aria-label="Detected site colors">
+                        {(projectCaptureMetadata?.brandColors ?? []).slice(0, 5).map((color) => <span key={color} title={color} className="h-4 w-4 rounded-full border border-white/20" style={{ backgroundColor: color }} />)}
+                      </div>
+                    </div>
+                    <div className="chat-scroll flex gap-2 overflow-x-auto pb-1">
+                      {liveReferenceItems.map((item) => (
+                        <figure key={item.id} className="w-48 shrink-0 sm:w-60">
+                          <img src={item.url} alt={`Captured ${item.title}`} className="aspect-[16/10] w-full rounded-lg border border-white/10 object-cover object-top" />
+                          <figcaption className="mt-1 truncate text-[10px] text-text-muted">{item.title}</figcaption>
+                        </figure>
+                      ))}
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2 text-[10px] text-text-muted">
+                      <span className="rounded-lg bg-white/5 px-2.5 py-1.5">{durationLabel(durationSeconds)} · {aspectRatio}</span>
+                      <span className="rounded-lg bg-white/5 px-2.5 py-1.5">{outputQuality === "4k" ? "4K" : "1080p"} · {audioMode === "voice_music" ? "Narrated" : audioMode === "native_audio" ? "Scene audio" : audioMode === "music_only" ? "Music" : "Silent"}</span>
+                    </div>
                   </div>
                 </div>
 
@@ -2663,9 +2693,14 @@ ${request.prompt}`
                     </div>
                     <span className="rounded-full border border-white/10 bg-black/20 px-2 py-1 text-[9px] font-semibold text-mint">Free preview</span>
                   </div>
-                  <p className="mt-3 rounded-xl border border-white/[.06] bg-black/15 px-3 py-2.5 text-[11px] leading-5 text-text-muted">
-                    <span className="font-semibold text-white">Goal:</span> {creativeBrief?.trim() || "Create a brand-aware campaign from the captured website."}
-                  </p>
+                  {projectCaptureMetadata?.brandProfile && (
+                    <div className="mt-3 rounded-xl border border-white/[.06] bg-black/15 px-3 py-2.5">
+                      <p className="text-[10px] font-semibold text-white">Brand profile</p>
+                      <p className="mt-1 text-[11px] leading-5 text-text-muted">{projectCaptureMetadata.brandProfile.summary}</p>
+                      <div className="mt-2 flex gap-1">{projectCaptureMetadata.brandProfile.colors.slice(0, 5).map((color) => <span key={color} title={color} className="h-4 w-4 rounded-full border border-white/20" style={{ backgroundColor: color }} />)}</div>
+                    </div>
+                  )}
+                  {projectCaptureMetadata?.readiness && <p className="mt-2 text-[11px] leading-5 text-text-muted">{projectCaptureMetadata.readiness}</p>}
                   <div className="mt-3 grid gap-2 sm:grid-cols-3">
                     {[
                       ["01", "Hook", "AI will choose the strongest opening."],
@@ -2679,6 +2714,16 @@ ${request.prompt}`
                       </div>
                     ))}
                   </div>
+                  {!!projectCaptureMetadata?.campaignChecklist?.length && (
+                    <ul className="mt-3 space-y-2">
+                      {projectCaptureMetadata.campaignChecklist.map((item, index) => (
+                        <li key={`${item.pageUrl}-${index}`} className="flex items-center gap-2 text-[11px] text-text-muted">
+                          <SiteIcon url={projectCaptureMetadata.logoUrl} size={25} />
+                          <span className="min-w-0"><span className="text-white">{item.text}</span><span className="block truncate text-[9px] text-text-dim">From {item.pageTitle}</span></span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
 
                 <Button

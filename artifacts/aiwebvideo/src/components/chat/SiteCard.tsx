@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import type { CaptureMetadata } from './types';
+import { SiteIcon } from './SiteIcon';
 
 export function SiteCard({ sourceUrl, metadata }: { sourceUrl: string; metadata: CaptureMetadata }) {
   const isUpload = sourceUrl.startsWith('upload://');
@@ -74,6 +75,7 @@ export function SiteCard({ sourceUrl, metadata }: { sourceUrl: string; metadata:
               >
                 <div className="relative">
                   <img src={page.screenshotUrl} alt={`Saved capture of ${page.title || displayName}`} className="aspect-[16/10] w-full object-cover object-top" />
+                  {metadata.logoUrl && <span className="absolute bottom-2 left-2"><SiteIcon url={metadata.logoUrl} size={25} /></span>}
                   <span className="absolute left-2 top-2 rounded-full border border-black/10 bg-black/60 px-2 py-1 font-utility text-[8px] uppercase tracking-[.12em] text-white/85">{String(index + 1).padStart(2, '0')}</span>
                 </div>
                 <p className="truncate border-t border-border px-3 py-2 text-[10px] text-text-dim">{page.title || `Page ${index + 1}`}</p>
@@ -83,13 +85,7 @@ export function SiteCard({ sourceUrl, metadata }: { sourceUrl: string; metadata:
         </div>
       )}
       <div className="flex items-center gap-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-panel-alt border border-border overflow-hidden">
-          {metadata.logoUrl ? (
-            <img src={metadata.logoUrl} alt="" width={28} height={28} className="object-contain" />
-          ) : (
-            <span className="text-text-dim text-xs font-utility">{displayName.slice(0, 2).toUpperCase()}</span>
-          )}
-        </div>
+        <SiteIcon url={metadata.logoUrl} size={44} />
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-text-primary">{displayName}</p>
           <p className="font-utility text-xs text-text-dim">

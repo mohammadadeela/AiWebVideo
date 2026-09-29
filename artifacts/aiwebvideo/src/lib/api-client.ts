@@ -307,6 +307,7 @@ export interface UserJobSummary {
   featureType: string;
   featureLabel: string;
   screenshotUrl: string | null;
+  logoUrl: string | null;
   previewUrl: string | null;
   pinned: boolean;
   updatedAt: string;
@@ -315,6 +316,10 @@ export interface UserJobSummary {
 
 export function fetchUserJobs() {
   return request<{ jobs: UserJobSummary[] }>('/api/user/jobs');
+}
+
+export function fetchSavedBrandProfiles() {
+  return request<{ profiles: Array<{ jobId: string; sourceUrl: string; summary: string; colors: string[]; updatedAt: string }> }>('/api/user/brand-profiles');
 }
 
 export function updateSavedChat(jobId: string, patch: { title?: string; pinned?: boolean }) {

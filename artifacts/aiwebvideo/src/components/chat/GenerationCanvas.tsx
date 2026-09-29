@@ -4,6 +4,8 @@ import { fetchJob, request } from "@/lib/api-client";
 import { getActiveJobId } from "@/lib/guestSession";
 import type { JobAsset, JobStatus, Storyboard } from "./types";
 import type { CaptureMediaItem } from "./MediaPlanningPanel";
+import { SiteIcon } from "./SiteIcon";
+import { publicPlanningCopy } from "./publicCopy";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -223,7 +225,6 @@ export function GenerationCanvas({
     [generatedPhotos.length, generatedVideo, productionKind, status, statusMessage],
   );
   const storyboardScenes = Array.isArray(storyboard?.scenes) ? storyboard.scenes : [];
-  const storyboardIntent = storyboard?.concept?.trim() || storyboard?.creativeBrief?.trim() || null;
 
   useEffect(() => {
     const id = jobId ?? getActiveJobId();
@@ -363,20 +364,13 @@ export function GenerationCanvas({
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_-10%,rgba(139,92,246,.14),transparent_34%),radial-gradient(circle_at_100%_100%,rgba(52,217,196,.05),transparent_28%)]" />
         <div className="relative p-3.5 sm:p-4">
           <div className="flex items-start gap-3">
-            <span
-              className={"flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl border " + copy.accentBorder + " " + copy.accentBg + " " + copy.accentText}
-              aria-hidden="true"
-            >
-              {brandMarkUrl && productionKind === "website-video" ? (
-                <img
-                  src={brandMarkUrl}
-                  alt=""
-                  className="max-h-5 max-w-7 object-contain"
-                />
-              ) : (
+            {brandMarkUrl && productionKind === "website-video" ? (
+              <SiteIcon url={brandMarkUrl} size={36} />
+            ) : (
+              <span className={"flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border " + copy.accentBorder + " " + copy.accentBg + " " + copy.accentText} aria-hidden="true">
                 <Icon size={15} className={!settled ? "animate-pulse-soft" : ""} />
-              )}
-            </span>
+              </span>
+            )}
 
             <div className="min-w-0 flex-1">
               <div className="flex min-h-6 items-center gap-2">
@@ -434,6 +428,29 @@ export function GenerationCanvas({
                 </p>
               )}
 
+              <div className="mt-3 flex flex-wrap gap-1.5" aria-label="Output specifications">
+                {chips.map((chip) => <span key={chip} className="rounded-full border border-white/[.07] bg-black/15 px-2 py-1 text-[8px] capitalize text-white/65">{chip}</span>)}
+              </div>
+
+              {visibleReferences.length > 0 && (
+                <div className="mt-3">
+                  <p className="mb-1.5 text-[9px] font-semibold text-white/60">Live inputs</p>
+                  <div className="chat-scroll flex gap-2 overflow-x-auto pb-1">
+                    {visibleReferences.map((item) => (
+                      <figure key={item.id} className="w-28 shrink-0">
+                        <div className="relative aspect-video overflow-hidden rounded-lg border border-white/10 bg-black/20">
+                          <img src={item.url} alt={item.title} className="h-full w-full object-cover object-top" />
+                          {brandMarkUrl && <span className="absolute bottom-1 left-1"><SiteIcon url={brandMarkUrl} size={22} /></span>}
+                          {sceneAssignments[item.id] && <span className="absolute right-1 top-1 rounded-full bg-violet px-1 py-0.5 text-[7px] text-white">R{sceneAssignments[item.id]}</span>}
+                        </div>
+                        <figcaption className="mt-1 truncate text-[8px] text-white/55">{item.title}</figcaption>
+                      </figure>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <p className="mt-2 text-[9px] text-white/45">Live progress is saved. You can leave this chat and return.</p>
+
               <div className="mt-2.5 flex items-center justify-between gap-3">
                 <button
                   type="button"
@@ -460,12 +477,6 @@ export function GenerationCanvas({
 
               {detailsOpen && (
                 <div className="mt-2.5 space-y-3 rounded-2xl border border-white/[.075] bg-white/[.025] p-3">
-                  <div>
-                    <p className="font-utility text-[7px] uppercase tracking-[.14em] text-white/32">Direction</p>
-                    <p className="mt-1 text-[10px] leading-4 text-white/70">
-                      {storyboardIntent || statusMessage || "Your production direction is being prepared."}
-                    </p>
-                  </div>
 
                   {storyboardScenes.length > 0 && (
                     <div className="space-y-1.5">
@@ -475,50 +486,13 @@ export function GenerationCanvas({
                             {photoMode ? "Image" : "Beat"} {scene.sceneNumber ?? index + 1}
                           </p>
                           <p className="mt-1 text-[9px] leading-4 text-white/48">
-                            {scene.shotDescription || "Direction ready"}
+                            {publicPlanningCopy(scene.shotDescription, "Direction ready")}
                           </p>
                         </div>
                       ))}
                     </div>
                   )}
 
-                  <div className="flex flex-wrap gap-1.5">
-                    {chips.map((chip) => (
-                      <span
-                        key={chip}
-                        className="rounded-full border border-white/[.07] bg-black/15 px-2 py-1 text-[8px] capitalize text-white/65"
-                      >
-                        {chip}
-                      </span>
-                    ))}
-                  </div>
-
-                  {visibleReferences.length > 0 && (
-                    <div>
-                      <p className="mb-1.5 text-[8px] font-semibold text-white/45">References</p>
-                      <div className="chat-scroll flex gap-2 overflow-x-auto pb-1">
-                        {visibleReferences.map((item) => (
-                          <div key={item.id} className="w-24 shrink-0">
-                            <div className="relative aspect-video overflow-hidden rounded-lg border border-white/[.07] bg-black/20">
-                              <img
-                                src={item.url}
-                                alt={item.title}
-                                loading="eager"
-                                decoding="async"
-                                className="h-full w-full object-cover object-top"
-                              />
-                              {sceneAssignments[item.id] ? (
-                                <span className="absolute right-1 top-1 rounded-full bg-violet px-1 py-0.5 text-[6px] font-bold text-white">
-                                  R{sceneAssignments[item.id]}
-                                </span>
-                              ) : null}
-                            </div>
-                            <p className="mt-1 truncate text-[7px] text-white/38" title={item.title}>{item.title}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
 
                   {(generatedVideo || generatedPhotos.length > 0) && (
                     <div>

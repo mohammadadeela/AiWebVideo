@@ -345,7 +345,9 @@ router.get("/:id", tryAuth, async (req, res) => {
           id: message.id,
           role: message.role,
           kind: message.kind,
-          content: showTechnicalErrors ? message.content : publicJobMessageContent(message.content),
+          content: /^(?:Goal:\s*Use real ecommerce pages|SYSTEM(?:\s+PROMPT|\s+INSTRUCTION)?\s*:|INTERNAL\s+INSTRUCTIONS?\s*:)/i.test(message.content.trim())
+            ? 'Website campaign direction saved.'
+            : showTechnicalErrors ? message.content : publicJobMessageContent(message.content),
           payload: {
             ...(message.payload ?? {}),
             ...(resultAssets.length
