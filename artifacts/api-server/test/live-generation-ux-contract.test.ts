@@ -19,6 +19,18 @@ test('chat follow mode respects manual scroll and exposes jump-to-latest', async
   assert.match(chat, /behavior: reducedMotion \? "auto" : "smooth"/);
 });
 
+test('newly finished media is always revealed once even after manual scroll', async () => {
+  const chat = await frontendSource('src/components/chat/ChatWidget.tsx');
+
+  assert.match(chat, /Completion is the one intentional exception to normal follow-mode/);
+  assert.match(chat, /querySelectorAll<HTMLElement>\('\[data-generated-result="true"\]'\)/);
+  assert.match(chat, /autoFollowRef\.current = true/);
+  assert.match(chat, /userScrollIntentRef\.current = false/);
+  assert.match(chat, /setShowJumpToLatest\(false\)/);
+  assert.match(chat, /setHasUnseenBelow\(false\)/);
+  assert.match(chat, /messages\.scrollTo\(\{/);
+});
+
 test('generation defaults to one progressive thinking line with collapsed details', async () => {
   const canvas = await frontendSource('src/components/chat/GenerationCanvas.tsx');
 
