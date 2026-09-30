@@ -1336,6 +1336,9 @@ export function ChatWidget({
         outputQuality: request.outputQuality,
         audioMode: request.audioMode,
         modelId: request.modelId,
+        productUrl: request.productUrl,
+        productImageUrls: request.productImageUrls,
+        architecture: request.architecture,
       },
       attachmentDraftKey,
     });
@@ -1346,7 +1349,9 @@ export function ChatWidget({
           ? "scenario"
           : request.studioKind === "interior"
             ? "interior"
-            : request.mode === "photos"
+            : request.studioKind === "architecture"
+              ? "architecture"
+              : request.mode === "photos"
               ? "photo"
               : "product-video";
     window.location.assign(`/dashboard?create=${encodeURIComponent(mappedCreate)}&handoff=1`);
@@ -1707,7 +1712,7 @@ Promotion direction: ${brief}` : normalized);
   }
 
   async function performStudioSubmit(request: StudioGenerationRequest) {
-    const effectiveStudioPrompt = request.studioKind === "interior"
+    const effectiveStudioPrompt = request.studioKind === "interior" || request.studioKind === "architecture"
       ? `${INTERIOR_MASTER_PROMPT}
 
 USER DESIGN BRIEF (highest-priority creative direction):
@@ -1727,16 +1732,22 @@ ${request.prompt}`
     storyboardedRef.current = false;
     renderedRef.current = false;
     pushUser(
-      request.studioKind === "interior"
-        ? `Create an interior design${request.prompt ? ` · ${request.prompt}` : ""}`
-        : request.studioKind === "product"
+      request.studioKind === "architecture"
+        ? `Create an architecture concept for this site${request.prompt ? ` · ${request.prompt}` : ""}`
+        : request.studioKind === "interior"
+          ? `Create an interior design${request.prompt ? ` · ${request.prompt}` : ""}`
+          : request.studioKind === "product"
         ? request.mode === "photos"
           ? `Create a product photo campaign${request.prompt ? ` · ${request.prompt}` : ""}`
           : `Create a product video${request.prompt ? ` · ${request.prompt}` : ""}`
         : request.prompt,
     );
     pushBot(
-      request.studioKind === "interior"
+      request.studioKind === "architecture"
+        ? request.mode === "photos"
+          ? "I’m cross-checking the real site reference, plot dimensions, setback and building brief before creating the architectural concept."
+          : "I’m building a site-grounded architectural walkthrough from your location, dimensions and references while keeping the geometry consistent."
+        : request.studioKind === "interior"
         ? request.mode === "photos"
           ? "I’m cross-checking your space references, measurements and architectural constraints before creating the interior concept. The result will stay grounded in the supplied geometry."
           : "I’m building a continuous architectural walkthrough from your references, measurements and design direction. The camera path will stay consistent with the supplied space."
@@ -1774,6 +1785,9 @@ ${request.prompt}`
         outputQuality: request.outputQuality,
         modelId: request.modelId,
         ideaPrompt: effectiveStudioPrompt || undefined,
+        productUrl: request.productUrl,
+        productImageUrls: request.productImageUrls,
+        architecture: request.architecture,
       });
       selectJobId(upload.jobId);
       onJobCreated?.(upload.jobId);
