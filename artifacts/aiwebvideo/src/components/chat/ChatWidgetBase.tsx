@@ -1712,10 +1712,16 @@ Promotion direction: ${brief}` : normalized);
   }
 
   async function performStudioSubmit(request: StudioGenerationRequest) {
+    const architectureInputs = request.studioKind === "architecture" && request.architecture
+      ? Object.entries(request.architecture)
+          .filter(([, value]) => value !== undefined && value !== "")
+          .map(([key, value]) => `${key}: ${String(value)}`)
+          .join(" · ")
+      : "";
     const effectiveStudioPrompt = request.studioKind === "interior" || request.studioKind === "architecture"
       ? `${INTERIOR_MASTER_PROMPT}
 
-USER DESIGN BRIEF (highest-priority creative direction):
+${request.studioKind === "architecture" && architectureInputs ? `SITE / ENGINEERING INPUTS (authoritative): ${architectureInputs}\n\n` : ""}USER DESIGN BRIEF (highest-priority creative direction):
 ${request.prompt}`
       : request.prompt;
     setBusy(true);
