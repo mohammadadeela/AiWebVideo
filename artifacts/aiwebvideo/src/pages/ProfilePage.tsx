@@ -373,15 +373,31 @@ export function ProfilePage() {
                 </div>
               </div>
 
-              <div className="mt-4 rounded-2xl border border-white/[.07] bg-bg/25 px-4 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
+              <div className="mt-4 rounded-2xl border border-white/[.07] bg-bg/25 px-4 py-3.5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0">
                     <p className="text-[11px] font-semibold text-text-primary">Usage this month</p>
                     <p className="mt-0.5 text-[10px] text-text-dim">{formatCredits(usage?.thisMonth.creditsUsed)} credits used · {formatCredits(usage?.balance ?? me?.creditsBalance)} available</p>
                   </div>
-                  <span className="font-utility text-xs font-semibold text-violet">{monthlyUsagePercent}%</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-utility text-xs font-semibold text-violet">{monthlyUsagePercent}%</span>
+                    <button
+                      type="button"
+                      onClick={buyCredits}
+                      className="rounded-full border border-violet/20 bg-violet/[.07] px-2.5 py-1 text-[9px] font-semibold text-violet transition hover:bg-violet/[.12]"
+                    >
+                      Recharge
+                    </button>
+                  </div>
                 </div>
-                <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-white/[.08]">
+                <div
+                  className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-white/[.08]"
+                  role="progressbar"
+                  aria-label="Monthly credit usage"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={monthlyUsagePercent}
+                >
                   <div className="h-full rounded-full bg-signature transition-[width] duration-300" style={{ width: `${monthlyUsagePercent}%` }} />
                 </div>
               </div>
