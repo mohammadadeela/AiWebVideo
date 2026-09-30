@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Globe2, Palette, ScanSearch, X } from 'lucide-react';
 import type { CaptureMetadata } from './types';
 
 export function SiteCard({ sourceUrl, metadata }: { sourceUrl: string; metadata: CaptureMetadata }) {
@@ -25,6 +25,25 @@ export function SiteCard({ sourceUrl, metadata }: { sourceUrl: string; metadata:
   }, [metadata, sourceUrl]);
 
   const preview = previewIndex === null ? null : allShots[previewIndex] ?? null;
+  const analyzedPages = useMemo(
+    () =>
+      (metadata.pages ?? [])
+        .filter((page) => page?.title || page?.url)
+        .slice(0, 6)
+        .map((page) => {
+          let label = page.title?.trim() || '';
+          if (!label) {
+            try {
+              const parsed = new URL(page.url);
+              label = parsed.pathname === '/' ? 'Homepage' : parsed.pathname.split('/').filter(Boolean).pop() || parsed.hostname;
+            } catch {
+              label = page.url;
+            }
+          }
+          return label;
+        }),
+    [metadata.pages],
+  );
 
   useEffect(() => {
     if (previewIndex === null) return;
@@ -55,6 +74,76 @@ export function SiteCard({ sourceUrl, metadata }: { sourceUrl: string; metadata:
           </div>
         </div>
       )}
+      {!isUpload && (
+        <div className="mb-3 rounded-xl border border-white/[.08] bg-white/[.025] p-3.5">
+          <div className="flex items-center gap-2">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-violet/10 text-violet">
+              <ScanSearch size={14} />
+            </span>
+            <div>
+              <p className="text-xs font-semibold text-text-primary">Website analysis</p>
+              <p className="mt-0.5 text-[10px] text-text-dim">What AiWebVideo understood from the public website before generation.</p>
+            </div>
+          </div>
+
+          <div className="mt-3 space-y-2.5 text-[11px]">
+            <div className="rounded-xl bg-black/15 px-3 py-2.5">
+              <p className="text-[9px] font-semibold uppercase tracking-[.13em] text-text-dim">Website</p>
+              <p className="mt-1 font-semibold text-white">{metadata.title?.trim() || displayName}</p>
+              {metadata.description?.trim() && (
+                <p className="mt-1.5 line-clamp-3 leading-5 text-text-muted">{metadata.description.trim()}</p>
+              )}
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="rounded-xl bg-black/15 px-3 py-2.5">
+                <div className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[.13em] text-text-dim">
+                  <Globe2 size={11} />
+                  Site signals
+                </div>
+                <p className="mt-1.5 text-text-muted">
+                  {metadata.pageCount} useful page{metadata.pageCount === 1 ? '' : 's'} analyzed
+                  {metadata.htmlLang ? ` · Language: ${metadata.htmlLang.toUpperCase()}` : ''}
+                </p>
+              </div>
+
+              <div className="rounded-xl bg-black/15 px-3 py-2.5">
+                <div className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[.13em] text-text-dim">
+                  <Palette size={11} />
+                  Brand identity
+                </div>
+                <div className="mt-1.5 flex items-center gap-2">
+                  {metadata.logoUrl && (
+                    <img src={metadata.logoUrl} alt="" className="h-5 w-5 rounded object-contain" />
+                  )}
+                  <div className="flex gap-1">
+                    {metadata.brandColors.slice(0, 5).map((color) => (
+                      <span key={color} title={color} className="h-4 w-4 rounded-full border border-white/15" style={{ backgroundColor: color }} />
+                    ))}
+                  </div>
+                  {!metadata.logoUrl && metadata.brandColors.length === 0 && (
+                    <span className="text-text-dim">Visual identity captured</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {analyzedPages.length > 0 && (
+              <div className="rounded-xl bg-black/15 px-3 py-2.5">
+                <p className="text-[9px] font-semibold uppercase tracking-[.13em] text-text-dim">Pages understood</p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {analyzedPages.map((page, index) => (
+                    <span key={`${page}-${index}`} className="max-w-full truncate rounded-full border border-white/[.08] bg-white/[.035] px-2.5 py-1 text-[10px] text-text-muted">
+                      {page}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {allShots.length > 0 && (
         <div className="mb-3 rounded-xl border border-white/[.08] bg-white/[.025] p-3">
           <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
