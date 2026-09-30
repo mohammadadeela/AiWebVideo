@@ -84,6 +84,8 @@ export interface CaptureMetadata {
   ideaPrompt?: string | null;
   screenshotUrl?: string | null;
   title?: string;
+  description?: string | null;
+  htmlLang?: string | null;
   fullPageScreenshotUrl?: string | null;
   mobileScreenshotUrl?: string | null;
   mobileFullPageScreenshotUrl?: string | null;
