@@ -8,7 +8,7 @@ import { Wordmark } from "@/components/ui/Wordmark";
 import { UserMenu, formatCredits } from "@/components/account/UserMenu";
 import { CreditUpgradeNotice } from "@/components/account/CreditUpgradeNotice";
 import { watchAuthState } from "@/lib/firebase/client";
-import { deleteSavedChat, fetchMe, fetchUserJobs, updateSavedChat, type UserJobSummary } from "@/lib/api-client";
+import { deleteSavedChat, fetchMe, fetchUserJobs, fetchUserUsage, updateSavedChat, type UserJobSummary, type UserUsageSummary } from "@/lib/api-client";
 import { type JobMode } from "@/components/chat/types";
 import {
   CircleUserRound,
@@ -53,6 +53,7 @@ export function DashboardClient() {
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [me, setMe] = useState<Me | null>(null);
   const [jobs, setJobs] = useState<UserJobSummary[]>([]);
+  const [usage, setUsage] = useState<UserUsageSummary | null>(null);
   // Opening /dashboard always starts on a clean default chat. A saved chat is
   // opened only when the URL explicitly names it (history click, refresh of an
   // active chat, or sign-in continuity). Never resurrect an arbitrary old job
@@ -73,13 +74,18 @@ export function DashboardClient() {
       requested === "photo" ||
       requested === "product-video" ||
       requested === "scenario" ||
-      requested === "interior"
+      requested === "interior" ||
+      requested === "architecture"
       ? requested
       : undefined;
   }, []);
   const [reuseMode, setReuseMode] = useState<JobMode | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const saved = Number.parseInt(localStorage.getItem("aiwebvideo_sidebar_width") || "", 10);
+    return Number.isFinite(saved) ? Math.min(420, Math.max(240, saved)) : 286;
+  });
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -100,9 +106,10 @@ export function DashboardClient() {
 
   const refresh = useCallback(async () => {
     try {
-      const [account, history] = await Promise.all([fetchMe(), fetchUserJobs()]);
+      const [account, history, usageSummary] = await Promise.all([fetchMe(), fetchUserJobs(), fetchUserUsage()]);
       setMe(account);
       setJobs(Array.isArray(history.jobs) ? history.jobs.filter((job) => job && typeof job.id === "string") : []);
+      setUsage(usageSummary);
       setError(null);
     } catch {
       setError("We could not refresh your workspace. Please try again in a moment.");
@@ -163,12 +170,47 @@ export function DashboardClient() {
     };
   }, [sidebarOpen]);
 
+  useEffect(() => {
+    localStorage.setItem("aiwebvideo_sidebar_width", String(sidebarWidth));
+  }, [sidebarWidth]);
+
+  useEffect(() => {
+    let startX = 0;
+    let startY = 0;
+    const onTouchStart = (event: TouchEvent) => {
+      const touch = event.touches[0];
+      if (!touch) return;
+      startX = touch.clientX;
+      startY = touch.clientY;
+    };
+    const onTouchEnd = (event: TouchEvent) => {
+      const touch = event.changedTouches[0];
+      if (!touch) return;
+      const dx = touch.clientX - startX;
+      const dy = touch.clientY - startY;
+      if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+      if (!sidebarOpen && startX <= 28 && dx > 0) setSidebarOpen(true);
+      if (sidebarOpen && dx < 0) setSidebarOpen(false);
+    };
+    document.addEventListener("touchstart", onTouchStart, { passive: true });
+    document.addEventListener("touchend", onTouchEnd, { passive: true });
+    return () => {
+      document.removeEventListener("touchstart", onTouchStart);
+      document.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [sidebarOpen]);
+
   const runningJobs = useMemo(() => jobs.filter((job) => ACTIVE_STATUSES.has(job.status)), [jobs]);
 
   const filteredJobs = useMemo(
-    () => jobs.filter((job) => `${job.title} ${job.sourceUrl} ${job.mode} ${job.featureLabel ?? ""}`.toLowerCase().includes(query.toLowerCase())),
+    () => jobs
+      .filter((job) => `${job.title} ${job.sourceUrl} ${job.mode} ${job.featureLabel ?? ""}`.toLowerCase().includes(query.toLowerCase()))
+      .sort((a, b) => Number(b.pinned) - Number(a.pinned) || new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
     [jobs, query],
   );
+  const usageUsed = usage?.thisMonth.creditsUsed ?? 0;
+  const usageBalance = usage?.balance ?? me?.creditsBalance ?? 0;
+  const usagePercent = Math.min(100, Math.max(0, Math.round((usageUsed / Math.max(1, usageUsed + usageBalance)) * 100)));
 
   function startNew() {
     clearActiveJobId();
@@ -254,7 +296,7 @@ export function DashboardClient() {
     );
 
   return (
-    <div className="min-h-screen bg-bg lg:flex">
+    <div className="min-h-screen bg-bg lg:flex" style={{ "--workspace-sidebar-width": `${sidebarWidth}px` } as Record<string, string>}>
       {sidebarOpen && (
         <button
           type="button"
@@ -266,8 +308,32 @@ export function DashboardClient() {
       <aside
         id="workspace-project-menu"
         aria-label="Workspace projects"
-        className={`fixed bottom-2.5 left-2.5 top-[4.15rem] z-40 flex w-[min(82vw,292px)] max-w-[calc(100vw-3.25rem)] flex-col overflow-hidden rounded-[22px] border border-white/[.10] bg-[#100c20]/[.99] p-2.5 shadow-[0_28px_80px_-34px_rgba(0,0,0,.98)] backdrop-blur-2xl transition-[transform,opacity] duration-200 sm:left-3 sm:w-[300px] sm:p-3 lg:sticky lg:bottom-auto lg:left-auto lg:top-0 lg:h-screen lg:max-w-none lg:rounded-none lg:border-y-0 lg:border-l-0 lg:border-r lg:bg-[#100c20] lg:shadow-none lg:backdrop-blur-none ${sidebarOpen ? "pointer-events-auto translate-x-0 opacity-100" : "pointer-events-none -translate-x-[115%] opacity-0 lg:pointer-events-auto lg:translate-x-0 lg:opacity-100"} ${sidebarCollapsed ? "lg:w-0 lg:overflow-hidden lg:border-0 lg:p-0" : "lg:w-[286px]"}`}
+        className={`fixed bottom-2.5 left-2.5 top-[4.15rem] z-40 flex w-[min(82vw,292px)] max-w-[calc(100vw-3.25rem)] flex-col overflow-hidden rounded-[22px] border border-white/[.10] bg-[#100c20]/[.99] p-2.5 shadow-[0_28px_80px_-34px_rgba(0,0,0,.98)] backdrop-blur-2xl transition-[transform,opacity] duration-200 sm:left-3 sm:w-[300px] sm:p-3 lg:sticky lg:bottom-auto lg:left-auto lg:top-0 lg:h-screen lg:max-w-none lg:rounded-none lg:border-y-0 lg:border-l-0 lg:border-r lg:bg-[#100c20] lg:shadow-none lg:backdrop-blur-none ${sidebarOpen ? "pointer-events-auto translate-x-0 opacity-100" : "pointer-events-none -translate-x-[115%] opacity-0 lg:pointer-events-auto lg:translate-x-0 lg:opacity-100"} ${sidebarCollapsed ? "lg:w-0 lg:overflow-hidden lg:border-0 lg:p-0" : "lg:w-[var(--workspace-sidebar-width)]"}`}
       >
+        {!sidebarCollapsed && (
+          <button
+            type="button"
+            aria-label="Resize project sidebar"
+            title="Drag to resize"
+            className="absolute -right-1 top-0 z-20 hidden h-full w-2 cursor-col-resize touch-none lg:block"
+            onPointerDown={(event) => {
+              event.preventDefault();
+              const startX = event.clientX;
+              const startWidth = sidebarWidth;
+              const onMove = (moveEvent: PointerEvent) => {
+                setSidebarWidth(Math.min(420, Math.max(240, startWidth + moveEvent.clientX - startX)));
+              };
+              const onUp = () => {
+                window.removeEventListener("pointermove", onMove);
+                window.removeEventListener("pointerup", onUp);
+              };
+              window.addEventListener("pointermove", onMove);
+              window.addEventListener("pointerup", onUp, { once: true });
+            }}
+          >
+            <span className="mx-auto block h-full w-px bg-transparent transition hover:bg-violet/50" />
+          </button>
+        )}
         <div className="flex items-center justify-between px-2 py-2">
           <Link href="/">
             <Wordmark />
@@ -357,13 +423,13 @@ export function DashboardClient() {
             </div>
           )}
           <p className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-[.16em] text-text-dim">
-            Recent projects
+            {filteredJobs.some((job) => job.pinned) ? "Pinned & recent" : "Recent projects"}
           </p>
           <div className="space-y-1">
             {filteredJobs.map((item) => (
               <div
                 key={item.id}
-                className={`group relative rounded-xl transition-colors ${(selectedJobId ?? composerJobId) === item.id ? "bg-white/10" : "hover:bg-white/5"}`}
+                className={`group relative rounded-xl border transition-colors ${item.pinned ? "border-violet/20 bg-violet/[.055]" : "border-transparent"} ${(selectedJobId ?? composerJobId) === item.id ? "bg-white/10" : "hover:bg-white/5"}`}
               >
                 <a
                   href={`/dashboard?job=${encodeURIComponent(item.id)}`}
@@ -385,7 +451,7 @@ export function DashboardClient() {
                     <span
                       className={`h-1.5 w-1.5 shrink-0 rounded-full ${item.status === "done" ? "bg-mint" : item.status === "failed" ? "bg-pink" : "bg-violet animate-pulse-soft"}`}
                     />
-                    {item.pinned && <Pin size={11} className="shrink-0 fill-violet text-violet" />}
+                    {item.pinned && <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-violet/15"><Pin size={11} className="fill-violet text-violet" /></span>}
                     <span className="min-w-0 flex-1 truncate text-xs font-medium text-text-primary">{item.title}</span>
                     <span className="text-[10px] text-text-dim">{relativeTime(item.updatedAt)}</span>
                   </div>
@@ -444,6 +510,20 @@ export function DashboardClient() {
         </div>
         {me && (
           <div className="mt-3 space-y-2">
+            <Link
+              href="/profile#usage"
+              className="block rounded-xl border border-white/[.08] bg-white/[.025] px-3 py-2.5 transition hover:bg-white/[.045]"
+              title="Open usage details"
+            >
+              <div className="flex items-center justify-between gap-3 text-[10px]">
+                <span className="font-semibold text-text-muted">Usage this month</span>
+                <span className="font-semibold text-text-primary">{usagePercent}%</span>
+              </div>
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/[.08]">
+                <span className="block h-full rounded-full bg-signature transition-[width]" style={{ width: `${usagePercent}%` }} />
+              </div>
+              <p className="mt-1.5 text-[9px] text-text-dim">{formatCredits(usageUsed)} credits used</p>
+            </Link>
             {me.isAdmin && (
               <Link
                 href="/admin"
