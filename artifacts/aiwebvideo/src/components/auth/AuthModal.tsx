@@ -7,6 +7,7 @@ import {
   signInWithGoogle,
   signInWithGithub,
   isFirebaseConfigured,
+  watchAuthState,
 } from '@/lib/firebase/client';
 import {
   ApiError, exchangeFirebaseToken, localLogin,
@@ -88,6 +89,7 @@ export function AuthModal({ onClose, onSignedIn }: { onClose: () => void; onSign
   // stale abandon-timeout) from an earlier click can recognize it's no
   // longer the current attempt and avoid touching state for it.
   const providerAttempt = useRef(0);
+  const finishSignInRef = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
     try {
@@ -109,13 +111,35 @@ export function AuthModal({ onClose, onSignedIn }: { onClose: () => void; onSign
 
   // After any successful sign-in/sign-up, hand off (best-effort) whatever
   // chat/job the visitor was working on before they authenticated.
-  async function finishSignIn() {
-    const pendingJobId = getActiveJobId();
-    if (pendingJobId) {
-      try { await claimJob(pendingJobId); } catch { /* non-fatal -- dashboard still resumes via ?job= */ }
-    }
-    await onSignedIn();
+  function finishSignIn() {
+    // Provider completion can arrive through both the popup promise and the
+    // global verified auth-state watcher. Share one promise so pending project
+    // handoff/onSignedIn can never run twice.
+    if (finishSignInRef.current) return finishSignInRef.current;
+    finishSignInRef.current = (async () => {
+      const pendingJobId = getActiveJobId();
+      if (pendingJobId) {
+        try { await claimJob(pendingJobId); } catch { /* non-fatal -- dashboard still resumes via ?job= */ }
+      }
+      await onSignedIn();
+    })();
+    return finishSignInRef.current;
   }
+
+  useEffect(() => {
+    // If Firebase completes while this tab is backgrounded, watchAuthState
+    // waits until the AiWebVideo HttpOnly server session is actually valid,
+    // then completes the exact pending sign-in flow even if Chrome never
+    // resolves the original popup promise.
+    const unsubscribe = watchAuthState((user) => {
+      if (!user || providerAttempt.current <= 0) return;
+      void finishSignIn();
+    });
+    return () => {
+      providerAttempt.current += 1;
+      unsubscribe();
+    };
+  }, []);
 
   function startResendCooldown() {
     setResendCooldown(60);
