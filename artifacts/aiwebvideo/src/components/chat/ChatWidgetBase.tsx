@@ -22,12 +22,15 @@ import {
   uploadPhotos,
   uploadStudioMedia,
   uploadPrivatePages,
+  attachSavedReferences,
+  type SavedReference,
   claimJob,
   ApiError,
 } from "@/lib/api-client";
 import { LockedTeaser } from "./LockedTeaser";
 import { PaywallModal } from "./PaywallModal";
 import { PhotoUploadPicker } from "./PhotoUploadPicker";
+import { SavedReferencePicker } from "./SavedReferencePicker";
 import { MediaPlanningPanel, autoSelectCaptureIds, captureMediaItems } from "./MediaPlanningPanel";
 import { useJobPolling } from "@/lib/hooks/useJobPolling";
 import { clearActiveJobId, getActiveJobId, resolveDashboardDestination, setActiveJobId } from "@/lib/guestSession";
@@ -1336,6 +1339,9 @@ export function ChatWidget({
         outputQuality: request.outputQuality,
         audioMode: request.audioMode,
         modelId: request.modelId,
+        productUrl: request.productUrl,
+        productImageUrls: request.productImageUrls,
+        architecture: request.architecture,
       },
       attachmentDraftKey,
     });
@@ -1346,7 +1352,9 @@ export function ChatWidget({
           ? "scenario"
           : request.studioKind === "interior"
             ? "interior"
-            : request.mode === "photos"
+            : request.studioKind === "architecture"
+              ? "architecture"
+              : request.mode === "photos"
               ? "photo"
               : "product-video";
     window.location.assign(`/dashboard?create=${encodeURIComponent(mappedCreate)}&handoff=1`);
@@ -1727,16 +1735,22 @@ ${request.prompt}`
     storyboardedRef.current = false;
     renderedRef.current = false;
     pushUser(
-      request.studioKind === "interior"
-        ? `Create an interior design${request.prompt ? ` · ${request.prompt}` : ""}`
-        : request.studioKind === "product"
+      request.studioKind === "architecture"
+        ? `Create architecture${request.prompt ? ` · ${request.prompt}` : ""}`
+        : request.studioKind === "interior"
+          ? `Create an interior design${request.prompt ? ` · ${request.prompt}` : ""}`
+          : request.studioKind === "product"
         ? request.mode === "photos"
           ? `Create a product photo campaign${request.prompt ? ` · ${request.prompt}` : ""}`
           : `Create a product video${request.prompt ? ` · ${request.prompt}` : ""}`
         : request.prompt,
     );
     pushBot(
-      request.studioKind === "interior"
+      request.studioKind === "architecture"
+        ? request.mode === "photos"
+          ? "I’m grounding the architecture in your site image, location and dimensions. The result will stay aligned with the supplied site."
+          : "I’m planning an architectural film around your site, building references and measurements."
+        : request.studioKind === "interior"
         ? request.mode === "photos"
           ? "I’m cross-checking your space references, measurements and architectural constraints before creating the interior concept. The result will stay grounded in the supplied geometry."
           : "I’m building a continuous architectural walkthrough from your references, measurements and design direction. The camera path will stay consistent with the supplied space."
@@ -1774,6 +1788,9 @@ ${request.prompt}`
         outputQuality: request.outputQuality,
         modelId: request.modelId,
         ideaPrompt: effectiveStudioPrompt || undefined,
+        productUrl: request.productUrl,
+        productImageUrls: request.productImageUrls,
+        architecture: request.architecture,
       });
       selectJobId(upload.jobId);
       onJobCreated?.(upload.jobId);
@@ -2464,6 +2481,49 @@ ${request.prompt}`
     }
   }
 
+  async function handleSavedReference(item: SavedReference) {
+    if (busy || !jobId) return;
+    if (!isSignedIn) {
+      pendingActionRef.current = () => handleSavedReference(item);
+      setShowAuthModal(true);
+      return;
+    }
+
+    setBusy(true);
+    try {
+      let targetJobId = jobId;
+      if (stage === "done") {
+        const reused = await reuseSavedCapture(jobId);
+        targetJobId = reused.jobId;
+        const saved = await fetchJob(targetJobId);
+        selectJobId(saved.id);
+        onJobCreated?.(saved.id);
+        capturedRef.current = true;
+        storyboardedRef.current = false;
+        renderedRef.current = false;
+        setActiveCaptureMetadata(saved.captureMetadata);
+        setMode(mode);
+        setStage("awaiting_brief");
+      }
+
+      await claimJob(targetJobId).catch(() => ({ claimed: false }));
+      const response = await attachSavedReferences(targetJobId, [{ jobId: item.jobId, index: item.index }]);
+      const refreshed = await fetchJob(targetJobId);
+      if (refreshed.captureMetadata) {
+        setActiveCaptureMetadata(refreshed.captureMetadata);
+        setSelectedCaptureIds(
+          autoSelectCaptureIds(refreshed.captureMetadata, Math.max(activeSceneCount, selectedCaptureIds.length || 1)),
+        );
+      }
+      pushUser(`Reused ${item.title}`, "attachment");
+      pushBot(`${response.added} saved reference${response.added === 1 ? " is" : "s are"} attached to this conversation and ready for the next generation.`);
+    } catch (err) {
+      pushBot(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleRemixResult() {
     if (!jobId) return;
     const previousMode = mode;
@@ -3051,11 +3111,16 @@ ${request.prompt}`
                 )}
 
                 <div className={`finished-chat-composer ${immersive ? "pt-1" : "rounded-2xl border border-white/[.08] bg-white/[.025] p-3"}`}>
-                  <div className="mb-2 px-1">
-                    <p className="text-[11px] font-semibold text-text-primary">Continue in this chat</p>
-                    <p className="mt-0.5 text-[10px] text-text-dim">
-                      Edit freely. Credits are checked before any new AI generation begins.
-                    </p>
+                  <div className="mb-2 flex items-center justify-between gap-3 px-1">
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-semibold text-text-primary">Continue in this chat</p>
+                      <p className="mt-0.5 text-[10px] text-text-dim">
+                        Edit freely. Credits are checked before any new AI generation begins.
+                      </p>
+                    </div>
+                    {isSignedIn && (
+                      <SavedReferencePicker onSelect={handleSavedReference} disabled={busy} />
+                    )}
                   </div>
                   <ChatInputBar
                     multiline

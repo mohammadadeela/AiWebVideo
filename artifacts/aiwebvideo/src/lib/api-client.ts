@@ -1,4 +1,4 @@
-import { getIdToken } from '@/lib/firebase/client';
+import { clearFirebaseIdentity, getIdToken } from '@/lib/firebase/client';
 import type { AudioMode, JobStatusResponse, JobMode, JobWorkflowState } from '@/components/chat/types';
 
 export class ApiError extends Error {
@@ -67,13 +67,16 @@ export async function uploadStudioMedia(opts: {
   files?: File[];
   title?: string;
   ideaPrompt?: string;
-  studioKind: 'product' | 'idea' | 'scenario' | 'interior';
+  studioKind: 'product' | 'idea' | 'scenario' | 'interior' | 'architecture';
   mode: JobMode;
   durationSeconds: number;
   audioMode: AudioMode;
   aspectRatio: '16:9' | '9:16' | '1:1';
   outputQuality: '1080p' | '4k';
   modelId?: string;
+  productUrl?: string;
+  productImageUrls?: string[];
+  architecture?: Record<string, string | number | boolean | undefined>;
 }) {
   const token = await getIdToken();
   const form = new FormData();
@@ -87,6 +90,9 @@ export async function uploadStudioMedia(opts: {
   form.append('aspectRatio', opts.aspectRatio);
   form.append('outputQuality', opts.outputQuality);
   if (opts.modelId) form.append('modelId', opts.modelId);
+  if (opts.productUrl) form.append('productUrl', opts.productUrl);
+  if (opts.productImageUrls?.length) form.append('productImageUrls', JSON.stringify(opts.productImageUrls));
+  if (opts.architecture) form.append('architecture', JSON.stringify(opts.architecture));
   const res = await fetch('/api/uploads', {
     method: 'POST',
     signal: AbortSignal.timeout(10 * 60_000),
@@ -115,6 +121,21 @@ export async function uploadPrivatePages(jobId: string, files: File[]) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new ApiError(data.error || 'Private-page screenshots could not be added.', res.status, data.code);
   return data as { jobId: string; added: number };
+}
+
+export interface SavedReference {
+  jobId: string;
+  index: number;
+  title: string;
+  thumbnailUrl: string;
+}
+export function fetchSavedReferences() {
+  return request<{ items: SavedReference[] }>('/api/uploads/references');
+}
+export function attachSavedReferences(jobId: string, references: Array<Pick<SavedReference, 'jobId' | 'index'>>) {
+  return request<{ jobId: string; added: number }>(`/api/uploads/${jobId}/references`, {
+    method: 'POST', body: JSON.stringify({ references }),
+  });
 }
 
 export function startCapture(url: string, creativeBrief: string, setupSummary?: string) {
@@ -297,6 +318,18 @@ export async function uploadMarketingAsset(file: File) {
   return data as { url: string; kind: 'video' | 'image' };
 }
 
+export function resolveArchitectureLocation(link: string) {
+  return request<{ latitude?: number; longitude?: number; label: string | null; resolvedUrl: string; scale: 'unknown'; imageryAvailable: false }>('/api/architecture/location', {
+    method: 'POST', body: JSON.stringify({ link }),
+  });
+}
+
+export function extractProductReference(url: string) {
+  return request<{ title: string; description: string; url: string; images: string[] }>('/api/product-reference/extract', {
+    method: 'POST', body: JSON.stringify({ url }),
+  });
+}
+
 export interface UserJobSummary {
   id: string;
   title: string;
@@ -428,6 +461,7 @@ function finishBrowserSession(): void {
 }
 
 export async function localLogin(email: string, password: string) {
+  await clearFirebaseIdentity();
   const res = await fetch('/api/auth/login', {
     method: 'POST',
     credentials: 'same-origin',
@@ -457,6 +491,7 @@ export async function requestSignupCode(email: string, password: string) {
 
 // Step 2: confirm the code and create the account.
 export async function verifySignupCode(email: string, code: string) {
+  await clearFirebaseIdentity();
   const res = await fetch('/api/auth/register/verify-code', {
     method: 'POST',
     credentials: 'same-origin', cache: 'no-store',
@@ -494,6 +529,7 @@ export async function requestPasswordResetCode(email: string) {
 }
 
 export async function resetPasswordWithCode(email: string, code: string, password: string) {
+  await clearFirebaseIdentity();
   const res = await fetch('/api/auth/forgot-password/reset', {
     method: 'POST',
     credentials: 'same-origin', cache: 'no-store',

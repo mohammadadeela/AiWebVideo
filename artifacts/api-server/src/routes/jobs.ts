@@ -152,7 +152,8 @@ type CaptureMeta = {
   logoUrl?: string | null;
   pages?: Array<{ url?: string; title?: string; screenshotUrl?: string }>;
   sourceType?: "website" | "upload" | "studio";
-  studioKind?: "product" | "idea" | "scenario" | "interior" | null;
+  studioKind?: "product" | "idea" | "scenario" | "interior" | "architecture" | null;
+  architecture?: { plotWidth?: number; plotDepth?: number; buildingWidth?: number; buildingHeight?: number; floors?: number; setback?: number; location?: string; mapUrl?: string; latitude?: number; longitude?: number; estimatedScale?: boolean } | null;
   ideaPrompt?: string | null;
   generatedReferenceUrls?: string[];
 };
@@ -797,6 +798,27 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
     }
 
     const meta = job.capture_metadata as CaptureMeta | null;
+    const architecture = meta?.studioKind === "architecture" ? meta.architecture : null;
+    const architectureContext = architecture
+      ? [
+          "ARCHITECTURE SITE CONSTRAINTS — treat these as hard spatial requirements unless explicitly marked estimated:",
+          architecture.location ? `Location: ${architecture.location}` : null,
+          typeof architecture.latitude === "number" && typeof architecture.longitude === "number"
+            ? `Coordinates: ${architecture.latitude}, ${architecture.longitude}`
+            : null,
+          architecture.plotWidth ? `Plot width: ${architecture.plotWidth} m` : null,
+          architecture.plotDepth ? `Plot depth: ${architecture.plotDepth} m` : null,
+          architecture.buildingWidth ? `Building width: ${architecture.buildingWidth} m` : null,
+          architecture.buildingHeight ? `Building height: ${architecture.buildingHeight} m` : null,
+          architecture.floors ? `Floors: ${architecture.floors}` : null,
+          typeof architecture.setback === "number" ? `Road setback: ${architecture.setback} m` : null,
+          architecture.estimatedScale ? "Site scale is estimated; keep proportions plausible and do not invent precise survey boundaries." : null,
+          "Use the supplied site/reference images as the visual ground truth. Do not change the measured geometry just for aesthetics.",
+        ].filter(Boolean).join("\n")
+      : null;
+    const effectiveCreativeBrief = architectureContext
+      ? `${architectureContext}\n\nUSER DESIGN BRIEF:\n${creativeBrief || meta?.ideaPrompt || "Create a professional architecture concept for this site."}`
+      : creativeBrief;
     const plannerMode = effectiveVideoModeForMeta(meta, mode);
     const variationKey = `${job.id}:${Date.now()}:${randomUUID()}`;
     const previousWorkflow = job.workflow_state as Partial<JobWorkflowState> | null;
@@ -807,7 +829,7 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
       modelId: selectedGenerationModel.id,
       durationSeconds,
       featuresText: featuresText ?? null,
-      creativeBrief: creativeBrief ?? null,
+      creativeBrief: effectiveCreativeBrief ?? null,
       aspectRatio,
       outputQuality,
       frameRate,
@@ -838,7 +860,7 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
         vibeBrief,
         durationSeconds,
         featuresText,
-        creativeBrief,
+        creativeBrief: effectiveCreativeBrief,
         aspectRatio,
         outputQuality,
         frameRate,
@@ -913,7 +935,7 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
           vibeBrief,
           targetDurationSeconds: durationSeconds,
           featuresText: featuresText ?? null,
-          creativeBrief: creativeBrief ?? null,
+          creativeBrief: effectiveCreativeBrief ?? null,
           aspectRatio,
           outputQuality,
           frameRate,

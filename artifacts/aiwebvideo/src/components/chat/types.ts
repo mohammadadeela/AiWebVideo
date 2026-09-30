@@ -80,7 +80,10 @@ export interface CaptureMetadata {
   pageCount: number;
   /** Mirrors the API capture metadata so shared workspace UI can stay source-aware. */
   sourceType?: "website" | "upload" | "studio";
-  studioKind?: "product" | "idea" | "scenario" | "interior" | null;
+  studioKind?: "product" | "idea" | "scenario" | "interior" | "architecture" | null;
+  architecture?: { plotWidth?: number; plotDepth?: number; buildingWidth?: number; buildingHeight?: number; floors?: number; setback?: number; location?: string; mapUrl?: string; latitude?: number; longitude?: number; estimatedScale?: boolean } | null;
+  productUrl?: string | null;
+  productImageUrls?: number;
   ideaPrompt?: string | null;
   screenshotUrl?: string | null;
   title?: string;

@@ -22,7 +22,7 @@ export interface WebsiteCreatorHandoff {
 export interface StudioCreatorHandoff {
   kind: "studio";
   request: {
-    studioKind: "product" | "idea" | "scenario" | "interior";
+    studioKind: "product" | "idea" | "scenario" | "interior" | "architecture";
     prompt: string;
     mode: "photos" | "video" | "custom";
     durationSeconds: number;
@@ -30,6 +30,9 @@ export interface StudioCreatorHandoff {
     outputQuality: "1080p" | "4k";
     audioMode: AudioMode;
     modelId: PublicModelId;
+    productUrl?: string;
+    productImageUrls?: string[];
+    architecture?: Record<string, string | number | boolean | undefined>;
   };
   attachmentDraftKey?: string;
 }
