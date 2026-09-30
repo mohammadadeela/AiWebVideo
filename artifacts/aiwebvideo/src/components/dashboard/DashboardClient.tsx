@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { ChatWidget } from "@/components/chat/ChatWidget";
 import type { CreationIntent } from "@/components/chat/WebsiteBriefForm";
@@ -83,8 +83,8 @@ export function DashboardClient() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(() => {
-    const saved = Number.parseInt(localStorage.getItem("aiwebvideo_sidebar_width") || "", 10);
-    return Number.isFinite(saved) ? Math.min(420, Math.max(240, saved)) : 286;
+    const saved = Number(window.localStorage.getItem("aiwebvideo_workspace_sidebar_width"));
+    return Number.isFinite(saved) && saved >= 240 && saved <= 420 ? saved : 286;
   });
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -108,8 +108,8 @@ export function DashboardClient() {
     try {
       const [account, history, usageSummary] = await Promise.all([fetchMe(), fetchUserJobs(), fetchUserUsage()]);
       setMe(account);
-      setJobs(Array.isArray(history.jobs) ? history.jobs.filter((job) => job && typeof job.id === "string") : []);
       setUsage(usageSummary);
+      setJobs(Array.isArray(history.jobs) ? history.jobs.filter((job) => job && typeof job.id === "string") : []);
       setError(null);
     } catch {
       setError("We could not refresh your workspace. Please try again in a moment.");
@@ -171,34 +171,66 @@ export function DashboardClient() {
   }, [sidebarOpen]);
 
   useEffect(() => {
-    localStorage.setItem("aiwebvideo_sidebar_width", String(sidebarWidth));
-  }, [sidebarWidth]);
-
-  useEffect(() => {
     let startX = 0;
     let startY = 0;
-    const onTouchStart = (event: TouchEvent) => {
+    let tracking = false;
+    const onStart = (event: TouchEvent) => {
       const touch = event.touches[0];
-      if (!touch) return;
+      if (!touch || window.innerWidth >= 1024) return;
       startX = touch.clientX;
       startY = touch.clientY;
+      tracking = sidebarOpen || startX <= 28;
     };
-    const onTouchEnd = (event: TouchEvent) => {
+    const onEnd = (event: TouchEvent) => {
+      if (!tracking || window.innerWidth >= 1024) return;
       const touch = event.changedTouches[0];
+      tracking = false;
       if (!touch) return;
       const dx = touch.clientX - startX;
       const dy = touch.clientY - startY;
-      if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
-      if (!sidebarOpen && startX <= 28 && dx > 0) setSidebarOpen(true);
+      if (Math.abs(dx) < 64 || Math.abs(dx) < Math.abs(dy) * 1.25) return;
       if (sidebarOpen && dx < 0) setSidebarOpen(false);
+      else if (!sidebarOpen && startX <= 28 && dx > 0) setSidebarOpen(true);
     };
-    document.addEventListener("touchstart", onTouchStart, { passive: true });
-    document.addEventListener("touchend", onTouchEnd, { passive: true });
+    document.addEventListener("touchstart", onStart, { passive: true });
+    document.addEventListener("touchend", onEnd, { passive: true });
     return () => {
-      document.removeEventListener("touchstart", onTouchStart);
-      document.removeEventListener("touchend", onTouchEnd);
+      document.removeEventListener("touchstart", onStart);
+      document.removeEventListener("touchend", onEnd);
     };
   }, [sidebarOpen]);
+
+  useEffect(() => {
+    if (!actionMenuId) return;
+    const close = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("[data-chat-actions]")) return;
+      setActionMenuId(null);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [actionMenuId]);
+
+  const beginSidebarResize = (event: { clientX: number; preventDefault(): void }) => {
+    if (window.innerWidth < 1024) return;
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = sidebarWidth;
+    const onMove = (moveEvent: PointerEvent) => {
+      const next = Math.max(240, Math.min(420, startWidth + moveEvent.clientX - startX));
+      setSidebarWidth(next);
+      window.localStorage.setItem("aiwebvideo_workspace_sidebar_width", String(Math.round(next)));
+    };
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp, { once: true });
+  };
 
   const runningJobs = useMemo(() => jobs.filter((job) => ACTIVE_STATUSES.has(job.status)), [jobs]);
 
@@ -208,9 +240,13 @@ export function DashboardClient() {
       .sort((a, b) => Number(b.pinned) - Number(a.pinned) || new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
     [jobs, query],
   );
-  const usageUsed = usage?.thisMonth.creditsUsed ?? 0;
-  const usageBalance = usage?.balance ?? me?.creditsBalance ?? 0;
-  const usagePercent = Math.min(100, Math.max(0, Math.round((usageUsed / Math.max(1, usageUsed + usageBalance)) * 100)));
+
+  const monthlyUsagePercent = useMemo(() => {
+    const used = Math.max(0, usage?.thisMonth.creditsUsed ?? 0);
+    const balance = Math.max(0, me?.creditsBalance ?? usage?.balance ?? 0);
+    const total = used + balance;
+    return total > 0 ? Math.min(100, Math.round((used / total) * 100)) : 0;
+  }, [usage, me?.creditsBalance]);
 
   function startNew() {
     clearActiveJobId();
@@ -296,7 +332,7 @@ export function DashboardClient() {
     );
 
   return (
-    <div className="min-h-screen bg-bg lg:flex" style={{ "--workspace-sidebar-width": `${sidebarWidth}px` } as CSSProperties}>
+    <div className="min-h-screen bg-bg lg:flex">
       {sidebarOpen && (
         <button
           type="button"
@@ -308,32 +344,9 @@ export function DashboardClient() {
       <aside
         id="workspace-project-menu"
         aria-label="Workspace projects"
-        className={`fixed bottom-2.5 left-2.5 top-[4.15rem] z-40 flex w-[min(82vw,292px)] max-w-[calc(100vw-3.25rem)] flex-col overflow-hidden rounded-[22px] border border-white/[.10] bg-[#100c20]/[.99] p-2.5 shadow-[0_28px_80px_-34px_rgba(0,0,0,.98)] backdrop-blur-2xl transition-[transform,opacity] duration-200 sm:left-3 sm:w-[300px] sm:p-3 lg:sticky lg:bottom-auto lg:left-auto lg:top-0 lg:h-screen lg:max-w-none lg:rounded-none lg:border-y-0 lg:border-l-0 lg:border-r lg:bg-[#100c20] lg:shadow-none lg:backdrop-blur-none ${sidebarOpen ? "pointer-events-auto translate-x-0 opacity-100" : "pointer-events-none -translate-x-[115%] opacity-0 lg:pointer-events-auto lg:translate-x-0 lg:opacity-100"} ${sidebarCollapsed ? "lg:w-0 lg:overflow-hidden lg:border-0 lg:p-0" : "lg:w-[var(--workspace-sidebar-width)]"}`}
+        style={typeof window !== "undefined" && window.innerWidth >= 1024 && !sidebarCollapsed ? { width: sidebarWidth } : undefined}
+        className={`fixed bottom-2.5 left-2.5 top-[4.15rem] z-40 flex w-[min(82vw,292px)] max-w-[calc(100vw-3.25rem)] flex-col overflow-hidden rounded-[22px] border border-white/[.10] bg-[#100c20]/[.99] p-2.5 shadow-[0_28px_80px_-34px_rgba(0,0,0,.98)] backdrop-blur-2xl transition-[transform,opacity] duration-200 sm:left-3 sm:w-[300px] sm:p-3 lg:sticky lg:bottom-auto lg:left-auto lg:top-0 lg:h-screen lg:max-w-none lg:rounded-none lg:border-y-0 lg:border-l-0 lg:border-r lg:bg-[#100c20] lg:shadow-none lg:backdrop-blur-none ${sidebarOpen ? "pointer-events-auto translate-x-0 opacity-100" : "pointer-events-none -translate-x-[115%] opacity-0 lg:pointer-events-auto lg:translate-x-0 lg:opacity-100"} ${sidebarCollapsed ? "lg:w-0 lg:overflow-hidden lg:border-0 lg:p-0" : "lg:w-[286px]"}`}
       >
-        {!sidebarCollapsed && (
-          <button
-            type="button"
-            aria-label="Resize project sidebar"
-            title="Drag to resize"
-            className="absolute -right-1 top-0 z-20 hidden h-full w-2 cursor-col-resize touch-none lg:block"
-            onPointerDown={(event) => {
-              event.preventDefault();
-              const startX = event.clientX;
-              const startWidth = sidebarWidth;
-              const onMove = (moveEvent: PointerEvent) => {
-                setSidebarWidth(Math.min(420, Math.max(240, startWidth + moveEvent.clientX - startX)));
-              };
-              const onUp = () => {
-                window.removeEventListener("pointermove", onMove);
-                window.removeEventListener("pointerup", onUp);
-              };
-              window.addEventListener("pointermove", onMove);
-              window.addEventListener("pointerup", onUp, { once: true });
-            }}
-          >
-            <span className="mx-auto block h-full w-px bg-transparent transition hover:bg-violet/50" />
-          </button>
-        )}
         <div className="flex items-center justify-between px-2 py-2">
           <Link href="/">
             <Wordmark />
@@ -423,13 +436,13 @@ export function DashboardClient() {
             </div>
           )}
           <p className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-[.16em] text-text-dim">
-            {filteredJobs.some((job) => job.pinned) ? "Pinned & recent" : "Recent projects"}
+            Recent projects
           </p>
           <div className="space-y-1">
             {filteredJobs.map((item) => (
               <div
                 key={item.id}
-                className={`group relative rounded-xl border transition-colors ${item.pinned ? "border-violet/20 bg-violet/[.055]" : "border-transparent"} ${(selectedJobId ?? composerJobId) === item.id ? "bg-white/10" : "hover:bg-white/5"}`}
+                className={`group relative rounded-xl border transition-colors ${item.pinned ? "border-violet/20 bg-violet/[.045]" : "border-transparent"} ${(selectedJobId ?? composerJobId) === item.id ? "bg-white/10" : "hover:bg-white/5"}`}
               >
                 <a
                   href={`/dashboard?job=${encodeURIComponent(item.id)}`}
@@ -451,7 +464,7 @@ export function DashboardClient() {
                     <span
                       className={`h-1.5 w-1.5 shrink-0 rounded-full ${item.status === "done" ? "bg-mint" : item.status === "failed" ? "bg-pink" : "bg-violet animate-pulse-soft"}`}
                     />
-                    {item.pinned && <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-violet/15"><Pin size={11} className="fill-violet text-violet" /></span>}
+                    {item.pinned && <Pin size={11} className="shrink-0 fill-violet text-violet" />}
                     <span className="min-w-0 flex-1 truncate text-xs font-medium text-text-primary">{item.title}</span>
                     <span className="text-[10px] text-text-dim">{relativeTime(item.updatedAt)}</span>
                   </div>
@@ -472,6 +485,7 @@ export function DashboardClient() {
                   </div>
                 </a>
                 <button
+                  data-chat-actions
                   type="button"
                   onClick={() => setActionMenuId((value) => (value === item.id ? null : item.id))}
                   className="absolute right-1 top-1 flex h-10 w-10 items-center justify-center rounded-lg text-text-dim opacity-100 hover:bg-white/10 hover:text-text-primary sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
@@ -480,7 +494,7 @@ export function DashboardClient() {
                   <MoreHorizontal size={15} />
                 </button>
                 {actionMenuId === item.id && (
-                  <div className="absolute right-2 top-10 z-50 w-44 rounded-xl border border-border bg-panel p-1.5 shadow-2xl">
+                  <div data-chat-actions className="absolute right-2 top-10 z-50 w-44 rounded-xl border border-border bg-panel p-1.5 shadow-2xl">
                     <button
                       type="button"
                       onClick={() => void togglePin(item)}
@@ -510,20 +524,6 @@ export function DashboardClient() {
         </div>
         {me && (
           <div className="mt-3 space-y-2">
-            <Link
-              href="/profile#usage"
-              className="block rounded-xl border border-white/[.08] bg-white/[.025] px-3 py-2.5 transition hover:bg-white/[.045]"
-              title="Open usage details"
-            >
-              <div className="flex items-center justify-between gap-3 text-[10px]">
-                <span className="font-semibold text-text-muted">Usage this month</span>
-                <span className="font-semibold text-text-primary">{usagePercent}%</span>
-              </div>
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/[.08]">
-                <span className="block h-full rounded-full bg-signature transition-[width]" style={{ width: `${usagePercent}%` }} />
-              </div>
-              <p className="mt-1.5 text-[9px] text-text-dim">{formatCredits(usageUsed)} credits used</p>
-            </Link>
             {me.isAdmin && (
               <Link
                 href="/admin"
@@ -545,10 +545,30 @@ export function DashboardClient() {
                 <span className="block text-[10px] capitalize text-text-muted">
                   {me.plan} · {formatCredits(me.creditsBalance)} credits
                 </span>
+                <div className="mt-2.5">
+                  <div className="mb-1 flex items-center justify-between text-[9px] text-text-dim">
+                    <span>Usage this month</span>
+                    <span>{monthlyUsagePercent}%</span>
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-white/[.08]">
+                    <div className="h-full rounded-full bg-signature transition-[width] duration-300" style={{ width: `${monthlyUsagePercent}%` }} />
+                  </div>
+                </div>
               </span>
               <span className="text-text-dim">›</span>
             </Link>
           </div>
+        )}
+        {!sidebarCollapsed && (
+          <button
+            type="button"
+            aria-label="Resize chat sidebar"
+            title="Drag to resize sidebar"
+            onPointerDown={beginSidebarResize}
+            className="absolute -right-1 top-0 hidden h-full w-2 cursor-col-resize touch-none lg:block"
+          >
+            <span className="absolute left-1/2 top-1/2 h-12 w-[2px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/10" />
+          </button>
         )}
       </aside>
 
