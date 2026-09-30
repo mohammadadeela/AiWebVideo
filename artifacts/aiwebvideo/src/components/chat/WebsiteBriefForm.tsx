@@ -705,7 +705,7 @@ export function WebsiteBriefForm({
   const modelFamily = isVideoMode ? "video" : isInteriorMode ? "interior" : "image";
   const availableModels = modelsFor(modelFamily).filter((model) => model.id !== "cinema-1" || activeMode !== "architecture");
   const selectedModel = publicModel(settings.modelId);
-  const exactCredits = activeMode === "photo" || (activeMode === "interior" && interiorOutput === "images")
+  const exactCredits = activeMode === "photo" || (isInteriorMode && interiorOutput === "images")
     ? estimateRenderCredits("photos", true, 8, settings.outputQuality, settings.modelId)
     : estimateRenderCredits("video", settings.audioMode !== "voice_music", durationSeconds, settings.outputQuality, settings.modelId);
   const submitDisabled = disabled || (
