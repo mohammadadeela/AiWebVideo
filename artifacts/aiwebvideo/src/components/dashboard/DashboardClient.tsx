@@ -75,7 +75,8 @@ export function DashboardClient() {
       requested === "photo" ||
       requested === "product-video" ||
       requested === "scenario" ||
-      requested === "interior"
+      requested === "interior" ||
+      requested === "architecture"
       ? requested
       : undefined;
   }, []);
@@ -603,12 +604,16 @@ export function DashboardClient() {
                 Admin
               </Link>
             )}
-            <Link
-              href={me && me.creditsBalance <= 0 ? "/pricing#buy-credits" : "/pricing"}
-              className={`hidden rounded-full border px-3 py-1.5 text-xs sm:block ${me && me.creditsBalance <= 0 ? "border-violet/40 bg-violet/10 font-semibold text-violet hover:bg-violet/15" : "border-border bg-panel text-text-muted hover:text-text-primary"}`}
-            >
-              {me && me.creditsBalance <= 0 ? "Recharge credits" : `${formatCredits(me?.creditsBalance)} credits`}
-            </Link>
+            <div className="hidden items-center overflow-hidden rounded-full border border-white/[.09] bg-panel/80 shadow-[0_10px_28px_-22px_rgba(0,0,0,.9)] sm:flex">
+              <Link href="/profile#usage" className="flex min-h-9 items-center gap-1.5 px-3 text-[11px] text-text-muted transition hover:bg-white/[.04] hover:text-white" title="View usage">
+                <span className="font-utility font-semibold text-white">{formatCredits(me?.creditsBalance)}</span>
+                <span>credits</span>
+              </Link>
+              <span className="h-4 w-px bg-white/[.09]" aria-hidden="true" />
+              <Link href="/pricing#buy-credits" className="flex min-h-9 items-center px-3 text-[11px] font-semibold text-violet transition hover:bg-violet/[.10]">
+                Recharge
+              </Link>
+            </div>
             {me && <UserMenu email={me.email} plan={me.plan} creditsBalance={me.creditsBalance} isAdmin={me.isAdmin} />}
           </div>
         </header>
