@@ -22,6 +22,7 @@ import {
   VolumeX,
   X,
 } from "lucide-react";
+import * as Popover from "@radix-ui/react-popover";
 import { normalizeWebsiteUrl } from "@/lib/websiteUrl";
 import { displayCredits, estimateRenderCredits } from "@/lib/credits";
 import { defaultModelFor, modelsFor, publicModel, type PublicModelId } from "@/lib/generationModels";
@@ -159,11 +160,37 @@ function optionClass(active: boolean) {
 }
 
 function controlClass(active: boolean) {
-  return `creator-secondary-button inline-flex min-h-10 items-center gap-2 rounded-xl border px-3 text-[10px] font-semibold transition sm:text-[11px] ${
-    active
-      ? "border-violet/45 bg-violet/[.12] text-white shadow-[0_12px_30px_-24px_rgba(139,92,246,.95)]"
-      : "border-white/[.10] bg-white/[.035] text-text-muted hover:border-violet/30 hover:bg-violet/[.07] hover:text-white"
-  }`;
+  return `creator-secondary-button generation-control ${active ? "generation-control-active" : ""}`;
+}
+
+// The trigger retains the compact button's layout; Radix handles viewport
+// collisions, Escape, outside interactions, and focus restoration.
+function ControlMenu({ open, onClose, trigger, children, label, wide = false, align = "start" }: {
+  open: boolean;
+  onClose: () => void;
+  trigger: ReactNode;
+  children: ReactNode;
+  label: string;
+  wide?: boolean;
+  align?: "start" | "end";
+}) {
+  return (
+    <Popover.Root open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <Popover.Trigger asChild>{trigger}</Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content
+          aria-label={label}
+          side="top"
+          align={align}
+          sideOffset={8}
+          collisionPadding={12}
+          className={`generation-control-menu ${wide ? "generation-control-menu-wide" : ""}`}
+        >
+          {children}
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
+  );
 }
 
 type CompactDropdownOption = {
@@ -178,6 +205,7 @@ function CompactDropdown({
   options,
   open,
   onToggle,
+  onClose,
   onChange,
   icon,
   ariaLabel,
@@ -187,6 +215,7 @@ function CompactDropdown({
   options: CompactDropdownOption[];
   open: boolean;
   onToggle: () => void;
+  onClose: () => void;
   onChange: (value: string) => void;
   icon: ReactNode;
   ariaLabel: string;
@@ -195,13 +224,13 @@ function CompactDropdown({
   const selected = options.find((option) => option.value === value) ?? options[0];
 
   return (
-    <div className="relative">
+    <ControlMenu open={open} onClose={onClose} label={ariaLabel} align={align === "right" ? "end" : "start"} trigger={
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={open}
         aria-haspopup="listbox"
-        aria-label={ariaLabel}
+        aria-label={`${ariaLabel}: ${selected?.label ?? value}`}
         className={controlClass(open)}
       >
         <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-white/[.045] text-mint">
@@ -209,15 +238,13 @@ function CompactDropdown({
         </span>
         <span className="whitespace-nowrap">{selected?.label ?? value}</span>
         <ChevronDown size={12} className={`transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
+      </button>}>
 
       {open && (
         <div
           role="listbox"
           aria-label={ariaLabel}
-          className={`absolute bottom-[calc(100%+8px)] z-[90] min-w-[190px] overflow-hidden rounded-2xl border border-white/[.11] bg-[#100c20]/[.99] p-1.5 shadow-[0_26px_70px_-28px_rgba(0,0,0,.98)] backdrop-blur-2xl ${
-            align === "right" ? "right-0" : "left-0"
-          }`}
+          className="p-1"
         >
           {options.map((option) => {
             const active = option.value === value;
@@ -251,7 +278,7 @@ function CompactDropdown({
           })}
         </div>
       )}
-    </div>
+    </ControlMenu>
   );
 }
 
@@ -515,16 +542,20 @@ export function WebsiteBriefForm({
   }
 
   useEffect(() => {
-    if (!openSettingMenu && compactPanel !== "model") return;
-    const closeFloatingMenus = (event: PointerEvent) => {
-      const root = composerRootRef.current;
-      if (!root || !(event.target instanceof Node) || root.contains(event.target)) return;
-      setOpenSettingMenu(null);
-      setCompactPanel((current) => current === "model" ? null : current);
+    if (compactPanel !== "style" && compactPanel !== "ideas") return;
+    const closeOutside = (event: PointerEvent) => {
+      if (event.target instanceof Node && !composerRootRef.current?.contains(event.target)) setCompactPanel(null);
     };
-    document.addEventListener("pointerdown", closeFloatingMenus);
-    return () => document.removeEventListener("pointerdown", closeFloatingMenus);
-  }, [compactPanel, openSettingMenu]);
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setCompactPanel(null);
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [compactPanel]);
 
   function submit() {
     if (disabled) return;
@@ -808,7 +839,7 @@ export function WebsiteBriefForm({
           </label>
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-2">
+        <div className="generation-toolbar" role="group" aria-label="Generation settings">
           {activeMode === "website" && (
             <button
               type="button"
@@ -847,13 +878,13 @@ export function WebsiteBriefForm({
               inputRef.current?.click();
             }}
             disabled={disabled || files.length >= 10}
-            className={controlClass(false)}
+            className={controlClass(files.length > 0)}
           >
             <Paperclip size={13} className="text-mint" />
             {files.length ? `References ${files.length}` : isProductMode ? "Add product photo" : activeMode === "interior" ? "Add space references" : "References"}
           </button>
 
-          <div className="relative">
+          <ControlMenu open={compactPanel === "model"} onClose={() => setCompactPanel(null)} label="Generation model" wide trigger={
             <button
               type="button"
               onClick={() => {
@@ -862,20 +893,20 @@ export function WebsiteBriefForm({
               }}
               aria-expanded={compactPanel === "model"}
               aria-haspopup="listbox"
-              className={controlClass(compactPanel === "model")}
+              className={`${controlClass(compactPanel === "model")} generation-control-model`}
             >
               <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-mint/[.08] text-mint">
                 {modelFamily === "video" ? <Video size={13} /> : modelFamily === "interior" ? <House size={13} /> : <ImageIcon size={13} />}
               </span>
               <span className="max-w-[150px] truncate">{selectedModel.name.replace("AiWebVideo ", "")}</span>
               <ChevronDown size={12} className={`transition-transform ${compactPanel === "model" ? "rotate-180" : ""}`} />
-            </button>
+            </button>}>
 
             {compactPanel === "model" && (
               <div
                 role="listbox"
                 aria-label="Generation model"
-                className="absolute bottom-[calc(100%+8px)] left-0 z-[95] w-[min(390px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-white/[.11] bg-[#100c20]/[.99] p-1.5 shadow-[0_28px_80px_-30px_rgba(0,0,0,.98)] backdrop-blur-2xl"
+                className="p-1"
               >
                 <div className="flex items-center justify-between gap-3 px-2.5 pb-1.5 pt-1">
                   <div>
@@ -944,16 +975,17 @@ export function WebsiteBriefForm({
                 })}
               </div>
             )}
-          </div>
+          </ControlMenu>
 
           {selectedModel.supportsDuration && (
-            <div className="relative">
+            <ControlMenu open={openSettingMenu === "duration"} onClose={() => setOpenSettingMenu(null)} label="Video duration" wide trigger={
               <button
                 type="button"
                 onClick={() => {
                   setCompactPanel(null);
                   setOpenSettingMenu((current) => current === "duration" ? null : "duration");
                 }}
+                aria-label={`Duration: ${durationSeconds} seconds`}
                 aria-expanded={openSettingMenu === "duration"}
                 aria-haspopup="dialog"
                 className={controlClass(openSettingMenu === "duration")}
@@ -963,13 +995,13 @@ export function WebsiteBriefForm({
                 </span>
                 <span>{durationSeconds}s</span>
                 <ChevronDown size={12} className={`transition-transform ${openSettingMenu === "duration" ? "rotate-180" : ""}`} />
-              </button>
+              </button>}>
 
               {openSettingMenu === "duration" && (
                 <div
                   role="dialog"
                   aria-label="Video duration"
-                  className="absolute bottom-[calc(100%+8px)] left-0 z-[96] w-[min(310px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-white/[.11] bg-[#100c20]/[.99] p-3 shadow-[0_28px_80px_-30px_rgba(0,0,0,.98)] backdrop-blur-2xl"
+                  className="p-1"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -1063,15 +1095,16 @@ export function WebsiteBriefForm({
                   </div>
                 </div>
               )}
-            </div>
+            </ControlMenu>
           )}
 
           <CompactDropdown
+            onClose={() => setOpenSettingMenu(null)}
             value={settings.aspectRatio}
             options={[
-              { value: "9:16", label: "9:16", helper: "Portrait", icon: <span className="h-4 w-2.5 rounded-[3px] border border-current/80" /> },
-              { value: "16:9", label: "16:9", helper: "Landscape", icon: <span className="h-2.5 w-4 rounded-[3px] border border-current/80" /> },
-              { value: "1:1", label: "1:1", helper: "Square", icon: <span className="h-3.5 w-3.5 rounded-[3px] border border-current/80" /> },
+              { value: "9:16", label: "9:16", helper: "Portrait", icon: <span className="h-[18px] w-[11px] rounded-[2px] border-[1.5px] border-current" /> },
+              { value: "16:9", label: "16:9", helper: "Landscape", icon: <span className="h-[11px] w-[18px] rounded-[2px] border-[1.5px] border-current" /> },
+              { value: "1:1", label: "1:1", helper: "Square", icon: <span className="h-[15px] w-[15px] rounded-[2px] border-[1.5px] border-current" /> },
             ]}
             open={openSettingMenu === "aspect"}
             onToggle={() => {
@@ -1088,6 +1121,7 @@ export function WebsiteBriefForm({
 
           {selectedModel.supportedQualities.length > 1 ? (
             <CompactDropdown
+            onClose={() => setOpenSettingMenu(null)}
               value={settings.outputQuality}
               options={selectedModel.supportedQualities.map((quality) => ({
                 value: quality,
@@ -1108,7 +1142,7 @@ export function WebsiteBriefForm({
               ariaLabel="Quality"
             />
           ) : (
-            <span className="creator-secondary-button inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.025] px-3 text-[10px] font-semibold text-white/55 sm:text-[11px]">
+            <span className="generation-control generation-control-static" title="Fixed quality for this model">
               <span className="grid h-5 w-5 place-items-center rounded-md bg-white/[.04] text-mint"><Monitor size={12} /></span>
               {selectedModel.quality}
             </span>
@@ -1116,6 +1150,7 @@ export function WebsiteBriefForm({
 
           {selectedModel.audioModes.length > 0 && (
             <CompactDropdown
+            onClose={() => setOpenSettingMenu(null)}
               value={settings.audioMode}
               options={[
                 ...(selectedModel.audioModes.includes("native_audio") ? [{ value: "native_audio", label: "Sound", helper: "Native scene audio", icon: <Volume2 size={13} /> }] : []),
@@ -1142,6 +1177,7 @@ export function WebsiteBriefForm({
         {selectedModel.audioModes.includes("voice_music") && settings.audioMode === "voice_music" && (
           <div className="mt-2 flex justify-end">
             <CompactDropdown
+            onClose={() => setOpenSettingMenu(null)}
               value={settings.narrationLanguage}
               options={NARRATION_LANGUAGES.map(([code, label]) => ({ value: code, label, icon: <Languages size={13} /> }))}
               open={openSettingMenu === "language"}

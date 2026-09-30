@@ -667,3 +667,77 @@ picture {
     border-radius: 18px;
   }
 }
+
+/* Generation toolbar: compact desktop controls with comfortable touch targets. */
+.generation-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+}
+.generation-control {
+  display: inline-flex;
+  min-height: 36px;
+  max-width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 10px;
+  border: 1px solid rgba(212, 202, 240, .12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .025);
+  color: #d7d1e6;
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background-color 150ms, border-color 150ms, color 150ms;
+}
+.generation-control > svg:not(.lucide-chevron-down),
+.generation-control > span > svg { width: 15px; height: 15px; }
+.generation-control > span:has(> svg),
+.generation-control > span:has(> span) { background: transparent; color: #bcb2d2; }
+.generation-control > .lucide-chevron-down { width: 11px; color: #aaa0c1; }
+.generation-control:hover:not(:disabled) {
+  transform: none;
+  background: rgba(255, 255, 255, .07);
+  border-color: rgba(212, 202, 240, .25);
+  color: #fff;
+}
+.generation-control-active,
+.generation-control[aria-expanded="true"] {
+  background: rgba(156, 125, 236, .13);
+  border-color: #9c7dec;
+  color: #fff;
+}
+.generation-control-model { background: rgba(156, 125, 236, .09); border-color: rgba(156, 125, 236, .25); }
+.generation-control-model > span:has(> svg) { color: #b7a0f1; }
+.generation-control:focus-visible { outline: 2px solid #4edbc6; outline-offset: 3px; }
+.generation-control:disabled { opacity: .45; cursor: not-allowed; }
+.generation-control-static { border-color: transparent; color: #aaa0c1; }
+.generation-control-menu {
+  z-index: 100;
+  width: 220px;
+  max-width: calc(100vw - 24px);
+  max-height: var(--radix-popover-content-available-height);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 5px;
+  border: 1px solid #393048;
+  border-radius: 14px;
+  background: #171123;
+  color: #eee9f8;
+  box-shadow: 0 12px 36px #0008;
+}
+.generation-control-menu-wide { width: 340px; }
+.generation-control-menu button { min-height: 36px; }
+.generation-control-menu [role="option"] > span > span:first-child { font-size: 12px; }
+.generation-control-menu [role="option"] > span > span + span { font-size: 10px; color: #b7adc9; }
+@media (pointer: coarse), (max-width: 767px) {
+  .generation-control { min-height: 44px; }
+  .generation-control-menu button { min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .generation-control, .generation-control svg { transition: none; }
+}
