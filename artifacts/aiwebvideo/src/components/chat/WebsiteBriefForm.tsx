@@ -384,6 +384,8 @@ export function WebsiteBriefForm({
   const [resolvingSite, setResolvingSite] = useState(false);
   const [plotWidth, setPlotWidth] = useState('');
   const [plotDepth, setPlotDepth] = useState('');
+  const [buildingWidth, setBuildingWidth] = useState('');
+  const [buildingHeight, setBuildingHeight] = useState('');
   const [floorCount, setFloorCount] = useState('');
   const [setback, setSetback] = useState('');
   const [estimatedScale, setEstimatedScale] = useState(false);
@@ -689,6 +691,7 @@ export function WebsiteBriefForm({
       architecture: activeMode === 'architecture' ? {
         location: site?.label || site?.resolvedUrl, latitude: site?.latitude, longitude: site?.longitude,
         mapUrl: site?.resolvedUrl || undefined, plotWidth: Number(plotWidth) || undefined, plotDepth: Number(plotDepth) || undefined,
+        buildingWidth: Number(buildingWidth) || undefined, buildingHeight: Number(buildingHeight) || undefined,
         floors: Number(floorCount) || undefined, setback: Number(setback) || undefined, estimatedScale,
       } : undefined,
       modelId: settings.modelId,
@@ -818,16 +821,17 @@ export function WebsiteBriefForm({
               className="min-h-11 min-w-0 flex-1 rounded-xl border border-white/15 bg-[#0b0818] px-3 text-xs text-white outline-none focus:border-violet/50" />
             <button type="button" disabled={!mapLink.trim() || resolvingSite}
               onClick={() => { setResolvingSite(true); setError(null);
-                if (!/^https?:\/\//i.test(mapLink)) { setSite({ label: mapLink.trim(), resolvedUrl: '' }); setResolvingSite(false); return; }
                 void resolveArchitectureLocation(mapLink).then(setSite).catch(() => setError("Couldn't identify this location. Paste another Maps link or add the address.")).finally(() => setResolvingSite(false)); }}
               className="min-h-11 rounded-xl border border-white/15 px-3 text-xs text-white hover:bg-white/5 disabled:opacity-40">
               {resolvingSite ? 'Resolving…' : 'Locate'}
             </button>
           </div>
-          {site && <p className="text-[11px] text-mint">{site.label || `${site.latitude}, ${site.longitude}`} · Add a site photo or screenshot</p>}
+          {site && <p className="text-[11px] text-mint">{site.label || `${site.latitude}, ${site.longitude}`} · Add a site photo or screenshot{site.latitude === undefined ? ' · Location not geocoded' : ''}</p>}
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <SiteMeasure label="Plot width" value={plotWidth} onChange={setPlotWidth} min={0.5} step={0.5} unit="m" />
             <SiteMeasure label="Plot depth" value={plotDepth} onChange={setPlotDepth} min={0.5} step={0.5} unit="m" />
+            <SiteMeasure label="Building width" value={buildingWidth} onChange={setBuildingWidth} min={0.5} step={0.5} unit="m" />
+            <SiteMeasure label="Building height" value={buildingHeight} onChange={setBuildingHeight} min={0.5} step={0.5} unit="m" />
             <SiteMeasure label="Floors" value={floorCount} onChange={setFloorCount} min={1} max={200} step={1} />
             <SiteMeasure label="Road setback" value={setback} onChange={setSetback} min={0} max={1000} step={0.5} unit="m" />
           </div>
@@ -839,7 +843,7 @@ export function WebsiteBriefForm({
             Use estimated site scale when measurements are unavailable
           </button>
         </div>}
-        {isProductMode && <div className="mb-3"><div className="flex gap-2"><input type="url" value={productLink} onChange={(event) => setProductLink(event.target.value)} placeholder="Product link" aria-label="Product link" className="min-w-0 flex-1 rounded-xl border border-white/15 bg-[#0b0818] px-3 py-2 text-xs text-white outline-none focus:border-violet" /><button type="button" disabled={!productLink.trim() || readingProduct} onClick={() => { setReadingProduct(true); setError(null); void extractProductReference(productLink).then((data) => { setProductData(data); setChosenProductImages(data.images.slice(0, 1)); }).catch(() => { setProductData(null); setChosenProductImages([]); setError("Couldn't load this product. Upload product images instead."); }).finally(() => setReadingProduct(false)); }} className="rounded-xl border border-white/15 px-3 py-2 text-xs text-white disabled:opacity-40">{readingProduct ? 'Reading product…' : 'Use link'}</button></div>{productData && <div className="mt-2"><p className="mb-2 truncate text-xs text-text-muted">{productData.title || 'Choose product images'}</p><div className="flex gap-2 overflow-x-auto">{productData.images.map((image) => <button key={image} type="button" aria-label="Use product image" aria-pressed={chosenProductImages.includes(image)} onClick={() => setChosenProductImages((current) => current.includes(image) ? current.filter((url) => url !== image) : [...current, image])} className={`h-20 w-20 shrink-0 overflow-hidden rounded-lg border-2 ${chosenProductImages.includes(image) ? 'border-mint' : 'border-transparent'}`}><img src={image} alt="Product reference" loading="lazy" className="h-full w-full object-contain" /></button>)}</div></div>}</div>}
+        {isProductMode && <div className="mb-3"><div className="flex gap-2"><input type="url" value={productLink} onChange={(event) => { setProductLink(event.target.value); setProductData(null); setChosenProductImages([]); }} placeholder="Product link" aria-label="Product link" className="min-w-0 flex-1 rounded-xl border border-white/15 bg-[#0b0818] px-3 py-2 text-xs text-white outline-none focus:border-violet" /><button type="button" disabled={!productLink.trim() || readingProduct} onClick={() => { setReadingProduct(true); setError(null); void extractProductReference(productLink).then((data) => { setProductData(data); setChosenProductImages(data.images.slice(0, 1)); }).catch(() => { setProductData(null); setChosenProductImages([]); setError("Couldn't load this product. Upload product images instead."); }).finally(() => setReadingProduct(false)); }} className="rounded-xl border border-white/15 px-3 py-2 text-xs text-white disabled:opacity-40">{readingProduct ? 'Reading product…' : 'Use link'}</button></div>{productData && <div className="mt-2"><p className="mb-2 truncate text-xs text-text-muted">{productData.title || 'Choose product images'}</p><div className="flex gap-2 overflow-x-auto">{productData.images.map((image) => <button key={image} type="button" aria-label="Use product image" aria-pressed={chosenProductImages.includes(image)} onClick={() => setChosenProductImages((current) => current.includes(image) ? current.filter((url) => url !== image) : [...current, image])} className={`h-20 w-20 shrink-0 overflow-hidden rounded-lg border-2 ${chosenProductImages.includes(image) ? 'border-mint' : 'border-transparent'}`}><img src={image} alt="Product reference" loading="lazy" className="h-full w-full object-contain" /></button>)}</div></div>}</div>}
         {isInteriorMode && (
           <div className="mb-3 inline-flex rounded-xl border border-white/[.10] bg-white/[.025] p-1">
             <button

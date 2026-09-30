@@ -87,7 +87,7 @@ export async function clearFirebaseIdentity() {
   serverSyncedUid = null;
 }
 
-async function hasServerSession(): Promise<boolean | null> {
+async function serverSession(): Promise<{ active: boolean; email: string | null } | null> {
   const legacyToken = localStorage.getItem('aiwebvideo_token');
   try {
     const response = await fetch('/api/auth/me', {
@@ -99,10 +99,11 @@ async function hasServerSession(): Promise<boolean | null> {
       // /me refreshes a secure cookie, so the old browser-readable JWT is no
       // longer needed after one successful migration request.
       localStorage.removeItem('aiwebvideo_token');
-      return true;
+      const account = await response.json().catch(() => ({})) as { email?: string };
+      return { active: true, email: account.email?.toLowerCase() ?? null };
     }
     if (response.status === 401) localStorage.removeItem('aiwebvideo_token');
-    return false;
+    return { active: false, email: null };
   } catch {
     // A temporary network failure does not invalidate a previously verified
     // cookie. Keep the workspace state until the server can answer again.
@@ -155,27 +156,30 @@ export function watchAuthState(callback: (user: User | null) => void) {
   const refreshServerSession = async () => {
     const currentRevision = ++revision;
     if (!firebaseReady) return;
-    let active = await hasServerSession();
+    let session = await serverSession();
     if (stopped || currentRevision !== revision) return;
 
     // If Firebase completed provider auth while the popup promise was delayed,
     // establish the server cookie here instead of depending on AuthModal still
     // being mounted/focused. Never creates a second provider login request.
     const currentFirebaseUser = isFirebaseConfigured ? getFirebaseAuth().currentUser : null;
-    if (active === false && currentFirebaseUser) {
+    const providerEmail = currentFirebaseUser?.email?.toLowerCase() ?? null;
+    const sessionBelongsToAnotherAccount = Boolean(session?.active && providerEmail && session.email && session.email !== providerEmail);
+    if (currentFirebaseUser && (session?.active === false || sessionBelongsToAnotherAccount)) {
       serverSyncedUid = null;
-      active = await ensureFirebaseServerSession(currentFirebaseUser);
+      const synced = await ensureFirebaseServerSession(currentFirebaseUser);
+      session = { active: synced, email: synced ? providerEmail : null };
       if (stopped || currentRevision !== revision || getFirebaseAuth().currentUser?.uid !== currentFirebaseUser.uid) return;
     }
 
     // A Firebase identity alone is not a usable AiWebVideo session. Wait for
     // the server cookie before showing Workspace or starting paid work.
-    if (active === null) {
+    if (session === null) {
       if (!lastVerified) callback(null);
       return;
     }
-    lastVerified = active;
-    callback(active ? { uid: 'server-session', email: currentFirebaseUser?.email ?? null } as User : null);
+    lastVerified = session.active;
+    callback(session.active ? { uid: 'server-session', email: session.email } as User : null);
   };
 
   const unsubscribe = isFirebaseConfigured

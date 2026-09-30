@@ -125,6 +125,21 @@ export async function uploadPrivatePages(jobId: string, files: File[]) {
   return data as { jobId: string; added: number };
 }
 
+export interface SavedReference {
+  jobId: string;
+  index: number;
+  title: string;
+  thumbnailUrl: string;
+}
+export function fetchSavedReferences() {
+  return request<{ items: SavedReference[] }>('/api/uploads/references');
+}
+export function attachSavedReferences(jobId: string, references: Array<Pick<SavedReference, 'jobId' | 'index'>>) {
+  return request<{ jobId: string; added: number }>(`/api/uploads/${jobId}/references`, {
+    method: 'POST', body: JSON.stringify({ references }),
+  });
+}
+
 export function startCapture(url: string, creativeBrief: string, setupSummary?: string, inspirationMediaId?: string) {
   return request<{ jobId: string; status: string }>('/api/capture', {
     method: 'POST',

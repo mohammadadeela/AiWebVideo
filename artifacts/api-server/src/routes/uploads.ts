@@ -11,8 +11,10 @@ import { MAX_UPLOAD_BYTES, MAX_UPLOAD_PHOTOS, normalizeUploadToJpeg, sanitizeUpl
 import { generationModelForMode } from '../lib/generation-models.js';
 import { query } from '../lib/pool.js';
 import { ensureLocalAsset } from '../lib/r2-storage.js';
+import { signPrivateAssetUrl } from '../lib/asset-access.js';
 import { readPublicUrl } from '../lib/external-reference.js';
 import { coordinatesFromMapsUrl, isGoogleMapsUrl } from '../lib/maps-url.js';
+import { nextAttachmentFilename, nextReferenceFilename } from '../lib/reference-filenames.js';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { execFile } from 'node:child_process';
@@ -105,6 +107,7 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
       location: z.string().max(2048).optional(), mapUrl: z.string().url().max(2048).optional(),
       latitude: z.number().min(-90).max(90).optional(), longitude: z.number().min(-180).max(180).optional(),
       plotWidth: z.number().positive().max(100_000).optional(), plotDepth: z.number().positive().max(100_000).optional(),
+      buildingWidth: z.number().positive().max(100_000).optional(), buildingHeight: z.number().positive().max(100_000).optional(),
       floors: z.number().int().positive().max(200).optional(), setback: z.number().min(0).max(10_000).optional(),
       estimatedScale: z.boolean().optional(),
     }).parse(architectureInput) : null;
@@ -151,6 +154,8 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
         if (!files.length) throw new AppError('Add a site screenshot or photo and building references.', 400, 'SITE_REFERENCE_REQUIRED');
         if (!architecture?.location && !architecture?.mapUrl) throw new AppError('Add a Maps link or address.', 400, 'LOCATION_REQUIRED');
         if (!architecture.estimatedScale && (!architecture.plotWidth || !architecture.plotDepth)) throw new AppError('Add plot width and depth or choose estimated site scale.', 400, 'PLOT_DIMENSIONS_REQUIRED');
+        if (architecture.buildingWidth && architecture.plotWidth && architecture.buildingWidth > architecture.plotWidth)
+          throw new AppError('Building width exceeds plot width. Check the site measurements.', 400, 'INVALID_SITE_DETAILS');
         if (architecture.mapUrl && !isGoogleMapsUrl(architecture.mapUrl)) throw new AppError('Use a Google Maps link.', 400, 'INVALID_MAP_LINK');
         if (architecture.mapUrl) {
           const position = coordinatesFromMapsUrl(new URL(architecture.mapUrl));
@@ -211,6 +216,9 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
     }
 
     const pages: Array<{ url: string; title: string; screenshotUrl: string }> = [];
+    // All reference sources share one ordered page list. Derive filenames from
+    // the saved page count so a failed upload or a product URL cannot collide
+    // with a later inspiration frame and silently replace a reference.
     for (const [index, file] of files.entries()) {
       let jpeg: Buffer;
       try {
@@ -225,23 +233,29 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
       // the same page-N.jpg convention captured child pages use. This is
       // what lets loadReferenceCaptures() in jobs.ts pick these up with zero
       // changes — it already expects exactly this filename+metadata shape.
-      const filename = index === 0 ? 'screenshot-full.jpg' : `page-${index}.jpg`;
+      const filename = nextReferenceFilename(pages.length);
       const screenshotUrl = await saveImageFile(job.id, filename, jpeg);
       pages.push({ url: `upload://${job.id}/${index}`, title: uploadPhotoLabel(index, file.originalname), screenshotUrl });
     }
     for (const [index, imageUrl] of productImageUrls.entries()) {
-      const source = await readPublicUrl(imageUrl, 10 * 1024 * 1024, /^image\/(?:jpeg|png|webp)$/);
-      const jpeg = await normalizeUploadToJpeg(source.buffer);
-      const filename = pages.length ? `page-${files.length + index + 1}.jpg` : 'screenshot-full.jpg';
-      const screenshotUrl = await saveImageFile(job.id, filename, jpeg);
-      pages.push({ url: `product-reference://${index}`, title: `Product image ${index + 1}`, screenshotUrl });
+      try {
+        const source = await readPublicUrl(imageUrl, 10 * 1024 * 1024, /^image\/(?:jpeg|png|webp)$/);
+        const jpeg = await normalizeUploadToJpeg(source.buffer);
+        const filename = nextReferenceFilename(pages.length);
+        const screenshotUrl = await saveImageFile(job.id, filename, jpeg);
+        pages.push({ url: `product-reference://${index}`, title: `Product image ${index + 1}`, screenshotUrl });
+      } catch (error) {
+        console.warn(`[uploads] product image ${index + 1} could not be read for job ${job.id}: ${(error as Error).message}`);
+      }
     }
+    if (studioKind === 'product' && !pages.length)
+      throw new AppError('Could not load this product. Upload product images instead.', 422, 'PRODUCT_READ_FAILED');
     if (inspiration) {
       const filename = path.basename(new URL(inspiration.thumbnail_url, 'http://local').pathname);
       const local = await ensureLocalAsset('marketing', filename);
       if (!local) throw new AppError('The selected inspiration image is unavailable. Choose another.', 404, 'INSPIRATION_ASSET_MISSING');
       const jpeg = await normalizeUploadToJpeg(await fs.readFile(local));
-      const referenceName = pages.length ? `page-${files.length + 1}.jpg` : 'screenshot-full.jpg';
+      const referenceName = nextReferenceFilename(pages.length);
       const screenshotUrl = await saveImageFile(job.id, referenceName, jpeg);
       pages.push({ url: `inspiration://${inspiration.id}`, title: inspiration.media_type === 'video' ? 'Inspiration video visual direction' : 'Inspiration composition and lighting', screenshotUrl });
       if (inspiration.media_type === 'video') {
@@ -253,7 +267,7 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
             try {
               await run('ffmpeg', ['-y', '-ss', String(Number(inspiration.duration_seconds) * fraction), '-i', videoPath, '-frames:v', '1', '-vf', 'scale=960:-2', frameFile], { timeout: 20_000 });
               const frame = await normalizeUploadToJpeg(await fs.readFile(frameFile));
-              const filename = `page-${files.length + index + 20}.jpg`;
+              const filename = nextReferenceFilename(pages.length);
               const frameUrl = await saveImageFile(job.id, filename, frame);
               pages.push({ url: `inspiration://${inspiration.id}/frame-${index}`, title: `Inspiration motion frame ${index + 1}`, screenshotUrl: frameUrl });
             } catch { /* retain available frames */ }
@@ -331,6 +345,61 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
 });
 
 /** Add screenshots of signed-in/admin/private pages that browser capture cannot reach. */
+router.get('/references', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await query<{ id: string; title: string | null; capture_metadata: { pages?: Array<{ title?: string; url?: string; screenshotUrl?: string }> } | null }>(
+      `SELECT id,title,capture_metadata FROM jobs WHERE user_id=$1 AND deleted_at IS NULL
+       AND capture_metadata IS NOT NULL ORDER BY updated_at DESC LIMIT 40`, [req.user!.id]);
+    const items = rows.flatMap((job) => (job.capture_metadata?.pages ?? []).flatMap((page, index) =>
+      page.screenshotUrl?.startsWith(`/api/assets/${job.id}/`) ? [{
+        jobId: job.id, index, title: page.title || job.title || 'Saved reference',
+        thumbnailUrl: signPrivateAssetUrl(page.screenshotUrl),
+      }] : [])).slice(0, 80);
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.json({ items });
+  } catch (error) { sendError(res, error); }
+});
+
+/** Attach an earlier, account-owned source file without downloading it to the browser. */
+router.post('/:jobId/references', requireAuth, async (req, res) => {
+  try {
+    const { references } = z.object({ references: z.array(z.object({
+      jobId: z.string().uuid(), index: z.number().int().min(0).max(200),
+    })).min(1).max(10) }).parse(req.body);
+    const target = await getJob(String(req.params.jobId));
+    if (!target || target.deleted_at || target.user_id !== req.user!.id || !target.capture_metadata)
+      throw new AppError('Project not found.', 404, 'NOT_FOUND');
+    if (!['captured', 'storyboarding', 'failed'].includes(target.status))
+      throw new AppError('Start a new version before adding references.', 409, 'JOB_ALREADY_STARTED');
+    const metadata = target.capture_metadata as { pages?: Array<{ url: string; title: string; screenshotUrl: string }>; [key: string]: unknown };
+    const pages = [...(metadata.pages ?? [])];
+    if (!req.user!.isAdmin && pages.filter((page) => page.url?.startsWith('saved-reference://') || page.url?.startsWith('private://')).length + references.length > 20)
+      throw new AppError('Use up to 20 added references per project.', 400, 'TOO_MANY_PAGES');
+    const sources = new Map<string, Awaited<ReturnType<typeof getJob>>>();
+    const selected: Array<{ jobId: string; filename: string; title: string }> = [];
+    for (const reference of references) {
+      if (!sources.has(reference.jobId)) sources.set(reference.jobId, await getJob(reference.jobId));
+      const source = sources.get(reference.jobId);
+      if (!source || source.deleted_at || source.user_id !== req.user!.id) throw new AppError('Saved reference not found.', 404, 'NOT_FOUND');
+      const page = (source.capture_metadata as typeof metadata | null)?.pages?.[reference.index];
+      const match = page?.screenshotUrl?.match(new RegExp(`^/api/assets/${reference.jobId}/([a-z0-9][a-z0-9._-]{0,180})(?:\\?.*)?$`, 'i'));
+      if (!match) throw new AppError('Saved reference is unavailable.', 404, 'NOT_FOUND');
+      selected.push({ jobId: reference.jobId, filename: match[1], title: String(page?.title || 'Saved reference').slice(0, 120) });
+    }
+    for (const source of selected) {
+      const local = await ensureLocalAsset(source.jobId, source.filename);
+      if (!local) throw new AppError('A saved reference could not be loaded. Choose another.', 404, 'REFERENCE_MISSING');
+      const image = await normalizeUploadToJpeg(await fs.readFile(local));
+      const filename = nextAttachmentFilename(pages);
+      const screenshotUrl = await saveImageFile(target.id, filename, image);
+      pages.push({ url: `saved-reference://${source.jobId}/${source.filename}`, title: source.title, screenshotUrl });
+    }
+    await updateJob(target.id, { capture_metadata: { ...metadata, pages, pageCount: pages.length } as never });
+    await addJobMessage(target.id, 'user', `Added ${selected.length} saved reference${selected.length === 1 ? '' : 's'}`, 'private_pages');
+    res.status(201).json({ jobId: target.id, added: selected.length });
+  } catch (error) { sendError(res, error); }
+});
+
 router.post('/:jobId/add', requireAuth, uploadImages, async (req, res) => {
   try {
     const job = await getJob(String(req.params.jobId));
@@ -351,7 +420,7 @@ router.post('/:jobId/add', requireAuth, uploadImages, async (req, res) => {
     let added = 0;
     for (const file of files) {
       const jpeg = await normalizeUploadToJpeg(file.buffer);
-      const filename = `private-page-${pages.length + added}.jpg`;
+      const filename = nextAttachmentFilename(pages);
       const screenshotUrl = await saveImageFile(job.id, filename, jpeg);
       pages.push({ url: `private://${job.id}/${added}`, title: uploadPhotoLabel(added, file.originalname).replace('Uploaded photo', 'Private page'), screenshotUrl });
       added++;

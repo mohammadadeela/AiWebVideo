@@ -29,6 +29,22 @@ function productData(html: string): Array<Record<string, unknown>> {
   return products;
 }
 
+function imageValues(value: unknown): string[] {
+  if (typeof value === 'string') return [value];
+  if (Array.isArray(value)) return value.flatMap(imageValues);
+  if (value && typeof value === 'object') {
+    const image = value as Record<string, unknown>;
+    return imageValues(image.contentUrl ?? image.url ?? image.src);
+  }
+  return [];
+}
+
+function socialImages(html: string): string[] {
+  return (html.match(/<meta\b[^>]*>/gi) ?? []).filter((tag) =>
+    /(?:property|name)=["'](?:og:image|twitter:image)(?::url)?["']/i.test(tag))
+    .map((tag) => decode(tag.match(/content=["']([^"']+)["']/i)?.[1] || '')).filter(Boolean);
+}
+
 router.post('/extract', async (req, res) => {
   try {
     const ip = req.ip ?? req.socket.remoteAddress ?? 'unknown';
@@ -41,8 +57,8 @@ router.post('/extract', async (req, res) => {
     const fetched = await readPublicUrl(url, 2 * 1024 * 1024, /^text\/html$/);
     const html = fetched.buffer.toString('utf8');
     const product = productData(html)[0];
-    const rawImages = [product?.image, meta(html, 'og:image'), meta(html, 'twitter:image')].flat(Infinity);
-    const candidates = [...new Set(rawImages.filter((value): value is string => typeof value === 'string')
+    const rawImages = [...imageValues(product?.image), ...socialImages(html)];
+    const candidates = [...new Set(rawImages
       .map((value) => { try { const candidate = new URL(decode(value), fetched.url); return ['https:', 'http:'].includes(candidate.protocol) ? candidate.toString() : ''; } catch { return ''; } })
       .filter(Boolean))].slice(0, 8);
     const images = (await Promise.all(candidates.map((candidate) => validateUrl(candidate).catch(() => null)))).filter((value): value is string => Boolean(value));

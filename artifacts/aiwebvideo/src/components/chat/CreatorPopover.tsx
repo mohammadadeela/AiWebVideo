@@ -6,6 +6,8 @@ export function CreatorPopover({ anchor, onClose, children, label, width = 290 }
   anchor: RefObject<HTMLElement | null>; onClose: () => void; children: ReactNode; label: string; width?: number;
 }) {
   const panel = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   const [position,setPosition] = useState({ left: 8, top: 8, maxHeight: 360, width });
   useLayoutEffect(() => {
     const place = () => {
@@ -14,31 +16,40 @@ export function CreatorPopover({ anchor, onClose, children, label, width = 290 }
       const viewport = window.visualViewport;
       const vw = viewport?.width ?? window.innerWidth;
       const vh = viewport?.height ?? window.innerHeight;
+      const offsetLeft = viewport?.offsetLeft ?? 0;
       const offsetTop = viewport?.offsetTop ?? 0;
-      const panelWidth = Math.min(width, vw - 16);
-      const height = Math.min(panel.current.scrollHeight, 360, vh - 24);
-      const below = vh - box.bottom - 8;
+      const panelWidth = Math.max(0, Math.min(width, vw - 16));
+      const height = Math.max(0, Math.min(panel.current.scrollHeight, 360, vh - 24));
+      const below = offsetTop + vh - box.bottom - 8;
       const above = box.top - offsetTop - 8;
       const flip = below < Math.min(height, 180) && above > below;
       const top = flip ? Math.max(offsetTop + 8, box.top - height - 8)
         : Math.min(offsetTop + vh - height - 8, box.bottom + 8);
-      setPosition({ left: Math.max(8, Math.min(vw - panelWidth - 8, box.left)),
-        top, maxHeight: Math.min(360, vh - 24), width: panelWidth });
+      setPosition({ left: Math.max(offsetLeft + 8, Math.min(offsetLeft + vw - panelWidth - 8, box.left)),
+        top, maxHeight: Math.max(0, Math.min(360, vh - 24)), width: panelWidth });
     };
     place();
+    const outside = (event: PointerEvent) => {
+      if (panel.current?.contains(event.target as Node) || anchor.current?.contains(event.target as Node)) return;
+      onCloseRef.current();
+    };
+    document.addEventListener('pointerdown', outside);
     window.addEventListener('resize',place);
     window.addEventListener('scroll',place,true);
     window.visualViewport?.addEventListener('resize',place);
+    window.visualViewport?.addEventListener('scroll',place);
     return () => {
+      document.removeEventListener('pointerdown', outside);
       window.removeEventListener('resize',place);
       window.removeEventListener('scroll',place,true);
       window.visualViewport?.removeEventListener('resize',place);
+      window.visualViewport?.removeEventListener('scroll',place);
       if (panel.current?.contains(document.activeElement)) anchor.current?.focus({ preventScroll: true });
     };
   },[anchor,width]);
   return createPortal(<div ref={panel} data-creator-popover role="dialog" aria-label={label}
     style={{ position: 'fixed', left: position.left, top: position.top, width: position.width,
-      maxHeight: position.maxHeight, zIndex: 90 }}
+      maxHeight: position.maxHeight, zIndex: 1000 }}
     onKeyDown={(event) => {
       if (event.key === 'Escape') { event.stopPropagation(); onClose(); }
       if (!['ArrowDown','ArrowUp','Home','End'].includes(event.key)) return;

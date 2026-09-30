@@ -115,7 +115,15 @@ export function AuthModal({ onClose, onSignedIn }: { onClose: () => void; onSign
     if (pendingJobId) {
       try { await claimJob(pendingJobId); } catch { /* non-fatal -- dashboard still resumes via ?job= */ }
     }
-    await onSignedIn();
+    try {
+      await onSignedIn();
+    } catch (error) {
+      // The account exchange already succeeded. A failed project handoff must
+      // never be presented as a failed sign-in or invite a duplicate login.
+      console.error('[auth] post-sign-in handoff failed:', error);
+      onClose();
+      window.location.assign('/dashboard');
+    }
   }
 
   function startResendCooldown() {
