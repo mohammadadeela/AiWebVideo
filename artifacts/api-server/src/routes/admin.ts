@@ -14,9 +14,9 @@ import { GEMINI_COST_CATALOG } from '../lib/costs.js';
 import { CREDIT_COSTS, MAX_VIDEO_SECONDS, MIN_VIDEO_SECONDS, videoCreditQuote } from '../lib/credits.js';
 import { getPayPalReadiness, PRODUCTS } from './paypal.js';
 import { getProviderQueueSnapshot } from '../lib/provider-queue.js';
-import { isR2Configured, uploadBufferToR2 } from '../lib/r2-storage.js';
+import { ensureLocalAsset, isR2Configured, uploadBufferToR2 } from '../lib/r2-storage.js';
 import { classifyAdminProduction } from '../lib/admin-production.js';
-import { optimizeShowcaseVideo } from '../lib/media-optimize.js';
+import { isPhoneReady, optimizeShowcaseVideo } from '../lib/media-optimize.js';
 
 const router = Router();
 router.use(requireAdmin);
@@ -360,6 +360,45 @@ router.post('/marketing/upload', marketingUpload.single('file'), async (req, res
     await uploadBufferToR2('marketing', filename, body);
     await audit(req.user!.id, 'marketing.asset_uploaded', 'marketing', filename, { mime: req.file.mimetype, bytes: req.file.size, storedBytes: body.length });
     res.status(201).json({ url: `/api/assets/marketing/${filename}`, kind: isVideo ? 'video' : 'image', posterUrl });
+  } catch (error) { sendError(res, error); }
+});
+
+/**
+ * Re-encodes ONE already-uploaded showcase video for phones (H.264, index at the front, poster frame).
+ * The browser calls this once per video so each request stays short; nothing is saved until the admin saves.
+ */
+router.post('/marketing/optimize', async (req, res) => {
+  try {
+    const { url } = z.object({ url: z.string().max(300) }).parse(req.body);
+    const name = /^\/api\/assets\/marketing\/([a-z0-9][a-z0-9._-]{0,180})$/i.exec(url)?.[1];
+    const extension = path.extname(name ?? '').toLowerCase();
+    if (!name || !['.mp4', '.webm', '.mov'].includes(extension)) {
+      throw new AppError('Only uploaded videos can be optimized.', 400, 'NOT_OPTIMIZABLE');
+    }
+    const local = await ensureLocalAsset('marketing', name);
+    if (!local) throw new AppError('That video file could not be found.', 404, 'ASSET_NOT_FOUND');
+    if (extension === '.mp4' && await isPhoneReady(local)) {
+      res.json({ url, posterUrl: null, optimized: false });
+      return;
+    }
+    const source = await fs.readFile(local);
+    const optimized = await optimizeShowcaseVideo(source, extension as '.mp4' | '.webm' | '.mov');
+    if (!optimized.optimized) throw new AppError('This video could not be converted. Try uploading it again.', 422, 'OPTIMIZE_FAILED');
+
+    const directory = path.join(ASSETS_DIR, 'marketing');
+    const stem = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const filename = `${stem}.mp4`;
+    await fs.writeFile(path.join(directory, filename), optimized.video, { flag: 'wx' });
+    await uploadBufferToR2('marketing', filename, optimized.video);
+    let posterUrl: string | null = null;
+    if (optimized.poster) {
+      const posterName = `${stem}-poster.jpg`;
+      await fs.writeFile(path.join(directory, posterName), optimized.poster, { flag: 'wx' });
+      await uploadBufferToR2('marketing', posterName, optimized.poster);
+      posterUrl = `/api/assets/marketing/${posterName}`;
+    }
+    await audit(req.user!.id, 'marketing.video_optimized', 'marketing', filename, { from: name, bytesBefore: source.length, bytesAfter: optimized.video.length });
+    res.json({ url: `/api/assets/marketing/${filename}`, posterUrl, optimized: true, bytesBefore: source.length, bytesAfter: optimized.video.length });
   } catch (error) { sendError(res, error); }
 });
 

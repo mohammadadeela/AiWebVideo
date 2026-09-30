@@ -7,18 +7,17 @@ async function frontend(relativePath: string) {
   return readFile(path.resolve(process.cwd(), '../aiwebvideo', relativePath), 'utf8');
 }
 
-test('one-time checkout uses a wide responsive big-checkout layout with explicit success and error states', async () => {
+test('one-time checkout uses a compact responsive layout with explicit success and error states', async () => {
   const source = await frontend('src/components/billing/SecureCheckoutModal.tsx');
-  assert.match(source, /sm:max-w-\[860px\]/);
+  assert.match(source, /sm:max-w-\[460px\]/);
   assert.match(source, /PaymentState = 'idle' \| 'processing' \| 'success' \| 'error'/);
   assert.match(source, /bg-emerald-500/);
   assert.match(source, /bg-rose-500/);
-  assert.match(source, /Paid \$\{money\(amountUsd\)\}/);
+  assert.match(source, /\{money\(success\.amountUsd\)\} paid/);
   assert.match(source, /Try again · Buy/);
-  assert.match(source, /Order summary/);
   assert.match(source, /Security code/);
   assert.match(source, /buttonType: 'buy'/);
-  assert.match(source, /or enter card details/);
+  assert.match(source, /or pay with a card/);
   assert.doesNotMatch(source, /Buy with PayPal|continueWithPayPal/);
 });
 
@@ -29,7 +28,6 @@ test('checkout exposes save-card only when PayPal vault is enabled and keeps sav
   assert.match(source, /payWithSavedCard/);
   assert.match(source, /Saved cards/);
   assert.match(source, /PREFERRED_METHOD_KEY/);
-  assert.match(source, /Your browser may offer its saved payment details/);
 });
 
 test('profile renders a dedicated saved-card manager without exposing provider tokens', async () => {
@@ -47,11 +45,11 @@ test('subscription checkout reuses the embedded checkout UI and visual states', 
   const checkout = await frontend('src/components/billing/SecureCheckoutModal.tsx');
   assert.match(subscription, /SecureCheckoutModal/);
   assert.match(subscription, /billingMode="subscription"/);
-  assert.match(checkout, /sm:max-w-\[860px\]/);
+  assert.match(checkout, /sm:max-w-\[460px\]/);
   assert.match(checkout, /Subscription active/);
   assert.match(checkout, /bg-emerald-500/);
   assert.match(checkout, /bg-rose-500/);
-  assert.match(checkout, /Your payment details are encrypted in transit and securely processed/);
+  assert.match(checkout, /Card details go straight to the payment processor/);
   assert.doesNotMatch(subscription, /writeCheckoutPlaceholder|window\.open/);
 });
 

@@ -71,3 +71,22 @@ export function hasFastStart(buffer: Buffer): boolean {
   const mdat = buffer.indexOf(Buffer.from('mdat'));
   return moov !== -1 && (mdat === -1 || moov < mdat);
 }
+
+/** True when the file is already H.264 + yuv420p (plays everywhere) with its index at the front. */
+export async function isPhoneReady(filePath: string): Promise<boolean> {
+  try {
+    const { stdout } = await execFileAsync('ffprobe', [
+      '-v', 'error', '-select_streams', 'v:0',
+      '-show_entries', 'stream=codec_name,pix_fmt', '-of', 'default=nw=1', filePath,
+    ], { timeout: 30_000 });
+    // key=value lines, so the order ffprobe prints them in never matters.
+    const values = Object.fromEntries(stdout.trim().split('\n').map((line) => line.split('=') as [string, string]));
+    if (values.codec_name !== 'h264' || values.pix_fmt !== 'yuv420p') return false;
+    const head = await fs.open(filePath, 'r');
+    try {
+      // The index (moov) must appear within the first part of the file.
+      const { buffer, bytesRead } = await head.read(Buffer.alloc(4 * 1024 * 1024), 0, 4 * 1024 * 1024, 0);
+      return hasFastStart(buffer.subarray(0, bytesRead));
+    } finally { await head.close(); }
+  } catch { return false; }
+}

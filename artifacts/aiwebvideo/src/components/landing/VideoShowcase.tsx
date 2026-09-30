@@ -2,13 +2,13 @@ import { useMemo, useState } from "react";
 import { ArrowUpRight } from "lucide-react";
 import { SHOWCASE_FEATURES, SHOWCASE_FEATURE_LABELS, type ShowcaseFeature } from "@/lib/api-client";
 import { resolveVideoEmbed } from "@/lib/videoEmbed";
-import { useSamples, startFromSample, type Sample } from "@/lib/showcase";
+import { useGalleryItems, startFromSample, scrollToGenerator, isSample, type GalleryItem } from "@/lib/showcase";
 import { AutoplayVideo } from "./AutoplayVideo";
 
 // A quiet rhythm of proportions so the grid reads as a wall of work, not a table of thumbnails.
 const SHAPES = ["aspect-[3/4]", "aspect-square", "aspect-[4/5]", "aspect-[9/16]", "aspect-[4/5]", "aspect-[3/4]", "aspect-square"];
 
-function Media({ sample, eager }: { sample: Sample; eager: boolean }) {
+function Media({ sample, eager }: { sample: GalleryItem; eager: boolean }) {
   if (sample.kind === "image") {
     return <img src={sample.url} alt="" loading={eager ? "eager" : "lazy"} decoding="async" className="h-full w-full object-cover" />;
   }
@@ -20,7 +20,7 @@ function Media({ sample, eager }: { sample: Sample; eager: boolean }) {
 }
 
 export function VideoShowcase() {
-  const { samples, loaded } = useSamples();
+  const { items: samples, loaded } = useGalleryItems();
   const [filter, setFilter] = useState<ShowcaseFeature | "all">("all");
 
   const features = useMemo(() => SHOWCASE_FEATURES.filter((feature) => samples.some((sample) => sample.feature === feature)), [samples]);
@@ -60,8 +60,8 @@ export function VideoShowcase() {
             <button
               key={sample.id}
               type="button"
-              onClick={() => startFromSample(sample)}
-              aria-label="Make one like this"
+              onClick={() => (isSample(sample) ? startFromSample(sample) : scrollToGenerator())}
+              aria-label={isSample(sample) ? "Make one like this" : "Create your own"}
               className={`group relative mb-3 block w-full break-inside-avoid overflow-hidden rounded-[22px] bg-[#0d0919] text-left ring-1 ring-white/10 transition duration-300 hover:-translate-y-0.5 hover:ring-violet/50 sm:mb-4 ${SHAPES[index % SHAPES.length]}`}
             >
               <Media sample={sample} eager={index < 4} />

@@ -24,8 +24,7 @@ test('checkout resets stale hosted-field state and hides raw DOM/provider bootst
 
   assert.match(checkout, /setCardEligible\(false\)/);
   assert.match(checkout, /cardFieldsRef\.current = null/);
-  assert.match(checkout, /Card checkout could not load\. You can try PayPal instead\./);
-  assert.match(checkout, /markError\(new Error\('Card checkout could not load\. You can try PayPal instead\.'\)\)/);
+  assert.match(checkout, /markError\(new Error\('Card checkout could not load\. Please try again in a moment\.'\)\)/);
   assert.doesNotMatch(checkout, /setError\(errorMessage\(bootstrapError\)\)/);
   assert.doesNotMatch(checkout, /markError\(bootstrapError\)/);
   assert.doesNotMatch(checkout, /Document is ready and element/);
@@ -35,9 +34,9 @@ test('checkout keeps customer copy concise and uses Buy actions', async () => {
   const checkout = await frontendSource('src/components/billing/SecureCheckoutModal.tsx');
 
   assert.match(checkout, /Checkout/);
-  assert.match(checkout, /Buy \{money\(amountUsd\)\}/);
-  assert.match(checkout, /Buy with PayPal/);
-  assert.match(checkout, /Order summary/);
+  assert.match(checkout, /Buy \{money\(checkoutTotal\)\}/);
+  assert.doesNotMatch(checkout, /Buy with PayPal/);
+  assert.doesNotMatch(checkout, /Order summary/);
   assert.doesNotMatch(checkout, /Pay without leaving AiWebVideo/);
   assert.doesNotMatch(checkout, /Secure hosted card fields can use/);
   assert.doesNotMatch(checkout, /Card number and CVV never touch AiWebVideo servers/);

@@ -36,7 +36,7 @@ test('provider retry hints and real quota reason are visible in PM2 logs', async
 
 test('provider throttling is not presented as another user ahead in the local queue', async () => {
   const text = await source('src/lib/provider-queue.ts');
-  assert.match(text, /Gemini temporarily limited AI planning/);
+  assert.match(text, /AI planning capacity is temporarily limited/);
   assert.match(text, /Queued for \$\{label\} · position \$\{position\}/);
   assert.match(text, /publishProviderThrottleStatus\(item, delayMs\)/);
 });

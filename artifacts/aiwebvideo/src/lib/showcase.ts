@@ -22,22 +22,42 @@ export function sampleStill(sample: Sample): string | null {
   return sample.kind === "image" ? sample.url : sample.posterUrl;
 }
 
-let cache: Promise<Sample[]> | null = null;
-function loadSamples() {
+/** Anything published on the homepage, including older videos that have not been filed under a feature yet. */
+export type GalleryItem = MarketingVideo & { url: string; kind: "image" | "video" };
+
+let cache: Promise<GalleryItem[]> | null = null;
+function loadGallery() {
   cache ??= fetchMarketingSettings()
-    .then((settings) => settings.videos.showcase.filter(isSample).map((item) => ({ ...item, kind: item.kind ?? "video" }) as Sample))
-    .catch(() => { cache = null; return [] as Sample[]; });
+    .then((settings) => settings.videos.showcase
+      .filter((item): item is MarketingVideo & { url: string } => Boolean(item.url))
+      .map((item) => ({ ...item, kind: item.kind ?? "video" }) as GalleryItem))
+    .catch(() => { cache = null; return [] as GalleryItem[]; });
   return cache;
 }
 
-/** All published samples (shared between the landing gallery and the chat). */
-export function useSamples() {
-  const [samples, setSamples] = useState<Sample[]>([]);
+function useGalleryLoad() {
+  const [items, setItems] = useState<GalleryItem[]>([]);
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     let cancelled = false;
-    void loadSamples().then((items) => { if (!cancelled) { setSamples(items); setLoaded(true); } });
+    void loadGallery().then((all) => { if (!cancelled) { setItems(all); setLoaded(true); } });
     return () => { cancelled = true; };
   }, []);
-  return { samples, loaded };
+  return { items, loaded };
+}
+
+/** Every homepage item, for the landing gallery. */
+export function useGalleryItems() {
+  return useGalleryLoad();
+}
+
+/** Only items filed under a feature: what the chat offers as "make one like this". */
+export function useSamples() {
+  const { items, loaded } = useGalleryLoad();
+  return { samples: items.filter(isSample) as Sample[], loaded };
+}
+
+/** Tap on an item that is not filed under a feature: just take the visitor to the generator. */
+export function scrollToGenerator() {
+  document.getElementById("generate")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }

@@ -8,7 +8,7 @@ import { AdminReports } from '@/components/admin/AdminReports';
 import { Empty, FilterBar, FilterSelect, StatCard } from '@/components/admin/adminUi';
 import {
   fetchAdminAudit, fetchAdminJobs, fetchAdminOverview, fetchAdminReports, fetchAdminUsers, fetchAdminUserDetails, fetchMe,
-  saveAdminSettings, updateAdminJob, updateAdminUser, saveMarketingSettings, uploadMarketingAsset,
+  saveAdminSettings, updateAdminJob, updateAdminUser, saveMarketingSettings, uploadMarketingAsset, optimizeMarketingVideo,
   SHOWCASE_FEATURES, SHOWCASE_FEATURE_LABELS,
   type AdminReportRange, type AdminSettings, type MarketingSettings, type ShowcaseFeature,
 } from '@/lib/api-client';
@@ -422,6 +422,34 @@ export function AdminPage() {
     }
   }
 
+  /** Re-encode the videos uploaded before phone optimization existed, one at a time. */
+  async function optimizeOldVideos() {
+    if (!marketing) return;
+    const isLocalVideo = (item: MarketingSettings['videos']['showcase'][number]) =>
+      Boolean(item.url) && (item.kind ?? 'video') === 'video' && /^\/api\/assets\/marketing\/.+\.(mp4|webm|mov)$/i.test(item.url ?? '');
+    const targets = marketing.videos.showcase.filter(isLocalVideo);
+    if (!targets.length) { setMessage('There are no uploaded videos to optimize.'); return; }
+    setBusy(true);
+    let converted = 0;
+    let failed = 0;
+    let current = marketing.videos.showcase;
+    try {
+      for (let index = 0; index < targets.length; index += 1) {
+        setMessage(`Optimizing video ${index + 1} of ${targets.length} for phones… this can take a minute each.`);
+        try {
+          const result = await optimizeMarketingVideo(targets[index].url ?? '');
+          if (result.optimized) {
+            converted += 1;
+            current = current.map((item) => item.id === targets[index].id ? { ...item, url: result.url, posterUrl: result.posterUrl ?? item.posterUrl } : item);
+            setMarketing({ ...marketing, videos: { showcase: current } });
+            setDirty(true);
+          }
+        } catch { failed += 1; }
+      }
+      setMessage(`${converted} video${converted === 1 ? '' : 's'} optimized, ${targets.length - converted - failed} already fine${failed ? `, ${failed} could not be converted` : ''}.${converted ? ' Press Save to publish them.' : ''}`);
+    } finally { setBusy(false); }
+  }
+
   async function editUser(user: Row, patch: { plan?: string; creditsBalance?: number; accountStatus?: string; isAdmin?: boolean }) {
     setBusy(true); setMessage(null);
     try {
@@ -561,6 +589,7 @@ export function AdminPage() {
                 <input value={linkDraft} onChange={(event) => setLinkDraft(event.target.value)} placeholder="YouTube, Vimeo or MP4 link" aria-label="Video link" className="h-11 w-52 rounded-xl border border-border bg-bg px-3 text-base sm:text-xs" />
                 <Button type="submit" variant="secondary" disabled={busy || !linkDraft.trim() || items.length >= LANDING_VIDEO_LIMIT}><Plus size={14} /> Add</Button>
               </form>
+              <Button type="button" variant="secondary" disabled={busy || !items.some((item) => (item.kind ?? 'video') === 'video')} onClick={() => void optimizeOldVideos()} title="Re-encodes older uploads so they start instantly on phones">Optimize videos for phones</Button>
               <label className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl bg-signature px-4 text-sm font-semibold text-white transition hover:brightness-110 ${busy ? 'pointer-events-none opacity-50' : ''}`}>
                 <Upload size={15} /> Upload images &amp; videos
                 <input type="file" multiple accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" className="hidden" disabled={busy} onChange={(event) => { const selected = Array.from(event.target.files ?? []); if (selected.length) void uploadGalleryFiles(selected); event.currentTarget.value = ''; }} />

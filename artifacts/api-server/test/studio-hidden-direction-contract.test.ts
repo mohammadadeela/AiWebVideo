@@ -44,3 +44,20 @@ test('every homepage sample must be filed under a feature before it can be saved
   const page = await frontend('pages/AdminPage.tsx');
   assert.match(page, /Choose a feature for every item first/);
 });
+
+test('older homepage videos stay visible until they are filed under a feature', async () => {
+  const gallery = await frontend('components/landing/VideoShowcase.tsx');
+  assert.match(gallery, /useGalleryItems\(\)/);
+  assert.match(gallery, /isSample\(sample\) \? startFromSample\(sample\) : scrollToGenerator\(\)/);
+  const lib = await frontend('lib/showcase.ts');
+  assert.match(lib, /Boolean\(item\.url\)/);
+});
+
+test('admins can re-encode old homepage videos for phones one at a time', async () => {
+  const admin = await server('routes/admin.ts');
+  assert.match(admin, /router\.post\('\/marketing\/optimize'/);
+  assert.match(admin, /Only uploaded videos can be optimized/);
+  const page = await frontend('pages/AdminPage.tsx');
+  assert.match(page, /Optimize videos for phones/);
+  assert.match(page, /optimizeMarketingVideo\(/);
+});

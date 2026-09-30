@@ -321,6 +321,13 @@ export interface MarketingSettings {
 // Public — powers the homepage, no auth required.
 export function fetchMarketingSettings() { return request<MarketingSettings>('/api/marketing', { cache: 'default' }); }
 export function saveMarketingSettings(settings: MarketingSettings) { return request<MarketingSettings>('/api/admin/marketing', { method: 'PUT', body: JSON.stringify(settings) }); }
+/** Re-encodes one uploaded video for phones. Returns the same url when it was already fine. */
+export function optimizeMarketingVideo(url: string) {
+  return request<{ url: string; posterUrl: string | null; optimized: boolean; bytesBefore?: number; bytesAfter?: number }>(
+    '/api/admin/marketing/optimize',
+    { method: 'POST', body: JSON.stringify({ url }), signal: AbortSignal.timeout(12 * 60_000) },
+  );
+}
 export async function uploadMarketingAsset(file: File) {
   const token = await getIdToken();
   const form = new FormData();

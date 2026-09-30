@@ -104,7 +104,7 @@ test('one-time pricing and generation paywall use the in-app checkout modal and 
   assert.match(paywall, />Buy</);
 });
 
-test('subscription checkout reuses the embedded checkout and keeps PayPal only as fallback', async () => {
+test('subscription checkout reuses the embedded card checkout', async () => {
   const pricing = await source('../aiwebvideo/src/components/landing/PricingTable.tsx');
   const paywall = await source('../aiwebvideo/src/components/chat/PaywallModal.tsx');
   const subscription = await source('../aiwebvideo/src/components/billing/SubscriptionCheckoutModal.tsx');
@@ -115,15 +115,14 @@ test('subscription checkout reuses the embedded checkout and keeps PayPal only a
   assert.match(subscription, /SecureCheckoutModal/);
   assert.match(subscription, /billingMode="subscription"/);
   assert.match(checkout, /\/api\/paypal-card\/subscription-orders/);
-  assert.match(checkout, /startCheckout\(plan, jobId\)/);
+  assert.doesNotMatch(checkout, /continueWithPayPal/);
   assert.match(server, /subscription-return\/:sessionId/);
   assert.doesNotMatch(subscription, /window\.open/);
 });
 
-test('PayPal remains a fallback while raw card data stays outside AiWebVideo storage', async () => {
+test('card checkout has no PayPal redirect and raw card data stays outside AiWebVideo storage', async () => {
   const client = await source('../aiwebvideo/src/components/billing/SecureCheckoutModal.tsx');
-  assert.match(client, /Buy with PayPal/);
-  assert.match(client, /startCheckout\(plan, jobId\)/);
+  assert.doesNotMatch(client, /Buy with PayPal|continueWithPayPal/);
   assert.match(client, /paypal\.CardFields/);
   assert.doesNotMatch(client, /Card number and CVV never touch AiWebVideo servers/);
 });

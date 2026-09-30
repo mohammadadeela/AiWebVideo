@@ -25,3 +25,9 @@
 - Example gallery: admin uploads images and videos together, selects several and assigns them to a feature (saving is blocked until every item has one). Landing shows a label-free masonry with filters; each chat shows its feature's examples. "Make one like this" attaches the example as a hidden style template and replaces its subject with the customer's references. Videos are re-encoded for phones (H.264, faststart) with a poster frame.
 - Checkout redesigned: compact single column, saved cards in network colours with Pay on the card, switch instead of checkbox.
 - Verified: typecheck, production builds, 216 tests (9 pre-existing failures in older checkout-copy contract tests and a queue-message test, unchanged), plus jsdom runs of the real chat form and gallery. Not verified: real Gemini output quality, real payment flow, real browsers/phones.
+
+## 2026-10-01 — Follow-up: gallery regression fix, phone-video tooling, green test suite
+- Landing gallery now also shows older homepage videos that have no feature yet (they open the generator; filed items open "make one like this"), so the section is never empty after deploy.
+- Admin Homepage: "Optimize videos for phones" re-encodes already-uploaded videos one at a time (`POST /api/admin/marketing/optimize`), skipping files that are already H.264 + fast-start; nothing is published until Save. Verified against real ffmpeg (HEVC + slow-start in, H.264/yuv420p + fast-start + poster out; corrupt input returns the original).
+- Test suite brought in line with the current checkout design: the repo's tests contradicted each other about a PayPal redirect fallback (older ones required it, `checkout-ui-contract` forbids it). Followed the newer rule (card-only, no PayPal button). Decision for the owner: if customers must have a PayPal fallback when card fields cannot load, restore `continueWithPayPal` and flip those assertions.
+- 229 tests pass, 0 fail.
