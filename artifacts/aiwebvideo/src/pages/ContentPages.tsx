@@ -116,6 +116,7 @@ const featureModes = [
   { title: "Product Video", input: "Photos of the real product and a motion brief", output: "A product-focused video with camera and environment direction", href: "/product-video-generator", create: "/?create=product-video#generate" },
   { title: "Talking Video", input: "Characters, dialogue, setting and performance direction", output: "A talking or scenario-driven AI video", href: "/talking-video-generator", create: "/?create=scenario#generate" },
   { title: "Interior Design", input: "Room or property photos, plans or sketches; measurements when needed", output: "Design concept images or a presentation walkthrough video", href: "/ai-interior-design-generator", create: "/?create=interior#generate" },
+  { title: "Architecture", input: "A real site/location, site image or plan, plot dimensions and building brief", output: "Site-grounded architectural concept images or a walkthrough", href: "/ai-architectural-visualization", create: "/?create=architecture#generate" },
 ] as const;
 
 const interiorWorkflows = [
