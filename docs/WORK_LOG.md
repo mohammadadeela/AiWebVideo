@@ -9,3 +9,10 @@
 - Remaining: Browser visual/interaction verification is blocked: Chromium is absent and Playwright downloads return invalid/truncated ZIP archives. Do not treat this update as visually verified or deployed.
 - Review checklist: At 320/390/768/1440px open every menu, confirm viewport bounds, choose each ratio, switch model and confirm compatible settings, change duration, attach/remove an image, Escape/outside-click dismissal and focus return, keyboard traversal and reduced motion. Verify the toolbar in landing and workspace contexts.
 - Continue: Complete browser review before release; Hostinger deployment remains the existing `README-DEPLOY.md` workflow.
+
+
+## 2026-09-30 — Make the toolbar redesign visibly distinct
+- Request: The first redesign still looked like the old boxed buttons in the user's updated screenshot.
+- Changed: Borderless creative actions; one shared output-settings surface; a pale violet model selector with dark text; no repeated chevrons on numeric/audio controls; high-contrast proportionate ratio icons; mobile groups wrap with 44px targets.
+- Preserved: Menu behavior, all generation settings, compatibility, file limits and callbacks. This is a targeted toolbar revision.
+- Verification: Frontend typecheck, production build and diff checks run for this revision. Browser visual QA remains unavailable in this environment (previous local Chromium download and cloud-localhost access failures).

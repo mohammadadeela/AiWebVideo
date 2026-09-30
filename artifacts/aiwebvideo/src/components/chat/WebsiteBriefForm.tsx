@@ -840,6 +840,7 @@ export function WebsiteBriefForm({
         </div>
 
         <div className="generation-toolbar" role="group" aria-label="Generation settings">
+          <div className="generation-creative-actions" role="group" aria-label="Creative tools">
           {activeMode === "website" && (
             <button
               type="button"
@@ -851,7 +852,7 @@ export function WebsiteBriefForm({
               className={controlClass(compactPanel === "style")}
             >
               <Film size={13} className="text-mint" />
-              Style: {selectedWebsiteRecipe ? WEBSITE_RECIPES.find((recipe) => recipe.mode === selectedWebsiteRecipe)?.label : "Auto"}
+              Style · {selectedWebsiteRecipe ? WEBSITE_RECIPES.find((recipe) => recipe.mode === selectedWebsiteRecipe)?.label : "Auto"}
               <ChevronDown size={12} className={`transition-transform ${compactPanel === "style" ? "rotate-180" : ""}`} />
             </button>
           )}
@@ -884,6 +885,8 @@ export function WebsiteBriefForm({
             {files.length ? `References ${files.length}` : isProductMode ? "Add product photo" : activeMode === "interior" ? "Add space references" : "References"}
           </button>
 
+          </div>
+          <div className="generation-output-controls" role="group" aria-label="Output settings">
           <ControlMenu open={compactPanel === "model"} onClose={() => setCompactPanel(null)} label="Generation model" wide trigger={
             <button
               type="button"
@@ -1102,9 +1105,9 @@ export function WebsiteBriefForm({
             onClose={() => setOpenSettingMenu(null)}
             value={settings.aspectRatio}
             options={[
-              { value: "9:16", label: "9:16", helper: "Portrait", icon: <span className="h-[18px] w-[11px] rounded-[2px] border-[1.5px] border-current" /> },
-              { value: "16:9", label: "16:9", helper: "Landscape", icon: <span className="h-[11px] w-[18px] rounded-[2px] border-[1.5px] border-current" /> },
-              { value: "1:1", label: "1:1", helper: "Square", icon: <span className="h-[15px] w-[15px] rounded-[2px] border-[1.5px] border-current" /> },
+              { value: "9:16", label: "9:16", helper: "Portrait", icon: <span className="generation-ratio-icon h-[18px] w-[11px] rounded-[2px] border-[1.5px] border-current" /> },
+              { value: "16:9", label: "16:9", helper: "Landscape", icon: <span className="generation-ratio-icon h-[11px] w-[18px] rounded-[2px] border-[1.5px] border-current" /> },
+              { value: "1:1", label: "1:1", helper: "Square", icon: <span className="generation-ratio-icon h-[15px] w-[15px] rounded-[2px] border-[1.5px] border-current" /> },
             ]}
             open={openSettingMenu === "aspect"}
             onToggle={() => {
@@ -1172,6 +1175,7 @@ export function WebsiteBriefForm({
               align="right"
             />
           )}
+          </div>
         </div>
 
         {selectedModel.audioModes.includes("voice_music") && settings.audioMode === "voice_music" && (
