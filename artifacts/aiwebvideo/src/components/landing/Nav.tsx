@@ -11,6 +11,7 @@ import {
   MessageCircleMore,
   PackageOpen,
   House,
+  Building2,
   ShieldCheck,
   X,
 } from "lucide-react";
@@ -40,6 +41,7 @@ const productItems = [
   ["Product Video", "Generated product film from references", "/?create=product-video#generate", PackageOpen],
   ["Talking Scenes", "Dialogue and scenario-driven video", "/?create=scenario#generate", MessageCircleMore],
   ["Interior Design", "Redesign rooms, homes and spaces", "/?create=interior#generate", House],
+  ["Architecture", "Place a design on a real site with dimensions", "/?create=architecture#generate", Building2],
 ] as const;
 
 export function Nav() {
@@ -114,7 +116,7 @@ export function Nav() {
 
     const requested = target.searchParams.get("create");
     const intent =
-      requested === "video" || requested === "photo" || requested === "product-video" || requested === "scenario" || requested === "interior" || requested === "website"
+      requested === "video" || requested === "photo" || requested === "product-video" || requested === "scenario" || requested === "interior" || requested === "architecture" || requested === "website"
         ? requested
         : "website";
 
