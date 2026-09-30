@@ -11,16 +11,51 @@ import {
 
 const WELCOME_DISCOUNT = 0.20;
 
-function lowestRevenuePerInternalCredit() {
-  return Math.min(
-    PRODUCTS.creator.amountUsd / PRODUCTS.creator.credits,
-    PRODUCTS.pro.amountUsd / PRODUCTS.pro.credits,
-    PRODUCTS.agency.amountUsd / PRODUCTS.agency.credits,
-    PRODUCTS.topup50.amountUsd * (1 - WELCOME_DISCOUNT) / PRODUCTS.topup50.credits,
-    PRODUCTS.topup100.amountUsd * (1 - WELCOME_DISCOUNT) / PRODUCTS.topup100.credits,
-    PRODUCTS.topup250.amountUsd * (1 - WELCOME_DISCOUNT) / PRODUCTS.topup250.credits,
-  );
+const PAID_PRODUCT_IDS = ['creator', 'pro', 'agency', 'single8', 'single48', 'single144', 'topup50', 'topup100', 'topup250'] as const;
+const WELCOME_PRODUCT_IDS = new Set(['topup50', 'topup100', 'topup250']);
+
+/** Net revenue per internal credit for a product as actually charged (welcome price for top-ups). */
+function revenuePerCredit(id: (typeof PAID_PRODUCT_IDS)[number], welcome = false) {
+  const product = PRODUCTS[id];
+  const price = welcome && WELCOME_PRODUCT_IDS.has(id) ? product.amountUsd * (1 - WELCOME_DISCOUNT) : product.amountUsd;
+  return price / product.credits;
 }
+
+function lowestRevenuePerInternalCredit() {
+  // Every credit the site sells is spendable on any model, so the floor covers ALL products
+  // (one-video packs included) at their lowest real price.
+  return Math.min(...PAID_PRODUCT_IDS.map((id) => revenuePerCredit(id, true)));
+}
+
+test('the customer prices are the ones the pricing page advertises', () => {
+  assert.deepEqual(
+    (['topup50', 'topup100', 'topup250'] as const).map((id) => PRODUCTS[id].amountUsd),
+    [4.99, 14.99, 24.99],
+  );
+  const [small, medium, large] = (['topup50', 'topup100', 'topup250'] as const).map((id) => revenuePerCredit(id));
+  assert.ok(small > medium && medium > large, 'bigger credit packs must be cheaper per credit');
+  assert.ok(PRODUCTS.single8.amountUsd < 9.99 && PRODUCTS.single48.amountUsd < 52.99 && PRODUCTS.single144.amountUsd < 149.99);
+});
+
+test('a one-video pack fully covers a Cinema 2 1080p video of that length, with narration', () => {
+  const cinema2 = GENERATION_MODELS['cinema-2'];
+  const perSecond = videoModelCreditsPerSecond(cinema2, '1080p');
+  const NARRATION = 6;
+  for (const [id, seconds] of [['single8', 8], ['single48', 48], ['single144', 144]] as const) {
+    assert.ok(PRODUCTS[id].credits >= perSecond * seconds + NARRATION, `${id} must cover ${seconds}s + narration`);
+    assert.ok(PRODUCTS[id].credits <= perSecond * seconds + NARRATION + 2, `${id} must not include unused headroom`);
+  }
+});
+
+test('every credit-selling product keeps 2x modeled provider cost even at the welcome price', () => {
+  const worstProviderCostPerCredit = 0.101; // Graphic 2 / Space 2 at 1080p is the most expensive credit
+  for (const id of PAID_PRODUCT_IDS) {
+    assert.ok(
+      revenuePerCredit(id, true) >= worstProviderCostPerCredit * 2,
+      `${id}: $${revenuePerCredit(id, true).toFixed(4)} per credit must cover 2x $${worstProviderCostPerCredit}`,
+    );
+  }
+});
 
 test('every public video model preserves at least 2x provider-cost coverage', () => {
   const revenuePerCredit = lowestRevenuePerInternalCredit();

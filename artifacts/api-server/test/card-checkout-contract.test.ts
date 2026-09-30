@@ -100,7 +100,7 @@ test('one-time pricing and generation paywall use the in-app checkout modal and 
   assert.match(paywall, /setDirectCheckout/);
   assert.doesNotMatch(pricing, /Pay securely/);
   assert.doesNotMatch(paywall, /Pay securely/);
-  assert.match(pricing, /label = "Buy"/);
+  assert.match(pricing, /Buy \{formatUsd\(/);
   assert.match(paywall, />Buy</);
 });
 

@@ -33,12 +33,12 @@ export const PRODUCTS = {
   creator: { ...BILLING_CREDIT_PRODUCTS.creator, mode: 'subscription', amountUsd: 39, name: 'Creator' },
   pro: { ...BILLING_CREDIT_PRODUCTS.pro, mode: 'subscription', amountUsd: 99, name: 'Pro' },
   agency: { ...BILLING_CREDIT_PRODUCTS.agency, mode: 'subscription', amountUsd: 249, name: 'Agency' },
-  single8: { ...BILLING_CREDIT_PRODUCTS.single8, mode: 'payment', amountUsd: 9.99, name: 'Quick Video' },
-  single48: { ...BILLING_CREDIT_PRODUCTS.single48, mode: 'payment', amountUsd: 52.99, name: 'Full Marketing Video' },
-  single144: { ...BILLING_CREDIT_PRODUCTS.single144, mode: 'payment', amountUsd: 149.99, name: 'Extended Video' },
-  topup50: { ...BILLING_CREDIT_PRODUCTS.topup50, mode: 'payment', amountUsd: 14.99, name: '250 Credits' },
-  topup100: { ...BILLING_CREDIT_PRODUCTS.topup100, mode: 'payment', amountUsd: 28.99, name: '500 Credits' },
-  topup250: { ...BILLING_CREDIT_PRODUCTS.topup250, mode: 'payment', amountUsd: 69.99, name: '1,250 Credits' },
+  single8: { ...BILLING_CREDIT_PRODUCTS.single8, mode: 'payment', amountUsd: 5.99, name: 'Quick Video' },
+  single48: { ...BILLING_CREDIT_PRODUCTS.single48, mode: 'payment', amountUsd: 27.99, name: 'Full Marketing Video' },
+  single144: { ...BILLING_CREDIT_PRODUCTS.single144, mode: 'payment', amountUsd: 79.99, name: 'Extended Video' },
+  topup50: { ...BILLING_CREDIT_PRODUCTS.topup50, mode: 'payment', amountUsd: 4.99, name: '70 Credits' },
+  topup100: { ...BILLING_CREDIT_PRODUCTS.topup100, mode: 'payment', amountUsd: 14.99, name: '265 Credits' },
+  topup250: { ...BILLING_CREDIT_PRODUCTS.topup250, mode: 'payment', amountUsd: 24.99, name: '460 Credits' },
 } as const;
 
 const CHECKOUT_FEE_RATE = 0.0401;

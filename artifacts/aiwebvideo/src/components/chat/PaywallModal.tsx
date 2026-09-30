@@ -5,25 +5,10 @@ import { SubscriptionCheckoutModal } from '@/components/billing/SubscriptionChec
 import type { CheckoutId } from '@/lib/api-client';
 import { displayCredits, estimateRenderCredits } from '@/lib/credits';
 import { publicModel } from '@/lib/generationModels';
+import { CREDIT_PACKS, PLAN_PACKS, VIDEO_PACKS } from '@/lib/pricing';
 import { discountedPrice, fetchWelcomeGrowthOffer, formatUsd, formatWelcomeCountdown, type WelcomeGrowthOffer } from '@/lib/growth';
 
-const PAYWALL_PLANS = [
-  { id: 'creator' as const, name: 'Creator', price: 39, credits: 150, pitch: 'For regular creators', highlight: false },
-  { id: 'pro' as const, name: 'Pro', price: 99, credits: 400, pitch: 'Best for weekly marketing', highlight: true },
-  { id: 'agency' as const, name: 'Agency', price: 249, credits: 1000, pitch: 'For client and agency production', highlight: false },
-];
-
-const VIDEO_PACKS = [
-  { id: 'single8' as const, name: 'Quick Video', label: '8s video pack', amountUsd: 9.99, credits: 38 },
-  { id: 'single48' as const, name: 'Full Marketing Video', label: '48s video pack', amountUsd: 52.99, credits: 198 },
-  { id: 'single144' as const, name: 'Extended Video', label: '144s video pack', amountUsd: 149.99, credits: 582 },
-];
-
-const CREDIT_PACKS = [
-  { id: 'topup50' as const, credits: 50, amountUsd: 14.99, note: 'Quick refill' },
-  { id: 'topup100' as const, credits: 100, amountUsd: 28.99, note: 'Small production balance' },
-  { id: 'topup250' as const, credits: 250, amountUsd: 69.99, note: 'For several productions' },
-];
+const PAYWALL_PLANS = PLAN_PACKS.map((plan) => ({ id: plan.id, name: plan.name, price: plan.amountUsd, credits: plan.credits, pitch: plan.pitch, highlight: Boolean(plan.highlight) }));
 
 const ROW = 'flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition active:scale-[.995]';
 const ROW_BEST = 'border-violet/45 bg-violet/[.09]';
@@ -116,8 +101,10 @@ export function PaywallModal({
   const exactVideoPack = useMemo(() => {
     if (mode === 'photos' || mode === 'icon' || mode === 'both' || outputQuality !== '1080p') return null;
     const id = durationSeconds === 8 ? 'single8' : durationSeconds === 48 ? 'single48' : durationSeconds === 144 ? 'single144' : null;
-    return id ? VIDEO_PACKS.find((pack) => pack.id === id) ?? null : null;
-  }, [durationSeconds, mode, outputQuality]);
+    const pack = id ? VIDEO_PACKS.find((item) => item.id === id) ?? null : null;
+    // Packs are sized for Cinema 2 · 1080p. Only offer one as "this video" when it really covers the job.
+    return pack && fundedCredits + displayCredits(pack.credits) >= requiredCredits ? pack : null;
+  }, [durationSeconds, fundedCredits, mode, outputQuality, requiredCredits]);
 
   const modelLabel = useMemo(() => {
     try { return publicModel(modelId ?? (mode === 'photos' || mode === 'icon' ? 'graphic-2' : 'cinema-2')).name.replace(/^AiWebVideo\s+/, ''); } catch { return null; }
@@ -310,7 +297,7 @@ export function PaywallModal({
                 >
                   <span className="min-w-0">
                     <span className="flex items-center gap-2 text-sm font-bold text-white">{pack.name} {index === 0 && <span className={BEST_TAG}>Best fit</span>}</span>
-                    <span className="mt-0.5 block text-xs text-text-muted">{pack.label} · {displayCredits(pack.credits).toLocaleString()} credits</span>
+                    <span className="mt-0.5 block text-xs text-text-muted">{pack.seconds}s video · {displayCredits(pack.credits).toLocaleString()} credits</span>
                   </span>
                   <span className="flex shrink-0 flex-col items-end gap-1">
                     <span className="font-display text-xl font-bold leading-none text-white">{formatUsd(pack.amountUsd)}</span>

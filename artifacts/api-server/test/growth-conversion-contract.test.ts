@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { PRODUCTS } from '../src/routes/paypal.js';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -25,11 +26,11 @@ test('starter credits use x5 display units and cannot authorize the cheapest pai
 });
 
 test('20 percent welcome offer lowers price, never credits, and keeps at least 2x modeled provider coverage', () => {
-  const packs = [
-    { id: 'topup50', amountUsd: 14.99, credits: 50 },
-    { id: 'topup100', amountUsd: 28.99, credits: 100 },
-    { id: 'topup250', amountUsd: 69.99, credits: 250 },
-  ];
+  const packs = (['topup50', 'topup100', 'topup250'] as const).map((id) => ({
+    id,
+    amountUsd: PRODUCTS[id].amountUsd,
+    credits: PRODUCTS[id].credits,
+  }));
 
   assert.equal(WELCOME_DISCOUNT_PERCENT, 20);
   for (const pack of packs) {
@@ -57,7 +58,7 @@ test('discount guard refuses unsupported products and unsafe economics', () => {
     249,
   );
   assert.equal(
-    marginSafeWelcomePrice({ productId: 'topup250', amountUsd: 1, purchasedInternalCredits: 250 }),
+    marginSafeWelcomePrice({ productId: 'topup250', amountUsd: 1, purchasedInternalCredits: 92 }),
     1,
   );
 });

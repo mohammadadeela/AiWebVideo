@@ -76,15 +76,19 @@ test('generic capture webhook cannot double-grant managed renewal credits', asyn
   assert.match(index, /ensureSubscriptionReceiptGuard\(\)/);
 });
 
-test('Quick Video uses the normal 9.99 base price consistently before checkout fees', async () => {
-  const pricing = await source('../aiwebvideo/src/components/landing/PricingTable.tsx');
+test('Quick Video uses one base price everywhere before checkout fees', async () => {
+  const pricing = await source('../aiwebvideo/src/lib/pricing.ts');
+  const table = await source('../aiwebvideo/src/components/landing/PricingTable.tsx');
   const paywall = await source('../aiwebvideo/src/components/chat/PaywallModal.tsx');
   const paypal = await source('src/routes/paypal.ts');
   const index = await source('src/index.ts');
-  assert.match(paypal, /single8:[^\n]*amountUsd: 9\.99/);
-  assert.match(pricing, /price: "\$9\.99"/);
-  assert.match(pricing, /amountUsd: 9\.99/);
-  assert.match(paywall, /single8[^\n]*amountUsd: 9\.99/);
+  assert.match(paypal, /single8:[^\n]*amountUsd: 5\.99/);
+  assert.match(pricing, /id: \"single8\"[^\n]*amountUsd: 5\.99/);
+  // The pricing page and the paywall read the shared list instead of keeping their own copies.
+  assert.match(table, /from \"@\/lib\/pricing\"/);
+  assert.match(paywall, /from '@\/lib\/pricing'/);
+  assert.doesNotMatch(table, /amountUsd: \d/);
+  assert.doesNotMatch(paywall, /amountUsd: \d/);
   assert.match(paypal, /checkoutTotalUsd/);
   assert.doesNotMatch(index, /applyTemporaryPaymentTestPricing/);
 });

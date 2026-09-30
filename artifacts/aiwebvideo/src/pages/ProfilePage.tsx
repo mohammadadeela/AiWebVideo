@@ -23,6 +23,8 @@ import {
   type UserUsageSummary,
   type BillingPaymentSummary,
 } from "@/lib/api-client";
+import { displayCredits } from "@/lib/credits";
+import { CREDIT_PACKS } from "@/lib/pricing";
 import { useSeo } from "@/lib/useSeo";
 import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/support";
 
@@ -79,6 +81,8 @@ function tabFromHash(): ProfileTab {
   const hash = window.location.hash.replace("#", "");
   return PROFILE_TABS.some(([id]) => id === hash) ? (hash as ProfileTab) : "usage";
 }
+
+const TOPUP_PACK = CREDIT_PACKS[1];
 
 const INPUT_CLASS =
   "mt-1.5 w-full rounded-xl border border-white/[.09] bg-white/[.04] px-3.5 py-3 text-base font-normal text-text-primary outline-none transition focus:border-violet/60 focus:ring-4 focus:ring-violet/10";
@@ -482,10 +486,10 @@ export function ProfilePage() {
       <Footer />
       {showTopupCheckout && (
         <SecureCheckoutModal
-          plan="topup100"
-          productName="500 production credits"
-          amountUsd={28.99}
-          credits={500}
+          plan={TOPUP_PACK.id}
+          productName={`${displayCredits(TOPUP_PACK.credits).toLocaleString()} production credits`}
+          amountUsd={TOPUP_PACK.amountUsd}
+          credits={displayCredits(TOPUP_PACK.credits)}
           onClose={() => setShowTopupCheckout(false)}
         />
       )}

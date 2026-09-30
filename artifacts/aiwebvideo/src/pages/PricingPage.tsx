@@ -4,7 +4,16 @@ import { Nav } from "@/components/landing/Nav";
 import { Footer } from "@/components/landing/Footer";
 import { PricingTable } from "@/components/landing/PricingTable";
 import { fetchWelcomeGrowthOffer, formatWelcomeCountdown, type WelcomeGrowthOffer } from "@/lib/growth";
+import { displayCredits } from "@/lib/credits";
+import { PUBLIC_MODELS } from "@/lib/generationModels";
 import { useSeo } from "@/lib/useSeo";
+
+const VIDEO_MODELS = PUBLIC_MODELS.filter((model) => model.family === "video");
+const IMAGE_MODELS = PUBLIC_MODELS.filter((model) => model.family !== "video");
+const videoCosts = VIDEO_MODELS.flatMap((model) => [model.internalCredits1080p, model.internalCredits4k]).filter((value): value is number => typeof value === "number").map(displayCredits);
+const imageCosts = IMAGE_MODELS.flatMap((model) => [model.internalCreditsPerImage, model.internalCredits4k]).filter((value): value is number => typeof value === "number").map((value) => displayCredits(value * 4));
+const videoRate = { min: Math.min(...videoCosts), max: Math.max(...videoCosts) };
+const imageRate = { min: Math.min(...imageCosts), max: Math.max(...imageCosts) };
 
 export function PricingPage() {
   const [welcomeOffer, setWelcomeOffer] = useState<WelcomeGrowthOffer | null>(null);
@@ -48,7 +57,7 @@ export function PricingPage() {
               Production pricing
             </p>
             <h1 className="mx-auto mt-5 max-w-4xl font-display text-[32px] font-bold leading-tight tracking-[-.05em] text-white sm:text-6xl">
-              Know the production cost before you generate.
+              Simple credits. See the price before you generate.
             </h1>
 
             {offerActive && welcomeOffer && (
@@ -77,9 +86,8 @@ export function PricingPage() {
 
             <div className="mt-14 border-t border-white/[.08] pt-12 sm:mt-16 sm:pt-14">
               <p className="mx-auto max-w-2xl text-sm leading-7 text-text-muted">
-                The production system uses credits for generated media. Customer-facing
-                1080p video pricing is 20 credits per generated second, 4K is 30,
-                and the exact quote is shown before generation.
+                Video costs {videoRate.min}–{videoRate.max} credits per second depending on the model and quality,
+                and a set of 4 images costs {imageRate.min}–{imageRate.max} credits. The exact price is shown before you generate.
               </p>
               <div className="mx-auto mt-8 grid max-w-3xl gap-px overflow-hidden rounded-2xl border border-border bg-border text-left sm:grid-cols-3">
                 {[
