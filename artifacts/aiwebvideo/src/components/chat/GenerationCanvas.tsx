@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Check, ChevronDown, Clock3, Film, Globe2, Image, LoaderCircle, PackageOpen, ShieldCheck, X } from "lucide-react";
+import { AlertTriangle, Building2, Check, ChevronDown, Clock3, Film, Globe2, House, Image, LoaderCircle, PackageOpen, ShieldCheck, X } from "lucide-react";
 import { fetchJob, request } from "@/lib/api-client";
 import { getActiveJobId } from "@/lib/guestSession";
 import type { JobAsset, JobStatus, Storyboard } from "./types";
@@ -19,7 +19,9 @@ export type ProductionKind =
   | "product-photos"
   | "campaign-photos"
   | "product-video"
-  | "talking-scene";
+  | "talking-scene"
+  | "interior-design"
+  | "architecture";
 
 type Settings = {
   quality: string | null;
@@ -84,6 +86,22 @@ const KIND: Record<ProductionKind, {
     accentBorder: "border-gold/20",
     accentDot: "bg-gold shadow-[0_0_10px_rgba(251,191,36,.72)]",
   },
+  "interior-design": {
+    label: "Interior design",
+    Icon: House,
+    accentText: "text-mint",
+    accentBg: "bg-mint/[.08]",
+    accentBorder: "border-mint/20",
+    accentDot: "bg-mint shadow-[0_0_10px_rgba(52,217,196,.72)]",
+  },
+  "architecture": {
+    label: "Architecture",
+    Icon: Building2,
+    accentText: "text-violet",
+    accentBg: "bg-violet/[.09]",
+    accentBorder: "border-violet/20",
+    accentDot: "bg-violet shadow-[0_0_10px_rgba(139,92,246,.72)]",
+  },
 };
 
 function formatEta(seconds: number | null | undefined) {
@@ -114,7 +132,7 @@ function humanThinkingText(
   hasGeneratedVideo: boolean,
 ) {
   const message = (statusMessage ?? "").toLowerCase();
-  const photoMode = productionKind === "product-photos" || productionKind === "campaign-photos";
+  const photoMode = productionKind === "product-photos" || productionKind === "campaign-photos" || productionKind === "interior-design" || productionKind === "architecture";
 
   if (status === "done") return "Generated successfully";
   if (status === "failed") return "Generation needs attention";
