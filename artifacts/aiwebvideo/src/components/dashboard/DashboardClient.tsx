@@ -18,6 +18,7 @@ import {
   Pin,
   Search,
   ShieldCheck,
+  SquarePen,
   Trash2,
   X,
 } from "lucide-react";
@@ -365,12 +366,12 @@ export function DashboardClient() {
         <button
           type="button"
           onClick={startNew}
-          className="premium-button mt-2.5 flex w-full items-center gap-2.5 rounded-xl border border-violet/30 bg-violet/10 px-3 py-2.5 text-left text-[12px] font-semibold text-text-primary transition hover:bg-violet/15 active:scale-[.99] sm:mt-3 sm:py-3 sm:text-sm"
+          className="mt-2 flex min-h-10 w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-text-primary transition-colors hover:bg-white/[.065] active:bg-white/[.09]"
         >
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-signature text-sm text-white">
-            ＋
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center text-text-primary">
+            <SquarePen size={18} strokeWidth={1.8} />
           </span>
-          New creation
+          <span className="truncate">New creation</span>
         </button>
         <div className="relative mt-3">
           <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-dim" />
