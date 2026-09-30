@@ -144,7 +144,7 @@ export function requestStoryboard(
   });
 }
 
-export function requestRender(jobId: string, audioMode: AudioMode = 'voice_music', narrationLanguage = 'en') {
+export function requestRender(jobId: string, audioMode: AudioMode = 'voice_music', narrationLanguage = 'auto') {
   return request<{ jobId: string; status: string; creditsSpent?: number; creditsRemaining?: number }>(
     `/api/jobs/${jobId}/render`,
     { method: 'POST', body: JSON.stringify({ audioMode, skipVoiceover: audioMode !== 'voice_music', narrationLanguage }) }

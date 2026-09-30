@@ -33,9 +33,9 @@ test('checkout exposes save-card only when PayPal vault is enabled and keeps sav
 });
 
 test('profile renders a dedicated saved-card manager without exposing provider tokens', async () => {
-  const footer = await frontend('src/components/landing/Footer.tsx');
+  const profile = await frontend('src/pages/ProfilePage.tsx');
   const panel = await frontend('src/components/account/SavedCardsPanel.tsx');
-  assert.match(footer, /location === "\/profile" && <SavedCardsPanel/);
+  assert.match(profile, /<SavedCardsPanel \/>/);
   assert.match(panel, /\/api\/paypal-card\/methods/);
   assert.match(panel, /Confirm remove/);
   assert.match(panel, /Save this card/);

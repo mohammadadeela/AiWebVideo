@@ -284,7 +284,7 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
               frameRate: 24,
               selectedCaptureIds: [],
               audioMode: studioAudioMode,
-              narrationLanguage: 'en',
+              narrationLanguage: 'auto',
             } as never,
           }
         : {}),

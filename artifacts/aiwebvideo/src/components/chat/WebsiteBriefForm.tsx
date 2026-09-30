@@ -34,6 +34,8 @@ import {
   type IdeaContext,
 } from "@/lib/creativeIdeas";
 import { trackStudioEvent } from "@/lib/studio-api";
+import { ScrollRow } from "@/components/ui/scroll-row";
+import { OutputSettings } from "./OutputSettings";
 import { extractProductReference, resolveArchitectureLocation } from "@/lib/api-client";
 import type { AudioMode, JobMode } from "./types";
 
@@ -82,7 +84,7 @@ const DEFAULT_SETTINGS: WebsiteGenerationSettings = {
   aspectRatio: "9:16",
   outputQuality: "1080p",
   audioMode: "native_audio",
-  narrationLanguage: "en",
+  narrationLanguage: "auto",
   modelId: "cinema-2",
 };
 
@@ -775,7 +777,7 @@ export function WebsiteBriefForm({
       )}
 
       <div className={`relative border-b border-white/[.08] ${compactLayout ? "p-2" : "p-2.5 sm:p-3"}`}>
-        <div className="chat-scroll flex gap-1 overflow-x-auto pb-0.5" role="tablist" aria-label="Creation mode">
+        <ScrollRow className="gap-1 pb-0.5" role="tablist" ariaLabel="Creation mode" activeKey={activeMode}>
           {CREATION_MODES.map(({ id, label, short, icon: Icon }) => (
             <button
               key={id}
@@ -794,7 +796,7 @@ export function WebsiteBriefForm({
               <span className="md:hidden">{short}</span>
             </button>
           ))}
-        </div>
+        </ScrollRow>
       </div>
 
       <div className={`relative ${compactLayout ? "p-3 sm:p-4" : "p-4 sm:p-5"}`}>
@@ -1058,319 +1060,32 @@ export function WebsiteBriefForm({
           </button>
 
           </div>
-          <div className="generation-output-controls" role="group" aria-label="Output settings">
-          <ControlMenu open={compactPanel === "model"} onClose={() => setCompactPanel(null)} label="Generation model" wide trigger={
-            <button
-              type="button"
-              onClick={() => {
-                setOpenSettingMenu(null);
-                setCompactPanel((current) => current === "model" ? null : "model");
+          <div className="generation-output-controls min-w-0 max-w-full" role="group" aria-label="Output settings">
+            <OutputSettings
+              value={{
+                modelId: settings.modelId,
+                durationSeconds: settings.durationSeconds,
+                aspectRatio: settings.aspectRatio,
+                outputQuality: settings.outputQuality,
+                audioMode: settings.audioMode,
+                narrationLanguage: settings.narrationLanguage,
               }}
-              aria-expanded={compactPanel === "model"}
-              aria-haspopup="listbox"
-              className={`${controlClass(compactPanel === "model")} generation-control-model`}
-            >
-              <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-mint/[.08] text-mint">
-                {modelFamily === "video" ? <Video size={13} /> : modelFamily === "interior" ? <House size={13} /> : <ImageIcon size={13} />}
-              </span>
-              <span className="max-w-[150px] truncate">{selectedModel.name.replace("AiWebVideo ", "")}</span>
-              <ChevronDown size={12} className={`transition-transform ${compactPanel === "model" ? "rotate-180" : ""}`} />
-            </button>}>
-
-            {compactPanel === "model" && (
-              <div
-                role="listbox"
-                aria-label="Generation model"
-                className="p-1"
-              >
-                <div className="flex items-center justify-between gap-3 px-2.5 pb-1.5 pt-1">
-                  <div>
-                    <p className="text-[10px] font-semibold text-white">Choose model</p>
-                    <p className="mt-0.5 text-[8px] text-white/35">Only compatible options are shown.</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setCompactPanel(null)}
-                    aria-label="Close model menu"
-                    className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-white/35 transition hover:bg-white/[.06] hover:text-white"
-                  >
-                    <X size={12} />
-                  </button>
-                </div>
-
-                {availableModels.map((model) => {
-                  const selected = settings.modelId === model.id;
-                  const effectiveQuality = model.supportedQualities.includes(settings.outputQuality)
-                    ? settings.outputQuality
-                    : (model.supportedQualities[0] ?? "1080p");
-                  const modelPrice = model.family === "video"
-                    ? displayCredits(effectiveQuality === "4k"
-                        ? (model.internalCredits4k ?? model.internalCredits1080p ?? 1)
-                        : (model.internalCredits1080p ?? 1))
-                    : displayCredits(effectiveQuality === "4k"
-                        ? (model.internalCredits4k ?? model.internalCreditsPerImage ?? 1)
-                        : (model.internalCreditsPerImage ?? 1));
-                  return (
-                    <button
-                      key={model.id}
-                      type="button"
-                      role="option"
-                      aria-selected={selected}
-                      onClick={() => chooseModel(model.id)}
-                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition ${
-                        selected ? "bg-violet/[.13]" : "hover:bg-white/[.055]"
-                      }`}
-                    >
-                      <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl border ${
-                        selected ? "border-mint/30 bg-mint/10 text-mint" : "border-white/10 bg-white/[.035] text-white/55"
-                      }`}>
-                        {model.family === "video" ? <Video size={16} /> : model.family === "interior" ? <House size={16} /> : <ImageIcon size={16} />}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="flex items-center gap-2">
-                          <span className="truncate text-[11px] font-semibold text-white">{model.name}</span>
-                          {model.recommended && <span className="rounded-md bg-mint/10 px-1.5 py-0.5 text-[7px] font-bold text-mint">BEST</span>}
-                        </span>
-                        <span className="mt-1 flex flex-wrap items-center gap-1 text-[8px] text-white/42">
-                          <span>{model.speed}</span>
-                          <span>·</span>
-                          <span>{model.quality}</span>
-                          {model.nativeAudio && <><span>·</span><span>Sound</span></>}
-                        </span>
-                      </span>
-                      <span className="shrink-0 text-right">
-                        <span className="block text-[9px] font-semibold text-white/75">{modelPrice}</span>
-                        <span className="block text-[7px] text-white/35">{model.family === "video" ? "cr/sec" : "cr/image"}</span>
-                      </span>
-                      <span className="grid h-5 w-5 shrink-0 place-items-center">
-                        {selected && <Check size={13} className="text-mint" />}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </ControlMenu>
-
-          {selectedModel.supportsDuration && (
-            <ControlMenu open={openSettingMenu === "duration"} onClose={() => setOpenSettingMenu(null)} label="Video duration" wide trigger={
-              <button
-                type="button"
-                onClick={() => {
-                  setCompactPanel(null);
-                  setOpenSettingMenu((current) => current === "duration" ? null : "duration");
-                }}
-                aria-label={`Duration: ${durationSeconds} seconds`}
-                aria-expanded={openSettingMenu === "duration"}
-                aria-haspopup="dialog"
-                className={controlClass(openSettingMenu === "duration")}
-              >
-                <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-white/[.045] text-mint">
-                  <Clock size={12} />
-                </span>
-                <span>{durationSeconds}s</span>
-                <ChevronDown size={12} className={`transition-transform ${openSettingMenu === "duration" ? "rotate-180" : ""}`} />
-              </button>}>
-
-              {openSettingMenu === "duration" && (
-                <div
-                  role="dialog"
-                  aria-label="Video duration"
-                  className="p-1"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-[11px] font-semibold text-white">Video duration</p>
-                      <p className="mt-0.5 text-[8px] text-white/38">Choose a quick preset or enter any whole second from 8 to 60.</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setOpenSettingMenu(null)}
-                      aria-label="Close duration menu"
-                      className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-white/35 transition hover:bg-white/[.06] hover:text-white"
-                    >
-                      <X size={12} />
-                    </button>
-                  </div>
-
-                  <div className="mt-3 grid grid-cols-4 gap-1.5">
-                    {DURATION_PRESETS.map((seconds) => {
-                      const active = !usingCustomDuration && durationSeconds === seconds;
-                      return (
-                        <button
-                          key={seconds}
-                          type="button"
-                          onClick={() => applyDurationPreset(seconds)}
-                          className={`flex min-h-11 flex-col items-center justify-center rounded-xl border px-2 py-2 transition ${
-                            active
-                              ? "border-mint/35 bg-mint/[.10] text-mint"
-                              : "border-white/[.08] bg-white/[.035] text-white/70 hover:border-violet/30 hover:bg-white/[.055] hover:text-white"
-                          }`}
-                        >
-                          <Clock size={12} className={active ? "text-mint" : "text-white/40"} />
-                          <span className="mt-1 text-[10px] font-semibold">{seconds}s</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <div className={`mt-3 rounded-xl border p-2.5 transition ${
-                    usingCustomDuration ? "border-violet/35 bg-violet/[.07]" : "border-white/[.08] bg-white/[.025]"
-                  }`}>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="flex items-center gap-1.5 text-[10px] font-semibold text-white">
-                        <Clock size={12} className="text-violet" />
-                        Custom
-                      </span>
-                      <span className="text-[8px] text-white/35">8–60 sec</span>
-                    </div>
-                    <div className="mt-2 flex items-center gap-2">
-                      <div className="relative min-w-0 flex-1">
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          value={customDurationInput}
-                          onFocus={() => setUsingCustomDuration(true)}
-                          onChange={(event) => {
-                            const digits = event.currentTarget.value.replace(/\D/g, "").slice(0, 3);
-                            setUsingCustomDuration(true);
-                            setCustomDurationInput(digits);
-                          }}
-                          onBlur={() => commitCustomDuration()}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter") {
-                              event.preventDefault();
-                              commitCustomDuration();
-                              setOpenSettingMenu(null);
-                            }
-                            if (event.key === "Escape") {
-                              setCustomDurationInput(String(durationSeconds));
-                              setOpenSettingMenu(null);
-                            }
-                          }}
-                          placeholder="8–60"
-                          className="h-10 w-full rounded-xl border border-white/[.10] bg-[#0b0818] px-3 pr-10 text-center text-sm font-semibold text-white outline-none transition placeholder:text-white/25 focus:border-violet/55 focus:ring-2 focus:ring-violet/10"
-                          aria-label="Custom video duration in seconds"
-                        />
-                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[8px] font-semibold uppercase tracking-[.12em] text-white/30">sec</span>
-                      </div>
-                      <button
-                        type="button"
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => {
-                          commitCustomDuration();
-                          setOpenSettingMenu(null);
-                        }}
-                        className="h-10 rounded-xl border border-violet/30 bg-violet/[.12] px-3 text-[10px] font-semibold text-white transition hover:bg-violet/[.18]"
-                      >
-                        Use
-                      </button>
-                    </div>
-                    <p className="mt-2 text-[8px] leading-3.5 text-white/32">Your value is saved only after you finish typing, so clearing or replacing the number no longer jumps back to 8 while you type.</p>
-                  </div>
-                </div>
-              )}
-            </ControlMenu>
-          )}
-
-          <CompactDropdown
-            onClose={() => setOpenSettingMenu(null)}
-            value={settings.aspectRatio}
-            options={[
-              { value: "9:16", label: "9:16", helper: "Portrait", icon: <span className="generation-ratio-icon h-[18px] w-[11px] rounded-[2px] border-[1.5px] border-current" /> },
-              { value: "16:9", label: "16:9", helper: "Landscape", icon: <span className="generation-ratio-icon h-[11px] w-[18px] rounded-[2px] border-[1.5px] border-current" /> },
-              { value: "1:1", label: "1:1", helper: "Square", icon: <span className="generation-ratio-icon h-[15px] w-[15px] rounded-[2px] border-[1.5px] border-current" /> },
-            ]}
-            open={openSettingMenu === "aspect"}
-            onToggle={() => {
-              setCompactPanel(null);
-              setOpenSettingMenu((current) => current === "aspect" ? null : "aspect");
-            }}
-            onChange={(value) => {
-              setSettings((current) => ({ ...current, aspectRatio: value as "16:9" | "9:16" | "1:1" }));
-              setOpenSettingMenu(null);
-            }}
-            icon={<Maximize2 size={12} />}
-            ariaLabel="Aspect ratio"
-          />
-
-          {selectedModel.supportedQualities.length > 1 ? (
-            <CompactDropdown
-            onClose={() => setOpenSettingMenu(null)}
-              value={settings.outputQuality}
-              options={selectedModel.supportedQualities.map((quality) => ({
-                value: quality,
-                label: quality === "4k" ? "4K" : "1080p",
-                helper: quality === "4k" ? "Maximum detail" : "Standard HD",
-                icon: quality === "4k" ? <Sparkles size={13} /> : <Monitor size={13} />,
-              }))}
-              open={openSettingMenu === "quality"}
-              onToggle={() => {
-                setCompactPanel(null);
-                setOpenSettingMenu((current) => current === "quality" ? null : "quality");
+              models={availableModels}
+              selectedModel={selectedModel}
+              disabled={disabled}
+              onModel={chooseModel}
+              onDuration={(seconds) => {
+                const safe = normalizeDuration(seconds);
+                setSettings((current) => ({ ...current, durationSeconds: safe }));
               }}
-              onChange={(value) => {
-                setSettings((current) => ({ ...current, outputQuality: value as "1080p" | "4k" }));
-                setOpenSettingMenu(null);
-              }}
-              icon={<Monitor size={12} />}
-              ariaLabel="Quality"
+              onAspect={(aspectRatio) => setSettings((current) => ({ ...current, aspectRatio }))}
+              onQuality={(outputQuality) => setSettings((current) => ({ ...current, outputQuality }))}
+              onAudio={(audioMode) => setSettings((current) => ({ ...current, audioMode }))}
+              onLanguage={(narrationLanguage) => setSettings((current) => ({ ...current, narrationLanguage }))}
+              languages={NARRATION_LANGUAGES}
             />
-          ) : (
-            <span className="generation-control generation-control-static" title="Fixed quality for this model">
-              <span className="grid h-5 w-5 place-items-center rounded-md bg-white/[.04] text-mint"><Monitor size={12} /></span>
-              {selectedModel.quality}
-            </span>
-          )}
-
-          {selectedModel.audioModes.length > 0 && (
-            <CompactDropdown
-            onClose={() => setOpenSettingMenu(null)}
-              value={settings.audioMode}
-              options={[
-                ...(selectedModel.audioModes.includes("native_audio") ? [{ value: "native_audio", label: "Sound", helper: "Native scene audio", icon: <Volume2 size={13} /> }] : []),
-                ...(selectedModel.audioModes.includes("voice_music") ? [{ value: "voice_music", label: "Narration", helper: "Voice + soundtrack", icon: <Mic size={13} /> }] : []),
-                ...(selectedModel.audioModes.includes("music_only") ? [{ value: "music_only", label: "Music", helper: "Soundtrack only", icon: <Music size={13} /> }] : []),
-                ...(selectedModel.audioModes.includes("silent") ? [{ value: "silent", label: "Silent", helper: "No audio", icon: <VolumeX size={13} /> }] : []),
-              ]}
-              open={openSettingMenu === "audio"}
-              onToggle={() => {
-                setCompactPanel(null);
-                setOpenSettingMenu((current) => current === "audio" ? null : "audio");
-              }}
-              onChange={(value) => {
-                setSettings((current) => ({ ...current, audioMode: value as AudioMode }));
-                setOpenSettingMenu(null);
-              }}
-              icon={<Volume2 size={12} />}
-              ariaLabel="Audio"
-              align="right"
-            />
-          )}
           </div>
         </div>
-
-        {selectedModel.audioModes.includes("voice_music") && settings.audioMode === "voice_music" && (
-          <div className="mt-2 flex justify-end">
-            <CompactDropdown
-            onClose={() => setOpenSettingMenu(null)}
-              value={settings.narrationLanguage}
-              options={NARRATION_LANGUAGES.map(([code, label]) => ({ value: code, label, icon: <Languages size={13} /> }))}
-              open={openSettingMenu === "language"}
-              onToggle={() => {
-                setCompactPanel(null);
-                setOpenSettingMenu((current) => current === "language" ? null : "language");
-              }}
-              onChange={(value) => {
-                setSettings((current) => ({ ...current, narrationLanguage: value }));
-                setOpenSettingMenu(null);
-              }}
-              icon={<Languages size={12} />}
-              ariaLabel="Narration language"
-              align="right"
-            />
-          </div>
-        )}
 
         {compactPanel === "style" && activeMode === "website" && (
           <div className="mt-2 rounded-2xl border border-mint/15 bg-mint/[.035] p-2.5">

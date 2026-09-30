@@ -102,9 +102,9 @@ export function normalizeJobWorkflow(value: unknown): JobWorkflowState | null {
     audioMode: enumValue(raw.audioMode, AUDIO_MODES, "voice_music"),
     narrationLanguage:
       typeof raw.narrationLanguage === "string" &&
-      /^[a-z]{2,3}(?:-[A-Z]{2})?$/.test(raw.narrationLanguage)
+      (raw.narrationLanguage === "auto" || /^[a-z]{2,3}(?:-[A-Z]{2})?$/.test(raw.narrationLanguage))
         ? raw.narrationLanguage
-        : "en",
+        : "auto",
     websiteAutoFlow: raw.websiteAutoFlow === true,
     manualRenderAfterPlan: raw.manualRenderAfterPlan === true,
     requestedDurationSeconds:

@@ -1,14 +1,10 @@
-import { Link, useLocation } from "wouter";
-import { SavedCardsPanel } from "@/components/account/SavedCardsPanel";
+import { Link } from "wouter";
 import { Wordmark } from "@/components/ui/Wordmark";
 import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/support";
 
 export function Footer() {
-  const [location] = useLocation();
-
   return (
     <>
-      {location === "/profile" && <SavedCardsPanel />}
       <footer className="border-t border-white/[.06] bg-black/15">
         <div className="mx-auto max-w-7xl px-5 pb-8 pt-16">
           <div className="mb-14 grid grid-cols-2 gap-10 sm:grid-cols-3 lg:grid-cols-[1.6fr_1fr_1fr_1fr_1fr]">

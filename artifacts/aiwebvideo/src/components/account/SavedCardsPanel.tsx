@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'wouter';
-import { Check, CreditCard, LoaderCircle, ShieldCheck, Trash2, WalletCards } from 'lucide-react';
+import { CreditCard, LoaderCircle, Trash2 } from 'lucide-react';
 import { request } from '@/lib/api-client';
 
 interface SavedMethod {
@@ -59,86 +58,48 @@ export function SavedCardsPanel() {
   }
 
   return (
-    <section id="payment-methods" className="mx-auto mt-5 w-full max-w-7xl px-5">
-      <div className="rounded-3xl border border-white/[.08] bg-panel p-5 shadow-[0_24px_80px_-55px_rgba(0,0,0,.85)] sm:p-7">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex items-start gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-violet/20 bg-violet/10 text-violet">
-              <WalletCards size={19} aria-hidden="true" />
-            </span>
-            <div>
-              <h2 className="font-display text-lg font-semibold text-text-primary">Saved cards</h2>
-              <p className="mt-1 text-xs leading-5 text-text-muted">Manage cards you chose to save during checkout.</p>
-            </div>
-          </div>
-          <Link
-            href="/pricing"
-            className="inline-flex min-h-10 items-center justify-center rounded-xl border border-white/10 bg-white/[.035] px-4 text-xs font-bold text-text-primary transition hover:border-violet/25 hover:bg-white/[.06]"
-          >
-            Buy credits
-          </Link>
+    <div id="payment-methods">
+      <p className="mb-2 text-xs font-semibold text-text-muted">Saved cards</p>
+      {loading ? (
+        <div className="flex h-16 items-center justify-center rounded-2xl bg-white/[.03] text-text-dim">
+          <LoaderCircle size={16} className="animate-spin" aria-label="Loading saved cards" />
         </div>
-
-        {loading ? (
-          <div className="mt-5 flex min-h-24 items-center justify-center rounded-2xl border border-white/[.07] bg-bg/20 text-text-dim">
-            <LoaderCircle size={18} className="animate-spin" aria-label="Loading saved cards" />
-          </div>
-        ) : methods.length > 0 ? (
-          <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {methods.map((method) => {
-              const confirming = removeCandidate === method.id;
-              const isRemoving = removing === method.id;
-              return (
-                <div key={method.id} className="rounded-2xl border border-white/[.08] bg-bg/25 p-4">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-11 w-14 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/15 text-violet">
-                      <CreditCard size={20} aria-hidden="true" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-bold text-text-primary">{method.brand} •••• {method.lastDigits}</p>
-                      <p className="mt-1 text-[10px] text-text-dim">{method.expiry ? `Expires ${method.expiry}` : 'Saved payment method'}</p>
-                    </div>
-                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-mint/10 text-mint" title="Ready for checkout">
-                      <Check size={14} />
-                    </span>
-                  </div>
-
-                  <button
-                    type="button"
-                    disabled={Boolean(removing)}
-                    onClick={() => void remove(method)}
-                    className={`mt-4 flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border px-3 text-xs font-bold transition disabled:opacity-50 ${
-                      confirming
-                        ? 'border-rose-400/25 bg-rose-500/10 text-rose-200 hover:bg-rose-500/15'
-                        : 'border-white/[.08] bg-white/[.025] text-text-muted hover:bg-white/[.05] hover:text-white'
-                    }`}
-                  >
-                    {isRemoving ? <LoaderCircle size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                    {isRemoving ? 'Removing…' : confirming ? 'Confirm remove' : 'Remove card'}
-                  </button>
+      ) : methods.length > 0 ? (
+        <div className="space-y-2">
+          {methods.map((method) => {
+            const confirming = removeCandidate === method.id;
+            const isRemoving = removing === method.id;
+            return (
+              <div key={method.id} className="flex items-center gap-3 rounded-2xl bg-white/[.04] px-3.5 py-3">
+                <span className="grid h-9 w-12 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-violet/30 to-pink/20 text-white">
+                  <CreditCard size={16} aria-hidden="true" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-text-primary">{method.brand} •••• {method.lastDigits}</p>
+                  {method.expiry && <p className="text-[11px] text-text-dim">Expires {method.expiry}</p>}
                 </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="mt-5 flex flex-col gap-4 rounded-2xl border border-dashed border-white/[.1] bg-bg/20 p-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-3">
-              <ShieldCheck size={18} className="mt-0.5 shrink-0 text-mint" aria-hidden="true" />
-              <div>
-                <p className="text-sm font-semibold text-text-primary">No saved cards yet</p>
-                <p className="mt-1 text-xs leading-5 text-text-muted">
-                  {vaultEnabled
-                    ? 'Choose “Save this card” the next time you pay by card.'
-                    : 'Saved cards will appear here when card saving is enabled for your payment account.'}
-                </p>
+                <button
+                  type="button"
+                  disabled={Boolean(removing)}
+                  onClick={() => void remove(method)}
+                  aria-label={confirming ? "Confirm remove card" : "Remove card"}
+                  className={`flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition disabled:opacity-50 ${
+                    confirming ? "bg-rose-500/15 text-rose-200" : "text-text-muted hover:bg-white/[.06] hover:text-white"
+                  }`}
+                >
+                  {isRemoving ? <LoaderCircle size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                  {confirming ? "Confirm" : "Remove"}
+                </button>
               </div>
-            </div>
-            <Link href="/pricing" className="shrink-0 text-xs font-bold text-violet transition hover:text-mint">Go to pricing →</Link>
-          </div>
-        )}
-
-        {notice && <p className="mt-3 text-xs text-text-muted" role="status">{notice}</p>}
-      </div>
-    </section>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="rounded-2xl bg-white/[.03] px-4 py-3.5 text-xs leading-5 text-text-dim">
+          {vaultEnabled ? "No saved cards. Tick “Save this card” when you next pay." : "No saved cards."}
+        </p>
+      )}
+      {notice && <p className="mt-2 text-xs text-text-muted" role="status">{notice}</p>}
+    </div>
   );
 }

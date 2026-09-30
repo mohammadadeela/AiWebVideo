@@ -367,7 +367,7 @@ export function ChatWidget({
   const [cancelling, setCancelling] = useState(false);
   const [audioMode, setAudioMode] = useState<AudioMode>("voice_music");
   const skipVoiceover = audioMode !== "voice_music";
-  const [narrationLanguage, setNarrationLanguage] = useState("en");
+  const [narrationLanguage, setNarrationLanguage] = useState("auto");
   const [durationSeconds, setDurationSeconds] = useState(8);
   const [featuresText, setFeaturesText] = useState<string | null>(null);
   const [creativeBrief, setCreativeBrief] = useState<string | null>(null);
@@ -1436,7 +1436,7 @@ Promotion direction: ${brief}` : normalized);
     try {
       const pendingRequest = websiteRequestRef.current;
       const setupSummary = pendingRequest
-        ? `Setup: ${MODE_OPTIONS.find((option) => option.mode === pendingRequest.mode)?.label ?? "Website video"} · ${pendingRequest.durationSeconds === "auto" ? "Auto duration" : `${pendingRequest.durationSeconds}s`} · ${pendingRequest.aspectRatio} · ${pendingRequest.outputQuality} · ${pendingRequest.audioMode === "voice_music" ? `Narration ${pendingRequest.narrationLanguage.toUpperCase()}` : pendingRequest.audioMode.replace(/_/g, " ")}`
+        ? `Setup: ${MODE_OPTIONS.find((option) => option.mode === pendingRequest.mode)?.label ?? "Website video"} · ${pendingRequest.durationSeconds === "auto" ? "Auto duration" : `${pendingRequest.durationSeconds}s`} · ${pendingRequest.aspectRatio} · ${pendingRequest.outputQuality} · ${pendingRequest.audioMode === "voice_music" ? pendingRequest.narrationLanguage === "auto" ? "Narration · your language" : `Narration ${pendingRequest.narrationLanguage.toUpperCase()}` : pendingRequest.audioMode.replace(/_/g, " ")}`
         : undefined;
       const res = await startCapture(normalized, brief, setupSummary);
       selectJobId(res.jobId);
@@ -2143,7 +2143,7 @@ ${request.prompt}`
     pendingWebsiteAttachmentsRef.current = [];
     setMode("video");
     setAudioMode("voice_music");
-    setNarrationLanguage("en");
+    setNarrationLanguage("auto");
     setDurationSeconds(8);
     setFeaturesText(null);
     setCreativeBrief(null);
@@ -2844,7 +2844,7 @@ ${request.prompt}`
                     </span>
                     <span className="rounded-lg bg-black/15 px-2.5 py-2">
                       {audioMode === "voice_music"
-                        ? `Narrated · ${narrationLanguage.toUpperCase()}`
+                        ? (narrationLanguage === "auto" ? "Narrated" : `Narrated · ${narrationLanguage.toUpperCase()}`)
                         : audioMode === "native_audio"
                           ? "Scene audio"
                           : audioMode === "music_only"
@@ -3134,6 +3134,7 @@ ${request.prompt}`
           mode={mode}
           outputQuality={job?.storyboard?.outputQuality ?? outputQuality}
           skipVoiceover={skipVoiceover}
+          modelId={modelId}
           currentBalance={creditBalance}
           reservedCredits={job?.creditsSpent ?? 0}
           jobId={jobId}

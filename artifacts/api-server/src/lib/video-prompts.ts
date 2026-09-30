@@ -1,5 +1,6 @@
 import type { StoryboardScene } from './gemini.js';
 import { buildContinuousVideoPrompt as buildLegacyContinuousVideoPrompt } from './video-prompts-legacy.js';
+import { detectBriefLanguage } from './voiceover.js';
 
 // Keep the current renderer/refund/partial-delivery pipeline unchanged while
 // restoring the older creative prompt logic that produced the preferred look.
@@ -34,7 +35,14 @@ export interface ContinuousVideoPromptInput {
 export function buildContinuousVideoPrompt(input: ContinuousVideoPromptInput) {
   // Keep the proven creative direction while forwarding every customer
   // setting and the complete brief to the final media-model prompt.
-  return buildLegacyContinuousVideoPrompt(input);
+  const base = buildLegacyContinuousVideoPrompt(input);
+  // Native-audio models write their own dialogue and vocals: tell them to speak the
+  // language the customer wrote in (English needs no directive).
+  const language = input.nativeAudio && !input.musicOnly ? detectBriefLanguage(input.creativeBrief) : null;
+  if (!language) return base;
+  return `${base}
+
+SPOKEN LANGUAGE (mandatory): every spoken word, dialogue line, vocal and sung lyric in this video must be in ${language.label} (${language.code}), matching the language of the customer's brief. Use natural native pronunciation and idiom. Do not switch to English. Brand and product names stay unchanged.`;
 }
 
 /**

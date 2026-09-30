@@ -2,65 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Play } from "lucide-react";
 import { fetchMarketingSettings, type MarketingVideo } from "@/lib/api-client";
 import { resolveVideoEmbed } from "@/lib/videoEmbed";
+import { AutoplayVideo } from "./AutoplayVideo";
 
 function CampaignMedia({ video, eager = false }: { video: MarketingVideo; eager?: boolean }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const visibleRef = useRef(true);
   const embed = resolveVideoEmbed(video.url ?? "");
-
-  useEffect(() => {
-    if (embed.kind !== "file" || !videoRef.current) return;
-    const player = videoRef.current;
-    let disposed = false;
-    const timers: number[] = [];
-    const resume = () => {
-      if (disposed || !visibleRef.current || document.visibilityState === "hidden") return;
-      player.defaultMuted = true;
-      player.muted = true;
-      player.playsInline = true;
-      void player.play().catch(() => {});
-    };
-    const retry = (delay: number) => {
-      timers.push(window.setTimeout(resume, delay));
-    };
-    const resumeWhenVisible = () => {
-      if (document.visibilityState === "visible") resume();
-    };
-    const observer = typeof IntersectionObserver === "undefined"
-      ? null
-      : new IntersectionObserver(([entry]) => {
-          visibleRef.current = Boolean(entry?.isIntersecting);
-          if (visibleRef.current) resume();
-          else player.pause();
-        }, { rootMargin: "160px", threshold: 0.01 });
-
-    observer?.observe(player);
-    player.addEventListener("canplay", resume);
-    player.addEventListener("loadeddata", resume);
-    player.addEventListener("pause", resume);
-    player.addEventListener("stalled", resume);
-    document.addEventListener("visibilitychange", resumeWhenVisible);
-    window.addEventListener("pageshow", resume);
-    window.addEventListener("focus", resume);
-    window.addEventListener("online", resume);
-    document.addEventListener("pointerdown", resume, { passive: true });
-    [0, 250, 1_000, 3_000, 8_000].forEach(retry);
-
-    return () => {
-      disposed = true;
-      timers.forEach((timer) => window.clearTimeout(timer));
-      observer?.disconnect();
-      player.removeEventListener("canplay", resume);
-      player.removeEventListener("loadeddata", resume);
-      player.removeEventListener("pause", resume);
-      player.removeEventListener("stalled", resume);
-      document.removeEventListener("visibilitychange", resumeWhenVisible);
-      window.removeEventListener("pageshow", resume);
-      window.removeEventListener("focus", resume);
-      window.removeEventListener("online", resume);
-      document.removeEventListener("pointerdown", resume);
-    };
-  }, [embed.kind, embed.src]);
 
   if (embed.kind !== "file") {
     return (
@@ -76,27 +21,11 @@ function CampaignMedia({ video, eager = false }: { video: MarketingVideo; eager?
   }
 
   return (
-    <video
-      ref={videoRef}
+    <AutoplayVideo
       src={embed.src}
-      poster={video.posterUrl ?? undefined}
-      muted
-      loop
-      playsInline
-      autoPlay
-      preload="auto"
-      controls={false}
-      disablePictureInPicture
-      controlsList="nodownload nofullscreen noremoteplayback"
-      tabIndex={-1}
-      aria-label={video.caption || "AiWebVideo campaign film"}
-      className="pointer-events-none h-full w-full object-cover"
-      onCanPlay={() => {
-        const player = videoRef.current;
-        if (!player) return;
-        player.muted = true;
-        void player.play().catch(() => {});
-      }}
+      poster={video.posterUrl}
+      label={video.caption || "AiWebVideo campaign film"}
+      eager={eager}
     />
   );
 }

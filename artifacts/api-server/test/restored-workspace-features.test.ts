@@ -55,8 +55,8 @@ test('workspace and profile expose compact credit usage UI', async () => {
   assert.match(dashboard, /View usage/);
   assert.match(dashboard, /Recharge/);
   assert.match(dashboard, /formatCredits\(me\?\.creditsBalance\)/);
-  assert.match(profile, /Usage this month/);
+  assert.match(profile, /used this month/);
   assert.match(profile, /monthlyUsagePercent/);
-  assert.match(profile, /credits used/);
-  assert.match(profile, /available/);
+  assert.match(profile, /role="progressbar"/);
+  assert.match(profile, /Credits available/);
 });

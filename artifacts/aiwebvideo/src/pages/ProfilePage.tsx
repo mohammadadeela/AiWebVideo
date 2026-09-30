@@ -1,23 +1,11 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link } from "wouter";
-import {
-  Activity,
-  BarChart3,
-  CalendarClock,
-  CircleUserRound,
-  CreditCard,
-  FolderClock,
-  Gauge,
-  Image as ImageIcon,
-  ReceiptText,
-  ShieldCheck,
-  Video,
-  WalletCards,
-} from "lucide-react";
+import { ChevronRight, CircleUserRound } from "lucide-react";
 import { Nav } from "@/components/landing/Nav";
 import { Footer } from "@/components/landing/Footer";
 import { Button } from "@/components/ui/app-button";
 import { AuthModal } from "@/components/auth/AuthModal";
+import { SavedCardsPanel } from "@/components/account/SavedCardsPanel";
 import { SecureCheckoutModal } from "@/components/billing/SecureCheckoutModal";
 import { formatCredits } from "@/components/account/UserMenu";
 import { watchAuthState } from "@/lib/firebase/client";
@@ -78,6 +66,23 @@ function modeCount(usage: UserUsageSummary | null, ...modes: string[]) {
     .reduce((total, item) => total + item.count, 0);
 }
 
+type ProfileTab = "usage" | "projects" | "billing" | "security";
+const PROFILE_TABS: Array<[ProfileTab, string]> = [
+  ["usage", "Usage"],
+  ["projects", "Projects"],
+  ["billing", "Billing"],
+  ["security", "Security"],
+];
+
+function tabFromHash(): ProfileTab {
+  if (typeof window === "undefined") return "usage";
+  const hash = window.location.hash.replace("#", "");
+  return PROFILE_TABS.some(([id]) => id === hash) ? (hash as ProfileTab) : "usage";
+}
+
+const INPUT_CLASS =
+  "mt-1.5 w-full rounded-xl border border-white/[.09] bg-white/[.04] px-3.5 py-3 text-base font-normal text-text-primary outline-none transition focus:border-violet/60 focus:ring-4 focus:ring-violet/10";
+
 export function ProfilePage() {
   useSeo({
     title: "Your account",
@@ -102,6 +107,18 @@ export function ProfilePage() {
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [passwordBusy, setPasswordBusy] = useState(false);
   const [passwordNotice, setPasswordNotice] = useState<string | null>(null);
+  const [tab, setTab] = useState<ProfileTab>(() => tabFromHash());
+
+  useEffect(() => {
+    const sync = () => setTab(tabFromHash());
+    window.addEventListener("hashchange", sync);
+    return () => window.removeEventListener("hashchange", sync);
+  }, []);
+
+  function selectTab(next: ProfileTab) {
+    setTab(next);
+    window.history.replaceState(null, "", `#${next}`);
+  }
 
   useEffect(
     () =>
@@ -194,492 +211,273 @@ export function ProfilePage() {
     }
   }
 
+  const balance = usage?.balance ?? me?.creditsBalance;
+  const used = usage?.thisMonth.creditsUsed;
+  const nearLimit = monthlyUsagePercent >= 85;
+  const modeChips = [
+    ["Website video", modeCount(usage, "website", "website_video")],
+    ["AI video", modeCount(usage, "ai_video")],
+    ["Product", modeCount(usage, "product_photo", "product_photos", "product_video")],
+    ["Talking scene", modeCount(usage, "talking_scene")],
+  ].filter(([, count]) => Number(count) > 0);
+
   return (
     <>
       <Nav />
       <main className="min-h-[72vh] border-b border-white/[.06] bg-bg">
         {!authChecked ? (
-          <div
-            className="mx-auto mt-24 h-8 w-8 animate-spin rounded-full border-2 border-violet border-t-transparent"
-            role="status"
-            aria-label="Loading account"
-          />
+          <div className="mx-auto mt-24 h-8 w-8 animate-spin rounded-full border-2 border-violet border-t-transparent" role="status" aria-label="Loading account" />
         ) : !signedIn ? (
-          <div className="mx-auto max-w-lg px-5 py-24 text-center">
-            <div className="rounded-3xl border border-border bg-panel p-8">
-              <CircleUserRound
-                size={34}
-                className="mx-auto text-violet"
-                aria-hidden="true"
-              />
-              <h1 className="mt-5 font-display text-2xl font-bold text-text-primary">
-                Sign in to view your account
-              </h1>
-              <p className="mt-2 text-sm leading-6 text-text-muted">
-                Account, plan, billing, and production history are available
-                after authentication.
-              </p>
-              <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
-                <Button variant="primary" onClick={() => setShowAuthModal(true)}>Sign in</Button>
-                <Button variant="secondary" className="w-full" asChild><Link href="/#generate">Return to AiWebVideo</Link></Button>
-              </div>
+          <div className="mx-auto max-w-md px-5 py-24 text-center">
+            <CircleUserRound size={36} className="mx-auto text-violet" aria-hidden="true" />
+            <h1 className="mt-5 font-display text-2xl font-bold text-text-primary">Sign in to see your account</h1>
+            <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
+              <Button variant="primary" onClick={() => setShowAuthModal(true)}>Sign in</Button>
+              <Button variant="secondary" asChild><Link href="/#generate">Back to AiWebVideo</Link></Button>
             </div>
           </div>
         ) : (
-          <div className="mx-auto max-w-7xl px-5 py-10 sm:py-14">
-            <header className="flex flex-col justify-between gap-5 border-b border-border pb-8 lg:flex-row lg:items-end">
-              <div>
-                <p className="font-utility text-[10px] font-semibold uppercase tracking-[.2em] text-mint">
-                  Account center
-                </p>
-                <h1 className="mt-3 font-display text-3xl font-bold tracking-[-.035em] text-text-primary sm:text-4xl">
-                  Account, plan and projects
-                </h1>
-                <p className="mt-3 max-w-xl text-sm leading-6 text-text-muted">
-                  Review your production balance, recent work and billing from
-                  one private account view.
-                </p>
+          <div className="mx-auto max-w-3xl px-4 py-8 sm:py-12">
+            <header className="flex items-center gap-3.5">
+              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-violet to-pink font-display text-lg font-bold uppercase text-white">
+                {me?.email?.[0] ?? "?"}
+              </span>
+              <div className="min-w-0 flex-1">
+                <h1 className="truncate font-display text-lg font-bold text-text-primary sm:text-xl">{me?.email}</h1>
+                <p className="mt-0.5 text-xs capitalize text-text-muted">{me?.plan} plan</p>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {me?.isAdmin && (
-                  <Button variant="secondary" asChild><Link href="/admin">Admin control center</Link></Button>
-                )}
-                <Button variant="primary" asChild><Link href="/dashboard">Open workspace</Link></Button>
+              <div className="flex shrink-0 items-center gap-2">
+                {me?.isAdmin && <Button variant="ghost" size="sm" asChild><Link href="/admin">Admin</Link></Button>}
+                <Button variant="primary" size="sm" asChild><Link href="/dashboard">Workspace</Link></Button>
               </div>
             </header>
 
-            <nav
-              aria-label="Account sections"
-              className="chat-scroll -mx-1 flex gap-1 overflow-x-auto py-4"
-            >
-              {[
-                ["Overview", "#overview"],
-                ["Plan & credits", "#plan"],
-                ["Usage", "#usage"],
-                ["Billing", "#billing"],
-                ["Recent projects", "#projects"],
-                ["Security", "#security"],
-              ].map(([label, href]) => (
-                <a
-                  key={href}
-                  href={href}
-                  className="shrink-0 rounded-lg px-3 py-2 text-xs font-semibold text-text-muted transition hover:bg-white/5 hover:text-text-primary"
-                >
-                  {label}
-                </a>
-              ))}
-            </nav>
-
             {error && (
-              <div
-                className="mb-5 rounded-xl border border-pink/20 bg-pink/5 px-4 py-3 text-sm text-text-muted"
-                role="alert"
-              >
-                {error}
-              </div>
+              <div className="mt-5 rounded-xl border border-pink/20 bg-pink/5 px-4 py-3 text-sm text-text-muted" role="alert">{error}</div>
             )}
 
-            <div id="overview" className="grid scroll-mt-24 gap-5 lg:grid-cols-[1.15fr_.85fr]">
-              <section className="rounded-3xl border border-border bg-panel p-6 sm:p-7">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-violet/25 bg-violet/10 text-text-primary">
-                    <CircleUserRound size={34} strokeWidth={1.6} aria-hidden="true" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-text-dim">Signed in as</p>
-                    <h2 className="mt-1 truncate font-display text-lg font-semibold text-text-primary sm:text-xl">
-                      {me?.email}
-                    </h2>
-                    <p className="mt-1 text-xs capitalize text-text-muted">
-                      {me?.plan} plan
-                    </p>
-                  </div>
+            <section className="mt-6 rounded-[28px] border border-white/[.08] bg-gradient-to-br from-violet/[.14] via-panel to-panel p-5 sm:p-6" aria-label="Credits">
+              <div className="flex items-end justify-between gap-4">
+                <div>
+                  <p className="text-xs font-medium text-text-muted">Credits available</p>
+                  <p className="mt-1 font-display text-4xl font-bold leading-none tracking-tight text-text-primary sm:text-5xl">{formatCredits(balance)}</p>
                 </div>
-
-                <div className="mt-7 grid grid-cols-3 divide-x divide-border border-y border-border py-5">
-                  {[
-                    ["Projects", stats.total],
-                    ["Completed", stats.completed],
-                    ["Active", stats.active],
-                  ].map(([label, value]) => (
-                    <div key={label} className="px-2 text-center">
-                      <p className="font-utility text-xl font-semibold text-text-primary sm:text-2xl">
-                        {value}
-                      </p>
-                      <p className="mt-1 text-[10px] text-text-dim">{label}</p>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                  <Link
-                    href="/dashboard"
-                    className="group flex items-center gap-3 rounded-2xl border border-border bg-bg/25 p-4 transition hover:border-violet/30 hover:bg-white/[.035]"
-                  >
-                    <FolderClock size={18} className="text-violet" aria-hidden="true" />
-                    <span>
-                      <span className="block text-xs font-semibold text-text-primary">Production workspace</span>
-                      <span className="mt-1 block text-[10px] text-text-dim">History, active jobs and results</span>
-                    </span>
-                  </Link>
-                  <Link
-                    href="/pricing"
-                    className="group flex items-center gap-3 rounded-2xl border border-border bg-bg/25 p-4 transition hover:border-mint/30 hover:bg-white/[.035]"
-                  >
-                    <Gauge size={18} className="text-mint" aria-hidden="true" />
-                    <span>
-                      <span className="block text-xs font-semibold text-text-primary">Usage & pricing</span>
-                      <span className="mt-1 block text-[10px] text-text-dim">Track activity or compare production options</span>
-                    </span>
-                  </Link>
-                </div>
-              </section>
-
-              <section id="plan" className="scroll-mt-24 rounded-3xl border border-border bg-panel p-6 sm:p-7">
-                <div className="flex items-center gap-2 text-text-dim">
-                  <WalletCards size={16} aria-hidden="true" />
-                  <p className="text-xs font-semibold uppercase tracking-[.14em]">Plan & credits</p>
-                </div>
-                <div className="mt-5 border-b border-border pb-5">
-                  <p className="text-sm capitalize text-text-muted">{me?.plan} plan</p>
-                  <p className="mt-2 font-utility text-4xl font-bold text-text-primary">
-                    {formatCredits(me?.creditsBalance)}
-                  </p>
-                  <p className="mt-1 text-xs text-text-dim">available production credits</p>
-                </div>
-                <p className="mt-5 text-xs leading-5 text-text-muted">
-                  The workspace checks the required production balance before a paid generation starts. Failed paid renders use the existing credit-restoration flow.
-                </p>
-                <Button variant="secondary" className="mt-5 w-full" asChild><Link href="/pricing">Compare plans and credit use</Link></Button>
-              </section>
-            </div>
-
-            <section id="usage" className="mt-5 scroll-mt-24 rounded-3xl border border-border bg-panel p-5 sm:p-7">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <div className="flex items-start gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-violet/20 bg-violet/10 text-violet">
-                    <BarChart3 size={18} aria-hidden="true" />
-                  </span>
-                  <div>
-                    <h2 className="font-display text-lg font-semibold text-text-primary">Usage</h2>
-                    <p className="mt-1 text-xs leading-5 text-text-muted">
-                      See what you used this month without exposing internal provider costs.
-                    </p>
-                  </div>
-                </div>
-                <div className="rounded-xl border border-mint/20 bg-mint/[.06] px-3 py-2 text-left sm:text-right">
-                  <p className="text-[10px] font-semibold uppercase tracking-[.14em] text-text-dim">Current balance</p>
-                  <p className="mt-0.5 font-utility text-lg font-bold text-mint">{formatCredits(usage?.balance ?? me?.creditsBalance)}</p>
-                </div>
+                <Button variant="primary" onClick={buyCredits} disabled={busy}>Add credits</Button>
               </div>
 
-              <div className="mt-4 rounded-2xl border border-white/[.07] bg-bg/25 px-4 py-3.5">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-semibold text-text-primary">Usage this month</p>
-                    <p className="mt-0.5 text-[10px] text-text-dim">{formatCredits(usage?.thisMonth.creditsUsed)} credits used · {formatCredits(usage?.balance ?? me?.creditsBalance)} available</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-utility text-xs font-semibold text-violet">{monthlyUsagePercent}%</span>
-                    <button
-                      type="button"
-                      onClick={buyCredits}
-                      className="rounded-full border border-violet/20 bg-violet/[.07] px-2.5 py-1 text-[9px] font-semibold text-violet transition hover:bg-violet/[.12]"
-                    >
-                      Recharge
-                    </button>
-                  </div>
+              <div className="mt-6">
+                <div className="flex items-baseline justify-between text-xs">
+                  <span className="text-text-muted">{formatCredits(used)} used this month</span>
+                  <span className={`font-utility font-semibold ${nearLimit ? "text-pink" : "text-violet"}`}>{monthlyUsagePercent}%</span>
                 </div>
                 <div
-                  className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-white/[.08]"
+                  className="mt-2 h-2 overflow-hidden rounded-full bg-white/[.08]"
                   role="progressbar"
                   aria-label="Monthly credit usage"
                   aria-valuemin={0}
                   aria-valuemax={100}
                   aria-valuenow={monthlyUsagePercent}
                 >
-                  <div className="h-full rounded-full bg-signature transition-[width] duration-300" style={{ width: `${monthlyUsagePercent}%` }} />
+                  <div
+                    className={`h-full rounded-full transition-[width] duration-500 ${nearLimit ? "bg-gradient-to-r from-gold to-pink" : "bg-signature"}`}
+                    style={{ width: `${monthlyUsagePercent}%` }}
+                  />
                 </div>
               </div>
 
-              <div className="mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
+              <dl className="mt-5 grid grid-cols-3 gap-2 text-center">
                 {[
-                  { label: "Credits used", value: formatCredits(usage?.thisMonth.creditsUsed), icon: Activity },
-                  { label: "Credits added", value: formatCredits(usage?.thisMonth.creditsAdded), icon: WalletCards },
-                  { label: "Projects", value: usage?.thisMonth.projects ?? 0, icon: FolderClock },
-                  { label: "Completed", value: usage?.thisMonth.completed ?? 0, icon: ShieldCheck },
-                  { label: "Videos", value: usage?.thisMonth.videos ?? 0, icon: Video },
-                  { label: "Photos", value: usage?.thisMonth.photos ?? 0, icon: ImageIcon },
-                ].map((metric) => {
-                  const MetricIcon = metric.icon;
-                  return (
-                    <div key={metric.label} className="min-w-0 rounded-2xl border border-border bg-bg/25 p-3 sm:p-4">
-                      <MetricIcon size={15} className="text-text-dim" aria-hidden="true" />
-                      <p className="mt-3 truncate font-utility text-lg font-semibold text-text-primary">{metric.value}</p>
-                      <p className="mt-1 text-[10px] leading-4 text-text-dim">{metric.label}</p>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="mt-5 grid gap-4 lg:grid-cols-[.82fr_1.18fr]">
-                <div className="rounded-2xl border border-border bg-bg/25 p-4">
-                  <p className="text-xs font-semibold text-text-primary">This month</p>
-                  <div className="mt-3 space-y-2 text-xs text-text-muted">
-                    <div className="flex items-center justify-between gap-3">
-                      <span>Amount paid</span>
-                      <span className="font-utility font-semibold text-text-primary">${(usage?.thisMonth.amountPaidUsd ?? 0).toFixed(2)}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span>Website video</span>
-                      <span className="font-utility text-text-primary">{modeCount(usage, "website", "website_video")}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span>AI video</span>
-                      <span className="font-utility text-text-primary">{modeCount(usage, "ai_video")}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span>Product photos / video</span>
-                      <span className="font-utility text-text-primary">{modeCount(usage, "product_photo", "product_photos", "product_video")}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span>Talking scenes</span>
-                      <span className="font-utility text-text-primary">{modeCount(usage, "talking_scene")}</span>
-                    </div>
+                  ["Projects", usage?.thisMonth.projects ?? stats.total],
+                  ["Videos", usage?.thisMonth.videos ?? 0],
+                  ["Photos", usage?.thisMonth.photos ?? 0],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-2xl bg-black/20 py-3">
+                    <dd className="font-utility text-lg font-semibold text-text-primary">{value}</dd>
+                    <dt className="mt-0.5 text-[11px] text-text-dim">{label} this month</dt>
                   </div>
-                </div>
+                ))}
+              </dl>
+            </section>
 
-                <div className="min-w-0 rounded-2xl border border-border bg-bg/25 p-4">
-                  <div className="flex items-center gap-2">
-                    <ReceiptText size={15} className="text-text-dim" aria-hidden="true" />
-                    <p className="text-xs font-semibold text-text-primary">Recent credit activity</p>
-                  </div>
-                  <div className="mt-3 divide-y divide-border">
-                    {(usage?.recentCredits ?? []).slice(0, 6).map((item) => (
-                      <div key={item.id} className="flex min-w-0 items-center justify-between gap-3 py-2.5">
-                        <div className="min-w-0">
-                          <p className="truncate text-xs font-medium text-text-primary">{item.reason || "Credit activity"}</p>
-                          <p className="mt-0.5 text-[10px] text-text-dim">{formatAccountDate(item.createdAt)}</p>
-                        </div>
-                        <span className={`shrink-0 font-utility text-xs font-semibold ${item.delta >= 0 ? "text-mint" : "text-text-muted"}`}>
-                          {item.delta >= 0 ? "+" : ""}{formatCredits(item.delta)}
-                        </span>
+            <div role="tablist" aria-label="Account sections" className="mt-6 grid grid-cols-4 gap-1 rounded-2xl bg-white/[.04] p-1">
+              {PROFILE_TABS.map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  id={`tab-${id}`}
+                  aria-selected={tab === id}
+                  aria-controls={`panel-${id}`}
+                  onClick={() => selectTab(id)}
+                  className={`min-h-10 rounded-xl px-2 text-xs font-semibold transition ${tab === id ? "bg-white text-[#1b1030] shadow" : "text-text-muted hover:text-white"}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} className="mt-4">
+              {tab === "usage" && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      ["Used", formatCredits(usage?.thisMonth.creditsUsed)],
+                      ["Added", formatCredits(usage?.thisMonth.creditsAdded)],
+                      ["Paid", `$${(usage?.thisMonth.amountPaidUsd ?? 0).toFixed(2)}`],
+                    ].map(([label, value]) => (
+                      <div key={label} className="rounded-2xl bg-white/[.04] px-3 py-3.5">
+                        <p className="font-utility text-lg font-semibold text-text-primary">{value}</p>
+                        <p className="mt-0.5 text-[11px] text-text-dim">{label} this month</p>
                       </div>
                     ))}
-                    {!usage?.recentCredits?.length && (
-                      <p className="py-6 text-center text-xs text-text-dim">No credit activity yet.</p>
-                    )}
                   </div>
-                </div>
-              </div>
-            </section>
 
-            <section id="billing" className="mt-5 scroll-mt-24 rounded-3xl border border-border bg-panel p-5 sm:p-7">
-              <div className="flex flex-col justify-between gap-5 md:flex-row md:items-start">
-                <div className="flex max-w-2xl items-start gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gold/20 bg-gold/10 text-gold">
-                    <CreditCard size={18} aria-hidden="true" />
-                  </span>
+                  {modeChips.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {modeChips.map(([label, count]) => (
+                        <span key={label} className="rounded-full bg-white/[.05] px-3 py-1.5 text-xs text-text-muted">
+                          {label} <span className="font-semibold text-text-primary">{count}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
                   <div>
-                    <h2 className="font-display text-lg font-semibold text-text-primary">Billing & renewal</h2>
-                    <p className="mt-1 text-xs leading-5 text-text-muted">
-                      Monthly plans renew automatically until you cancel. PayPal securely handles the recurring payment method; AiWebVideo never stores your full card number.
-                    </p>
+                    <p className="mb-1 text-xs font-semibold text-text-muted">Recent activity</p>
+                    <div className="divide-y divide-white/[.06] overflow-hidden rounded-2xl bg-white/[.03]">
+                      {(usage?.recentCredits ?? []).slice(0, 8).map((item) => (
+                        <div key={item.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm text-text-primary">{item.reason || "Credit activity"}</p>
+                            <p className="text-[11px] text-text-dim">{formatAccountDate(item.createdAt)}</p>
+                          </div>
+                          <span className={`shrink-0 font-utility text-sm font-semibold ${item.delta >= 0 ? "text-mint" : "text-text-muted"}`}>
+                            {item.delta >= 0 ? "+" : ""}{formatCredits(item.delta)}
+                          </span>
+                        </div>
+                      ))}
+                      {!usage?.recentCredits?.length && <p className="px-4 py-8 text-center text-sm text-text-dim">No activity yet.</p>}
+                    </div>
                   </div>
                 </div>
-                <Button variant="secondary" disabled={busy} onClick={() => void buyCredits()}>
-                  Buy credits
-                </Button>
-              </div>
+              )}
 
-              <div className="mt-5 grid gap-3 lg:grid-cols-2">
-                {subscriptions.map((subscription) => (
-                  <div key={subscription.id} className="rounded-2xl border border-border bg-bg/25 p-4 sm:p-5">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold capitalize text-text-primary">{subscription.plan} plan</p>
-                        <p className="mt-1 text-[10px] capitalize text-text-dim">{subscription.status.replaceAll("_", " ")}</p>
-                      </div>
-                      <span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${
-                        subscription.autoRenew
-                          ? "border-mint/20 bg-mint/[.06] text-mint"
-                          : "border-border bg-white/[.025] text-text-muted"
-                      }`}>
-                        {subscription.autoRenew ? "Auto-renew on" : "Auto-renew off"}
-                      </span>
-                    </div>
-
-                    {subscription.lastPaymentFailedAt && (
-                      <div className="mt-4 rounded-xl border border-pink/20 bg-pink/[.06] px-3 py-2.5 text-xs leading-5 text-text-muted">
-                        A renewal payment needs attention. PayPal may retry it automatically; check your payment method if the issue continues.
-                      </div>
-                    )}
-
-                    <div className="mt-4 grid grid-cols-2 gap-2">
-                      <div className="rounded-xl border border-border bg-panel/60 p-3">
-                        <CalendarClock size={14} className="text-text-dim" aria-hidden="true" />
-                        <p className="mt-2 text-[10px] text-text-dim">{subscription.autoRenew ? "Next billing" : "Access through"}</p>
-                        <p className="mt-1 text-xs font-semibold text-text-primary">{formatAccountDate(subscription.currentPeriodEnd)}</p>
-                      </div>
-                      <div className="rounded-xl border border-border bg-panel/60 p-3">
-                        <ShieldCheck size={14} className="text-text-dim" aria-hidden="true" />
-                        <p className="mt-2 text-[10px] text-text-dim">Payment</p>
-                        <p className="mt-1 text-xs font-semibold text-text-primary">Managed by PayPal</p>
-                      </div>
-                    </div>
-
-                    {subscription.autoRenew && (
-                      <Button variant="ghost" className="mt-4 w-full sm:w-auto" disabled={busy} onClick={() => void stopRenewal(subscription.id)}>
-                        Cancel automatic renewal
-                      </Button>
-                    )}
-                  </div>
-                ))}
-                {!subscriptions.length && (
-                  <div className="rounded-2xl border border-dashed border-border bg-bg/20 p-5 lg:col-span-2">
-                    <p className="text-sm font-semibold text-text-primary">No active monthly plan</p>
-                    <p className="mt-1 text-xs leading-5 text-text-muted">You can use credit packs or start a monthly plan from Pricing.</p>
-                    <Button variant="ghost" className="mt-3" asChild><Link href="/pricing">View pricing</Link></Button>
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-6 border-t border-border pt-5">
-                <div className="flex items-center gap-2">
-                  <ReceiptText size={16} className="text-text-dim" aria-hidden="true" />
-                  <h3 className="text-sm font-semibold text-text-primary">Billing history</h3>
-                </div>
-                <p className="mt-1 text-xs text-text-muted">Receipts and renewal invoices are also sent to your account email.</p>
-                <div className="mt-3 divide-y divide-border overflow-hidden rounded-2xl border border-border">
-                  {payments.slice(0, 12).map((payment) => (
-                    <div key={payment.id} className="flex min-w-0 flex-col gap-2 bg-bg/20 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="min-w-0">
-                        <p className="truncate text-xs font-semibold text-text-primary">{billingKindLabel(payment.kind)}</p>
-                        <p className="mt-1 truncate text-[10px] text-text-dim">
-                          {formatAccountDate(payment.createdAt)} · {payment.reference}
-                        </p>
-                      </div>
-                      <div className="flex shrink-0 items-center justify-between gap-3 sm:justify-end">
-                        <span className={`rounded-full border px-2 py-1 text-[9px] font-semibold capitalize ${
-                          payment.status === "paid" ? "border-mint/15 bg-mint/[.06] text-mint" : "border-pink/15 bg-pink/[.06] text-pink"
-                        }`}>{payment.status}</span>
-                        <span className="text-[10px] text-text-muted">{formatCredits(payment.creditsGranted)} credits</span>
-                        <span className="font-utility text-xs font-semibold text-text-primary">${payment.amountUsd.toFixed(2)}</span>
-                      </div>
-                    </div>
-                  ))}
-                  {!payments.length && <p className="bg-bg/20 px-4 py-7 text-center text-xs text-text-dim">No billing history yet.</p>}
-                </div>
-              </div>
-            </section>
-
-            <section id="projects" className="mt-5 scroll-mt-24 rounded-3xl border border-border bg-panel p-6 sm:p-7">
-              <div className="flex items-center justify-between gap-4">
+              {tab === "projects" && (
                 <div>
-                  <h2 className="font-display text-lg font-semibold text-text-primary">Recent projects</h2>
-                  <p className="mt-1 text-xs text-text-muted">Your latest saved production history.</p>
+                  <div className="divide-y divide-white/[.06] overflow-hidden rounded-2xl bg-white/[.03]">
+                    {jobs.slice(0, 8).map((job) => (
+                      <Link key={job.id} href={`/dashboard?job=${encodeURIComponent(job.id)}`} className="flex min-h-[64px] items-center gap-3.5 px-3.5 py-2.5 transition hover:bg-white/[.04]">
+                        <div className="h-11 w-16 shrink-0 overflow-hidden rounded-xl bg-panel-alt">
+                          {job.screenshotUrl && <img src={job.screenshotUrl} alt="" loading="lazy" className="h-full w-full object-cover" />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-text-primary">{job.title}</p>
+                          <p className="mt-0.5 text-[11px] capitalize text-text-dim">{job.featureLabel || job.mode} · {job.status.replaceAll("_", " ")}</p>
+                        </div>
+                        <ChevronRight size={16} className="shrink-0 text-text-dim" aria-hidden="true" />
+                      </Link>
+                    ))}
+                    {!jobs.length && (
+                      <div className="px-4 py-10 text-center">
+                        <p className="text-sm text-text-dim">No projects yet.</p>
+                        <Button variant="primary" size="sm" className="mt-3" asChild><Link href="/dashboard">Create one</Link></Button>
+                      </div>
+                    )}
+                  </div>
+                  {jobs.length > 8 && (
+                    <Link href="/dashboard" className="mt-3 block text-center text-xs font-semibold text-violet transition hover:text-mint">View all {jobs.length} projects</Link>
+                  )}
                 </div>
-                <Link href="/dashboard" className="text-xs font-semibold text-violet transition hover:text-mint">
-                  View all
-                </Link>
-              </div>
-              <div className="mt-4 divide-y divide-border">
-                {jobs.slice(0, 6).map((job) => (
-                  <Link
-                    key={job.id}
-                    href={`/dashboard?job=${encodeURIComponent(job.id)}`}
-                    className="flex min-h-16 items-center gap-4 py-3"
-                  >
-                    <div className="h-11 w-16 shrink-0 overflow-hidden rounded-xl border border-border bg-panel-alt">
-                      {job.screenshotUrl && (
-                        <img
-                          src={job.screenshotUrl}
-                          alt=""
-                          loading="lazy"
-                          className="h-full w-full object-cover"
-                        />
+              )}
+
+              {tab === "billing" && (
+                <div className="space-y-5">
+                  {subscriptions.length ? subscriptions.map((subscription) => (
+                    <div key={subscription.id} className="rounded-2xl bg-white/[.04] p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold capitalize text-text-primary">{subscription.plan} plan</p>
+                          <p className="mt-0.5 text-xs text-text-muted">
+                            {subscription.autoRenew ? "Renews" : "Ends"} {formatAccountDate(subscription.currentPeriodEnd)}
+                          </p>
+                        </div>
+                        <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${subscription.autoRenew ? "bg-mint/10 text-mint" : "bg-white/[.06] text-text-muted"}`}>
+                          {subscription.autoRenew ? "Active" : "Cancelled"}
+                        </span>
+                      </div>
+                      {subscription.lastPaymentFailedAt && (
+                        <p className="mt-3 rounded-xl bg-pink/[.08] px-3 py-2 text-xs text-pink">The last renewal payment failed. Check your PayPal payment method.</p>
+                      )}
+                      {subscription.autoRenew && (
+                        <button type="button" disabled={busy} onClick={() => void stopRenewal(subscription.id)} className="mt-3 text-xs font-semibold text-text-muted underline-offset-4 transition hover:text-pink hover:underline disabled:opacity-50">
+                          Cancel renewal
+                        </button>
                       )}
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-text-primary">{job.title}</p>
-                      <p className="mt-1 text-xs capitalize text-text-dim">{job.mode} · {job.status}</p>
+                  )) : (
+                    <div className="flex items-center justify-between gap-3 rounded-2xl bg-white/[.04] px-4 py-3.5">
+                      <p className="text-sm text-text-muted">No monthly plan</p>
+                      <Button variant="secondary" size="sm" asChild><Link href="/pricing">See plans</Link></Button>
                     </div>
-                    <span className="text-text-dim" aria-hidden="true">›</span>
-                  </Link>
-                ))}
-                {!jobs.length && (
-                  <div className="py-10 text-center">
-                    <p className="text-sm font-semibold text-text-primary">No projects yet</p>
-                    <p className="mt-1 text-xs text-text-dim">Your first production will appear here.</p>
-                    <Button variant="ghost" className="mt-3" asChild><Link href="/dashboard">Create your first project</Link></Button>
-                  </div>
-                )}
-              </div>
-            </section>
+                  )}
 
-            <section id="security" className="mt-5 scroll-mt-24 rounded-3xl border border-border bg-panel p-6 sm:p-7">
-              <div className="flex max-w-3xl items-start gap-3">
-                <ShieldCheck size={18} className="mt-0.5 shrink-0 text-mint" aria-hidden="true" />
-                <div>
-                  <h2 className="font-display text-lg font-semibold text-text-primary">Account access</h2>
-                  <p className="mt-1 text-xs leading-5 text-text-muted">
-                    Sessions use secure browser cookies. On a shared device, sign out from the account menu when you finish.
-                  </p>
-                </div>
-              </div>
-              {me?.supportsPasswordChange ? (
-                <form onSubmit={updatePassword} className="mt-6 grid max-w-3xl gap-3 sm:grid-cols-2">
-                  <label className="text-xs font-semibold text-text-muted sm:col-span-2">
-                    Account email
-                    <input
-                      name="username" type="email" autoComplete="username" readOnly value={me.email}
-                      className="mt-1.5 w-full rounded-xl border border-border bg-panel-alt px-3.5 py-2.5 text-base font-normal text-text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet"
-                    />
-                  </label>
-                  <label className="text-xs font-semibold text-text-muted sm:col-span-2">
-                    Current password
-                    <input
-                      name="current-password" type="password" autoComplete="current-password" required maxLength={128}
-                      value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)}
-                      className="mt-1.5 w-full rounded-xl border border-border bg-panel-alt px-3.5 py-2.5 text-base font-normal text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet"
-                    />
-                  </label>
-                  <label className="text-xs font-semibold text-text-muted">
-                    New password
-                    <input
-                      name="new-password" type="password" autoComplete="new-password" required minLength={8} maxLength={128}
-                      value={newPassword} onChange={(event) => setNewPassword(event.target.value)}
-                      className="mt-1.5 w-full rounded-xl border border-border bg-panel-alt px-3.5 py-2.5 text-base font-normal text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet"
-                    />
-                  </label>
-                  <label className="text-xs font-semibold text-text-muted">
-                    Confirm new password
-                    <input
-                      name="new-password-confirmation" type="password" autoComplete="new-password" required minLength={8} maxLength={128}
-                      value={confirmNewPassword} onChange={(event) => setConfirmNewPassword(event.target.value)}
-                      className="mt-1.5 w-full rounded-xl border border-border bg-panel-alt px-3.5 py-2.5 text-base font-normal text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet"
-                    />
-                  </label>
-                  <div className="sm:col-span-2">
-                    <p className="text-xs leading-5 text-text-dim">Your browser or Google Password Manager can save the updated password. You cannot reuse your current or five most recent passwords.</p>
-                    {passwordNotice && <p className="mt-2 text-xs text-mint" role="status">{passwordNotice}</p>}
-                    <Button type="submit" variant="secondary" className="mt-4" disabled={passwordBusy}>
-                      {passwordBusy ? "Updating…" : "Change password"}
-                    </Button>
+                  <SavedCardsPanel />
+
+                  <div>
+                    <p className="mb-1 text-xs font-semibold text-text-muted">History</p>
+                    <div className="divide-y divide-white/[.06] overflow-hidden rounded-2xl bg-white/[.03]">
+                      {payments.slice(0, 12).map((payment) => (
+                        <div key={payment.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm text-text-primary">{billingKindLabel(payment.kind)}</p>
+                            <p className="text-[11px] text-text-dim">{formatAccountDate(payment.createdAt)} · {formatCredits(payment.creditsGranted)} credits</p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p className="font-utility text-sm font-semibold text-text-primary">${payment.amountUsd.toFixed(2)}</p>
+                            {payment.status !== "paid" && <p className="text-[11px] capitalize text-pink">{payment.status}</p>}
+                          </div>
+                        </div>
+                      ))}
+                      {!payments.length && <p className="px-4 py-8 text-center text-sm text-text-dim">No payments yet.</p>}
+                    </div>
                   </div>
-                </form>
-              ) : (
-                <p className="mt-5 max-w-3xl text-xs leading-5 text-text-muted">
-                  This account signs in through {me?.authProvider === "google" ? "Google" : me?.authProvider || "an external provider"}. Manage its password with that provider.
-                </p>
+                </div>
               )}
-            </section>
+
+              {tab === "security" && (
+                me?.supportsPasswordChange ? (
+                  <form onSubmit={updatePassword} className="space-y-3 rounded-2xl bg-white/[.04] p-4 sm:p-5">
+                    <input name="username" type="email" autoComplete="username" readOnly value={me.email} className="sr-only" tabIndex={-1} aria-hidden="true" />
+                    <label className="block text-xs font-semibold text-text-muted">
+                      Current password
+                      <input name="current-password" type="password" autoComplete="current-password" required maxLength={128} value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} className={INPUT_CLASS} />
+                    </label>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <label className="block text-xs font-semibold text-text-muted">
+                        New password
+                        <input name="new-password" type="password" autoComplete="new-password" required minLength={8} maxLength={128} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} className={INPUT_CLASS} />
+                      </label>
+                      <label className="block text-xs font-semibold text-text-muted">
+                        Confirm
+                        <input name="new-password-confirmation" type="password" autoComplete="new-password" required minLength={8} maxLength={128} value={confirmNewPassword} onChange={(event) => setConfirmNewPassword(event.target.value)} className={INPUT_CLASS} />
+                      </label>
+                    </div>
+                    {passwordNotice && <p className="text-xs text-mint" role="status">{passwordNotice}</p>}
+                    <Button type="submit" variant="primary" disabled={passwordBusy}>{passwordBusy ? "Updating…" : "Update password"}</Button>
+                  </form>
+                ) : (
+                  <p className="rounded-2xl bg-white/[.04] px-4 py-4 text-sm text-text-muted">
+                    You sign in with {me?.authProvider === "google" ? "Google" : me?.authProvider || "an external provider"}. Manage your password there.
+                  </p>
+                )
+              )}
+            </div>
+
+            <p className="mt-10 text-center text-xs text-text-dim">
+              Need help? <a href={SUPPORT_MAILTO} className="font-semibold text-violet transition hover:text-mint">{SUPPORT_EMAIL}</a>
+            </p>
           </div>
         )}
-        <section className="mx-auto mb-10 mt-6 flex w-full max-w-6xl flex-col justify-between gap-3 rounded-2xl border border-violet/20 bg-violet/5 p-5 sm:flex-row sm:items-center">
-          <div><p className="text-sm font-semibold text-text-primary">Need help with your account, billing, or production?</p><p className="mt-1 text-xs text-text-dim">Contact AiWebVideo support and include your account email or production ID.</p></div>
-          <a href={SUPPORT_MAILTO} className="shrink-0 rounded-xl border border-violet/25 bg-violet/10 px-4 py-2.5 text-xs font-semibold text-violet transition hover:bg-violet/15">{SUPPORT_EMAIL}</a>
-        </section>
       </main>
       <Footer />
       {showTopupCheckout && (

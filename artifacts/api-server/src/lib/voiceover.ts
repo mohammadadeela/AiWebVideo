@@ -52,18 +52,80 @@ const LANGUAGE_KEYWORDS: Array<{ code: string; label: string; patterns: RegExp[]
   { code: 'ko', label: 'Korean', patterns: [/\bkorean\b/i] },
 ];
 
+const LATIN_STOPWORDS: Array<{ code: string; words: string[] }> = [
+  { code: 'fr', words: ['le', 'la', 'les', 'des', 'une', 'un', 'et', 'pour', 'avec', 'dans', 'est', 'une', 'sur', 'vous', 'nous', 'votre'] },
+  { code: 'es', words: ['el', 'la', 'los', 'las', 'una', 'un', 'para', 'con', 'que', 'por', 'del', 'esta', 'como', 'muy', 'nuestro'] },
+  { code: 'de', words: ['der', 'die', 'das', 'und', 'ein', 'eine', 'mit', 'für', 'ist', 'nicht', 'auf', 'wir', 'sie', 'ihr'] },
+  { code: 'it', words: ['il', 'lo', 'gli', 'una', 'per', 'con', 'che', 'del', 'della', 'sono', 'questo', 'nel', 'molto'] },
+  { code: 'pt', words: ['os', 'as', 'uma', 'para', 'com', 'que', 'não', 'você', 'muito', 'nosso', 'está', 'mais'] },
+  { code: 'tr', words: ['bir', 've', 'için', 'ile', 'bu', 'çok', 'gibi', 'daha', 'olan', 'bizim'] },
+];
+
+/**
+ * Detects the language a customer wrote their brief in from its script (and, for
+ * Latin scripts, common function words). Returns null when the text is English or
+ * too short/ambiguous — callers then fall back to English.
+ */
+export function detectBriefLanguage(text: string | null | undefined): NarrationLanguage | null {
+  const brief = (text ?? '').trim();
+  if (brief.length < 3) return null;
+  const counts: Record<string, number> = { arabic: 0, urdu: 0, cyrillic: 0, devanagari: 0, hangul: 0, kana: 0, han: 0 };
+  for (const char of brief) {
+    const code = char.codePointAt(0) ?? 0;
+    if (code >= 0x0600 && code <= 0x06ff) {
+      counts.arabic += 1;
+      if ([0x0679, 0x0688, 0x0691, 0x06ba, 0x06be, 0x06c1, 0x06d2].includes(code)) counts.urdu += 1;
+    } else if (code >= 0x0400 && code <= 0x04ff) counts.cyrillic += 1;
+    else if (code >= 0x0900 && code <= 0x097f) counts.devanagari += 1;
+    else if ((code >= 0xac00 && code <= 0xd7af) || (code >= 0x1100 && code <= 0x11ff)) counts.hangul += 1;
+    else if (code >= 0x3040 && code <= 0x30ff) counts.kana += 1;
+    else if (code >= 0x4e00 && code <= 0x9fff) counts.han += 1;
+  }
+  const scripts: Array<[string, number]> = [
+    ['arabic', counts.arabic], ['cyrillic', counts.cyrillic], ['devanagari', counts.devanagari],
+    ['hangul', counts.hangul], ['kana', counts.kana], ['han', counts.han],
+  ];
+  const [dominant, total] = scripts.sort((a, b) => b[1] - a[1])[0];
+  if (total >= 3) {
+    if (dominant === 'arabic') return counts.urdu >= 2 ? { code: 'ur', label: 'Urdu' } : { code: 'ar', label: 'Arabic' };
+    if (dominant === 'cyrillic') return { code: 'ru', label: 'Russian' };
+    if (dominant === 'devanagari') return { code: 'hi', label: 'Hindi' };
+    if (dominant === 'hangul') return { code: 'ko', label: 'Korean' };
+    if (dominant === 'kana' || (dominant === 'han' && counts.kana > 0)) return { code: 'ja', label: 'Japanese' };
+    if (dominant === 'han') return { code: 'zh', label: 'Chinese' };
+  }
+  const tokens = brief.toLowerCase().match(/[\p{L}']+/gu) ?? [];
+  if (tokens.length < 3) return null;
+  if (/[ğşıİ]/i.test(brief)) return { code: 'tr', label: 'Turkish' };
+  const scored = LATIN_STOPWORDS.map(({ code, words }) => ({
+    code,
+    hits: tokens.filter((token) => words.includes(token)).length,
+  })).sort((a, b) => b.hits - a.hits);
+  const englishHits = tokens.filter((token) => ['the', 'and', 'for', 'with', 'your', 'you', 'is', 'of', 'to', 'in', 'a'].includes(token)).length;
+  if (scored[0].hits >= 2 && scored[0].hits > englishHits) {
+    const entry = LANGUAGE_KEYWORDS.find((item) => item.code === scored[0].code);
+    if (entry) return { code: entry.code, label: entry.label };
+  }
+  return null;
+}
+
 export function resolveNarrationLanguage(creativeBrief: string | null | undefined, htmlLang: string | null | undefined, explicitCode?: string | null): NarrationLanguage {
-  if (explicitCode) {
-    const selected = LANGUAGE_KEYWORDS.find((entry) => entry.code === explicitCode.toLowerCase());
+  const requested = (explicitCode ?? '').trim().toLowerCase();
+  if (requested && requested !== 'auto') {
+    const selected = LANGUAGE_KEYWORDS.find((entry) => entry.code === requested);
     if (selected) return { code: selected.code, label: selected.label };
   }
   const brief = creativeBrief ?? '';
+  // "Make it in French" style requests always win over detection.
   for (const entry of LANGUAGE_KEYWORDS) {
     if (entry.patterns.some((pattern) => pattern.test(brief))) return { code: entry.code, label: entry.label };
   }
+  // Otherwise speak the language the customer actually wrote in.
+  const detected = detectBriefLanguage(brief);
+  if (detected) return detected;
   const normalized = (htmlLang ?? '').trim().toLowerCase().split('-')[0];
   const byHtmlLang = LANGUAGE_KEYWORDS.find((entry) => entry.code === normalized);
-  if (byHtmlLang) return byHtmlLang;
+  if (byHtmlLang) return { code: byHtmlLang.code, label: byHtmlLang.label };
   return { code: 'en', label: 'English' };
 }
 

@@ -813,7 +813,7 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
       frameRate,
       selectedCaptureIds: selectedCaptureIds ?? [],
       audioMode: planningAudioMode,
-      narrationLanguage: previousWorkflow?.narrationLanguage ?? "en",
+      narrationLanguage: previousWorkflow?.narrationLanguage ?? "auto",
       websiteAutoFlow: previousWorkflow?.websiteAutoFlow,
       manualRenderAfterPlan: previousWorkflow?.manualRenderAfterPlan,
       requestedDurationSeconds: previousWorkflow?.requestedDurationSeconds,
@@ -1073,9 +1073,9 @@ router.post("/:id/render", requireAuth, async (req, res) => {
         skipVoiceover: z.boolean().optional().default(false),
         audioMode: z.enum(["voice_music", "native_audio", "music_only", "silent"]).optional(),
         narrationLanguage: z
-          .enum(["en", "ar", "fr", "es", "de", "it", "tr", "hi", "ur", "pt", "ru", "zh", "ja", "ko"])
+          .enum(["auto", "en", "ar", "fr", "es", "de", "it", "tr", "hi", "ur", "pt", "ru", "zh", "ja", "ko"])
           .optional()
-          .default("en"),
+          .default("auto"),
       })
       .parse(req.body);
     const audioMode: AudioMode = renderInput.audioMode ?? (renderInput.skipVoiceover ? "silent" : "voice_music");
