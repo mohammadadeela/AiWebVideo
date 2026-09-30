@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Link, useLocation } from "wouter";
 import { ChatWidget } from "@/components/chat/ChatWidget";
 import type { CreationIntent } from "@/components/chat/WebsiteBriefForm";
@@ -296,7 +296,7 @@ export function DashboardClient() {
     );
 
   return (
-    <div className="min-h-screen bg-bg lg:flex" style={{ "--workspace-sidebar-width": `${sidebarWidth}px` } as Record<string, string>}>
+    <div className="min-h-screen bg-bg lg:flex" style={{ "--workspace-sidebar-width": `${sidebarWidth}px` } as CSSProperties}>
       {sidebarOpen && (
         <button
           type="button"
