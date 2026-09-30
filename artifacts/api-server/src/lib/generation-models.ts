@@ -188,12 +188,12 @@ export function generationModelForMode(
 ): GenerationModelDefinition {
   const fallbackId: PublicGenerationModelId =
     mode === 'photos' || mode === 'icon'
-      ? studioKind === 'interior' ? 'space-2' : 'graphic-2'
+      ? (studioKind === 'interior' || studioKind === 'architecture') ? 'space-2' : 'graphic-2'
       : 'cinema-2';
   const model = id ? GENERATION_MODELS[id as PublicGenerationModelId] : undefined;
   if (!model) return GENERATION_MODELS[fallbackId];
   if (mode === 'photos' || mode === 'icon') {
-    if (studioKind === 'interior') return model.kind === 'interior' ? model : GENERATION_MODELS['space-2'];
+    if (studioKind === 'interior' || studioKind === 'architecture') return model.kind === 'interior' ? model : GENERATION_MODELS['space-2'];
     return model.kind === 'image' ? model : GENERATION_MODELS['graphic-2'];
   }
   return model.kind === 'video' ? model : GENERATION_MODELS['cinema-2'];
