@@ -188,7 +188,7 @@ export function generationModelForMode(
 ): GenerationModelDefinition {
   const fallbackId: PublicGenerationModelId =
     mode === 'photos' || mode === 'icon'
-      ? studioKind === 'interior' ? 'space-2' : 'graphic-2'
+      ? studioKind === 'interior' || studioKind === 'architecture' ? 'space-2' : 'graphic-2'
       : 'cinema-2';
   const model = id ? GENERATION_MODELS[id as PublicGenerationModelId] : undefined;
   if (!model) return GENERATION_MODELS[fallbackId];
