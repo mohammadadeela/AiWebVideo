@@ -341,6 +341,8 @@ router.post('/:jobId/references', requireAuth, async (req, res) => {
       throw new AppError('Start a new version before adding references.', 409, 'JOB_ALREADY_STARTED');
     const metadata = target.capture_metadata as { pages?: Array<{ url: string; title: string; screenshotUrl: string }>; [key: string]: unknown };
     const pages = [...(metadata.pages ?? [])];
+    if (!req.user!.isAdmin && pages.filter((page) => page.url?.startsWith('saved-reference://') || page.url?.startsWith('private://')).length + references.length > 20)
+      throw new AppError('Use up to 20 added references per project.', 400, 'TOO_MANY_PAGES');
     const sources = new Map<string, Awaited<ReturnType<typeof getJob>>>();
     const selected: Array<{ jobId: string; filename: string; title: string }> = [];
     for (const reference of references) {
@@ -348,7 +350,7 @@ router.post('/:jobId/references', requireAuth, async (req, res) => {
       const source = sources.get(reference.jobId);
       if (!source || source.deleted_at || source.user_id !== req.user!.id) throw new AppError('Saved reference not found.', 404, 'NOT_FOUND');
       const page = (source.capture_metadata as typeof metadata | null)?.pages?.[reference.index];
-      const match = page?.screenshotUrl?.match(new RegExp(`^/api/assets/${reference.jobId}/([a-z0-9][a-z0-9._-]{0,180})(?:\\\\?.*)?$`, 'i'));
+      const match = page?.screenshotUrl?.match(new RegExp(`^/api/assets/${reference.jobId}/([a-z0-9][a-z0-9._-]{0,180})(?:\\?.*)?$`, 'i'));
       if (!match) throw new AppError('Saved reference is unavailable.', 404, 'NOT_FOUND');
       selected.push({ jobId: reference.jobId, filename: match[1], title: String(page?.title || 'Saved reference').slice(0, 120) });
     }
