@@ -9,7 +9,6 @@ export interface WebsiteHandoffSettings {
   audioMode: AudioMode;
   narrationLanguage: string;
   modelId: PublicModelId;
-  inspirationMediaId?: string;
 }
 
 export interface WebsiteCreatorHandoff {
@@ -31,7 +30,6 @@ export interface StudioCreatorHandoff {
     outputQuality: "1080p" | "4k";
     audioMode: AudioMode;
     modelId: PublicModelId;
-    inspirationMediaId?: string;
     productUrl?: string;
     productImageUrls?: string[];
     architecture?: Record<string, string | number | boolean | undefined>;
