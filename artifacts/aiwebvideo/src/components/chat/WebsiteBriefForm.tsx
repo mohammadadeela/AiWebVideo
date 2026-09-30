@@ -8,6 +8,7 @@ import {
   Globe2,
   Image as ImageIcon,
   House,
+  Building2,
   Languages,
   Maximize2,
   MessageCircleMore,
@@ -33,6 +34,7 @@ import {
   type IdeaContext,
 } from "@/lib/creativeIdeas";
 import { trackStudioEvent } from "@/lib/studio-api";
+import { extractProductReference, resolveArchitectureLocation } from "@/lib/api-client";
 import type { AudioMode, JobMode } from "./types";
 
 export type CreationIntent =
@@ -41,7 +43,8 @@ export type CreationIntent =
   | "photo"
   | "product-video"
   | "scenario"
-  | "interior";
+  | "interior"
+  | "architecture";
 
 export type WebsiteProductionMode = Extract<
   JobMode,
@@ -56,10 +59,13 @@ export interface WebsiteGenerationSettings {
   audioMode: AudioMode;
   narrationLanguage: string;
   modelId: PublicModelId;
+  productUrl?: string;
+  productImageUrls?: string[];
+  architecture?: Record<string, string | number | boolean | undefined>;
 }
 
 export interface StudioGenerationRequest {
-  studioKind: "product" | "idea" | "scenario" | "interior";
+  studioKind: "product" | "idea" | "scenario" | "interior" | "architecture";
   prompt: string;
   files: File[];
   mode: "photos" | "video" | "custom";
@@ -100,6 +106,7 @@ const CREATION_MODES = [
   { id: "product-video" as const, label: "Product Video", short: "Product", icon: PackageOpen },
   { id: "scenario" as const, label: "Talking Scene", short: "Talking", icon: MessageCircleMore },
   { id: "interior" as const, label: "Interior Design", short: "Interior", icon: House },
+  { id: "architecture" as const, label: "Architecture", short: "Architect", icon: Building2 },
 ] as const;
 
 const ACCEPTED_IMAGES = ["image/jpeg", "image/png", "image/webp"];
@@ -135,7 +142,8 @@ function intentFromSearch(): CreationIntent | null {
   if (value === "photo" || value === "product") return "photo";
   if (value === "product-video") return "product-video";
   if (value === "scenario" || value === "talking") return "scenario";
-  if (value === "interior" || value === "interior-design" || value === "architecture") return "interior";
+  if (value === "interior" || value === "interior-design") return "interior";
+  if (value === "architecture") return "architecture";
   if (value === "video" || value === "idea") return "video";
   if (value === "website") return "website";
   return null;
@@ -355,6 +363,18 @@ export function WebsiteBriefForm({
   const [url, setUrl] = useState("");
   const [brief, setBrief] = useState("");
   const [prompt, setPrompt] = useState("");
+  const [productLink, setProductLink] = useState("");
+  const [productData, setProductData] = useState<{ title: string; description: string; url: string; images: string[] } | null>(null);
+  const [chosenProductImages, setChosenProductImages] = useState<string[]>([]);
+  const [readingProduct, setReadingProduct] = useState(false);
+  const [mapLink, setMapLink] = useState("");
+  const [site, setSite] = useState<{ latitude?: number; longitude?: number; label: string | null; resolvedUrl: string } | null>(null);
+  const [resolvingSite, setResolvingSite] = useState(false);
+  const [plotWidth, setPlotWidth] = useState("");
+  const [plotDepth, setPlotDepth] = useState("");
+  const [floorCount, setFloorCount] = useState("");
+  const [setback, setSetback] = useState("");
+  const [estimatedScale, setEstimatedScale] = useState(false);
   const [compactPanel, setCompactPanel] = useState<"style" | "ideas" | "model" | null>(null);
   const [openSettingMenu, setOpenSettingMenu] = useState<"duration" | "aspect" | "quality" | "audio" | "language" | null>(null);
   const [customDurationInput, setCustomDurationInput] = useState(String(DEFAULT_SETTINGS.durationSeconds));
@@ -385,10 +405,10 @@ export function WebsiteBriefForm({
       if (intent === "photo") {
         return { ...current, aspectRatio: "1:1", audioMode: "silent", outputQuality: "1080p", modelId: defaultModelFor("image") };
       }
-      if (intent === "interior") {
+      if (intent === "interior" || intent === "architecture") {
         return { ...current, aspectRatio: "16:9", audioMode: "silent", outputQuality: "1080p", modelId: defaultModelFor("interior") };
       }
-      const leavingPhotoDefaults = (previousIntent === "photo" || previousIntent === "interior") && current.audioMode === "silent";
+      const leavingPhotoDefaults = (previousIntent === "photo" || previousIntent === "interior" || previousIntent === "architecture") && current.audioMode === "silent";
       return {
         ...current,
         ...(leavingPhotoDefaults ? { aspectRatio: "9:16" as const, audioMode: "native_audio" as const } : {}),
@@ -449,7 +469,7 @@ export function WebsiteBriefForm({
   }), [activeMode, brief, files, prompt, url]);
 
   const masterIdeas = useMemo(
-    () => getIdeasForIntent(activeMode, ideaContext, 6),
+    () => getIdeasForIntent(activeMode === "architecture" ? "interior" : activeMode, ideaContext, 6),
     [activeMode, ideaContext],
   );
 
@@ -603,7 +623,7 @@ export function WebsiteBriefForm({
     }
 
     const isProduct = activeMode === "photo" || activeMode === "product-video";
-    const isInterior = activeMode === "interior";
+    const isInterior = activeMode === "interior" || activeMode === "architecture";
     const activePrompt = isProduct || isInterior ? brief.trim() : prompt.trim();
     if (!activePrompt) {
       setError(
@@ -611,6 +631,8 @@ export function WebsiteBriefForm({
           ? "Describe the talking scene you want to create before generating."
           : activeMode === "interior"
             ? "Describe the space, measurements, design direction and output you want before generating."
+          : activeMode === "architecture"
+            ? "Describe the building, site placement and architectural direction before generating."
           : activeMode === "photo"
             ? "Describe the product-photo campaign you want before generating."
             : activeMode === "product-video"
@@ -620,8 +642,12 @@ export function WebsiteBriefForm({
       studioPromptRef.current?.focus();
       return;
     }
-    if ((isProduct || isInterior) && files.length === 0) {
-      setError(isInterior ? "Attach at least one clear photo, sketch, plan, elevation, or reference image of the space." : "Attach at least one real product or reference photo.");
+    if (activeMode === "architecture" && (!site || (!estimatedScale && (!Number(plotWidth) || !Number(plotDepth))))) {
+      setError("Add a Google Maps location/address and plot width/depth, or choose estimated site scale.");
+      return;
+    }
+    if ((isProduct || isInterior) && files.length === 0 && (!isProduct || chosenProductImages.length === 0)) {
+      setError(isInterior ? "Attach at least one site/space photo, plan, sketch, elevation, or reference image." : "Add a product photo or import a product link.");
       return;
     }
 
@@ -634,7 +660,9 @@ export function WebsiteBriefForm({
           ? "scenario"
           : activeMode === "interior"
             ? "interior"
-            : "idea",
+            : activeMode === "architecture"
+              ? "architecture"
+              : "idea",
       prompt: activePrompt,
       files,
       mode: activeMode === "photo" ? "photos" : activeMode === "product-video" ? "video" : isInterior ? (interiorOutput === "video" ? "custom" : "photos") : "custom",
@@ -643,27 +671,40 @@ export function WebsiteBriefForm({
       outputQuality: safeQuality,
       audioMode: activeMode === "photo" || (isInterior && interiorOutput === "images") ? "silent" : safeAudioMode,
       modelId: settings.modelId,
+      productUrl: productData?.url,
+      productImageUrls: chosenProductImages,
+      architecture: activeMode === "architecture" ? {
+        location: site?.label || site?.resolvedUrl,
+        latitude: site?.latitude,
+        longitude: site?.longitude,
+        mapUrl: site?.resolvedUrl || undefined,
+        plotWidth: Number(plotWidth) || undefined,
+        plotDepth: Number(plotDepth) || undefined,
+        floors: Number(floorCount) || undefined,
+        setback: Number(setback) || undefined,
+        estimatedScale,
+      } : undefined,
     });
   }
 
   const isProductMode = activeMode === "photo" || activeMode === "product-video";
-  const isInteriorMode = activeMode === "interior";
-  const isVideoMode = activeMode !== "photo" && (activeMode !== "interior" || interiorOutput === "video");
+  const isInteriorMode = activeMode === "interior" || activeMode === "architecture";
+  const isVideoMode = activeMode !== "photo" && (!isInteriorMode || interiorOutput === "video");
   const durationSeconds = settings.durationSeconds === "auto" ? 8 : settings.durationSeconds;
   const formatSummary = settings.aspectRatio === "9:16" ? "Portrait" : settings.aspectRatio === "16:9" ? "Wide" : "Square";
-  const modelFamily = isVideoMode ? "video" : activeMode === "interior" ? "interior" : "image";
+  const modelFamily = isVideoMode ? "video" : isInteriorMode ? "interior" : "image";
   const availableModels = modelsFor(modelFamily);
   const selectedModel = publicModel(settings.modelId);
-  const exactCredits = activeMode === "photo" || (activeMode === "interior" && interiorOutput === "images")
+  const exactCredits = activeMode === "photo" || (isInteriorMode && interiorOutput === "images")
     ? estimateRenderCredits("photos", true, 8, settings.outputQuality, settings.modelId)
     : estimateRenderCredits("video", settings.audioMode !== "voice_music", durationSeconds, settings.outputQuality, settings.modelId);
   const submitDisabled = disabled || (
     activeMode === "website"
       ? !url.trim() || !brief.trim()
       : isProductMode
-        ? files.length === 0 || !brief.trim()
+        ? (files.length === 0 && chosenProductImages.length === 0) || !brief.trim()
         : isInteriorMode
-          ? files.length === 0 || !brief.trim()
+          ? files.length === 0 || !brief.trim() || (activeMode === "architecture" && (!site || (!estimatedScale && (!Number(plotWidth) || !Number(plotDepth)))))
           : !prompt.trim()
   );
   const createLabel = activeMode === "website"
@@ -676,7 +717,9 @@ export function WebsiteBriefForm({
           ? "Create product video"
           : activeMode === "interior"
             ? "Create interior design"
-            : "Create talking scene";
+            : activeMode === "architecture"
+              ? "Create architecture"
+              : "Create talking scene";
 
   return (
     <div
@@ -755,7 +798,132 @@ export function WebsiteBriefForm({
       </div>
 
       <div className={`relative ${compactLayout ? "p-3 sm:p-4" : "p-4 sm:p-5"}`}>
-        {activeMode === "interior" && (
+        {isProductMode && (
+          <div className="mb-3 rounded-2xl border border-white/[.08] bg-white/[.025] p-3">
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <div className="flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-xl border border-white/[.10] bg-[#0b0818] px-3 focus-within:border-violet/45">
+                <PackageOpen size={14} className="shrink-0 text-violet" />
+                <input
+                  type="url"
+                  value={productLink}
+                  onChange={(event) => setProductLink(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key !== "Enter" || !productLink.trim() || readingProduct) return;
+                    event.preventDefault();
+                    setReadingProduct(true);
+                    setError(null);
+                    void extractProductReference(productLink).then((data) => {
+                      setProductData(data);
+                      setChosenProductImages(data.images.slice(0, 1));
+                      if (!brief.trim() && data.description) setBrief(data.description.slice(0, 1200));
+                    }).catch(() => {
+                      setProductData(null);
+                      setChosenProductImages([]);
+                      setError("Couldn't load this product link. You can upload product photos instead.");
+                    }).finally(() => setReadingProduct(false));
+                  }}
+                  placeholder="Paste a product link"
+                  aria-label="Product link"
+                  className="min-w-0 flex-1 bg-transparent py-2.5 text-xs text-white outline-none placeholder:text-white/35"
+                />
+              </div>
+              <button
+                type="button"
+                disabled={!productLink.trim() || readingProduct}
+                onClick={() => {
+                  setReadingProduct(true);
+                  setError(null);
+                  void extractProductReference(productLink).then((data) => {
+                    setProductData(data);
+                    setChosenProductImages(data.images.slice(0, 1));
+                    if (!brief.trim() && data.description) setBrief(data.description.slice(0, 1200));
+                  }).catch(() => {
+                    setProductData(null);
+                    setChosenProductImages([]);
+                    setError("Couldn't load this product link. You can upload product photos instead.");
+                  }).finally(() => setReadingProduct(false));
+                }}
+                className="min-h-10 shrink-0 rounded-xl border border-violet/25 bg-violet/[.08] px-3 text-[11px] font-semibold text-violet transition hover:bg-violet/[.13] disabled:opacity-40"
+              >
+                {readingProduct ? "Reading…" : "Use product link"}
+              </button>
+            </div>
+            {productData && (
+              <div className="mt-2.5">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="min-w-0 truncate text-[11px] font-semibold text-white">{productData.title || "Choose product images"}</p>
+                  <span className="shrink-0 text-[9px] text-text-dim">{chosenProductImages.length} selected</span>
+                </div>
+                <div className="chat-scroll mt-2 flex gap-2 overflow-x-auto pb-1">
+                  {productData.images.map((image) => {
+                    const selected = chosenProductImages.includes(image);
+                    return (
+                      <button key={image} type="button" aria-label="Use product image" aria-pressed={selected}
+                        onClick={() => setChosenProductImages((current) => current.includes(image) ? current.filter((url) => url !== image) : [...current, image].slice(0, 6))}
+                        className={`relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 bg-white ${selected ? "border-mint" : "border-transparent opacity-65 hover:opacity-100"}`}>
+                        <img src={image} alt="" loading="lazy" className="h-full w-full object-contain" />
+                        {selected && <span className="absolute right-1 top-1 grid h-4 w-4 place-items-center rounded-full bg-mint text-[9px] font-bold text-[#10231f]">✓</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeMode === "architecture" && (
+          <div className="mb-3 space-y-2.5 rounded-2xl border border-white/[.08] bg-white/[.025] p-3">
+            <div className="flex items-center gap-2">
+              <Building2 size={15} className="text-mint" />
+              <div>
+                <p className="text-[11px] font-semibold text-white">Architecture site</p>
+                <p className="text-[9px] text-text-dim">Ground the concept in a real location and your engineering dimensions.</p>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <input
+                type="text"
+                value={mapLink}
+                onChange={(event) => { setMapLink(event.target.value); setSite(null); }}
+                placeholder="Google Maps link or address"
+                aria-label="Google Maps link or address"
+                className="min-h-10 min-w-0 flex-1 rounded-xl border border-white/[.10] bg-[#0b0818] px-3 text-xs text-white outline-none placeholder:text-white/35 focus:border-mint/40"
+              />
+              <button type="button" disabled={!mapLink.trim() || resolvingSite} onClick={() => {
+                setResolvingSite(true); setError(null);
+                if (!/^https?:\/\//i.test(mapLink)) {
+                  setSite({ label: mapLink.trim(), resolvedUrl: "" }); setResolvingSite(false); return;
+                }
+                void resolveArchitectureLocation(mapLink).then(setSite).catch(() => {
+                  setSite(null); setError("Couldn't identify this location. Paste another Google Maps link or enter the address.");
+                }).finally(() => setResolvingSite(false));
+              }} className="min-h-10 rounded-xl border border-mint/20 bg-mint/[.06] px-3 text-[11px] font-semibold text-mint disabled:opacity-40">
+                {resolvingSite ? "Locating…" : "Use location"}
+              </button>
+            </div>
+            {site && <p className="text-[10px] text-mint">✓ {site.label || `${site.latitude}, ${site.longitude}`} · now add a site photo/screenshot or plan</p>}
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {[
+                [plotWidth, setPlotWidth, "Plot width (m)"],
+                [plotDepth, setPlotDepth, "Plot depth (m)"],
+                [floorCount, setFloorCount, "Floors"],
+                [setback, setSetback, "Setback (m)"],
+              ].map(([value, setter, label]) => (
+                <input key={label as string} type="number" min="0" step="any" value={value as string}
+                  onChange={(event) => (setter as (value: string) => void)(event.target.value)}
+                  placeholder={label as string} aria-label={label as string}
+                  className="min-h-9 min-w-0 rounded-xl border border-white/[.10] bg-[#0b0818] px-2.5 text-[10px] text-white outline-none focus:border-mint/35" />
+              ))}
+            </div>
+            <label className="flex cursor-pointer items-center gap-2 text-[10px] text-text-muted">
+              <input type="checkbox" checked={estimatedScale} onChange={(event) => setEstimatedScale(event.target.checked)} />
+              Use estimated site scale when exact plot measurements are unavailable
+            </label>
+          </div>
+        )}
+
+        {(activeMode === "interior" || activeMode === "architecture") && (
           <div className="mb-3 inline-flex rounded-xl border border-white/[.10] bg-white/[.025] p-1">
             <button
               type="button"
@@ -783,7 +951,7 @@ export function WebsiteBriefForm({
         {!compactLayout && (
           <div className="mb-4">
             <p className="font-display text-base font-semibold text-white">
-              {activeMode === "website" ? "Create a video from your website" : activeMode === "video" ? "Create an AI video" : activeMode === "photo" ? "Create product photos" : activeMode === "product-video" ? "Create a product video" : activeMode === "interior" ? "Design an interior" : "Create a talking scene"}
+              {activeMode === "website" ? "Create a video from your website" : activeMode === "video" ? "Create an AI video" : activeMode === "photo" ? "Create product photos" : activeMode === "product-video" ? "Create a product video" : activeMode === "interior" ? "Design an interior" : activeMode === "architecture" ? "Place architecture on a real site" : "Create a talking scene"}
             </p>
             <p className="mt-1 text-[11px] text-text-dim">Describe what you want, then use Ideas only when you want creative inspiration.</p>
           </div>
@@ -811,7 +979,7 @@ export function WebsiteBriefForm({
 
           <label className="block">
             <span className="mb-1.5 flex items-center justify-between gap-3 text-[11px] font-semibold text-white">
-              <span>{activeMode === "website" ? "What should the video highlight?" : activeMode === "video" ? "Describe your video" : activeMode === "photo" ? "Describe the product photos" : activeMode === "product-video" ? "Describe the product video" : activeMode === "interior" ? "Describe the space, measurements and design" : "Describe the talking scene"}</span>
+              <span>{activeMode === "website" ? "What should the video highlight?" : activeMode === "video" ? "Describe your video" : activeMode === "photo" ? "Describe the product photos" : activeMode === "product-video" ? "Describe the product video" : activeMode === "interior" ? "Describe the space, measurements and design" : activeMode === "architecture" ? "Describe the building and site placement" : "Describe the talking scene"}</span>
               <span className="text-[9px] font-normal text-text-dim">Required</span>
             </span>
             <textarea
@@ -830,7 +998,11 @@ export function WebsiteBriefForm({
                       ? "Example: Premium ecommerce product photos with soft studio light."
                       : activeMode === "product-video"
                         ? "Example: Slow premium reveal, macro details, strong hero ending."
-                        : "Example: Two founders explain the product naturally in a bright studio."
+                        : activeMode === "interior"
+                          ? "Example: Redesign this shop using the supplied measurements, white shelving and magnetic lighting."
+                          : activeMode === "architecture"
+                            ? "Example: Place a modern two-floor commercial building on this exact site while respecting the plot dimensions and road setback."
+                            : "Example: Two founders explain the product naturally in a bright studio."
               }
               rows={compactLayout ? 3 : 4}
               disabled={disabled}
@@ -882,7 +1054,7 @@ export function WebsiteBriefForm({
             className={controlClass(files.length > 0)}
           >
             <Paperclip size={13} className="text-mint" />
-            {files.length ? `References ${files.length}` : isProductMode ? "Add product photo" : activeMode === "interior" ? "Add space references" : "References"}
+            {files.length ? `References ${files.length}` : isProductMode ? "Add product photo" : activeMode === "interior" ? "Add space references" : activeMode === "architecture" ? "Add site / plans" : "References"}
           </button>
 
           </div>
