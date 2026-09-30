@@ -186,7 +186,11 @@ function doneResultMessage(
   selectedGeneratedPhotoIds: string[] = [],
 ): ReactNode {
   const label =
-    job.mode === "photos"
+    job.captureMetadata?.studioKind === "architecture"
+      ? "Your architecture concept is ready."
+      : job.captureMetadata?.studioKind === "interior"
+        ? "Your interior design is ready."
+        : job.mode === "photos"
       ? "Your AI photo campaign is ready."
       : job.mode === "custom"
         ? "Your AI-generated video is ready."
@@ -416,17 +420,21 @@ export function ChatWidget({
   const projectCaptureMetadata = activeCaptureMetadata ?? job?.captureMetadata;
   const isStudioProject = projectCaptureMetadata?.sourceType === "studio";
   const productionKind: ProductionKind =
-    mode === "photos"
-      ? isStudioProject
-        ? "product-photos"
-        : "campaign-photos"
-      : isStudioProject && projectCaptureMetadata?.studioKind === "product"
-        ? "product-video"
-        : isStudioProject && projectCaptureMetadata?.studioKind === "scenario"
-          ? "talking-scene"
-          : isStudioProject
-            ? "ai-video"
-            : "website-video";
+    isStudioProject && projectCaptureMetadata?.studioKind === "architecture"
+      ? "architecture"
+      : isStudioProject && projectCaptureMetadata?.studioKind === "interior"
+        ? "interior-design"
+        : mode === "photos"
+          ? isStudioProject
+            ? "product-photos"
+            : "campaign-photos"
+          : isStudioProject && projectCaptureMetadata?.studioKind === "product"
+            ? "product-video"
+            : isStudioProject && projectCaptureMetadata?.studioKind === "scenario"
+              ? "talking-scene"
+              : isStudioProject
+                ? "ai-video"
+                : "website-video";
   const liveReferenceItems = captureMediaItems(projectCaptureMetadata);
   const activeSceneCount = Math.max(1, Math.ceil((job?.storyboard?.targetDurationSeconds || durationSeconds) / 8));
   const sceneAssignments = useMemo(() => {
