@@ -364,13 +364,21 @@ export function GenerationCanvas({
         <div className="relative p-3.5 sm:p-4">
           <div className="flex items-start gap-3">
             <span
-              className={`flex h-9 shrink-0 items-center justify-center overflow-hidden rounded-xl border ${copy.accentBorder} ${copy.accentBg} ${copy.accentText} ${brandMarkUrl && productionKind === "website-video" ? "min-w-9 max-w-[112px] px-1.5" : "w-9"}`}
+              className={
+                "flex h-9 shrink-0 items-center justify-center overflow-hidden rounded-xl border " +
+                copy.accentBorder +
+                " " +
+                copy.accentBg +
+                " " +
+                copy.accentText +
+                (brandMarkUrl && productionKind === "website-video" ? " min-w-9 max-w-[112px] px-1.5" : " w-9")
+              }
               aria-hidden="true"
             >
               {brandMarkUrl && productionKind === "website-video" ? (
                 <img
                   src={brandMarkUrl}
-                  alt={brandName ? `${brandName} logo` : ""}
+                  alt={brandName ? brandName + " logo" : "Website logo"}
                   className="max-h-5 max-w-[88px] object-contain"
                 />
               ) : (
