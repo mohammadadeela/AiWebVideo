@@ -2590,6 +2590,30 @@ ${request.prompt}`
                 ),
               )
             )}
+            {!restoring && stage === "preview_ready" && !job?.sourceUrl.startsWith("upload://") && (
+              <ChatBubble role="bot" immersive={immersive}>
+                <div className="max-w-2xl space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[12px] font-semibold text-white">Website ready</span>
+                    <span className="rounded-full border border-mint/15 bg-mint/[.07] px-2 py-0.5 text-[8px] font-semibold uppercase tracking-[.1em] text-mint">
+                      Free preview
+                    </span>
+                  </div>
+                  <p className="text-[11px] leading-5 text-text-muted">
+                    I captured {projectCaptureMetadata?.pageCount ?? liveReferenceItems.length} useful page{(projectCaptureMetadata?.pageCount ?? liveReferenceItems.length) === 1 ? "" : "s"} from <span className="font-semibold text-text-primary">{websiteBrandName(job?.sourceUrl, projectCaptureMetadata?.title)}</span> and saved the website context for this chat.
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 text-[9px] text-text-dim">
+                    <span className="rounded-full border border-white/[.07] bg-white/[.025] px-2.5 py-1">{durationLabel(durationSeconds)}</span>
+                    <span className="rounded-full border border-white/[.07] bg-white/[.025] px-2.5 py-1">{aspectRatio}</span>
+                    <span className="rounded-full border border-white/[.07] bg-white/[.025] px-2.5 py-1">{outputQuality === "4k" ? "4K" : "1080p"}</span>
+                    <span className="rounded-full border border-white/[.07] bg-white/[.025] px-2.5 py-1">{audioMode === "voice_music" ? "Narrated" : audioMode === "native_audio" ? "Scene audio" : audioMode === "music_only" ? "Music" : "Silent"}</span>
+                  </div>
+                  <p className="line-clamp-2 text-[10px] leading-4 text-text-dim">
+                    <span className="font-semibold text-text-muted">Goal:</span> {creativeBrief?.trim() || "Create a brand-aware campaign from the captured website."}
+                  </p>
+                </div>
+              </ChatBubble>
+            )}
             {!restoring && pollingActive && (
               <div ref={generationProcessRef} className="scroll-mt-24">
                 <GenerationCanvas
@@ -2637,54 +2661,11 @@ ${request.prompt}`
               />
             )}
             {stage === "preview_ready" && (
-              <div className="space-y-3">
-                <div className="rounded-2xl border border-mint/25 bg-mint/[.055] p-4">
-                  <p className="font-utility text-[9px] font-semibold uppercase tracking-[.16em] text-mint">
-                    Your website is ready
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-white">
-                    We captured {websiteBrandName(job?.sourceUrl, projectCaptureMetadata?.title)} and saved the useful context.
-                  </p>
-                  <p className="mt-1 text-[11px] leading-5 text-text-muted">
-                    These are your real website pages, favicon and brand signals. The free preview proves the source is connected before you decide whether to pay for AI production.
-                  </p>
-                  <div className="mt-3 grid gap-2 text-[10px] text-text-muted sm:grid-cols-3">
-                    <span className="rounded-lg bg-black/15 px-2.5 py-2">{projectCaptureMetadata?.pageCount ?? liveReferenceItems.length} useful page{(projectCaptureMetadata?.pageCount ?? liveReferenceItems.length) === 1 ? "" : "s"} saved</span>
-                    <span className="rounded-lg bg-black/15 px-2.5 py-2">{durationLabel(durationSeconds)} · {aspectRatio}</span>
-                    <span className="rounded-lg bg-black/15 px-2.5 py-2">{outputQuality === "4k" ? "4K" : "1080p"} · {audioMode === "voice_music" ? "Narrated" : audioMode === "native_audio" ? "Scene audio" : audioMode === "music_only" ? "Music" : "Silent"}</span>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-white/[.08] bg-white/[.025] p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-utility text-[9px] font-semibold uppercase tracking-[.16em] text-violet">Your campaign setup</p>
-                      <p className="mt-1 text-xs font-semibold text-white">Everything needed to continue is saved.</p>
-                    </div>
-                    <span className="rounded-full border border-white/10 bg-black/20 px-2 py-1 text-[9px] font-semibold text-mint">Free preview</span>
-                  </div>
-                  <p className="mt-3 rounded-xl border border-white/[.06] bg-black/15 px-3 py-2.5 text-[11px] leading-5 text-text-muted">
-                    <span className="font-semibold text-white">Goal:</span> {creativeBrief?.trim() || "Create a brand-aware campaign from the captured website."}
-                  </p>
-                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                    {[
-                      ["01", "Hook", "AI will choose the strongest opening."],
-                      ["02", "Show value", "Real site context stays attached to the plan."],
-                      ["03", "Finish", "The final generation happens only after you approve payment."],
-                    ].map(([number, title, body]) => (
-                      <div key={number} className="rounded-xl border border-white/[.06] bg-black/10 p-3">
-                        <p className="font-utility text-[8px] text-violet">{number}</p>
-                        <p className="mt-1 text-[11px] font-semibold text-white">{title}</p>
-                        <p className="mt-1 text-[10px] leading-4 text-text-dim">{body}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
+              <div className="flex flex-wrap items-center gap-2">
                 <Button
                   variant="primary"
-                  size="lg"
-                  className="w-full"
+                  size="md"
+                  className="min-w-[13rem] sm:w-auto"
                   onClick={() => {
                     if (!isPublicCreatorPath() && isSignedIn && jobId) {
                       void startWebsiteStoryboard(jobId, activeCaptureMetadata ?? job?.captureMetadata ?? null);
@@ -2696,9 +2677,7 @@ ${request.prompt}`
                 >
                   {!isPublicCreatorPath() && isSignedIn ? "Continue to AI production" : "Continue with this campaign"}
                 </Button>
-                <p className="text-center text-[10px] text-text-dim">
-                  Website analysis and screenshots are free. No AI generation provider has started and nothing has been charged.
-                </p>
+                <span className="text-[9px] text-text-dim">Analysis and screenshots are free.</span>
               </div>
             )}
             {stage === "awaiting_private_pages" && (
