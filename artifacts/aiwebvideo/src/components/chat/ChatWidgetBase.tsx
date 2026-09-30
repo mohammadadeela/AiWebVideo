@@ -1,3 +1,4 @@
+import { visibleBrief } from "@/lib/hiddenDirection";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ChatBubble } from "./ChatBubble";
 import { QuickReplyChips } from "./QuickReplyChips";
@@ -536,7 +537,7 @@ export function ChatWidget({
       setModelId(workflow.modelId ?? (workflow.mode === "photos" || workflow.mode === "icon" ? "graphic-2" : "cinema-2"));
       setDurationSeconds(workflow.durationSeconds);
       setFeaturesText(workflow.featuresText);
-      setCreativeBrief(workflow.creativeBrief);
+      setCreativeBrief(workflow.creativeBrief === null ? null : visibleBrief(workflow.creativeBrief));
       setManualRenderAfterPlan(workflow.manualRenderAfterPlan === true);
       setAspectRatio(workflow.aspectRatio);
       setOutputQuality(workflow.outputQuality);
@@ -546,7 +547,7 @@ export function ChatWidget({
       setNarrationLanguage(workflow.narrationLanguage);
       if (workflow.websiteAutoFlow && !saved.sourceUrl.startsWith("upload://")) {
         websiteRequestRef.current = {
-          brief: workflow.creativeBrief ?? "",
+          brief: visibleBrief(workflow.creativeBrief),
           mode:
             workflow.mode === "photos" || workflow.mode === "custom"
               ? "video"
@@ -566,7 +567,7 @@ export function ChatWidget({
       if (saved.storyboard?.aspectRatio) setAspectRatio(saved.storyboard.aspectRatio);
       if (saved.storyboard?.outputQuality) setOutputQuality(saved.storyboard.outputQuality);
       if (saved.storyboard?.frameRate) setFrameRate(saved.storyboard.frameRate);
-      if (saved.storyboard?.creativeBrief !== undefined) setCreativeBrief(saved.storyboard.creativeBrief ?? null);
+      if (saved.storyboard?.creativeBrief !== undefined) setCreativeBrief(saved.storyboard.creativeBrief == null ? null : visibleBrief(saved.storyboard.creativeBrief));
       if (saved.storyboard?.selectedCaptureIds) setSelectedCaptureIds(saved.storyboard.selectedCaptureIds);
     }
     if (saved.captureMetadata) {
@@ -1425,8 +1426,8 @@ export function ChatWidget({
       pushBot(error instanceof Error ? error.message : "Enter a valid website name.");
       return;
     }
-    pushUser(brief ? `${normalized}
-Promotion direction: ${brief}` : normalized);
+    pushUser(visibleBrief(brief) ? `${normalized}
+Promotion direction: ${visibleBrief(brief)}` : normalized);
     setActiveCaptureMetadata(null);
     setSelectedCaptureIds([]);
     setBusy(true);
@@ -2628,7 +2629,7 @@ Promotion direction: ${brief}` : normalized);
                     <span className="rounded-full border border-white/[.07] bg-white/[.025] px-2.5 py-1">{audioMode === "voice_music" ? "Narrated" : audioMode === "native_audio" ? "Scene audio" : audioMode === "music_only" ? "Music" : "Silent"}</span>
                   </div>
                   <p className="line-clamp-2 text-[10px] leading-4 text-text-dim">
-                    <span className="font-semibold text-text-muted">Goal:</span> {creativeBrief?.trim() || "Create a brand-aware campaign from the captured website."}
+                    <span className="font-semibold text-text-muted">Goal:</span> {visibleBrief(creativeBrief).trim() || "Create a brand-aware campaign from the captured website."}
                   </p>
                 </div>
               </ChatBubble>

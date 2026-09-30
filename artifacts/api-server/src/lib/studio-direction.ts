@@ -104,9 +104,27 @@ export function studioMasterDirection(kind: StudioKind | null | undefined): stri
   return '';
 }
 
+const HIDDEN_OPEN = '[[AIWEBVIDEO_DIRECTION]]';
+const HIDDEN_CLOSE = '[[/AIWEBVIDEO_DIRECTION]]';
+
+/**
+ * Website-mode Idea chips travel inside the brief between these markers so they survive every hop
+ * (landing preview, sign-in redirect, drafts). The server splits them off on arrival: the customer's
+ * own words are stored and shown, the direction is kept separately and used only when directing.
+ */
+export function splitHiddenDirection(text: string | null | undefined): { text: string | undefined; direction: string } {
+  if (text === null || text === undefined) return { text: undefined, direction: '' };
+  const start = text.indexOf(HIDDEN_OPEN);
+  if (start < 0) return { text, direction: '' };
+  const end = text.indexOf(HIDDEN_CLOSE, start);
+  const direction = text.slice(start + HIDDEN_OPEN.length, end < 0 ? undefined : end).trim().slice(0, 6000);
+  const rest = `${text.slice(0, start)}${end < 0 ? '' : text.slice(end + HIDDEN_CLOSE.length)}`.trim();
+  return { text: rest, direction };
+}
+
 /** The customer's own words, without any direction we added. */
 export function extractUserBrief(brief: string | null | undefined): string {
-  const text = brief ?? '';
+  const text = splitHiddenDirection(brief).text ?? '';
   const at = text.indexOf(USER_BRIEF_HEADER);
   return (at >= 0 ? text.slice(at + USER_BRIEF_HEADER.length) : text).trim();
 }

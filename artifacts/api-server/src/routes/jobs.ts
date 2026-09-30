@@ -29,7 +29,7 @@ import { AppError, sendError } from "../lib/errors.js";
 import { publicJobErrorMessage, publicJobMessageContent } from "../lib/public-errors.js";
 import { generateStoryboard, remapStoryboardScenesToCaptures, storyboardModelName } from "../lib/gemini.js";
 import { generateMarketingPhoto, generateWebsiteIcon } from "../lib/imagen.js";
-import { composeStudioBrief, type ArchitectureInput } from "../lib/studio-direction.js";
+import { composeStudioBrief, splitHiddenDirection, type ArchitectureInput } from "../lib/studio-direction.js";
 import { generateMarketingVideo, premiumSceneOperationCount, type AudioMode } from "../lib/veo.js";
 import { generateVoiceoverScript, synthesizeVoiceover, resolveNarrationLanguage } from "../lib/voiceover.js";
 import {
@@ -166,12 +166,13 @@ type CaptureMeta = {
  * direction. The stored/visible brief always stays the customer's own text.
  */
 function directedBriefFor(meta: CaptureMeta | null, userBrief: string | null | undefined) {
-  if (meta?.sourceType !== "studio") return userBrief ?? null;
+  // Website/upload jobs only need composing when an Idea direction was chosen.
+  if (meta?.sourceType !== "studio" && !meta?.studioDirection) return userBrief ?? null;
   return composeStudioBrief({
-    studioKind: meta.studioKind ?? null,
-    architecture: meta.architecture ?? null,
+    studioKind: meta?.sourceType === "studio" ? (meta.studioKind ?? null) : null,
+    architecture: meta?.architecture ?? null,
     userBrief,
-    hiddenDirection: meta.studioDirection ?? null,
+    hiddenDirection: meta?.studioDirection ?? null,
   }) || null;
 }
 
@@ -493,7 +494,9 @@ router.patch("/:id/workflow", tryAuth, async (req, res) => {
     const job = await getJob(String(req.params.id));
     if (!job || job.deleted_at || (job.user_id && job.user_id !== req.user?.id))
       throw new AppError("Job not found.", 404, "NOT_FOUND");
-    const updated = await updateJob(job.id, { workflow_state: workflowState });
+    // Never keep a hidden Idea direction in the workflow the customer can see when they reopen the project.
+    const cleanWorkflow = { ...workflowState, creativeBrief: workflowState.creativeBrief === null ? null : (splitHiddenDirection(workflowState.creativeBrief).text ?? null) };
+    const updated = await updateJob(job.id, { workflow_state: cleanWorkflow });
     res.json({ saved: true, updatedAt: updated!.updated_at });
   } catch (err) {
     sendError(res, err);
@@ -703,13 +706,15 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
       modelId,
       durationSeconds,
       featuresText,
-      creativeBrief,
+      creativeBrief: submittedBrief,
       outputQuality,
       audioMode: requestedAudioMode,
       frameRate,
       selectedCaptureIds,
       selectedGeneratedPhotoIds,
     } = storyboardInput;
+    // An Idea direction may ride inside the brief; keep only the customer's own words as "the brief".
+    const { text: creativeBrief, direction: submittedDirection } = splitHiddenDirection(submittedBrief);
     const aspectRatio = mode === "icon" ? ("1:1" as const) : storyboardInput.aspectRatio;
 
     let job = await getJob(String(req.params.id));
@@ -814,7 +819,12 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
       throw new AppError("Job not found.", 404, "NOT_FOUND");
     }
 
-    const meta = job.capture_metadata as CaptureMeta | null;
+    let meta = job.capture_metadata as CaptureMeta | null;
+    if (submittedDirection && meta && meta.studioDirection !== submittedDirection) {
+      // Persist it so later renders and regenerations keep the chosen direction without the browser resending it.
+      meta = { ...meta, studioDirection: submittedDirection };
+      await updateJob(job.id, { capture_metadata: meta as never });
+    }
     const plannerMode = effectiveVideoModeForMeta(meta, mode);
     const variationKey = `${job.id}:${Date.now()}:${randomUUID()}`;
     const previousWorkflow = job.workflow_state as Partial<JobWorkflowState> | null;

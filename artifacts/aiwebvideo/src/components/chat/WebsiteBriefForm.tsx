@@ -35,6 +35,7 @@ import {
   type IdeaContext,
 } from "@/lib/creativeIdeas";
 import { trackStudioEvent } from "@/lib/studio-api";
+import { withHiddenDirection } from "@/lib/hiddenDirection";
 import { ScrollRow } from "@/components/ui/scroll-row";
 import { NumberStepper } from "@/components/ui/number-stepper";
 import { ToggleRow } from "@/components/ui/toggle-row";
@@ -538,10 +539,10 @@ export function WebsiteBriefForm({
 
   function applyMasterIdea(idea: CreativeIdea) {
     setSelectedIdea(idea);
-    // Studio modes show only the short idea text; the full direction is sent separately and stays hidden.
-    const visibleText = activeMode === "website" ? idea.masterPrompt : idea.displayText;
-    if (activeMode === "video" || activeMode === "scenario") setPrompt(visibleText);
-    else setBrief(visibleText);
+    // Every mode shows only the short idea text. The full direction stays hidden: studio modes send it as a
+    // separate field, website mode sends it behind a marker the server splits off.
+    if (activeMode === "video" || activeMode === "scenario") setPrompt(idea.displayText);
+    else setBrief(idea.displayText);
     setCompactPanel(null);
     setError(null);
     void trackStudioEvent({ event: "idea_clicked", ideaId: idea.id, feature: idea.feature });
@@ -697,7 +698,7 @@ export function WebsiteBriefForm({
         setError(null);
         void onSubmit(
           normalizeWebsiteUrl(url),
-          brief.trim(),
+          withHiddenDirection(brief.trim(), selectedIdea?.masterPrompt),
           { ...settings, outputQuality: safeQuality, audioMode: safeAudioMode },
           files,
         );

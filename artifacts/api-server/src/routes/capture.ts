@@ -1,3 +1,4 @@
+import { splitHiddenDirection } from '../lib/studio-direction.js';
 import { Router } from 'express';
 import { z } from 'zod';
 import { getOperationsSettings, productionCapacity } from '../lib/provider-config.js';
@@ -80,7 +81,8 @@ router.post('/', tryAuth, async (req, res) => {
     const userId = req.user?.id ?? null;
     const job = await createJob(userId, safeUrl, 'video');
     await addJobMessage(job.id, 'user', safeUrl, 'url');
-    await addJobMessage(job.id, 'user', creativeBrief, 'prompt');
+    // A hidden idea direction (if any) is never stored as a chat message the customer could later see.
+    await addJobMessage(job.id, 'user', splitHiddenDirection(creativeBrief).text || creativeBrief, 'prompt');
     if (setupSummary) await addJobMessage(job.id, 'user', setupSummary, 'setup');
     await addJobMessage(job.id, 'assistant', 'Reading the website and selecting the strongest distinct pages for the campaign.', 'status');
 

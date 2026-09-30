@@ -777,3 +777,23 @@ picture {
 @media (prefers-reduced-motion: reduce) {
   .attention-shake { animation: attention-glow 1.2s ease-in-out 2; }
 }
+
+/* Sliders: a grab hand (not the click hand) over a row that scrolls sideways, grabbing while dragged.
+   Buttons inside get the same cursor on purpose; the global button rule would otherwise win. */
+.drag-scroll-ready,
+.drag-scroll-ready button:not(:disabled),
+.drag-scroll-ready [role="button"]:not([aria-disabled="true"]),
+.drag-scroll-ready a[href],
+.drag-scroll-ready label[for] {
+  cursor: grab;
+}
+.drag-scroll-active,
+.drag-scroll-active * {
+  cursor: grabbing !important;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.drag-scroll-ready img,
+.drag-scroll-ready a {
+  -webkit-user-drag: none;
+}

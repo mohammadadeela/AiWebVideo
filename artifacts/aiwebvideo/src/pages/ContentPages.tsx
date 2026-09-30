@@ -621,7 +621,7 @@ export function FaqPage() {
           <div className="grid gap-10 md:grid-cols-[220px_1fr]">
             <nav aria-label="FAQ categories" className="md:sticky md:top-24 md:self-start">
               <p className="mb-3 font-utility text-[9px] uppercase tracking-[.18em] text-text-dim">Categories</p>
-              <div className="flex gap-1 overflow-x-auto md:flex-col">
+              <div data-drag-scroll className="flex gap-1 overflow-x-auto md:flex-col">
                 {faqGroups.map((group) => (
                   <a
                     key={group.title}

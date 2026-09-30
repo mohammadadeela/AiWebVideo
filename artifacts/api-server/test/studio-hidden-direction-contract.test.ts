@@ -14,9 +14,11 @@ test('the browser never adds the master prompt: it sends the customer\'s words p
   assert.match(widget, /templateId: request\.templateId/);
 });
 
-test('idea chips put only their short text in the box for studio modes', async () => {
+test('idea chips put only their short text in the box in every mode', async () => {
   const form = await frontend('components/chat/WebsiteBriefForm.tsx');
-  assert.match(form, /activeMode === "website" \? idea\.masterPrompt : idea\.displayText/);
+  assert.match(form, /setPrompt\(idea\.displayText\)/);
+  assert.match(form, /setBrief\(idea\.displayText\)/);
+  assert.doesNotMatch(form, /setPrompt\(idea\.masterPrompt\)|setBrief\(idea\.masterPrompt\)/);
   assert.match(form, /studioDirection: selectedIdea \? selectedIdea\.masterPrompt : undefined/);
 });
 

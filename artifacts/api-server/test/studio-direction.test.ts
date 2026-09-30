@@ -119,3 +119,30 @@ test('the admin cannot save homepage samples until each one is filed under a fea
   assert.match(admin, /FEATURE_REQUIRED/);
   assert.match(admin, /item\.url && !item\.feature/);
 });
+
+import { splitHiddenDirection, extractUserBrief, composeStudioBrief as composeForWebsite } from '../src/lib/studio-direction.js';
+
+test('a hidden idea direction is split off the customer\'s own words', () => {
+  const raw = 'Promote my summer sale\n\n[[AIWEBVIDEO_DIRECTION]]\nUse warm golden-hour light and a slow push-in.\n[[/AIWEBVIDEO_DIRECTION]]';
+  const { text, direction } = splitHiddenDirection(raw);
+  assert.equal(text, 'Promote my summer sale');
+  assert.equal(direction, 'Use warm golden-hour light and a slow push-in.');
+  assert.equal(extractUserBrief(raw), 'Promote my summer sale');
+});
+
+test('text without a marker, empty and missing input pass through unchanged', () => {
+  assert.deepEqual(splitHiddenDirection('just my words'), { text: 'just my words', direction: '' });
+  assert.deepEqual(splitHiddenDirection(undefined), { text: undefined, direction: '' });
+  assert.deepEqual(splitHiddenDirection(null), { text: undefined, direction: '' });
+  // an unterminated marker never swallows the customer's text that came before it
+  assert.equal(splitHiddenDirection('hello [[AIWEBVIDEO_DIRECTION]] dangling').text, 'hello');
+});
+
+test('website jobs get the chosen direction added behind the customer\'s words (no studio master)', () => {
+  const brief = composeForWebsite({ studioKind: null, userBrief: 'Promote my summer sale', hiddenDirection: 'Use warm golden-hour light.' });
+  assert.match(brief, /Use warm golden-hour light\./);
+  assert.ok(brief.indexOf('golden-hour') < brief.indexOf('Promote my summer sale'), 'customer words come last (highest priority)');
+  assert.doesNotMatch(brief, /INTERIOR DESIGN|ARCHITECTURE ON A REAL SITE/);
+  // no direction chosen: untouched
+  assert.equal(composeForWebsite({ studioKind: null, userBrief: 'plain' }), 'plain');
+});
