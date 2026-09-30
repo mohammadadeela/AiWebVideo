@@ -9,6 +9,9 @@ import { saveImageFile } from '../lib/capture.js';
 import { MAX_VIDEO_SECONDS, MIN_VIDEO_SECONDS, videoCreditCost } from '../lib/credits.js';
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_PHOTOS, normalizeUploadToJpeg, sanitizeUploadTitle, uploadPhotoLabel } from '../lib/uploads.js';
 import { generationModelForMode } from '../lib/generation-models.js';
+import { readPublicUrl } from '../lib/external-reference.js';
+import { coordinatesFromMapsUrl, isGoogleMapsUrl } from '../lib/maps-url.js';
+import { z } from 'zod';
 
 const router = Router();
 
@@ -74,11 +77,46 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
     }
 
     const files = (req.files as Express.Multer.File[] | undefined) ?? [];
+    const productUrl = typeof req.body?.productUrl === 'string' ? req.body.productUrl.slice(0, 2048) : null;
+    let productImageUrls: string[] = [];
+    if (req.body?.productImageUrls) {
+      try {
+        productImageUrls = JSON.parse(req.body.productImageUrls);
+      } catch {
+        throw new AppError('Choose valid product images.', 400, 'INVALID_PRODUCT_IMAGES');
+      }
+      if (!Array.isArray(productImageUrls) || productImageUrls.length > 6 || productImageUrls.some((url) => typeof url !== 'string' || url.length > 2048)) {
+        throw new AppError('Choose up to six valid product images.', 400, 'INVALID_PRODUCT_IMAGES');
+      }
+    }
     const ideaPrompt = typeof req.body?.ideaPrompt === 'string' ? req.body.ideaPrompt.trim() : '';
     if (ideaPrompt.length > 8000) {
       throw new AppError('Your prompt is longer than 8,000 characters. Shorten it slightly so every detail can be sent without hidden truncation.', 400, 'PROMPT_TOO_LONG');
     }
-    const studioKind = ['product', 'idea', 'scenario', 'interior'].includes(req.body?.studioKind) ? req.body.studioKind as 'product' | 'idea' | 'scenario' | 'interior' : null;
+    const studioKind = ['product', 'idea', 'scenario', 'interior', 'architecture'].includes(req.body?.studioKind)
+      ? req.body.studioKind as 'product' | 'idea' | 'scenario' | 'interior' | 'architecture'
+      : null;
+    let architectureInput: unknown = {};
+    if (studioKind === 'architecture') {
+      try {
+        architectureInput = JSON.parse(req.body?.architecture || '{}');
+      } catch {
+        throw new AppError('Check the architecture site details.', 400, 'INVALID_SITE_DETAILS');
+      }
+    }
+    const architecture = studioKind === 'architecture'
+      ? z.object({
+          location: z.string().max(2048).optional(),
+          mapUrl: z.string().url().max(2048).optional(),
+          latitude: z.number().min(-90).max(90).optional(),
+          longitude: z.number().min(-180).max(180).optional(),
+          plotWidth: z.number().positive().max(100_000).optional(),
+          plotDepth: z.number().positive().max(100_000).optional(),
+          floors: z.number().int().positive().max(200).optional(),
+          setback: z.number().min(0).max(10_000).optional(),
+          estimatedScale: z.boolean().optional(),
+        }).parse(architectureInput)
+      : null;
     const studioMode = ['video', 'photos', 'both', 'custom'].includes(req.body?.mode) ? req.body.mode as 'video' | 'photos' | 'both' | 'custom' : null;
     const studioAudioMode = ['voice_music', 'native_audio', 'music_only', 'silent'].includes(req.body?.audioMode)
       ? req.body.audioMode as 'voice_music' | 'native_audio' | 'music_only' | 'silent'
@@ -102,14 +140,37 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
       if ((studioKind === 'idea' || studioKind === 'scenario') && studioMode !== 'custom') {
         throw new AppError('Custom Idea and Scenario productions use the independent custom-video engine.', 400, 'INVALID_STUDIO_MODE');
       }
-      if (studioKind === 'interior' && !['photos', 'custom'].includes(studioMode)) {
-        throw new AppError('Interior Design uses image generation or custom video mode.', 400, 'INVALID_STUDIO_MODE');
+      if ((studioKind === 'interior' || studioKind === 'architecture') && !['photos', 'custom'].includes(studioMode)) {
+        throw new AppError('Interior and Architecture modes use image generation or custom video mode.', 400, 'INVALID_STUDIO_MODE');
       }
       if (studioKind === 'interior' && !files.length) {
         throw new AppError('Upload at least one interior photo, plan, sketch, elevation, or reference image.', 400, 'INTERIOR_REFERENCE_REQUIRED');
       }
-      if (studioKind === 'product' && !files.length) {
-        throw new AppError('Upload at least one real product photo before generating a product campaign.', 400, 'PRODUCT_PHOTO_REQUIRED');
+      if (studioKind === 'architecture') {
+        if (!files.length) throw new AppError('Add a site screenshot, site photo, plan, or building reference.', 400, 'SITE_REFERENCE_REQUIRED');
+        if (!architecture?.location && !architecture?.mapUrl) throw new AppError('Add a Google Maps link or address.', 400, 'LOCATION_REQUIRED');
+        if (!architecture.estimatedScale && (!architecture.plotWidth || !architecture.plotDepth)) {
+          throw new AppError('Add plot width and depth or choose estimated site scale.', 400, 'PLOT_DIMENSIONS_REQUIRED');
+        }
+        if (architecture.mapUrl && !isGoogleMapsUrl(architecture.mapUrl)) {
+          throw new AppError('Use a Google Maps link.', 400, 'INVALID_MAP_LINK');
+        }
+        if (architecture.mapUrl) {
+          const position = coordinatesFromMapsUrl(new URL(architecture.mapUrl));
+          if (position) {
+            architecture.latitude = position.latitude;
+            architecture.longitude = position.longitude;
+          } else {
+            delete architecture.latitude;
+            delete architecture.longitude;
+          }
+        } else {
+          delete architecture.latitude;
+          delete architecture.longitude;
+        }
+      }
+      if (studioKind === 'product' && !files.length && !productImageUrls.length) {
+        throw new AppError('Add a product photo or import a product link before generating.', 400, 'PRODUCT_PHOTO_REQUIRED');
       }
       const selectedModel = generationModelForMode(publicModelId, studioMode, studioKind);
       if (studioQuality === '4k' && !selectedModel.supports4k) {
@@ -127,15 +188,15 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
         throw new AppError(`This production needs ${requiredCredits} credits. Add credits before generation starts.`, 402, 'INSUFFICIENT_CREDITS');
       }
     }
-    if (!files.length && !ideaPrompt) {
-      throw new AppError('Please attach at least one photo, or describe your idea so we can generate a starting image.', 400, 'NO_FILES');
+    if (!files.length && !productImageUrls.length && !ideaPrompt) {
+      throw new AppError('Please attach at least one photo, import a product link, or describe your idea.', 400, 'NO_FILES');
     }
-    if (!files.length && ideaPrompt && !studioKind) {
+    if (!files.length && !productImageUrls.length && ideaPrompt && !studioKind) {
       throw new AppError('Start a Custom Idea or Scenario production before using a text-only prompt.', 400, 'INVALID_STUDIO_OPTIONS');
     }
     // Text-only studio jobs are account-bound; their first provider call is
     // protected by the atomic paid-render charge.
-    if (!files.length && ideaPrompt && !req.user) {
+    if (!files.length && !productImageUrls.length && ideaPrompt && !req.user) {
       throw new AppError('Sign in to generate a starting image from your idea.', 401, 'AUTH_REQUIRED');
     }
 
@@ -189,6 +250,15 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
       pages.push({ url: `upload://${job.id}/${index}`, title: uploadPhotoLabel(index, file.originalname), screenshotUrl });
     }
 
+    for (const [index, imageUrl] of productImageUrls.entries()) {
+      const source = await readPublicUrl(imageUrl, 10 * 1024 * 1024, /^image\/(?:jpeg|png|webp)$/);
+      const jpeg = await normalizeUploadToJpeg(source.buffer);
+      const pageIndex = pages.length;
+      const filename = pageIndex === 0 ? 'screenshot-full.jpg' : `page-${pageIndex}.jpg`;
+      const screenshotUrl = await saveImageFile(job.id, filename, jpeg);
+      pages.push({ url: `product-reference://${index}`, title: `Product image ${index + 1}`, screenshotUrl });
+    }
+
     // Text-only Custom Idea and Scenario jobs never call an image provider at
     // upload time. The paid render transaction is the first expensive model
     // call, so this endpoint cannot be abused for free image generation.
@@ -222,6 +292,9 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
         title,
         sourceType: studioKind ? 'studio' : 'upload',
         studioKind,
+        productUrl,
+        productImageUrls: productImageUrls.length,
+        architecture,
         ideaPrompt: studioKind ? ideaPrompt : null,
         description: null,
         logoUrl: null,
