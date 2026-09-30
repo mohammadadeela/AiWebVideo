@@ -8,6 +8,13 @@ import { query } from './pool.js';
 import { GEMINI_COST_CATALOG, recordGenerationCost } from './costs.js';
 import { GENERATION_MODELS, imageModelProviderCostPerImage } from './generation-models.js';
 import { runQueuedProviderCall } from './provider-queue.js';
+import {
+  ARCHITECTURE_MASTER_DIRECTION,
+  ARCHITECTURE_VIEW_ROLES,
+  INTERIOR_MASTER_DIRECTION,
+  INTERIOR_VIEW_ROLES,
+  composeStudioBrief,
+} from './studio-direction.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -82,11 +89,13 @@ export interface GeneratedImage {
   aspectRatio: string;
 }
 
-export type MarketingPhotoKind = 'product-photos' | 'website-photos' | 'mixed-campaign';
+export type MarketingPhotoKind = 'product-photos' | 'website-photos' | 'mixed-campaign' | 'interior-design' | 'architecture';
 
 export const MARKETING_PHOTO_MASTER_PROMPTS: Record<MarketingPhotoKind, string> = {
   'product-photos': `PRODUCT PHOTO MASTER — make the exact referenced product the unmistakable hero. Preserve its silhouette, construction, material, colorway, logos, hardware, stitching, packaging and small identifiers. Create a genuinely shoot-worthy commercial setup around it; never swap, redesign or "improve" the item itself.`,
   'website-photos': `WEBSITE CAMPAIGN PHOTO MASTER — study the real captures to understand what the brand sells, its palette, audience and strongest authentic product/visual. Create a standalone campaign asset that unmistakably belongs to this business; never turn it into a generic website screenshot or invent an unsupported offer.`,
+  'interior-design': INTERIOR_MASTER_DIRECTION,
+  'architecture': ARCHITECTURE_MASTER_DIRECTION,
   'mixed-campaign': `MIXED CAMPAIGN PHOTO MASTER — create a still that complements the same campaign's video while standing on its own. Match the central concept, brand world and product identity, but use a distinct, intentional composition suited to a premium social or advertising placement.`
 };
 
@@ -96,6 +105,54 @@ export const MARKETING_PHOTO_SET_ROLES = [
   'WORLD FRAME — place the real subject/product in a believable editorial, lifestyle or brand environment that supports the user request.',
   'SIGNATURE FRAME — deliver a memorable final campaign variation with a fresh composition and the strongest polished brand mood.'
 ] as const;
+
+/**
+ * Interior and architecture images are NOT marketing campaigns: no brand, no "hero/detail/world" roles,
+ * no typography rules. They are four consistent camera views of one design, grounded in the customer's
+ * site or space references and engineering inputs.
+ */
+export function buildArchitecturalImagePrompt(input: {
+  kind: 'interior-design' | 'architecture';
+  sceneIndex: number;
+  title: string;
+  concept: string;
+  sceneDescription: string;
+  brief?: string | null;
+}) {
+  const roles = input.kind === 'architecture' ? ARCHITECTURE_VIEW_ROLES : INTERIOR_VIEW_ROLES;
+  const role = roles[input.sceneIndex % roles.length];
+  const userBrief = input.brief?.trim() || (input.kind === 'architecture'
+    ? 'Design a well-proportioned contemporary building that suits the site.'
+    : 'Create a refined, coherent interior design that keeps the existing architecture.');
+  // The route normally supplies a fully directed brief; add the master only if it is missing.
+  const directed = composeStudioBrief({ studioKind: input.kind === 'architecture' ? 'architecture' : 'interior', userBrief });
+  const subject = input.kind === 'architecture'
+    ? 'a NEW building placed on the REAL site shown in the attached references'
+    : 'the redesigned interior of the EXACT space shown in the attached references';
+  return `Create ONE photoreal architectural visualization image of ${subject}.
+
+THIS IMAGE'S CAMERA (the design itself never changes between images of the set):
+${role}
+
+DIRECTION, ENGINEERING INPUTS AND CUSTOMER BRIEF — FOLLOW CLOSELY:
+${directed}
+
+SET CONCEPT FROM THE PLANNER:
+${input.concept}
+
+THIS IMAGE'S NOTES:
+${input.sceneDescription}
+
+TITLE: ${input.title}
+
+REFERENCE RULES:
+- The attached images are real inputs (site or space photos, map or satellite screenshots, plans, elevations, building references). Treat them as ground truth exactly as described above.
+- All four images of the set must show the identical design. Change only the camera and the light.
+
+OUTPUT RULES:
+- One clean photographic image. No text, no captions, no labels, no dimension lines, no watermark, no borders and no inset maps.
+- Straight architectural lines, correct perspective and believable materials.`;
+}
 
 /** Rotate large reference sets so four generated photos collectively use all inputs. */
 export function selectMarketingPhotoReferences(referenceImages: Buffer[], sceneIndex: number, limit = 4) {
@@ -322,6 +379,29 @@ export async function generateMarketingPhoto(
 ): Promise<GeneratedImage> {
   if (!referenceImages.length) {
     throw new Error('No captured website images are available to use as references for the marketing photo.');
+  }
+
+  if (featureKind === 'interior-design' || featureKind === 'architecture') {
+    return runImageGeneration(
+      jobId,
+      sceneIndex,
+      'photo',
+      'photo',
+      buildArchitecturalImagePrompt({
+        kind: featureKind,
+        sceneIndex,
+        title: siteTitle,
+        concept,
+        sceneDescription,
+        brief: customBrief,
+      }),
+      // Keep every site/space reference available to every view; the set must share one design.
+      referenceImages.filter((buffer) => buffer.length > 0).slice(0, 4),
+      aspectRatio,
+      outputQuality,
+      'marketing_image',
+      publicModelId
+    );
   }
 
   const userDirection =

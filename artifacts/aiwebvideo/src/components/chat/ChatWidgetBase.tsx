@@ -43,7 +43,6 @@ import {
   type WorkflowStage,
 } from "./types";
 import { normalizeWebsiteUrl } from "@/lib/websiteUrl";
-import { INTERIOR_MASTER_PROMPT } from "@/lib/creativeIdeas";
 import { estimateRenderCredits } from "@/lib/credits";
 import { defaultModelFor } from "@/lib/generationModels";
 import {
@@ -1720,18 +1719,8 @@ Promotion direction: ${brief}` : normalized);
   }
 
   async function performStudioSubmit(request: StudioGenerationRequest) {
-    const architectureInputs = request.studioKind === "architecture" && request.architecture
-      ? Object.entries(request.architecture)
-          .filter(([, value]) => value !== undefined && value !== "")
-          .map(([key, value]) => `${key}: ${String(value)}`)
-          .join(" · ")
-      : "";
-    const effectiveStudioPrompt = request.studioKind === "interior" || request.studioKind === "architecture"
-      ? `${INTERIOR_MASTER_PROMPT}
-
-${request.studioKind === "architecture" && architectureInputs ? `SITE / ENGINEERING INPUTS (authoritative): ${architectureInputs}\n\n` : ""}USER DESIGN BRIEF (highest-priority creative direction):
-${request.prompt}`
-      : request.prompt;
+    // The customer's own words only. The master direction and site data are added on the server.
+    const effectiveStudioPrompt = request.prompt;
     setBusy(true);
     setActiveCaptureMetadata(null);
     setSelectedCaptureIds([]);
@@ -1802,6 +1791,8 @@ ${request.prompt}`
         productUrl: request.productUrl,
         productImageUrls: request.productImageUrls,
         architecture: request.architecture,
+        studioDirection: request.studioDirection,
+        templateId: request.templateId,
       });
       selectJobId(upload.jobId);
       onJobCreated?.(upload.jobId);

@@ -11,6 +11,7 @@ import {
   Building2,
   Languages,
   Maximize2,
+  MapPin,
   MessageCircleMore,
   Mic,
   Monitor,
@@ -35,6 +36,10 @@ import {
 } from "@/lib/creativeIdeas";
 import { trackStudioEvent } from "@/lib/studio-api";
 import { ScrollRow } from "@/components/ui/scroll-row";
+import { NumberStepper } from "@/components/ui/number-stepper";
+import { ToggleRow } from "@/components/ui/toggle-row";
+import { SampleStrip } from "./SampleStrip";
+import { USE_SAMPLE_EVENT, type Sample, type UseSampleDetail } from "@/lib/showcase";
 import { OutputSettings } from "./OutputSettings";
 import { extractProductReference, resolveArchitectureLocation } from "@/lib/api-client";
 import type { AudioMode, JobMode } from "./types";
@@ -76,7 +81,20 @@ export interface StudioGenerationRequest {
   productUrl?: string;
   productImageUrls?: string[];
   architecture?: Record<string, string | number | boolean | undefined>;
+  /** Hidden creative direction from an Idea chip (applied on the server). */
+  studioDirection?: string;
+  /** A showcase sample to recreate with the customer's own references. */
+  templateId?: string;
 }
+
+const TEMPLATE_PROMPTS: Partial<Record<CreationIntent, string>> = {
+  photo: "Recreate this style with my product.",
+  "product-video": "Recreate this style with my product.",
+  video: "Make a video in the style of this example.",
+  scenario: "Recreate this scene with my references.",
+  interior: "Redesign my space in the style of this example.",
+  architecture: "Place my building on my site in the style of this example.",
+};
 
 const DEFAULT_SETTINGS: WebsiteGenerationSettings = {
   mode: "video",
@@ -377,6 +395,8 @@ export function WebsiteBriefForm({
   const [floorCount, setFloorCount] = useState("");
   const [setback, setSetback] = useState("");
   const [estimatedScale, setEstimatedScale] = useState(false);
+  const [selectedSample, setSelectedSample] = useState<Sample | null>(null);
+  const lastReadLinkRef = useRef("");
   const [compactPanel, setCompactPanel] = useState<"style" | "ideas" | "model" | null>(null);
   const [openSettingMenu, setOpenSettingMenu] = useState<"duration" | "aspect" | "quality" | "audio" | "language" | null>(null);
   const [customDurationInput, setCustomDurationInput] = useState(String(DEFAULT_SETTINGS.durationSeconds));
@@ -400,6 +420,7 @@ export function WebsiteBriefForm({
     activeModeRef.current = intent;
     setActiveMode(intent);
     setSelectedIdea(null);
+    setSelectedSample(null);
     setCompactPanel(null);
     setOpenSettingMenu(null);
     setError(null);
@@ -471,9 +492,22 @@ export function WebsiteBriefForm({
   }), [activeMode, brief, files, prompt, url]);
 
   const masterIdeas = useMemo(
-    () => getIdeasForIntent(activeMode === "architecture" ? "interior" : activeMode, ideaContext, 6),
+    () => getIdeasForIntent(activeMode, ideaContext, 6),
     [activeMode, ideaContext],
   );
+
+  // A visitor tapped an example ("make one like this"): open that feature with the example attached.
+  useEffect(() => {
+    const handleSample = (event: Event) => {
+      const sample = (event as CustomEvent<UseSampleDetail>).detail?.sample;
+      if (!sample) return;
+      applyIntent(sample.feature, true);
+      if (sample.feature !== "website") setSelectedSample(sample);
+      window.requestAnimationFrame(() => studioPromptRef.current?.focus());
+    };
+    window.addEventListener(USE_SAMPLE_EVENT, handleSample);
+    return () => window.removeEventListener(USE_SAMPLE_EVENT, handleSample);
+  }, []);
 
   function addFiles(list: FileList | File[] | null) {
     if (!list || !list.length) return;
@@ -504,8 +538,10 @@ export function WebsiteBriefForm({
 
   function applyMasterIdea(idea: CreativeIdea) {
     setSelectedIdea(idea);
-    if (activeMode === "video" || activeMode === "scenario") setPrompt(idea.masterPrompt);
-    else setBrief(idea.masterPrompt);
+    // Studio modes show only the short idea text; the full direction is sent separately and stays hidden.
+    const visibleText = activeMode === "website" ? idea.masterPrompt : idea.displayText;
+    if (activeMode === "video" || activeMode === "scenario") setPrompt(visibleText);
+    else setBrief(visibleText);
     setCompactPanel(null);
     setError(null);
     void trackStudioEvent({ event: "idea_clicked", ideaId: idea.id, feature: idea.feature });
@@ -513,6 +549,53 @@ export function WebsiteBriefForm({
       if (activeMode === "website") websiteBriefRef.current?.focus();
       else studioPromptRef.current?.focus();
     });
+  }
+
+  async function loadProductLink(link = productLink) {
+    const value = link.trim();
+    if (!value || readingProduct) return null;
+    if (lastReadLinkRef.current === value && productData) return productData;
+    setReadingProduct(true);
+    setError(null);
+    try {
+      const data = await extractProductReference(value);
+      lastReadLinkRef.current = value;
+      setProductData(data);
+      setChosenProductImages(data.images.slice(0, 1));
+      if (!brief.trim() && data.description) setBrief(data.description.slice(0, 1200));
+      return data;
+    } catch {
+      lastReadLinkRef.current = "";
+      setProductData(null);
+      setChosenProductImages([]);
+      setError("We couldn't read photos from that link. Upload a photo of the product instead.");
+      return null;
+    } finally {
+      setReadingProduct(false);
+    }
+  }
+
+  async function resolveSite(link = mapLink) {
+    const value = link.trim();
+    if (!value || resolvingSite) return null;
+    setResolvingSite(true);
+    setError(null);
+    try {
+      if (!/^https?:\/\//i.test(value)) {
+        const plain = { label: value, resolvedUrl: "" };
+        setSite(plain);
+        return plain;
+      }
+      const resolved = await resolveArchitectureLocation(value);
+      setSite(resolved);
+      return resolved;
+    } catch {
+      setSite(null);
+      setError("Couldn't identify this location. Paste a Google Maps link or type the address.");
+      return null;
+    } finally {
+      setResolvingSite(false);
+    }
   }
 
   function toggleIdeas() {
@@ -579,7 +662,7 @@ export function WebsiteBriefForm({
     };
   }, [compactPanel]);
 
-  function submit() {
+  async function submit() {
     if (disabled) return;
     setOpenSettingMenu(null);
     setCompactPanel(null);
@@ -626,7 +709,9 @@ export function WebsiteBriefForm({
 
     const isProduct = activeMode === "photo" || activeMode === "product-video";
     const isInterior = activeMode === "interior" || activeMode === "architecture";
-    const activePrompt = isProduct || isInterior ? brief.trim() : prompt.trim();
+    const typedPrompt = isProduct || isInterior ? brief.trim() : prompt.trim();
+    // Picking an example is enough of a brief on its own.
+    const activePrompt = typedPrompt || (selectedSample ? (TEMPLATE_PROMPTS[activeMode] ?? "") : "");
     if (!activePrompt) {
       setError(
         activeMode === "scenario"
@@ -644,12 +729,37 @@ export function WebsiteBriefForm({
       studioPromptRef.current?.focus();
       return;
     }
-    if (activeMode === "architecture" && (!site || (!estimatedScale && (!Number(plotWidth) || !Number(plotDepth))))) {
-      setError("Add a Google Maps location/address and plot width/depth, or choose estimated site scale.");
+    // Read a pasted-but-not-yet-read map link or product link automatically instead of ignoring it.
+    let resolvedSite = site;
+    if (activeMode === "architecture" && !resolvedSite && mapLink.trim()) resolvedSite = await resolveSite();
+    if (activeMode === "architecture") {
+      if (!resolvedSite) {
+        setError("Add the plot's location: paste a Google Maps link or type the address.");
+        return;
+      }
+      if (!estimatedScale && (!Number(plotWidth) || !Number(plotDepth))) {
+        setError("Add the plot width and depth in metres, or switch on \"Estimate the plot size\".");
+        return;
+      }
+      if (files.length === 0) {
+        setError("Add a screenshot of the plot from Google Maps, a site photo or a plan. The link shows us where it is; the screenshot shows us what is there.");
+        return;
+      }
+    }
+    let productUrl = productData?.url;
+    let productImages = chosenProductImages;
+    if (isProduct && files.length === 0 && productImages.length === 0 && productLink.trim()) {
+      const data = await loadProductLink();
+      if (!data) return;
+      productUrl = data.url;
+      productImages = data.images.slice(0, 1);
+    }
+    if (isInterior && activeMode === "interior" && files.length === 0) {
+      setError("Attach at least one photo of the space, a plan, a sketch or an elevation.");
       return;
     }
-    if ((isProduct || isInterior) && files.length === 0 && (!isProduct || chosenProductImages.length === 0)) {
-      setError(isInterior ? "Attach at least one site/space photo, plan, sketch, elevation, or reference image." : "Add a product photo or import a product link.");
+    if (isProduct && files.length === 0 && productImages.length === 0) {
+      setError("Paste a product link or upload a photo of the product. You only need one of the two.");
       return;
     }
 
@@ -673,13 +783,15 @@ export function WebsiteBriefForm({
       outputQuality: safeQuality,
       audioMode: activeMode === "photo" || (isInterior && interiorOutput === "images") ? "silent" : safeAudioMode,
       modelId: settings.modelId,
-      productUrl: productData?.url,
-      productImageUrls: chosenProductImages,
+      productUrl,
+      productImageUrls: productImages,
+      studioDirection: selectedIdea ? selectedIdea.masterPrompt : undefined,
+      templateId: selectedSample?.id,
       architecture: activeMode === "architecture" ? {
-        location: site?.label || site?.resolvedUrl,
-        latitude: site?.latitude,
-        longitude: site?.longitude,
-        mapUrl: site?.resolvedUrl || undefined,
+        location: resolvedSite?.label || resolvedSite?.resolvedUrl,
+        latitude: resolvedSite?.latitude,
+        longitude: resolvedSite?.longitude,
+        mapUrl: resolvedSite?.resolvedUrl || undefined,
         plotWidth: Number(plotWidth) || undefined,
         plotDepth: Number(plotDepth) || undefined,
         floors: Number(floorCount) || undefined,
@@ -700,14 +812,15 @@ export function WebsiteBriefForm({
   const exactCredits = activeMode === "photo" || (isInteriorMode && interiorOutput === "images")
     ? estimateRenderCredits("photos", true, 8, settings.outputQuality, settings.modelId)
     : estimateRenderCredits("video", settings.audioMode !== "voice_music", durationSeconds, settings.outputQuality, settings.modelId);
+  const hasBrief = Boolean(selectedSample) && activeMode !== "website";
+  // Studio modes stay clickable once there is a brief: a click that is missing something explains exactly
+  // what (link, photo, location, size) instead of leaving a silently disabled button.
   const submitDisabled = disabled || (
     activeMode === "website"
       ? !url.trim() || !brief.trim()
-      : isProductMode
-        ? (files.length === 0 && chosenProductImages.length === 0) || !brief.trim()
-        : isInteriorMode
-          ? files.length === 0 || !brief.trim() || (activeMode === "architecture" && (!site || (!estimatedScale && (!Number(plotWidth) || !Number(plotDepth)))))
-          : !prompt.trim()
+      : isProductMode || isInteriorMode
+        ? !brief.trim() && !hasBrief
+        : !prompt.trim() && !hasBrief
   );
   const createLabel = activeMode === "website"
     ? "Create website campaign"
@@ -801,62 +914,47 @@ export function WebsiteBriefForm({
 
       <div className={`relative ${compactLayout ? "p-3 sm:p-4" : "p-4 sm:p-5"}`}>
         {isProductMode && (
-          <div className="mb-3 rounded-2xl border border-white/[.08] bg-white/[.025] p-3">
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <div className="flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-xl border border-white/[.10] bg-[#0b0818] px-3 focus-within:border-violet/45">
+          <div className="mb-3 rounded-2xl border border-white/[.08] bg-white/[.025] p-3.5">
+            <p className="text-xs font-semibold text-white">Product link <span className="font-normal text-white/45">· optional</span></p>
+            <div className="mt-2 flex items-center gap-2">
+              <div className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-xl border border-white/[.10] bg-[#0b0818] px-3 transition focus-within:border-violet/50">
                 <PackageOpen size={14} className="shrink-0 text-violet" />
                 <input
                   type="url"
                   value={productLink}
                   onChange={(event) => setProductLink(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key !== "Enter" || !productLink.trim() || readingProduct) return;
+                  onBlur={() => { if (productLink.trim()) void loadProductLink(); }}
+                  onPaste={(event) => {
+                    const pasted = event.clipboardData.getData("text").trim();
+                    if (!/^https?:\/\//i.test(pasted)) return;
                     event.preventDefault();
-                    setReadingProduct(true);
-                    setError(null);
-                    void extractProductReference(productLink).then((data) => {
-                      setProductData(data);
-                      setChosenProductImages(data.images.slice(0, 1));
-                      if (!brief.trim() && data.description) setBrief(data.description.slice(0, 1200));
-                    }).catch(() => {
-                      setProductData(null);
-                      setChosenProductImages([]);
-                      setError("Couldn't load this product link. You can upload product photos instead.");
-                    }).finally(() => setReadingProduct(false));
+                    setProductLink(pasted);
+                    void loadProductLink(pasted);
                   }}
-                  placeholder="Paste a product link"
-                  aria-label="Product link"
-                  className="min-w-0 flex-1 bg-transparent py-2.5 text-xs text-white outline-none placeholder:text-white/35"
+                  onKeyDown={(event) => {
+                    if (event.key !== "Enter") return;
+                    event.preventDefault();
+                    void loadProductLink();
+                  }}
+                  placeholder="Paste a link to the product page"
+                  aria-label="Product link (optional)"
+                  className="min-w-0 flex-1 bg-transparent py-2.5 text-base text-white outline-none placeholder:text-white/35 sm:text-xs"
                 />
+                {readingProduct && <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-violet border-t-transparent" aria-label="Reading the link" />}
               </div>
-              <button
-                type="button"
-                disabled={!productLink.trim() || readingProduct}
-                onClick={() => {
-                  setReadingProduct(true);
-                  setError(null);
-                  void extractProductReference(productLink).then((data) => {
-                    setProductData(data);
-                    setChosenProductImages(data.images.slice(0, 1));
-                    if (!brief.trim() && data.description) setBrief(data.description.slice(0, 1200));
-                  }).catch(() => {
-                    setProductData(null);
-                    setChosenProductImages([]);
-                    setError("Couldn't load this product link. You can upload product photos instead.");
-                  }).finally(() => setReadingProduct(false));
-                }}
-                className="min-h-10 shrink-0 rounded-xl border border-violet/25 bg-violet/[.08] px-3 text-[11px] font-semibold text-violet transition hover:bg-violet/[.13] disabled:opacity-40"
-              >
-                {readingProduct ? "Reading…" : "Use product link"}
-              </button>
             </div>
+            <p className="mt-2 text-[11px] leading-4 text-white/45">
+              {productData
+                ? "Choose the photos to use below. You don't need to upload anything else."
+                : "We'll use the photos on that page. Or skip the link and upload your own product photos. You only need one of the two."}
+            </p>
             {productData && (
               <div className="mt-2.5">
                 <div className="flex items-center justify-between gap-3">
-                  <p className="min-w-0 truncate text-[11px] font-semibold text-white">{productData.title || "Choose product images"}</p>
-                  <span className="shrink-0 text-[9px] text-text-dim">{chosenProductImages.length} selected</span>
+                  <p className="min-w-0 truncate text-[12px] font-semibold text-white">{productData.title || "Product photos"}</p>
+                  <span className="shrink-0 text-[11px] text-white/45">{chosenProductImages.length} selected</span>
                 </div>
-                <div className="chat-scroll mt-2 flex gap-2 overflow-x-auto pb-1">
+                <ScrollRow className="mt-2 gap-2 pb-1" nudge={false}>
                   {productData.images.map((image) => {
                     const selected = chosenProductImages.includes(image);
                     return (
@@ -868,60 +966,60 @@ export function WebsiteBriefForm({
                       </button>
                     );
                   })}
-                </div>
+                </ScrollRow>
               </div>
             )}
           </div>
         )}
 
         {activeMode === "architecture" && (
-          <div className="mb-3 space-y-2.5 rounded-2xl border border-white/[.08] bg-white/[.025] p-3">
-            <div className="flex items-center gap-2">
-              <Building2 size={15} className="text-mint" />
-              <div>
-                <p className="text-[11px] font-semibold text-white">Architecture site</p>
-                <p className="text-[9px] text-text-dim">Ground the concept in a real location and your engineering dimensions.</p>
+          <div className="mb-3 space-y-3 rounded-2xl border border-white/[.08] bg-white/[.025] p-3.5">
+            <div>
+              <p className="text-xs font-semibold text-white">Where will it be built?</p>
+              <div className="mt-2 flex items-center gap-2">
+                <div className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-xl border border-white/[.10] bg-[#0b0818] px-3 transition focus-within:border-violet/50">
+                  <MapPin size={14} className="shrink-0 text-mint" />
+                  <input
+                    type="text"
+                    value={mapLink}
+                    onChange={(event) => { setMapLink(event.target.value); setSite(null); }}
+                    onBlur={() => { if (mapLink.trim() && !site) void resolveSite(); }}
+                    onPaste={(event) => {
+                      const pasted = event.clipboardData.getData("text").trim();
+                      if (!/^https?:\/\//i.test(pasted)) return;
+                      event.preventDefault();
+                      setMapLink(pasted);
+                      setSite(null);
+                      void resolveSite(pasted);
+                    }}
+                    onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void resolveSite(); } }}
+                    placeholder="Google Maps link or address"
+                    aria-label="Google Maps link or address"
+                    className="min-w-0 flex-1 bg-transparent py-2.5 text-base text-white outline-none placeholder:text-white/35 sm:text-xs"
+                  />
+                  {resolvingSite && <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-violet border-t-transparent" aria-label="Finding the location" />}
+                </div>
               </div>
+              {site && <p className="mt-2 flex items-center gap-1.5 text-[12px] text-mint"><Check size={13} /> {site.label || `${site.latitude}, ${site.longitude}`}</p>}
             </div>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <input
-                type="text"
-                value={mapLink}
-                onChange={(event) => { setMapLink(event.target.value); setSite(null); }}
-                placeholder="Google Maps link or address"
-                aria-label="Google Maps link or address"
-                className="min-h-10 min-w-0 flex-1 rounded-xl border border-white/[.10] bg-[#0b0818] px-3 text-xs text-white outline-none placeholder:text-white/35 focus:border-mint/40"
-              />
-              <button type="button" disabled={!mapLink.trim() || resolvingSite} onClick={() => {
-                setResolvingSite(true); setError(null);
-                if (!/^https?:\/\//i.test(mapLink)) {
-                  setSite({ label: mapLink.trim(), resolvedUrl: "" }); setResolvingSite(false); return;
-                }
-                void resolveArchitectureLocation(mapLink).then(setSite).catch(() => {
-                  setSite(null); setError("Couldn't identify this location. Paste another Google Maps link or enter the address.");
-                }).finally(() => setResolvingSite(false));
-              }} className="min-h-10 rounded-xl border border-mint/20 bg-mint/[.06] px-3 text-[11px] font-semibold text-mint disabled:opacity-40">
-                {resolvingSite ? "Locating…" : "Use location"}
-              </button>
+
+            <div className="grid grid-cols-2 gap-2">
+              <NumberStepper label="Plot width" unit="m" value={plotWidth} onChange={setPlotWidth} min={1} max={5000} step={1} decimal placeholder="0" disabled={estimatedScale} />
+              <NumberStepper label="Plot depth" unit="m" value={plotDepth} onChange={setPlotDepth} min={1} max={5000} step={1} decimal placeholder="0" disabled={estimatedScale} />
+              <NumberStepper label="Floors" value={floorCount} onChange={setFloorCount} min={1} max={200} step={1} placeholder="Any" />
+              <NumberStepper label="Setback" unit="m" value={setback} onChange={setSetback} min={0} max={500} step={0.5} decimal placeholder="0" />
             </div>
-            {site && <p className="text-[10px] text-mint">✓ {site.label || `${site.latitude}, ${site.longitude}`} · now add a site photo/screenshot or plan</p>}
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {[
-                [plotWidth, setPlotWidth, "Plot width (m)"],
-                [plotDepth, setPlotDepth, "Plot depth (m)"],
-                [floorCount, setFloorCount, "Floors"],
-                [setback, setSetback, "Setback (m)"],
-              ].map(([value, setter, label]) => (
-                <input key={label as string} type="number" min="0" step="any" value={value as string}
-                  onChange={(event) => (setter as (value: string) => void)(event.target.value)}
-                  placeholder={label as string} aria-label={label as string}
-                  className="min-h-9 min-w-0 rounded-xl border border-white/[.10] bg-[#0b0818] px-2.5 text-[10px] text-white outline-none focus:border-mint/35" />
-              ))}
-            </div>
-            <label className="flex cursor-pointer items-center gap-2 text-[10px] text-text-muted">
-              <input type="checkbox" checked={estimatedScale} onChange={(event) => setEstimatedScale(event.target.checked)} />
-              Use estimated site scale when exact plot measurements are unavailable
-            </label>
+
+            <ToggleRow
+              checked={estimatedScale}
+              onChange={setEstimatedScale}
+              label="Estimate the plot size"
+              hint="Turn on if you don't know the exact width and depth."
+            />
+
+            <p className="text-[11px] leading-4 text-white/45">
+              Add a screenshot of the plot from Google Maps, a site photo or a plan with “Add site / building”. To place an existing building design, add its image too.
+            </p>
           </div>
         )}
 
@@ -1056,7 +1154,7 @@ export function WebsiteBriefForm({
             className={controlClass(files.length > 0)}
           >
             <Paperclip size={13} className="text-mint" />
-            {files.length ? `References ${files.length}` : isProductMode ? "Add product photo" : activeMode === "interior" ? "Add space references" : activeMode === "architecture" ? "Add site / plans" : "References"}
+            {files.length ? `References ${files.length}` : isProductMode ? "Upload product photo" : activeMode === "interior" ? "Add space references" : activeMode === "architecture" ? "Add site / building" : "References"}
           </button>
 
           </div>
@@ -1124,17 +1222,23 @@ export function WebsiteBriefForm({
           <div className="mt-2 rounded-2xl border border-violet/15 bg-violet/[.035] p-2.5 sm:p-3">
             <div className="mb-2 flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[10px] font-semibold text-white">Pick a creative direction</p>
-                <p className="mt-0.5 text-[8px] text-text-dim">It only fills your prompt. You can change anything before generating.</p>
+                <p className="text-[12px] font-semibold text-white">Pick a creative direction</p>
+                <p className="mt-0.5 text-[11px] text-white/45">Add your own words to change anything.</p>
               </div>
               <div className="flex shrink-0 items-center gap-1.5">
-                <span className="rounded-full border border-mint/15 bg-mint/[.06] px-2 py-1 text-[7px] font-semibold text-mint">FREE</span>
                 <button type="button" onClick={() => setCompactPanel(null)} aria-label="Close ideas" className="grid h-7 w-7 place-items-center rounded-lg text-text-dim hover:bg-white/5 hover:text-white"><X size={12} /></button>
               </div>
             </div>
             <MasterIdeas ideas={masterIdeas} context={ideaContext} selectedId={selectedIdea?.id ?? null} onSelect={applyMasterIdea} />
           </div>
         )}
+
+        <SampleStrip
+          feature={activeMode}
+          selectedId={selectedSample?.id ?? null}
+          onSelect={(sample) => { setSelectedSample(sample); setError(null); }}
+          selectable={activeMode !== "website"}
+        />
 
         {previews.length > 0 && (
           <div className="chat-scroll mt-3 flex gap-2 overflow-x-auto pb-1">
@@ -1158,7 +1262,7 @@ export function WebsiteBriefForm({
         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
           {!compactLayout && (
             <div className="flex-1 text-[9px] text-text-dim">
-              {isProductMode && !files.length ? "Add a real product photo before generating." : activeMode === "interior" && !files.length ? "Add space references before generating." : `Your setup: ${isVideoMode ? `${durationSeconds}s · ` : ""}${formatSummary} · ${selectedModel.supportedQualities.length === 1 ? selectedModel.quality : (settings.outputQuality === "4k" ? "4K" : "1080p")}`}
+              {isProductMode && !files.length && !chosenProductImages.length && !productLink.trim() ? "Paste a product link or upload a product photo." : activeMode === "interior" && !files.length ? "Add space references before generating." : `Your setup: ${isVideoMode ? `${durationSeconds}s · ` : ""}${formatSummary} · ${selectedModel.supportedQualities.length === 1 ? selectedModel.quality : (settings.outputQuality === "4k" ? "4K" : "1080p")}`}
             </div>
           )}
           <button

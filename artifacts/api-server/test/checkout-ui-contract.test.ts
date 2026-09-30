@@ -61,6 +61,6 @@ test('card fields render as one clean input surface without nested provider boxe
   assert.match(source, /border: '0'/);
   assert.match(source, /borderRadius: '0'/);
   assert.match(source, /boxShadow: 'none'/);
-  assert.match(source, /className="h-\[56px\] overflow-hidden rounded-\[12px\] border/);
+  assert.match(source, /className="h-\[52px\] overflow-hidden rounded-2xl border/);
   assert.doesNotMatch(source, /p-px.*bg-\[#f8f7fb\]/);
 });

@@ -11,6 +11,8 @@ import { MAX_UPLOAD_BYTES, MAX_UPLOAD_PHOTOS, normalizeUploadToJpeg, sanitizeUpl
 import { generationModelForMode } from '../lib/generation-models.js';
 import { readPublicUrl } from '../lib/external-reference.js';
 import { coordinatesFromMapsUrl, isGoogleMapsUrl } from '../lib/maps-url.js';
+import { TEMPLATE_REPLACEMENT_DIRECTION } from '../lib/studio-direction.js';
+import { findShowcaseSample, loadShowcaseStill } from '../lib/marketing.js';
 import { z } from 'zod';
 
 const router = Router();
@@ -90,6 +92,9 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
       }
     }
     const ideaPrompt = typeof req.body?.ideaPrompt === 'string' ? req.body.ideaPrompt.trim() : '';
+    // Hidden creative direction (from an Idea chip). Stored separately so it never shows in the chat.
+    const clientDirection = typeof req.body?.studioDirection === 'string' ? req.body.studioDirection.trim().slice(0, 6000) : '';
+    const templateId = typeof req.body?.templateId === 'string' ? req.body.templateId.trim().slice(0, 80) : '';
     if (ideaPrompt.length > 8000) {
       throw new AppError('Your prompt is longer than 8,000 characters. Shorten it slightly so every detail can be sent without hidden truncation.', 400, 'PROMPT_TOO_LONG');
     }
@@ -259,10 +264,30 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
       pages.push({ url: `product-reference://${index}`, title: `Product image ${index + 1}`, screenshotUrl });
     }
 
+    // "Make one like this with my product": attach the chosen showcase sample as the LAST reference.
+    let usedTemplateId: string | null = null;
+    if (templateId && studioKind) {
+      const sample = await findShowcaseSample(templateId);
+      const still = sample ? await loadShowcaseStill(sample) : null;
+      if (sample && still) {
+        try {
+          const jpeg = await normalizeUploadToJpeg(still);
+          const pageIndex = pages.length;
+          const filename = pageIndex === 0 ? 'screenshot-full.jpg' : `page-${pageIndex}.jpg`;
+          const screenshotUrl = await saveImageFile(job.id, filename, jpeg);
+          pages.push({ url: `template://${sample.id}`, title: 'STYLE SAMPLE — copy its look, replace its subject with the customer references', screenshotUrl });
+          usedTemplateId = sample.id;
+        } catch (err) {
+          console.warn(`[uploads] job=${job.id} template ${templateId} skipped: ${(err as Error).message}`);
+        }
+      }
+    }
+    const studioDirection = [usedTemplateId ? TEMPLATE_REPLACEMENT_DIRECTION : '', clientDirection].filter(Boolean).join('\n\n');
+
     // Text-only Custom Idea and Scenario jobs never call an image provider at
     // upload time. The paid render transaction is the first expensive model
     // call, so this endpoint cannot be abused for free image generation.
-    const directTextToVideo = (studioKind === 'idea' || studioKind === 'scenario') && studioMode === 'custom' && Boolean(ideaPrompt);
+    const directTextToVideo = (studioKind === 'idea' || studioKind === 'scenario') && studioMode === 'custom' && Boolean(ideaPrompt) && !files.length && !productImageUrls.length && !usedTemplateId;
 
     if (!pages.length && !directTextToVideo) {
       throw new AppError('None of the uploaded files could be read as images. Please try again with JPEG, PNG, or WEBP photos.', 400, 'NO_VALID_FILES');
@@ -295,6 +320,8 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
         productUrl,
         productImageUrls: productImageUrls.length,
         architecture,
+        studioDirection: studioKind && studioDirection ? studioDirection : null,
+        templateId: usedTemplateId,
         ideaPrompt: studioKind ? ideaPrompt : null,
         description: null,
         logoUrl: null,

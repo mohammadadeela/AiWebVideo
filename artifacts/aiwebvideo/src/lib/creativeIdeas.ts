@@ -1,4 +1,4 @@
-export type IdeaFeature = 'ai_video' | 'product_images' | 'product_video' | 'web_video' | 'scenario' | 'interior_design';
+export type IdeaFeature = 'ai_video' | 'product_images' | 'product_video' | 'web_video' | 'scenario' | 'interior_design' | 'architecture';
 
 export interface CreativeIdea {
   id: string;
@@ -27,7 +27,8 @@ const VIDEO_GUARDRAIL = `Respect the user's selected duration, aspect ratio, qua
 const PRODUCT_GUARDRAIL = `Use the supplied product as exact visual ground truth. Preserve its geometry, proportions, materials, colorway, branding, logo, label, packaging and identifiable details. Do not redesign or approximate the product. Build the environment, lighting and composition around the real product rather than regenerating identity-critical details. Respect the selected aspect ratio and quality, keep safe crop margins, and avoid fake text or unrelated brand marks. Any explicit user addition has priority.`;
 const WEBSITE_GUARDRAIL = `Use the real captured website pages, actual interface, real branding, brand colors, copy, products/services and website structure as ground truth. Do not invent an unrelated brand, unsupported offer or fake feature. Keep visible copy short, correctly spelled and readable; favor real UI captures for critical website text. Respect the user's selected duration, aspect ratio, quality, style and references. User additions after this prompt have priority.`;
 export const INTERIOR_MASTER_PROMPT = `You are AiWebVideo's professional architectural visualization director. Treat the user's references, measurements and explicit constraints as authoritative engineering inputs. Never trade geometric accuracy for creativity. Analyze every reference together before designing, cross-check perspective, preserve the existing shell and produce consistent geometry across all outputs. Do not claim construction-ready accuracy from ordinary photos; when a dimension is not supplied or cannot be reliably verified, avoid invented precision. Optimize for professional client/engineer/architect presentation quality.\n\nTreat every supplied room/shop/property photo, floor-plan image, sketch, elevation and written measurement as engineering reference data. Preserve the existing shell, footprint, ceiling/roof geometry, curves, openings, columns, stairs, doors, windows, built-ins and visible structural constraints unless the user explicitly asks to change them. Explicit numeric measurements supplied by the user are authoritative; never silently rescale them. If a measurement cannot be reliably established from the references, do not invent precision—keep the geometry visually consistent and clearly favor the user's stated dimension. Reconstruct perspective and spatial relationships from all references together, not from one image alone. Respect the requested room type, circulation, clearances, materials, furniture scale, lighting, gypsum/ceiling details, linear or magnetic/track lighting, electrical/architectural elements and design style. Produce professional photorealistic architectural visualization suitable for an engineer, architect, interior designer or real-estate presentation. Keep walls, floor, ceiling and roof planes coherent across views. Avoid impossible furniture, floating objects, warped straight lines, inconsistent windows/doors, changing room dimensions, random fixtures, fake construction details, or decorative elements that violate the supplied geometry. If the user asks for a technical/sketch presentation, create a clean architectural concept/visualization rather than claiming it is a construction-ready drawing. User-provided constraints and measurements have priority over creative additions.`;
-const INTERIOR_GUARDRAIL = INTERIOR_MASTER_PROMPT;
+// The full interior/architecture master direction is added on the server; ideas only carry their own direction.
+const INTERIOR_GUARDRAIL = `Follow the supplied references and every numeric input exactly. The customer's own words override this direction.`;
 const SCENARIO_GUARDRAIL = `Preserve any supplied person, product, place or brand reference. Keep dialogue/performance natural, camera movement physically plausible, pacing intentional and the selected duration/aspect ratio authoritative. Never invent unsupported claims or unreadable on-screen text. User additions have priority.`;
 
 function idea(
@@ -38,7 +39,7 @@ function idea(
   direction: string,
   options: Partial<Pick<CreativeIdea, 'requiresReference' | 'optionalReference' | 'tags' | 'priority' | 'supportedAspectRatios'>> = {},
 ): CreativeIdea {
-  const guardrail = feature === 'interior_design'
+  const guardrail = feature === 'interior_design' || feature === 'architecture'
     ? INTERIOR_GUARDRAIL
     : feature === 'product_images' || feature === 'product_video'
     ? PRODUCT_GUARDRAIL
@@ -200,6 +201,23 @@ const SCENARIO: CreativeIdea[] = [
   idea('scenario','direct-camera','Performance','Deliver a confident direct-to-camera launch message',`Create a confident direct-to-camera launch performance with one strong opening line, two or three concise supporting points and a clean close. Use natural gestures, professional but human delivery and subtle cinematic camera movement without overacting.`,{priority:87}),
 ];
 
+const ARCHITECTURE: CreativeIdea[] = [
+  idea('architecture','site-concept','Concept','Design a contemporary building that fits this exact plot',`Design a well-proportioned contemporary building for the supplied plot. Read the street, neighbours, orientation and terrain from the site references, keep the footprint inside the plot minus its setback and respect the stated number of floors. Give it a clear massing idea, a coherent facade rhythm, honest materials and landscaping that belongs to the site.`,{requiresReference:true,tags:['plot','land','site','building','concept'],priority:100}),
+  idea('architecture','place-my-building','Reference','Place my building design on this site',`Place the supplied building reference on the supplied site as the finished design. Keep its massing, facade rhythm, materials and roof form exactly; adapt only scale and orientation to the plot, respect the setback and floor count, and integrate it believably with the street, neighbours and terrain.`,{requiresReference:true,tags:['reference','render','elevation','design'],priority:99}),
+  idea('architecture','family-villa','Residential','Design a modern family villa for this plot',`Design a modern detached family villa suited to the plot and its climate: clear entrance sequence, generous glazing where the orientation allows it, shaded terraces, a garden that uses the remaining plot, parking placed sensibly and a calm, high-quality material palette.`,{requiresReference:true,tags:['villa','house','residential','family'],priority:96}),
+  idea('architecture','apartment-block','Residential','Design a mid-rise apartment building',`Design a mid-rise apartment building that uses the buildable footprint efficiently: a legible base, repeating balcony rhythm, a strong corner or crown, ground-floor entrance and landscaping. Keep the floor count exact and floor heights believable.`,{requiresReference:true,tags:['apartment','residential','floors','building'],priority:94}),
+  idea('architecture','shops-and-offices','Commercial','Design a commercial building with ground-floor shops',`Design a commercial building with active ground-floor shopfronts, clear entrances, a clean facade system for the upper floors and quiet signage zones (no readable lettering). Respect the plot, setback and floor count and relate it to the street it faces.`,{requiresReference:true,tags:['commercial','shop','retail','office'],priority:95}),
+  idea('architecture','office-building','Commercial','Design a compact modern office building',`Design a compact modern office building with a regular structural grid expressed in the facade, generous daylight, a welcoming lobby at street level and roof terraces where sensible. Keep proportions credible for the stated floors and plot.`,{requiresReference:true,tags:['office','commercial','corporate'],priority:88}),
+  idea('architecture','mixed-use','Mixed use','Design a mixed-use building: retail below, homes above',`Design a mixed-use building with retail at street level and homes above. Separate the two entrances clearly, step the massing to suit the plot and neighbours and give the residential floors balconies or terraces.`,{requiresReference:true,tags:['mixed','retail','residential'],priority:90}),
+  idea('architecture','local-character','Style','Design a building that respects the local architectural character',`Design a contemporary building that clearly respects the architectural character visible in the site references: proportions, materials, roof forms and openings of the neighbourhood, reinterpreted rather than copied.`,{requiresReference:true,tags:['local','context','traditional','heritage'],priority:89}),
+  idea('architecture','sustainable','Style','Design a sustainable building with passive cooling and shading',`Design an energy-conscious building for the climate suggested by the location: orientation-aware glazing, deep shading, cross-ventilation, a green roof or planted terraces and durable natural materials. Show the sustainable ideas through form, not labels.`,{requiresReference:true,tags:['sustainable','green','climate','passive'],priority:85}),
+  idea('architecture','day-and-dusk','Presentation','Show the finished building by day and at dusk',`Present the same finished building in daylight and at blue-hour dusk, keeping every architectural detail, material and the plot identical while only the light changes. Warm interior light at dusk, natural shadows by day.`,{requiresReference:true,tags:['dusk','night','lighting','presentation'],priority:91}),
+  idea('architecture','plot-before-after','Transformation','Show the empty plot and the finished building',`Show a clear before-and-after of the exact supplied site: first the plot as it is today, then the same camera position with the finished building in place. Keep the street, neighbours, terrain and framing identical between the two.`,{requiresReference:true,tags:['before','after','transformation','plot'],priority:93}),
+  idea('architecture','facade-options','Design','Explore a different facade for the same building',`Keep the building's massing, floor count and position on the plot and explore a different facade treatment: a new material palette, opening rhythm and shading system. Only the facade changes.`,{requiresReference:true,tags:['facade','material','options'],priority:84}),
+  idea('architecture','walk-around','Video','Create a cinematic walk-around of the building on its site',`Create one continuous cinematic walk-around of the finished building on its real site. Start at the street, move past the entrance, circle the building at human eye level with stable, slow movement and finish on a strong hero view. Keep geometry, materials and surroundings consistent throughout.`,{requiresReference:true,tags:['video','walk','walkthrough','tour'],priority:97}),
+  idea('architecture','drone-reveal','Video','Drone reveal of the finished building on its plot',`Create a smooth drone reveal of the finished building: start high over the neighbourhood, descend toward the plot and orbit gently to reveal massing, roof, landscaping and the relationship to the street. Physically plausible motion, no warped geometry.`,{requiresReference:true,tags:['video','drone','aerial','reveal'],priority:96}),
+];
+
 export const CREATIVE_IDEAS: Record<IdeaFeature, CreativeIdea[]> = {
   ai_video: AI_VIDEO,
   product_images: PRODUCT_IMAGES,
@@ -207,6 +225,7 @@ export const CREATIVE_IDEAS: Record<IdeaFeature, CreativeIdea[]> = {
   web_video: WEB_VIDEO,
   scenario: SCENARIO,
   interior_design: INTERIOR_DESIGN,
+  architecture: ARCHITECTURE,
 };
 
 const INTENT_FEATURE = {
@@ -216,6 +235,7 @@ const INTENT_FEATURE = {
   'product-video': 'product_video',
   scenario: 'scenario',
   interior: 'interior_design',
+  architecture: 'architecture',
 } as const;
 
 export type IdeaIntent = keyof typeof INTENT_FEATURE;

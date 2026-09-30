@@ -9,7 +9,8 @@ import { Empty, FilterBar, FilterSelect, StatCard } from '@/components/admin/adm
 import {
   fetchAdminAudit, fetchAdminJobs, fetchAdminOverview, fetchAdminReports, fetchAdminUsers, fetchAdminUserDetails, fetchMe,
   saveAdminSettings, updateAdminJob, updateAdminUser, saveMarketingSettings, uploadMarketingAsset,
-  type AdminReportRange, type AdminSettings, type MarketingSettings,
+  SHOWCASE_FEATURES, SHOWCASE_FEATURE_LABELS,
+  type AdminReportRange, type AdminSettings, type MarketingSettings, type ShowcaseFeature,
 } from '@/lib/api-client';
 import { watchAuthState } from '@/lib/firebase/client';
 import { useSeo } from '@/lib/useSeo';
@@ -232,6 +233,10 @@ export function AdminPage() {
   const [settings, setSettings] = useState<AdminSettings | null>(null);
   const [marketing, setMarketing] = useState<MarketingSettings | null>(null);
   const [dirty, setDirty] = useState(false);
+  const [gallerySelected, setGallerySelected] = useState<string[]>([]);
+  const [galleryFeature, setGalleryFeature] = useState<'all' | 'unassigned' | ShowcaseFeature>('all');
+  const [galleryKind, setGalleryKind] = useState<'all' | 'image' | 'video'>('all');
+  const [linkDraft, setLinkDraft] = useState('');
   const [userSearch, setUserSearch] = useState('');
   const [jobSearch, setJobSearch] = useState('');
   const [jobSearchBy, setJobSearchBy] = useState<'all' | 'title' | 'id' | 'url' | 'user' | 'provider' | 'error'>('all');
@@ -375,73 +380,44 @@ export function AdminPage() {
     finally { setBusy(false); }
   }
 
-  async function uploadLandingFile(index: number, file: File, target: 'url' | 'posterUrl') {
-    if (!marketing) return;
-    setBusy(true); setMessage(`Uploading ${target === 'url' ? 'video' : 'poster'}…`);
-    try {
-      const uploaded = await uploadMarketingAsset(file);
-      const next: MarketingSettings = {
-        ...marketing,
-        videos: {
-          showcase: marketing.videos.showcase.map((video, i) => i === index ? { ...video, [target]: uploaded.url } : video),
-        },
-      };
-      // Publish the upload immediately. This avoids the confusing state where
-      // the file exists on disk but is missing from the landing page because
-      // the administrator forgot a second Save click.
-      const saved = await saveMarketingSettings(next);
-      setMarketing(saved);
-      setDirty(false);
-      setMessage('Landing video uploaded and published.');
-    } catch (error) { setMessage(error instanceof Error ? error.message : 'Upload failed.'); }
-    finally { setBusy(false); }
-  }
-
-  async function uploadLandingFiles(files: File[]) {
+  /** Upload many images and videos at once. Nothing goes live until every item has a feature and you save. */
+  async function uploadGalleryFiles(files: File[]) {
     if (!marketing || files.length === 0) return;
-    const room = Math.max(0, LANDING_VIDEO_LIMIT - marketing.videos.showcase.filter((video) => video.url).length);
-    const accepted = files.slice(0, room);
+    const used = marketing.videos.showcase.filter((item) => item.url).length;
+    const room = Math.max(0, LANDING_VIDEO_LIMIT - used);
+    const accepted = files.filter((file) => /^(image|video)\//.test(file.type)).slice(0, room);
     if (!accepted.length) {
-      setMessage(`The landing gallery already contains the maximum of ${LANDING_VIDEO_LIMIT} videos.`);
+      setMessage(room === 0 ? `The gallery already has the maximum of ${LANDING_VIDEO_LIMIT} items.` : 'Choose image or video files.');
       return;
     }
     setBusy(true);
-    setMessage(`Uploading 1 of ${accepted.length} videos…`);
+    const added: MarketingSettings['videos']['showcase'] = [];
     try {
-      const urls: string[] = [];
       for (let index = 0; index < accepted.length; index += 1) {
-        setMessage(`Uploading ${index + 1} of ${accepted.length} videos…`);
+        setMessage(`Uploading ${index + 1} of ${accepted.length}${accepted[index].type.startsWith('video/') ? ' (videos are optimized for phones, this can take a minute)' : ''}…`);
         const uploaded = await uploadMarketingAsset(accepted[index]);
-        if (uploaded.kind !== 'video') throw new Error(`${accepted[index].name} is not a supported video.`);
-        urls.push(uploaded.url);
+        added.push({
+          id: `upload-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 6)}`,
+          url: uploaded.url,
+          posterUrl: uploaded.posterUrl ?? null,
+          kind: uploaded.kind,
+          feature: null,
+          caption: null,
+          overlayText: null,
+          eyebrow: null,
+        });
       }
-
-      const showcase = marketing.videos.showcase.map((video) => ({ ...video }));
-      for (const url of urls) {
-        const emptyIndex = showcase.findIndex((video) => !video.url);
-        if (emptyIndex >= 0) {
-          showcase[emptyIndex] = { ...showcase[emptyIndex], url };
-        } else {
-          showcase.push({
-            id: `upload-${Date.now()}-${showcase.length + 1}`,
-            url,
-            posterUrl: null,
-            caption: null,
-            overlayText: null,
-            eyebrow: null,
-          });
-        }
-      }
-
-      const next: MarketingSettings = { ...marketing, videos: { showcase: showcase.slice(0, LANDING_VIDEO_LIMIT) } };
-      const saved = await saveMarketingSettings(next);
-      setMarketing(saved);
-      setDirty(false);
       const skipped = files.length - accepted.length;
-      setMessage(`${accepted.length} landing video${accepted.length === 1 ? '' : 's'} uploaded and published${skipped ? ` · ${skipped} skipped because the gallery reached ${LANDING_VIDEO_LIMIT}` : ''}.`);
+      setMessage(`${added.length} uploaded. Choose a feature for each one, then save${skipped ? ` · ${skipped} skipped` : ''}.`);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'The videos could not be uploaded.');
+      setMessage(`${added.length} uploaded before an error: ${error instanceof Error ? error.message : 'Upload failed.'}`);
     } finally {
+      if (added.length) {
+        // Empty placeholder slots are dropped so they never hide real items.
+        const kept = marketing.videos.showcase.filter((item) => item.url);
+        setMarketing({ ...marketing, videos: { showcase: [...kept, ...added] } });
+        setDirty(true);
+      }
       setBusy(false);
     }
   }
@@ -528,7 +504,7 @@ export function AdminPage() {
       <header className="flex items-center justify-between gap-3">
         <h1 className="font-display text-2xl font-bold text-text-primary">{currentTab?.label}</h1>
         <div className="flex gap-2">
-          {tab === 'landing' && <Button disabled={busy || !dirty} onClick={() => void saveLanding()}><Save size={15} /> {dirty ? 'Save' : 'Saved'}</Button>}
+          {tab === 'landing' && <Button disabled={busy || !dirty || showcase.some((item) => item.url && !item.feature)} title={showcase.some((item) => item.url && !item.feature) ? 'Choose a feature for every item first' : undefined} onClick={() => void saveLanding()}><Save size={15} /> {dirty ? 'Save' : 'Saved'}</Button>}
           {tab === 'providers' && <Button disabled={busy} onClick={() => void saveSettings()}><Save size={15} /> Save</Button>}
           <Button variant="secondary" disabled={busy} onClick={() => void refresh()} aria-label="Refresh"><RefreshCw size={15} className={busy ? 'animate-spin' : ''} /></Button>
         </div>
@@ -565,40 +541,87 @@ export function AdminPage() {
         </section>
       </div>}
 
-      {tab === 'landing' && marketing && <section className="mt-6 space-y-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-text-muted"><span className="font-semibold text-text-primary">{showcase.filter((video) => video.url).length}</span> of {LANDING_VIDEO_LIMIT} videos · the first one is the large featured film</p>
-          <div className="flex gap-2">
-            <label className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl bg-signature px-4 text-sm font-semibold text-white transition hover:brightness-110 ${busy ? 'pointer-events-none opacity-50' : ''}`}>
-              <Upload size={15} /> Upload videos
-              <input type="file" multiple accept="video/mp4,video/webm,video/quicktime" className="hidden" disabled={busy} onChange={(event) => { const selected = Array.from(event.target.files ?? []); if (selected.length) void uploadLandingFiles(selected); event.currentTarget.value = ''; }} />
-            </label>
-            <Button variant="secondary" disabled={busy || showcase.length >= LANDING_VIDEO_LIMIT} onClick={() => setShowcase([...showcase, { id: `example-${Date.now()}-${showcase.length + 1}`, url: null, posterUrl: null, caption: null, overlayText: null, eyebrow: null }])}><Plus size={14} /> Add link</Button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
-          {showcase.map((video, index) => <article key={video.id} className="overflow-hidden rounded-2xl border border-border bg-panel">
-            <div className="group relative aspect-[9/16] bg-black">
-              {video.url ? <video src={video.url} poster={video.posterUrl ?? undefined} muted playsInline preload="metadata" controls className="h-full w-full object-cover" /> : <label className="flex h-full cursor-pointer flex-col items-center justify-center gap-2 text-xs text-text-dim transition hover:text-violet"><Upload size={18} />Upload<input type="file" accept="video/mp4,video/webm,video/quicktime" className="hidden" disabled={busy} onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadLandingFile(index, file, 'url'); event.currentTarget.value = ''; }} /></label>}
-              <button type="button" disabled={busy || showcase.length <= 1} onClick={() => setShowcase(showcase.filter((_, i) => i !== index))} aria-label="Delete video" className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-black/60 text-white/80 backdrop-blur transition hover:bg-pink/80 hover:text-white disabled:opacity-30"><Trash2 size={13} /></button>
-              {index === 0 && <span className="pointer-events-none absolute left-2 top-2 rounded-full bg-black/60 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur">Featured</span>}
+      {tab === 'landing' && marketing && (() => {
+        const items = showcase.filter((item) => item.url);
+        const unassigned = items.filter((item) => !item.feature);
+        const kindOf = (item: (typeof items)[number]) => item.kind ?? 'video';
+        const visible = items.filter((item) =>
+          (galleryFeature === 'all' || (galleryFeature === 'unassigned' ? !item.feature : item.feature === galleryFeature))
+          && (galleryKind === 'all' || kindOf(item) === galleryKind));
+        const visibleIds = visible.map((item) => item.id);
+        const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => gallerySelected.includes(id));
+        const count = (feature: ShowcaseFeature) => items.filter((item) => item.feature === feature).length;
+        const patchItems = (ids: string[], patch: Partial<(typeof items)[number]>) => setShowcase(showcase.map((item) => ids.includes(item.id) ? { ...item, ...patch } : item));
+        const chip = (active: boolean) => `shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition ${active ? 'bg-white text-[#1b1030]' : 'bg-white/[.06] text-text-muted hover:text-white'}`;
+        return <section className="mt-6 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-text-muted"><span className="font-semibold text-text-primary">{items.length}</span> of {LANDING_VIDEO_LIMIT} items{unassigned.length > 0 && <span className="ml-2 font-semibold text-amber-200">· {unassigned.length} need a feature</span>}</p>
+            <div className="flex flex-wrap gap-2">
+              <form className="flex gap-2" onSubmit={(event) => { event.preventDefault(); const link = linkDraft.trim(); if (!/^https?:\/\//i.test(link)) { setMessage('Paste a full video link that starts with https://'); return; } setShowcase([...showcase.filter((item) => item.url), { id: `link-${Date.now()}`, url: link, posterUrl: null, caption: null, overlayText: null, eyebrow: null, kind: 'video', feature: null }]); setLinkDraft(''); }}>
+                <input value={linkDraft} onChange={(event) => setLinkDraft(event.target.value)} placeholder="YouTube, Vimeo or MP4 link" aria-label="Video link" className="h-11 w-52 rounded-xl border border-border bg-bg px-3 text-base sm:text-xs" />
+                <Button type="submit" variant="secondary" disabled={busy || !linkDraft.trim() || items.length >= LANDING_VIDEO_LIMIT}><Plus size={14} /> Add</Button>
+              </form>
+              <label className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl bg-signature px-4 text-sm font-semibold text-white transition hover:brightness-110 ${busy ? 'pointer-events-none opacity-50' : ''}`}>
+                <Upload size={15} /> Upload images &amp; videos
+                <input type="file" multiple accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" className="hidden" disabled={busy} onChange={(event) => { const selected = Array.from(event.target.files ?? []); if (selected.length) void uploadGalleryFiles(selected); event.currentTarget.value = ''; }} />
+              </label>
             </div>
-            <div className="space-y-2 p-2.5">
-              <input value={video.caption ?? ''} placeholder="Caption (optional)" onChange={(event) => setShowcase(showcase.map((item, i) => i === index ? { ...item, caption: event.target.value || null } : item))} className="h-9 w-full rounded-lg border border-border bg-bg px-2.5 text-xs" />
-              <details className="text-[11px] text-text-dim"><summary className="cursor-pointer select-none hover:text-text-primary">Video link</summary><input value={video.url ?? ''} placeholder="YouTube, Vimeo or MP4 link" onChange={(event) => setShowcase(showcase.map((item, i) => i === index ? { ...item, url: event.target.value || null } : item))} className="mt-2 h-9 w-full rounded-lg border border-border bg-bg px-2.5 text-xs text-text-primary" /></details>
-            </div>
-          </article>)}
-        </div>
-
-        <details className="rounded-2xl border border-border bg-panel p-4 text-sm">
-          <summary className="cursor-pointer select-none font-semibold text-text-primary">Section text</summary>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <label className="text-xs font-semibold text-text-muted">Heading<input value={marketing.heading} onChange={(event) => { setMarketing({ ...marketing, heading: event.target.value }); setDirty(true); }} className="mt-1.5 h-10 w-full rounded-xl border border-border bg-bg px-3 text-sm font-normal text-text-primary" /></label>
-            <label className="text-xs font-semibold text-text-muted">Description<textarea rows={2} value={marketing.description} onChange={(event) => { setMarketing({ ...marketing, description: event.target.value }); setDirty(true); }} className="mt-1.5 w-full resize-none rounded-xl border border-border bg-bg px-3 py-2 text-sm font-normal text-text-primary" /></label>
           </div>
-        </details>
-      </section>}
+
+          <div className="space-y-2 rounded-2xl border border-border bg-panel p-3">
+            <div className="chat-scroll flex gap-1.5 overflow-x-auto">
+              <button type="button" onClick={() => setGalleryFeature('all')} className={chip(galleryFeature === 'all')}>All ({items.length})</button>
+              <button type="button" onClick={() => setGalleryFeature('unassigned')} className={`${chip(galleryFeature === 'unassigned')} ${unassigned.length ? 'ring-1 ring-amber-300/50' : ''}`}>Needs a feature ({unassigned.length})</button>
+              {SHOWCASE_FEATURES.map((feature) => <button key={feature} type="button" onClick={() => setGalleryFeature(feature)} className={chip(galleryFeature === feature)}>{SHOWCASE_FEATURE_LABELS[feature]} ({count(feature)})</button>)}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex gap-1 rounded-xl bg-white/[.04] p-1">
+                {(['all', 'image', 'video'] as const).map((kind) => <button key={kind} type="button" onClick={() => setGalleryKind(kind)} className={`rounded-lg px-3 py-1 text-xs font-semibold ${galleryKind === kind ? 'bg-white text-[#1b1030]' : 'text-text-muted'}`}>{kind === 'all' ? 'All types' : kind === 'image' ? 'Images' : 'Videos'}</button>)}
+              </div>
+              <button type="button" onClick={() => setGallerySelected(allVisibleSelected ? gallerySelected.filter((id) => !visibleIds.includes(id)) : Array.from(new Set([...gallerySelected, ...visibleIds])))} className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-violet hover:bg-violet/10" disabled={!visibleIds.length}>{allVisibleSelected ? 'Clear selection' : `Select ${visibleIds.length} shown`}</button>
+            </div>
+          </div>
+
+          {gallerySelected.length > 0 && <div className="sticky top-3 z-20 flex flex-wrap items-center gap-2 rounded-2xl border border-violet/30 bg-[#1a1233]/95 p-3 shadow-xl backdrop-blur">
+            <span className="text-sm font-semibold text-white">{gallerySelected.length} selected</span>
+            <span className="text-xs text-text-muted">Move to:</span>
+            <div className="chat-scroll flex min-w-0 flex-1 gap-1.5 overflow-x-auto">
+              {SHOWCASE_FEATURES.map((feature) => <button key={feature} type="button" onClick={() => { patchItems(gallerySelected, { feature }); setGallerySelected([]); }} className="shrink-0 rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-violet">{SHOWCASE_FEATURE_LABELS[feature]}</button>)}
+            </div>
+            <button type="button" onClick={() => { if (window.confirm(`Delete ${gallerySelected.length} item${gallerySelected.length === 1 ? '' : 's'}?`)) { setShowcase(showcase.filter((item) => !gallerySelected.includes(item.id))); setGallerySelected([]); } }} className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-pink hover:bg-pink/10"><Trash2 size={13} /> Delete</button>
+            <button type="button" onClick={() => setGallerySelected([])} aria-label="Clear selection" className="grid h-8 w-8 place-items-center rounded-full text-text-muted hover:bg-white/10"><X size={14} /></button>
+          </div>}
+
+          {visible.length === 0 ? <Empty>{items.length ? 'Nothing matches these filters.' : 'Upload images and videos to build the homepage gallery.'}</Empty> : <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
+            {visible.map((item) => {
+              const selected = gallerySelected.includes(item.id);
+              return <article key={item.id} className={`overflow-hidden rounded-2xl border bg-panel transition ${selected ? 'border-violet ring-2 ring-violet/40' : item.feature ? 'border-border' : 'border-amber-300/40'}`}>
+                <div className="relative aspect-[3/4] bg-black">
+                  {kindOf(item) === 'image'
+                    ? <img src={item.url ?? ''} alt="" loading="lazy" className="h-full w-full object-cover" />
+                    : <video src={item.url ?? undefined} poster={item.posterUrl ?? undefined} muted playsInline preload="metadata" controls className="h-full w-full object-cover" />}
+                  <button type="button" aria-pressed={selected} aria-label={selected ? 'Deselect' : 'Select'} onClick={() => setGallerySelected(selected ? gallerySelected.filter((id) => id !== item.id) : [...gallerySelected, item.id])} className={`absolute left-2 top-2 grid h-7 w-7 place-items-center rounded-full border-2 transition ${selected ? 'border-violet bg-violet text-white' : 'border-white/70 bg-black/40 text-transparent hover:text-white/70'}`}><CheckCircle2 size={14} /></button>
+                  <button type="button" disabled={busy} aria-label="Delete" onClick={() => { setShowcase(showcase.filter((entry) => entry.id !== item.id)); setGallerySelected(gallerySelected.filter((id) => id !== item.id)); }} className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-black/60 text-white/80 transition hover:bg-pink/80 hover:text-white"><Trash2 size={12} /></button>
+                </div>
+                <div className="p-2">
+                  <select aria-label="Feature" value={item.feature ?? ''} onChange={(event) => patchItems([item.id], { feature: (event.target.value || null) as ShowcaseFeature | null })} className={`h-9 w-full rounded-lg border bg-bg px-2 text-xs ${item.feature ? 'border-border text-text-primary' : 'border-amber-300/50 text-amber-200'}`}>
+                    <option value="">Choose a feature…</option>
+                    {SHOWCASE_FEATURES.map((feature) => <option key={feature} value={feature}>{SHOWCASE_FEATURE_LABELS[feature]}</option>)}
+                  </select>
+                </div>
+              </article>;
+            })}
+          </div>}
+
+          <details className="rounded-2xl border border-border bg-panel p-4 text-sm">
+            <summary className="cursor-pointer select-none font-semibold text-text-primary">Section text</summary>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <label className="text-xs font-semibold text-text-muted">Heading<input value={marketing.heading} onChange={(event) => { setMarketing({ ...marketing, heading: event.target.value }); setDirty(true); }} className="mt-1.5 h-10 w-full rounded-xl border border-border bg-bg px-3 text-sm font-normal text-text-primary" /></label>
+              <label className="text-xs font-semibold text-text-muted">Description<textarea rows={2} value={marketing.description} onChange={(event) => { setMarketing({ ...marketing, description: event.target.value }); setDirty(true); }} className="mt-1.5 w-full resize-none rounded-xl border border-border bg-bg px-3 py-2 text-sm font-normal text-text-primary" /></label>
+            </div>
+          </details>
+        </section>;
+      })()}
 
       {tab === 'users' && <div className="mt-6 space-y-4">
         <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

@@ -61,17 +61,10 @@ export function SiteCard({ sourceUrl, metadata }: { sourceUrl: string; metadata:
   return (
     <div className="w-full max-w-xl rounded-xl border border-border bg-panel p-4 animate-fade-in-up">
       {!isUpload && (
-        <div className="mb-3 rounded-xl border border-mint/25 bg-mint/[.055] p-3.5">
-          <p className="font-utility text-[9px] font-semibold uppercase tracking-[.16em] text-mint">Website connected</p>
-          <p className="mt-1 text-sm font-semibold text-white">We found {displayName}.</p>
-          <p className="mt-1 text-[11px] leading-5 text-text-muted">
-            This is real context from your website — not a demo. The capture is free and nothing has been generated or charged yet.
-          </p>
-          <div className="mt-3 grid gap-2 text-[10px] text-text-muted sm:grid-cols-3">
-            <span className="flex items-center gap-1.5 rounded-lg bg-black/15 px-2.5 py-2"><Check size={12} className="text-mint" />Website reached</span>
-            <span className="flex items-center gap-1.5 rounded-lg bg-black/15 px-2.5 py-2"><Check size={12} className="text-mint" />{metadata.pageCount} useful page{metadata.pageCount === 1 ? '' : 's'}</span>
-            <span className="flex items-center gap-1.5 rounded-lg bg-black/15 px-2.5 py-2"><Check size={12} className="text-mint" />{metadata.logoUrl || metadata.brandColors.length ? 'Brand context saved' : 'Visual context saved'}</span>
-          </div>
+        <div className="mb-3 flex items-center gap-2.5 rounded-xl bg-mint/[.06] px-3.5 py-3">
+          <Check size={15} className="shrink-0 text-mint" />
+          <p className="min-w-0 truncate text-sm font-semibold text-white">{displayName}</p>
+          <p className="ml-auto shrink-0 text-xs text-text-muted">{metadata.pageCount} page{metadata.pageCount === 1 ? '' : 's'}</p>
         </div>
       )}
       {!isUpload && (
@@ -81,8 +74,7 @@ export function SiteCard({ sourceUrl, metadata }: { sourceUrl: string; metadata:
               <ScanSearch size={14} />
             </span>
             <div>
-              <p className="text-xs font-semibold text-text-primary">Website analysis</p>
-              <p className="mt-0.5 text-[10px] text-text-dim">What AiWebVideo understood from the public website before generation.</p>
+              <p className="text-xs font-semibold text-text-primary">What we found</p>
             </div>
           </div>
 

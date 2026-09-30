@@ -9,13 +9,14 @@ import multer from 'multer';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { ASSETS_DIR } from '../lib/capture.js';
-import { clearMarketingSettingsCache, getMarketingSettings, MAX_MARKETING_VIDEOS } from '../lib/marketing.js';
+import { clearMarketingSettingsCache, getMarketingSettings, MAX_MARKETING_VIDEOS, SHOWCASE_FEATURES } from '../lib/marketing.js';
 import { GEMINI_COST_CATALOG } from '../lib/costs.js';
 import { CREDIT_COSTS, MAX_VIDEO_SECONDS, MIN_VIDEO_SECONDS, videoCreditQuote } from '../lib/credits.js';
 import { getPayPalReadiness, PRODUCTS } from './paypal.js';
 import { getProviderQueueSnapshot } from '../lib/provider-queue.js';
 import { isR2Configured, uploadBufferToR2 } from '../lib/r2-storage.js';
 import { classifyAdminProduction } from '../lib/admin-production.js';
+import { optimizeShowcaseVideo } from '../lib/media-optimize.js';
 
 const router = Router();
 router.use(requireAdmin);
@@ -329,19 +330,36 @@ router.get('/reports', async (req, res) => {
 router.post('/marketing/upload', marketingUpload.single('file'), async (req, res) => {
   try {
     if (!req.file) throw new AppError('Choose a file to upload.', 400, 'NO_FILE');
-    const extByMime: Record<string, string> = {
+    const extByMime: Record<string, '.mp4' | '.webm' | '.mov' | '.jpg' | '.png' | '.webp'> = {
       'video/mp4': '.mp4', 'video/webm': '.webm', 'video/quicktime': '.mov',
       'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp',
     };
-    const extension = extByMime[req.file.mimetype];
+    let extension = extByMime[req.file.mimetype];
     if (!extension) throw new AppError('Unsupported file type.', 400, 'UNSUPPORTED_FILE_TYPE');
+    const isVideo = req.file.mimetype.startsWith('video/');
     const directory = path.join(ASSETS_DIR, 'marketing');
     await fs.mkdir(directory, { recursive: true });
-    const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${extension}`;
-    await fs.writeFile(path.join(directory, filename), req.file.buffer, { flag: 'wx' });
-    await uploadBufferToR2('marketing', filename, req.file.buffer);
-    await audit(req.user!.id, 'marketing.asset_uploaded', 'marketing', filename, { mime: req.file.mimetype, bytes: req.file.size });
-    res.status(201).json({ url: `/api/assets/marketing/${filename}`, kind: req.file.mimetype.startsWith('video/') ? 'video' : 'image' });
+    const stem = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+    let body = req.file.buffer;
+    let posterUrl: string | null = null;
+    if (isVideo) {
+      // Re-encode to a phone-friendly H.264 file with the index up front, and grab a poster frame.
+      const optimized = await optimizeShowcaseVideo(body, extension as '.mp4' | '.webm' | '.mov');
+      body = optimized.video;
+      extension = optimized.extension;
+      if (optimized.poster) {
+        const posterName = `${stem}-poster.jpg`;
+        await fs.writeFile(path.join(directory, posterName), optimized.poster, { flag: 'wx' });
+        await uploadBufferToR2('marketing', posterName, optimized.poster);
+        posterUrl = `/api/assets/marketing/${posterName}`;
+      }
+    }
+    const filename = `${stem}${extension}`;
+    await fs.writeFile(path.join(directory, filename), body, { flag: 'wx' });
+    await uploadBufferToR2('marketing', filename, body);
+    await audit(req.user!.id, 'marketing.asset_uploaded', 'marketing', filename, { mime: req.file.mimetype, bytes: req.file.size, storedBytes: body.length });
+    res.status(201).json({ url: `/api/assets/marketing/${filename}`, kind: isVideo ? 'video' : 'image', posterUrl });
   } catch (error) { sendError(res, error); }
 });
 
@@ -355,12 +373,19 @@ router.put('/marketing', async (req, res) => {
       caption: nullableText,
       overlayText: nullableText,
       eyebrow: z.string().trim().max(60).nullable(),
+      kind: z.enum(['image', 'video']).default('video'),
+      feature: z.enum(SHOWCASE_FEATURES).nullable().default(null),
     });
     const body = z.object({
       heading: z.string().trim().min(1).max(100),
       description: z.string().trim().min(1).max(300),
       videos: z.object({ showcase: z.array(video).max(MAX_MARKETING_VIDEOS) }),
     }).parse(req.body);
+    // Every sample that has media must be filed under a feature so it appears under that feature's chat.
+    const unassigned = body.videos.showcase.filter((item) => item.url && !item.feature).length;
+    if (unassigned > 0) {
+      throw new AppError(`Assign ${unassigned} item${unassigned === 1 ? '' : 's'} to a feature before saving.`, 400, 'FEATURE_REQUIRED');
+    }
     await query(`INSERT INTO system_settings(key,value,updated_by) VALUES ('marketing',$1,$2) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value,updated_by=EXCLUDED.updated_by,updated_at=NOW()`, [JSON.stringify(body), req.user!.id]);
     clearMarketingSettingsCache();
     await audit(req.user!.id, 'marketing.updated', 'system', 'landing', body);

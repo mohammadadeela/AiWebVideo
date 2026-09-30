@@ -18,12 +18,12 @@ test('product link and architecture engineer controls stay available', async () 
   const routes = await serverSource('src/routes/index.ts');
 
   assert.match(creator, /id: "architecture".*label: "Architecture"/);
-  assert.match(creator, /Paste a product link/);
-  assert.match(creator, /Use product link/);
+  assert.match(creator, /Paste a link to the product page/);
+  assert.match(creator, /void loadProductLink\(/);
   assert.match(creator, /Google Maps link or address/);
-  assert.match(creator, /Plot width \(m\)/);
-  assert.match(creator, /Plot depth \(m\)/);
-  assert.match(creator, /estimated site scale/);
+  assert.match(creator, /label="Plot width" unit="m"/);
+  assert.match(creator, /label="Plot depth" unit="m"/);
+  assert.match(creator, /Estimate the plot size/);
   assert.match(client, /extractProductReference/);
   assert.match(client, /resolveArchitectureLocation/);
   assert.match(uploads, /productImageUrls/);

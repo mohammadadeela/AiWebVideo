@@ -6,7 +6,7 @@ export async function readPublicUrl(raw: string, maxBytes: number, allowedMime: 
   let target = raw;
   for (let redirect = 0; redirect <= 3; redirect++) {
     const safe = await validateUrl(target);
-    const response = await fetch(safe, { redirect: 'manual', signal: AbortSignal.timeout(12_000), headers: { 'User-Agent': 'AiWebVideo product reference/1.0', Accept: 'text/html,image/*' } });
+    const response = await fetch(safe, { redirect: 'manual', signal: AbortSignal.timeout(12_000), headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36 AiWebVideo/1.0', Accept: 'text/html,application/xhtml+xml,image/*;q=0.9,*/*;q=0.5', 'Accept-Language': 'en-US,en;q=0.9,ar;q=0.6'  } });
     if ([301, 302, 303, 307, 308].includes(response.status)) {
       const next = response.headers.get('location');
       await response.body?.cancel();

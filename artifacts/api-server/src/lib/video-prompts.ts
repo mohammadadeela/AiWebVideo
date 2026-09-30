@@ -1,6 +1,7 @@
 import type { StoryboardScene } from './gemini.js';
 import { buildContinuousVideoPrompt as buildLegacyContinuousVideoPrompt } from './video-prompts-legacy.js';
 import { detectBriefLanguage } from './voiceover.js';
+import { extractUserBrief } from './studio-direction.js';
 
 // Keep the current renderer/refund/partial-delivery pipeline unchanged while
 // restoring the older creative prompt logic that produced the preferred look.
@@ -38,7 +39,7 @@ export function buildContinuousVideoPrompt(input: ContinuousVideoPromptInput) {
   const base = buildLegacyContinuousVideoPrompt(input);
   // Native-audio models write their own dialogue and vocals: tell them to speak the
   // language the customer wrote in (English needs no directive).
-  const language = input.nativeAudio && !input.musicOnly ? detectBriefLanguage(input.creativeBrief) : null;
+  const language = input.nativeAudio && !input.musicOnly ? detectBriefLanguage(extractUserBrief(input.creativeBrief)) : null;
   if (!language) return base;
   return `${base}
 

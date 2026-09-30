@@ -29,6 +29,7 @@ import { AppError, sendError } from "../lib/errors.js";
 import { publicJobErrorMessage, publicJobMessageContent } from "../lib/public-errors.js";
 import { generateStoryboard, remapStoryboardScenesToCaptures, storyboardModelName } from "../lib/gemini.js";
 import { generateMarketingPhoto, generateWebsiteIcon } from "../lib/imagen.js";
+import { composeStudioBrief, type ArchitectureInput } from "../lib/studio-direction.js";
 import { generateMarketingVideo, premiumSceneOperationCount, type AudioMode } from "../lib/veo.js";
 import { generateVoiceoverScript, synthesizeVoiceover, resolveNarrationLanguage } from "../lib/voiceover.js";
 import {
@@ -154,8 +155,25 @@ type CaptureMeta = {
   sourceType?: "website" | "upload" | "studio";
   studioKind?: "product" | "idea" | "scenario" | "interior" | "architecture" | null;
   ideaPrompt?: string | null;
+  architecture?: ArchitectureInput | null;
+  /** Optional creative direction chosen from an Idea chip. Hidden from the customer. */
+  studioDirection?: string | null;
   generatedReferenceUrls?: string[];
 };
+
+/**
+ * The brief the planner and renderers receive: the customer's own words plus the server-owned master
+ * direction. The stored/visible brief always stays the customer's own text.
+ */
+function directedBriefFor(meta: CaptureMeta | null, userBrief: string | null | undefined) {
+  if (meta?.sourceType !== "studio") return userBrief ?? null;
+  return composeStudioBrief({
+    studioKind: meta.studioKind ?? null,
+    architecture: meta.architecture ?? null,
+    userBrief,
+    hiddenDirection: meta.studioDirection ?? null,
+  }) || null;
+}
 
 function effectiveVideoModeForMeta(meta: CaptureMeta | null, requestedMode: string) {
   if (meta?.sourceType !== "studio") return requestedMode;
@@ -913,7 +931,7 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
           vibeBrief,
           targetDurationSeconds: durationSeconds,
           featuresText: featuresText ?? null,
-          creativeBrief: creativeBrief ?? null,
+          creativeBrief: directedBriefFor(meta, creativeBrief),
           aspectRatio,
           outputQuality,
           frameRate,
@@ -924,6 +942,8 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
         // no direct API request or future UI path can bypass this invariant.
         await assertPaidProviderAuthorization(job.id, req.user!.id, planningQuote.totalCredits, "storyboarding");
         const { storyboard, aiError } = await generateStoryboard(plannerRequest);
+        // The planner saw the directed brief; what is stored and shown to the customer is their own text.
+        storyboard.creativeBrief = creativeBrief?.trim() || undefined;
         storyboard.sceneCaptureIds = storyboard.scenes.map((scene) =>
           (scene.sourceIndices ?? [])
             .map((sourceIndex) => plannerCaptures[sourceIndex]?.id)
@@ -1352,12 +1372,16 @@ router.post("/:id/render", requireAuth, async (req, res) => {
                 referenceImages,
                 storyboard.aspectRatio ?? "16:9",
                 storyboard.outputQuality ?? "1080p",
-                storyboard.creativeBrief ?? null,
+                directedBriefFor(meta, storyboard.creativeBrief),
                 meta?.sourceType === "studio" && meta.studioKind === "product"
                   ? "product-photos"
-                  : job.mode === "both"
-                    ? "mixed-campaign"
-                    : "website-photos",
+                  : meta?.sourceType === "studio" && meta.studioKind === "interior"
+                    ? "interior-design"
+                    : meta?.sourceType === "studio" && meta.studioKind === "architecture"
+                      ? "architecture"
+                      : job.mode === "both"
+                        ? "mixed-campaign"
+                        : "website-photos",
                 selectedRenderModel.creditUnit === "image" ? selectedRenderModel.id : "graphic-2",
               );
             } finally {
@@ -1392,7 +1416,7 @@ router.post("/:id/render", requireAuth, async (req, res) => {
                   concept,
                   vibe,
                   scenes: scenes as Storyboard["scenes"],
-                  creativeBrief: storyboard.creativeBrief,
+                  creativeBrief: directedBriefFor(meta, storyboard.creativeBrief) ?? undefined,
                   aspectRatio: storyboard.aspectRatio,
                   outputQuality: storyboard.outputQuality,
                   frameRate: storyboard.frameRate,

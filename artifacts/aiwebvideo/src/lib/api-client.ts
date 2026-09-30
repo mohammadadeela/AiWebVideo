@@ -77,6 +77,10 @@ export async function uploadStudioMedia(opts: {
   productUrl?: string;
   productImageUrls?: string[];
   architecture?: Record<string, string | number | boolean | undefined>;
+  /** Hidden creative direction from an Idea chip; never shown to the customer. */
+  studioDirection?: string;
+  /** A showcase sample to recreate with the customer's own references. */
+  templateId?: string;
 }) {
   const token = await getIdToken();
   const form = new FormData();
@@ -93,6 +97,8 @@ export async function uploadStudioMedia(opts: {
   if (opts.productUrl) form.append('productUrl', opts.productUrl);
   if (opts.productImageUrls?.length) form.append('productImageUrls', JSON.stringify(opts.productImageUrls));
   if (opts.architecture) form.append('architecture', JSON.stringify(opts.architecture));
+  if (opts.studioDirection) form.append('studioDirection', opts.studioDirection);
+  if (opts.templateId) form.append('templateId', opts.templateId);
   const res = await fetch('/api/uploads', {
     method: 'POST',
     signal: AbortSignal.timeout(10 * 60_000),
@@ -283,7 +289,29 @@ export function fetchAdminAudit(filters: AdminAuditFilters = {}) {
 }
 
 // ---- Read-only landing-page videos ----
-export interface MarketingVideo { id: string; url: string | null; posterUrl: string | null; caption: string | null; overlayText: string | null; eyebrow: string | null; }
+export const SHOWCASE_FEATURES = ['website', 'video', 'photo', 'product-video', 'scenario', 'interior', 'architecture'] as const;
+export type ShowcaseFeature = (typeof SHOWCASE_FEATURES)[number];
+export const SHOWCASE_FEATURE_LABELS: Record<ShowcaseFeature, string> = {
+  website: 'Website video',
+  video: 'AI video',
+  photo: 'Product photos',
+  'product-video': 'Product video',
+  scenario: 'Talking scene',
+  interior: 'Interior design',
+  architecture: 'Architecture',
+};
+export interface MarketingVideo {
+  id: string;
+  url: string | null;
+  posterUrl: string | null;
+  caption: string | null;
+  overlayText: string | null;
+  eyebrow: string | null;
+  /** Older saved items have no kind and are videos. */
+  kind?: 'image' | 'video';
+  /** The chat feature this sample is filed under. */
+  feature?: ShowcaseFeature | null;
+}
 export interface MarketingSettings {
   heading: string;
   description: string;
@@ -297,10 +325,10 @@ export async function uploadMarketingAsset(file: File) {
   const token = await getIdToken();
   const form = new FormData();
   form.append('file', file);
-  const res = await fetch('/api/admin/marketing/upload', { method: 'POST', signal: AbortSignal.timeout(120_000), credentials: 'same-origin', cache: 'no-store', headers: token ? { Authorization: `Bearer ${token}` } : undefined, body: form });
+  const res = await fetch('/api/admin/marketing/upload', { method: 'POST', signal: AbortSignal.timeout(12 * 60_000), credentials: 'same-origin', cache: 'no-store', headers: token ? { Authorization: `Bearer ${token}` } : undefined, body: form });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new ApiError(data.error || 'The marketing asset could not be uploaded.', res.status, data.code);
-  return data as { url: string; kind: 'video' | 'image' };
+  return data as { url: string; kind: 'video' | 'image'; posterUrl?: string | null };
 }
 
 export function resolveArchitectureLocation(link: string) {

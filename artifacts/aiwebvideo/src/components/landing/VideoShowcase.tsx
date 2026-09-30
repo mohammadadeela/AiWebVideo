@@ -1,192 +1,76 @@
-import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Play } from "lucide-react";
-import { fetchMarketingSettings, type MarketingVideo } from "@/lib/api-client";
+import { useMemo, useState } from "react";
+import { ArrowUpRight } from "lucide-react";
+import { SHOWCASE_FEATURES, SHOWCASE_FEATURE_LABELS, type ShowcaseFeature } from "@/lib/api-client";
 import { resolveVideoEmbed } from "@/lib/videoEmbed";
+import { useSamples, startFromSample, type Sample } from "@/lib/showcase";
 import { AutoplayVideo } from "./AutoplayVideo";
 
-function CampaignMedia({ video, eager = false }: { video: MarketingVideo; eager?: boolean }) {
-  const embed = resolveVideoEmbed(video.url ?? "");
+// A quiet rhythm of proportions so the grid reads as a wall of work, not a table of thumbnails.
+const SHAPES = ["aspect-[3/4]", "aspect-square", "aspect-[4/5]", "aspect-[9/16]", "aspect-[4/5]", "aspect-[3/4]", "aspect-square"];
 
-  if (embed.kind !== "file") {
-    return (
-      <iframe
-        src={embed.src}
-        title={video.caption || "AiWebVideo campaign film"}
-        className="pointer-events-none h-full w-full border-0"
-        loading={eager ? "eager" : "lazy"}
-        allow="autoplay; encrypted-media"
-        tabIndex={-1}
-      />
-    );
+function Media({ sample, eager }: { sample: Sample; eager: boolean }) {
+  if (sample.kind === "image") {
+    return <img src={sample.url} alt="" loading={eager ? "eager" : "lazy"} decoding="async" className="h-full w-full object-cover" />;
   }
-
-  return (
-    <AutoplayVideo
-      src={embed.src}
-      poster={video.posterUrl}
-      label={video.caption || "AiWebVideo campaign film"}
-      eager={eager}
-    />
-  );
-}
-
-function PlaceholderFilm() {
-  return (
-    <div className="generation-grid relative h-full w-full overflow-hidden bg-[#0b0815]">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_32%,rgba(139,92,246,.35),transparent_42%),radial-gradient(circle_at_70%_76%,rgba(236,72,153,.16),transparent_36%)]" />
-      <div className="generation-scan absolute inset-x-0 top-1/2 h-px bg-gradient-to-r from-transparent via-mint to-transparent" />
-      <div className="absolute inset-0 flex flex-col items-center justify-center px-8 text-center">
-        <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/15 bg-white/[.07] text-mint shadow-[0_0_60px_rgba(45,212,191,.2)]">
-          <Play size={22} className="ml-0.5" />
-        </span>
-        <p className="font-display text-2xl font-bold text-white sm:text-3xl">Your campaign belongs here.</p>
-        <p className="mt-3 max-w-sm text-xs leading-5 text-text-dim">Start with a website, idea, product, or space. Finish in one creative chat.</p>
-      </div>
-    </div>
-  );
-}
-
-function SupportingFilm({ video, index }: { video: MarketingVideo; index: number }) {
-  return (
-    <article className="relative h-full overflow-hidden rounded-[20px] border border-white/10 bg-[#0d0919] transition duration-300 hover:-translate-y-1 hover:border-violet/40">
-      <div className="relative aspect-[9/16] overflow-hidden bg-black">
-        <CampaignMedia video={video} />
-      </div>
-      <div className="p-3">
-        <p className="font-utility text-[8px] uppercase tracking-[.16em] text-violet">{video.eyebrow || `Campaign ${index + 1}`}</p>
-        <p className="mt-1 line-clamp-2 text-xs font-semibold leading-5 text-white">{video.caption || "AI-directed campaign film"}</p>
-      </div>
-    </article>
-  );
+  const embed = resolveVideoEmbed(sample.url);
+  if (embed.kind !== "file") {
+    return <iframe src={embed.src} title="" className="pointer-events-none h-full w-full border-0" loading="lazy" allow="autoplay; encrypted-media" tabIndex={-1} />;
+  }
+  return <AutoplayVideo src={embed.src} poster={sample.posterUrl} eager={eager} />;
 }
 
 export function VideoShowcase() {
-  const [settings, setSettings] = useState<Awaited<ReturnType<typeof fetchMarketingSettings>> | null>(null);
-  const [activeSlide, setActiveSlide] = useState(0);
-  const sliderRef = useRef<HTMLDivElement>(null);
-  const scrollFrameRef = useRef<number | null>(null);
+  const { samples, loaded } = useSamples();
+  const [filter, setFilter] = useState<ShowcaseFeature | "all">("all");
 
-  useEffect(() => {
-    let cancelled = false;
-    void fetchMarketingSettings()
-      .then((data) => {
-        if (!cancelled) setSettings(data);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const features = useMemo(() => SHOWCASE_FEATURES.filter((feature) => samples.some((sample) => sample.feature === feature)), [samples]);
+  const visible = filter === "all" ? samples : samples.filter((sample) => sample.feature === filter);
 
-  const videos = settings?.videos.showcase.filter((video) => video.url) ?? [];
-  const featured = videos[0];
-  const supporting = videos.slice(1);
-
-  useEffect(() => {
-    setActiveSlide((current) => Math.min(current, Math.max(0, supporting.length - 1)));
-  }, [supporting.length]);
-
-  useEffect(() => () => {
-    if (scrollFrameRef.current !== null) window.cancelAnimationFrame(scrollFrameRef.current);
-  }, []);
-
-  function supportingSlides() {
-    return Array.from(sliderRef.current?.children ?? []).filter(
-      (child): child is HTMLElement => child instanceof HTMLElement && child.dataset.videoSlide === "true",
-    );
-  }
-
-  function syncActiveSlide() {
-    if (scrollFrameRef.current !== null) window.cancelAnimationFrame(scrollFrameRef.current);
-    scrollFrameRef.current = window.requestAnimationFrame(() => {
-      scrollFrameRef.current = null;
-      const slider = sliderRef.current;
-      const slides = supportingSlides();
-      if (!slider || !slides.length) return;
-      const viewportCenter = slider.scrollLeft + slider.clientWidth / 2;
-      let closestIndex = 0;
-      slides.forEach((slide, index) => {
-        const currentDistance = Math.abs(slides[closestIndex].offsetLeft + slides[closestIndex].offsetWidth / 2 - viewportCenter);
-        const nextDistance = Math.abs(slide.offsetLeft + slide.offsetWidth / 2 - viewportCenter);
-        if (nextDistance < currentDistance) closestIndex = index;
-      });
-      setActiveSlide(closestIndex);
-    });
-  }
-
-  function scrollToSlide(index: number) {
-    const slider = sliderRef.current;
-    if (!slider || !supporting.length) return;
-    const nextIndex = Math.max(0, Math.min(supporting.length - 1, index));
-    const slide = supportingSlides()[nextIndex];
-    if (!slide) return;
-    slider.scrollTo({ left: Math.max(0, slide.offsetLeft - (slider.clientWidth - slide.offsetWidth) / 2), behavior: "smooth" });
-    setActiveSlide(nextIndex);
-  }
+  // Nothing published yet: show no empty frame.
+  if (loaded && !samples.length) return null;
 
   return (
     <section id="campaign-films" className="relative overflow-hidden border-b border-white/[.06]">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_0%,rgba(139,92,246,.2),transparent_34%),radial-gradient(circle_at_88%_32%,rgba(236,72,153,.12),transparent_32%)]" />
-      <div className="hero-mesh pointer-events-none absolute inset-0 opacity-70" />
-      <div className="relative mx-auto w-full max-w-7xl px-4 py-7 sm:px-5 sm:py-10 lg:px-8 lg:py-12">
-        <div className="grid w-full min-w-0 grid-cols-1 gap-6 lg:grid-cols-[.62fr_1.38fr] lg:items-center lg:gap-8">
-          <div className="min-w-0 max-w-xl">
-            <h2 className="max-w-[15ch] [text-wrap:balance] font-display text-[clamp(2.1rem,10vw,3.35rem)] font-bold leading-[.98] tracking-[-.045em] text-white sm:max-w-none">
-              See what it <span className="bg-signature-text">creates.</span>
-            </h2>
-          </div>
-
-          <div className="relative w-full min-w-0 max-w-full">
-            <div className="pointer-events-none absolute -inset-8 rounded-[48px] bg-gradient-to-br from-violet/10 via-pink/[.08] to-mint/5 blur-3xl" />
-            <div className="relative">
-              <div className="relative aspect-video w-full min-w-0 overflow-hidden rounded-[20px] border border-white/12 bg-black shadow-[0_34px_100px_-48px_rgba(139,92,246,.85)] sm:rounded-[24px]">
-                {featured ? <CampaignMedia video={featured} eager /> : <PlaceholderFilm />}
-              </div>
-              {featured && (
-                <div className="mt-3 px-1">
-                  <p className="font-utility text-[8px] uppercase tracking-[.16em] text-mint">{featured.eyebrow || "Featured campaign"}</p>
-                  <p className="mt-1 text-sm font-semibold leading-5 text-white">{featured.caption || featured.overlayText || "AI-directed campaign film"}</p>
-                </div>
-              )}
-              <div ref={sliderRef} onScroll={syncActiveSlide} role="region" aria-roledescription="carousel" aria-label="Portrait campaign video slider" className="landing-video-slider chat-scroll mt-4 flex w-full max-w-full snap-x snap-mandatory gap-3 overflow-x-auto pb-2 scroll-smooth overscroll-x-contain touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-1 sm:w-auto sm:snap-none sm:px-1">
-                {supporting.length ? (
-                  supporting.map((video, index) => (
-                    <div
-                      key={video.id}
-                      data-video-slide="true"
-                      role="group"
-                      aria-label={`Campaign video ${index + 1} of ${supporting.length}`}
-                      className="min-w-[calc((100%_-_0.75rem)/2)] basis-[calc((100%_-_0.75rem)/2)] shrink-0 snap-start sm:min-w-[145px] sm:basis-[calc((100%_-_0.75rem)/2)] lg:min-w-0 lg:basis-[calc((100%_-_2.25rem)/4)]"
-                    >
-                      <SupportingFilm video={video} index={index + 1} />
-                    </div>
-                  ))
-                ) : (
-                  <div className="flex min-h-[240px] min-w-[145px] basis-[44%] shrink-0 flex-col justify-end rounded-[20px] border border-dashed border-white/15 bg-white/[.025] p-4 sm:basis-[calc((100%_-_0.75rem)/2)] lg:min-w-0 lg:basis-[calc((100%_-_2.25rem)/4)]">
-                    <p className="font-utility text-[8px] uppercase tracking-[.18em] text-mint">Generated for the brand</p>
-                    <p className="mt-2 text-xs leading-5 text-text-muted">Campaign examples load here from the existing marketing-video settings.</p>
-                  </div>
-                )}
-              </div>
-              {supporting.length > 1 && (
-                <div className="mt-2 flex items-center justify-between gap-3 px-1 sm:hidden">
-                  <button type="button" onClick={() => scrollToSlide(activeSlide - 1)} disabled={activeSlide === 0} aria-label="Previous campaign video" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[.045] text-white transition active:scale-95 disabled:opacity-30">
-                    <ChevronLeft size={17} />
-                  </button>
-                  <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5" aria-label={`Video ${activeSlide + 1} of ${supporting.length}`}>
-                    {supporting.map((video, index) => (
-                      <button key={video.id} type="button" onClick={() => scrollToSlide(index)} aria-label={`Show campaign video ${index + 1}`} aria-current={activeSlide === index ? "true" : undefined} className="flex h-8 min-w-6 items-center justify-center">
-                        <span className={`block h-1.5 rounded-full transition-all ${activeSlide === index ? "w-6 bg-mint" : "w-1.5 bg-white/20"}`} />
-                      </button>
-                    ))}
-                  </div>
-                  <button type="button" onClick={() => scrollToSlide(activeSlide + 1)} disabled={activeSlide === supporting.length - 1} aria-label="Next campaign video" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[.045] text-white transition active:scale-95 disabled:opacity-30">
-                    <ChevronRight size={17} />
-                  </button>
-                </div>
-              )}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_0%,rgba(139,92,246,.18),transparent_34%),radial-gradient(circle_at_88%_32%,rgba(236,72,153,.1),transparent_32%)]" />
+      <div className="relative mx-auto w-full max-w-7xl px-4 py-10 sm:px-5 sm:py-14 lg:px-8">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <h2 className="font-display text-[clamp(2rem,8vw,3.2rem)] font-bold leading-[.98] tracking-[-.045em] text-white">
+            See what it <span className="bg-signature-text">creates.</span>
+          </h2>
+          {features.length > 1 && (
+            <div role="tablist" aria-label="Filter examples" className="chat-scroll flex max-w-full gap-1 overflow-x-auto rounded-2xl bg-white/[.05] p-1">
+              {(["all", ...features] as const).map((feature) => (
+                <button
+                  key={feature}
+                  type="button"
+                  role="tab"
+                  aria-selected={filter === feature}
+                  onClick={() => setFilter(feature)}
+                  className={`min-h-9 shrink-0 rounded-xl px-3.5 text-xs font-semibold transition ${filter === feature ? "bg-white text-[#1b1030]" : "text-white/60 hover:text-white"}`}
+                >
+                  {feature === "all" ? "All" : SHOWCASE_FEATURE_LABELS[feature]}
+                </button>
+              ))}
             </div>
-          </div>
+          )}
+        </div>
+
+        <div className="mt-7 columns-2 gap-3 sm:columns-3 sm:gap-4 lg:columns-4">
+          {visible.map((sample, index) => (
+            <button
+              key={sample.id}
+              type="button"
+              onClick={() => startFromSample(sample)}
+              aria-label="Make one like this"
+              className={`group relative mb-3 block w-full break-inside-avoid overflow-hidden rounded-[22px] bg-[#0d0919] text-left ring-1 ring-white/10 transition duration-300 hover:-translate-y-0.5 hover:ring-violet/50 sm:mb-4 ${SHAPES[index % SHAPES.length]}`}
+            >
+              <Media sample={sample} eager={index < 4} />
+              <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent opacity-0 transition duration-300 group-hover:opacity-100" />
+              <span className="pointer-events-none absolute bottom-3 right-3 grid h-9 w-9 place-items-center rounded-full bg-white text-[#150f26] opacity-0 shadow-lg transition duration-300 group-hover:opacity-100 max-sm:opacity-90">
+                <ArrowUpRight size={16} />
+              </span>
+            </button>
+          ))}
         </div>
       </div>
     </section>

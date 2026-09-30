@@ -66,8 +66,8 @@ export function ScrollRow({
     const timer = window.setTimeout(() => {
       if (el.scrollWidth <= el.clientWidth + 8) return;
       try { window.sessionStorage.setItem("scroll-row-nudged", "1"); } catch { /* ignore */ }
-      el.scrollTo({ left: 56, behavior: "smooth" });
-      window.setTimeout(() => el.scrollTo({ left: 0, behavior: "smooth" }), 650);
+      el.scrollTo?.({ left: 56, behavior: "smooth" });
+      window.setTimeout(() => el.scrollTo?.({ left: 0, behavior: "smooth" }), 650);
     }, 900);
     return () => window.clearTimeout(timer);
   }, [nudge]);
@@ -78,13 +78,13 @@ export function ScrollRow({
     const active = el?.querySelector<HTMLElement>('[aria-selected="true"], [aria-current="true"], [data-active="true"]');
     if (!el || !active) return;
     const target = active.offsetLeft - (el.clientWidth - active.offsetWidth) / 2;
-    el.scrollTo({ left: Math.max(0, target), behavior: "smooth" });
+    el.scrollTo?.({ left: Math.max(0, target), behavior: "smooth" });
   }, [activeKey]);
 
   function page(direction: 1 | -1) {
     const el = ref.current;
     if (!el) return;
-    el.scrollBy({ left: direction * Math.max(120, el.clientWidth * 0.7), behavior: "smooth" });
+    el.scrollBy?.({ left: direction * Math.max(120, el.clientWidth * 0.7), behavior: "smooth" });
   }
 
   const fadeLeft = edges.left ? `transparent 0, #000 ${gutter}px` : "#000 0";
