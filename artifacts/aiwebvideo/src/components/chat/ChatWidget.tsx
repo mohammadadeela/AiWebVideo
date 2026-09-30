@@ -367,24 +367,37 @@ export function ChatWidget({
           const alignToFinishedResult = () => {
             const messages = shell.querySelector<HTMLElement>("[data-chat-messages]");
             if (!messages) return;
-            if (!autoFollowRef.current || userScrollIntentRef.current) {
-              setShowJumpToLatest(true);
-              setHasUnseenBelow(true);
-              return;
-            }
+
+            // Completion is the one intentional exception to normal follow-mode:
+            // even if the user scrolled upward while waiting, reveal the newly
+            // finished image/video exactly once so they never have to hunt for it.
+            // After this scroll, ordinary manual-scroll rules take over again.
+            autoFollowRef.current = true;
+            userScrollIntentRef.current = false;
+            setShowJumpToLatest(false);
+            setHasUnseenBelow(false);
+
             const results = messages.querySelectorAll<HTMLElement>('[data-generated-result="true"]');
             const result = results[results.length - 1];
+            const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
             if (!result) {
-              messages.scrollTop = messages.scrollHeight;
+              messages.scrollTo({
+                top: messages.scrollHeight,
+                behavior: reducedMotion ? "auto" : "smooth",
+              });
+              lastScrollTopRef.current = messages.scrollHeight;
               return;
             }
+
             const messagesRect = messages.getBoundingClientRect();
             const resultRect = result.getBoundingClientRect();
             const top = Math.max(0, messages.scrollTop + resultRect.top - messagesRect.top - 10);
             messages.scrollTo({
               top,
-              behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+              behavior: reducedMotion ? "auto" : "smooth",
             });
+            lastScrollTopRef.current = top;
           };
 
           window.requestAnimationFrame(() => {
