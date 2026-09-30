@@ -21,10 +21,6 @@ CREATE TABLE IF NOT EXISTS users (
   CONSTRAINT users_email_key UNIQUE (email)
 );
 ALTER TABLE users ALTER COLUMN credits_balance SET DEFAULT 0;
--- Starter allowance is deliberately outside the production credit wallet.
--- Historic balances are preserved, including credits granted by earlier releases.
-ALTER TABLE users ADD COLUMN IF NOT EXISTS starter_credits_balance INTEGER NOT NULL DEFAULT 0;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS starter_granted_at TIMESTAMPTZ;
 -- Backward-compatible upgrades for installations created by earlier builds.
 -- Earlier deployments required Firebase IDs even for local email/password users.
 ALTER TABLE users ALTER COLUMN firebase_uid DROP NOT NULL;

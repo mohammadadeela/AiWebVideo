@@ -60,11 +60,9 @@ test('tampered or incomplete orders cannot grant credits', () => {
 });
 
 test('the server-owned product catalog has fixed valid prices and credit grants', () => {
-  assert.equal(Object.keys(PRODUCTS).length,23);
-  assert.ok(!('single8' in PRODUCTS) && !('topup50' in PRODUCTS));
+  assert.deepEqual(Object.keys(PRODUCTS), ['creator', 'pro', 'agency', 'single8', 'single48', 'single144', 'topup50', 'topup100', 'topup250']);
   for (const [id, product] of Object.entries(PRODUCTS)) {
     assert.ok(product.amountUsd > 0, `${id} must have a positive amount`);
     assert.ok(Number.isSafeInteger(product.credits) && product.credits > 0, `${id} must grant whole positive credits`);
-    assert.equal(product.displayCredits,product.credits*5);
   }
 });

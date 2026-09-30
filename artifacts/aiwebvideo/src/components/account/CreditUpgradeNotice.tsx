@@ -18,7 +18,7 @@ export function CreditUpgradeNotice({ plan, creditsBalance }: { plan: string; cr
           </p>
           <p className="mt-1 text-xs leading-relaxed text-text-muted">
             {firstPurchase
-              ? 'Add credits or choose Create once to start a production.'
+              ? 'Website preview and screenshots stay free. Add credits only when you are ready to start paid AI planning and generation.'
               : 'Your projects are saved. Recharge your balance or switch plans to continue generating.'}
           </p>
         </div>

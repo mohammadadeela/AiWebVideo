@@ -56,7 +56,6 @@ function LastUsedMethod({ active, children }: { active: boolean; children: React
 // provider not enabled in the console, popup blocked, etc.) instead of
 // staring at one generic sentence for every possible failure.
 function firebaseErrorMessage(err: unknown): string {
-  if (err instanceof ApiError) return err.message;
   const code = (err as { code?: string } | null)?.code ?? '';
   const known: Record<string, string> = {
     'auth/unauthorized-domain': "This site's domain is not authorized for sign-in yet. An admin needs to add it under Firebase Console -> Authentication -> Settings -> Authorized domains.",
@@ -115,15 +114,7 @@ export function AuthModal({ onClose, onSignedIn }: { onClose: () => void; onSign
     if (pendingJobId) {
       try { await claimJob(pendingJobId); } catch { /* non-fatal -- dashboard still resumes via ?job= */ }
     }
-    try {
-      await onSignedIn();
-    } catch (error) {
-      // The account exchange already succeeded. A failed project handoff must
-      // never be presented as a failed sign-in or invite a duplicate login.
-      console.error('[auth] post-sign-in handoff failed:', error);
-      onClose();
-      window.location.assign('/dashboard');
-    }
+    await onSignedIn();
   }
 
   function startResendCooldown() {

@@ -2,15 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { videoCreditQuote, videoCreditCost } from '../src/lib/credits.js';
 
-test('video model tiers quote every native eight-second provider clip', () => {
+test('video model tiers have exact whole-second pricing', () => {
   for (const seconds of [8, 9, 15, 32, 64, 101, 144]) {
-    const billed = Math.ceil(seconds / 8) * 8;
-    assert.equal(videoCreditQuote('video', true, seconds, '1080p', 'cinema-1').totalCredits, billed);
-    assert.equal(videoCreditQuote('video', true, seconds, '1080p', 'cinema-2').totalCredits, billed * 2);
-    assert.equal(videoCreditQuote('video', true, seconds, '4k', 'cinema-2').totalCredits, billed * 3);
-    assert.equal(videoCreditQuote('video', true, seconds, '1080p', 'cinema-pro').totalCredits, billed * 4);
-    assert.equal(videoCreditQuote('video', true, seconds, '4k', 'cinema-pro').totalCredits, billed * 6);
-    assert.equal(videoCreditQuote('video', true, seconds, '1080p', 'cinema-2').generatedSeconds, seconds);
+    assert.equal(videoCreditQuote('video', true, seconds, '1080p', 'cinema-1').totalCredits, seconds);
+    assert.equal(videoCreditQuote('video', true, seconds, '1080p', 'cinema-2').totalCredits, seconds * 2);
+    assert.equal(videoCreditQuote('video', true, seconds, '4k', 'cinema-2').totalCredits, seconds * 3);
+    assert.equal(videoCreditQuote('video', true, seconds, '1080p', 'cinema-pro').totalCredits, seconds * 4);
+    assert.equal(videoCreditQuote('video', true, seconds, '4k', 'cinema-pro').totalCredits, seconds * 6);
   }
 });
 

@@ -26,8 +26,7 @@ test('generation defaults to one progressive thinking line with collapsed detail
   assert.match(canvas, /animate-typing-dot/);
   assert.match(canvas, /Show details/);
   assert.match(canvas, /storyboardScenes/);
-  assert.match(canvas, /Live inputs/);
-  assert.match(canvas, /Live progress is saved/);
+  assert.match(canvas, /References/);
   assert.match(canvas, /Still working — high-quality renders can take a little longer\./);
   assert.match(canvas, /role="progressbar"/);
   assert.doesNotMatch(canvas, /Current stage/);

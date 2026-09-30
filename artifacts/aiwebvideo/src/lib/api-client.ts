@@ -1,4 +1,4 @@
-import { clearFirebaseIdentity, getIdToken } from '@/lib/firebase/client';
+import { getIdToken } from '@/lib/firebase/client';
 import type { AudioMode, JobStatusResponse, JobMode, JobWorkflowState } from '@/components/chat/types';
 
 export class ApiError extends Error {
@@ -67,17 +67,13 @@ export async function uploadStudioMedia(opts: {
   files?: File[];
   title?: string;
   ideaPrompt?: string;
-  studioKind: 'product' | 'idea' | 'scenario' | 'interior' | 'architecture';
+  studioKind: 'product' | 'idea' | 'scenario' | 'interior';
   mode: JobMode;
   durationSeconds: number;
   audioMode: AudioMode;
   aspectRatio: '16:9' | '9:16' | '1:1';
   outputQuality: '1080p' | '4k';
   modelId?: string;
-  inspirationMediaId?: string;
-  productUrl?: string;
-  productImageUrls?: string[];
-  architecture?: Record<string, string | number | boolean | undefined>;
 }) {
   const token = await getIdToken();
   const form = new FormData();
@@ -91,10 +87,6 @@ export async function uploadStudioMedia(opts: {
   form.append('aspectRatio', opts.aspectRatio);
   form.append('outputQuality', opts.outputQuality);
   if (opts.modelId) form.append('modelId', opts.modelId);
-  if (opts.inspirationMediaId) form.append('inspirationMediaId', opts.inspirationMediaId);
-  if (opts.productUrl) form.append('productUrl', opts.productUrl);
-  if (opts.productImageUrls?.length) form.append('productImageUrls', JSON.stringify(opts.productImageUrls));
-  if (opts.architecture) form.append('architecture', JSON.stringify(opts.architecture));
   const res = await fetch('/api/uploads', {
     method: 'POST',
     signal: AbortSignal.timeout(10 * 60_000),
@@ -125,25 +117,10 @@ export async function uploadPrivatePages(jobId: string, files: File[]) {
   return data as { jobId: string; added: number };
 }
 
-export interface SavedReference {
-  jobId: string;
-  index: number;
-  title: string;
-  thumbnailUrl: string;
-}
-export function fetchSavedReferences() {
-  return request<{ items: SavedReference[] }>('/api/uploads/references');
-}
-export function attachSavedReferences(jobId: string, references: Array<Pick<SavedReference, 'jobId' | 'index'>>) {
-  return request<{ jobId: string; added: number }>(`/api/uploads/${jobId}/references`, {
-    method: 'POST', body: JSON.stringify({ references }),
-  });
-}
-
-export function startCapture(url: string, creativeBrief: string, setupSummary?: string, inspirationMediaId?: string) {
+export function startCapture(url: string, creativeBrief: string, setupSummary?: string) {
   return request<{ jobId: string; status: string }>('/api/capture', {
     method: 'POST',
-    body: JSON.stringify({ url, creativeBrief, ...(setupSummary ? { setupSummary } : {}), ...(inspirationMediaId ? { inspirationMediaId } : {}) }),
+    body: JSON.stringify({ url, creativeBrief, ...(setupSummary ? { setupSummary } : {}) }),
   });
 }
 
@@ -255,7 +232,7 @@ export function saveJobWorkflow(jobId: string, state: JobWorkflowState) {
 }
 
 export function fetchMe() {
-  return request<{ id: string; email: string; plan: string; creditsBalance: number; starterCreditsBalance: number; isAdmin: boolean; accountStatus: string; authProvider: string; supportsPasswordChange: boolean }>('/api/user/me');
+  return request<{ id: string; email: string; plan: string; creditsBalance: number; isAdmin: boolean; accountStatus: string; authProvider: string; supportsPasswordChange: boolean }>('/api/user/me');
 }
 
 export interface AdminSettings {
@@ -320,73 +297,6 @@ export async function uploadMarketingAsset(file: File) {
   return data as { url: string; kind: 'video' | 'image' };
 }
 
-export type InspirationFeature = 'website' | 'video' | 'photo' | 'product-video' | 'scenario' | 'interior' | 'architecture';
-export interface InspirationMedia {
-  id: string; type: 'image' | 'video'; url: string; thumbnailUrl: string;
-  width: number | null; height: number | null; durationSeconds: number | null;
-  status: 'draft' | 'published' | 'hidden'; featured: boolean; sortOrder: number;
-  adminTitle: string | null; createdAt: string; features: InspirationFeature[];
-}
-export function fetchInspiration(filters: { feature?: InspirationFeature; type?: 'image' | 'video'; offset?: number; limit?: number } = {}) {
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(filters)) if (value !== undefined) params.set(key, String(value));
-  return request<{ items: InspirationMedia[]; hasMore: boolean }>(`/api/inspiration?${params}`);
-}
-export function fetchInspirationItem(id: string) { return request<InspirationMedia>(`/api/inspiration/${encodeURIComponent(id)}`); }
-export function resolveArchitectureLocation(link: string) {
-  return request<{ latitude?: number; longitude?: number; label: string | null; resolvedUrl: string; scale: 'unknown'; imageryAvailable: false }>('/api/architecture/location', { method: 'POST', body: JSON.stringify({ link }) });
-}
-export function extractProductReference(url: string) {
-  return request<{ title: string; description: string; url: string; images: string[] }>('/api/product-reference/extract', { method: 'POST', body: JSON.stringify({ url }) });
-}
-export function fetchBillingCatalog() {
-  return request<Array<{ id: CheckoutId; name: string; mode: 'payment' | 'subscription'; type: 'create_once' | 'credits' | 'plan';
-    credits: number; displayCredits: number; amountUsd: number; scope?: { feature: string; modelId: string;
-      durationSeconds?: number; quality: string; audioMode: string } }>>('/api/paypal/catalog');
-}
-export function fetchAdminInspiration(filters: { feature?: InspirationFeature; type?: 'image' | 'video'; status?: string; search?: string } = {}) {
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(filters)) if (value) params.set(key, value);
-  return request<{ items: InspirationMedia[] }>(`/api/inspiration/admin/items?${params}`);
-}
-export interface InspirationUploadResult {
-  items: Array<{ id: string; duplicate: boolean }>;
-  failures: Array<{ name: string; error: string }>;
-}
-export async function uploadInspiration(files: File[], onProgress?: (done: number, total: number) => void) {
-  const token = await getIdToken();
-  const result: InspirationUploadResult = { items: [], failures: [] };
-  let done = 0;
-  for (let index = 0; index < files.length;) {
-    const batch: File[] = [];
-    let bytes = 0;
-    while (index < files.length && batch.length < 4 && (!batch.length || bytes + files[index].size <= 300 * 1024 * 1024)) {
-      batch.push(files[index]); bytes += files[index].size; index++;
-    }
-    const body = new FormData();
-    batch.forEach((file) => body.append('files', file));
-    try {
-      const res = await fetch('/api/inspiration/admin/upload', { method: 'POST', credentials: 'same-origin',
-        signal: AbortSignal.timeout(300_000), headers: token ? { Authorization: `Bearer ${token}` } : undefined, body });
-      const data = await res.json().catch(() => ({}));
-      if (res.status === 401 || res.status === 403) throw new ApiError(data.error || 'Admin access required.', res.status, data.code);
-      if (!res.ok) throw new ApiError(data.error || 'Upload failed.', res.status, data.code);
-      result.items.push(...((data.items ?? []) as InspirationUploadResult['items']));
-      result.failures.push(...((data.failures ?? []) as InspirationUploadResult['failures']));
-    } catch (error) {
-      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) throw error;
-      result.failures.push(...batch.map((file) => ({ name: file.name,
-        error: error instanceof Error ? error.message : 'Upload failed. Try again.' })));
-    }
-    done += batch.length;
-    onProgress?.(done, files.length);
-  }
-  return result;
-}
-export function updateInspirationBulk(patch: { ids: string[]; features?: InspirationFeature[]; featuresMode?: 'add' | 'replace'; status?: InspirationMedia['status']; featured?: boolean; sortOrder?: number; delete?: boolean }) {
-  return request<{ updated: number }>('/api/inspiration/admin/bulk', { method: 'PATCH', body: JSON.stringify(patch) });
-}
-
 export interface UserJobSummary {
   id: string;
   title: string;
@@ -397,7 +307,6 @@ export interface UserJobSummary {
   featureType: string;
   featureLabel: string;
   screenshotUrl: string | null;
-  logoUrl: string | null;
   previewUrl: string | null;
   pinned: boolean;
   updatedAt: string;
@@ -406,10 +315,6 @@ export interface UserJobSummary {
 
 export function fetchUserJobs() {
   return request<{ jobs: UserJobSummary[] }>('/api/user/jobs');
-}
-
-export function fetchSavedBrandProfiles() {
-  return request<{ profiles: Array<{ jobId: string; sourceUrl: string; summary: string; colors: string[]; updatedAt: string }> }>('/api/user/brand-profiles');
 }
 
 export function updateSavedChat(jobId: string, patch: { title?: string; pinned?: boolean }) {
@@ -438,11 +343,7 @@ export function saveJobMessage(
   });
 }
 
-export type CheckoutId = 'creator' | 'pro' | 'agency' | 'credits50' | 'credits100' | 'credits250' | 'credits500' | 'credits1000'
-  | 'once_website_8' | 'once_website_16' | 'once_website_32' | 'once_video_8' | 'once_video_16' | 'once_video_32'
-  | 'once_product_video_8' | 'once_product_video_16' | 'once_product_video_32'
-  | 'once_product_photo_4' | 'once_product_photo_8' | 'once_product_photo_12'
-  | 'once_interior_4' | 'once_interior_8' | 'once_interior_12';
+export type CheckoutId = 'creator' | 'pro' | 'agency' | 'single8' | 'single48' | 'single144' | 'topup50' | 'topup100' | 'topup250';
 
 export function startCheckout(plan: CheckoutId, jobId?: string | null) {
   return request<{ checkoutUrl: string }>('/api/paypal/checkout', {
@@ -452,7 +353,7 @@ export function startCheckout(plan: CheckoutId, jobId?: string | null) {
 }
 
 export function startTopup() {
-  return startCheckout('credits100');
+  return startCheckout('topup100');
 }
 
 export interface SubscriptionSummary {
@@ -527,7 +428,6 @@ function finishBrowserSession(): void {
 }
 
 export async function localLogin(email: string, password: string) {
-  await clearFirebaseIdentity();
   const res = await fetch('/api/auth/login', {
     method: 'POST',
     credentials: 'same-origin',
@@ -557,7 +457,6 @@ export async function requestSignupCode(email: string, password: string) {
 
 // Step 2: confirm the code and create the account.
 export async function verifySignupCode(email: string, code: string) {
-  await clearFirebaseIdentity();
   const res = await fetch('/api/auth/register/verify-code', {
     method: 'POST',
     credentials: 'same-origin', cache: 'no-store',
@@ -595,7 +494,6 @@ export async function requestPasswordResetCode(email: string) {
 }
 
 export async function resetPasswordWithCode(email: string, code: string, password: string) {
-  await clearFirebaseIdentity();
   const res = await fetch('/api/auth/forgot-password/reset', {
     method: 'POST',
     credentials: 'same-origin', cache: 'no-store',

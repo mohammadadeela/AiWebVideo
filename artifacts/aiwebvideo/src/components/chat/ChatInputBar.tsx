@@ -8,8 +8,6 @@ import {
   type KeyboardEvent,
 } from "react";
 import { ArrowUp, Paperclip } from "lucide-react";
-import { SavedReferencePicker } from './SavedReferencePicker';
-import type { SavedReference } from '@/lib/api-client';
 
 const CHAT_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const CHAT_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
@@ -21,7 +19,6 @@ export function ChatInputBar({
   multiline = false,
   prefix,
   onFiles,
-  onSavedReference,
 }: {
   placeholder: string;
   onSubmit: (value: string) => void;
@@ -29,7 +26,6 @@ export function ChatInputBar({
   multiline?: boolean;
   prefix?: string;
   onFiles?: (files: File[]) => void | Promise<void>;
-  onSavedReference?: (item: SavedReference) => void | Promise<void>;
 }) {
   const [value, setValue] = useState("");
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
@@ -177,7 +173,6 @@ export function ChatInputBar({
             >
               <Paperclip size={17} />
             </button>
-            {onSavedReference && <SavedReferencePicker onSelect={onSavedReference} disabled={disabled} />}
           </>
         )}
         {multiline ? (

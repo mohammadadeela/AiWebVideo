@@ -47,8 +47,7 @@ export function estimateInternalRenderCredits(
   const perSecond = outputQuality === '4k'
     ? (model.internalCredits4k ?? model.internalCredits1080p ?? CREDIT_COSTS.VIDEO_PER_SECOND_4K)
     : (model.internalCredits1080p ?? CREDIT_COSTS.VIDEO_PER_SECOND_1080P);
-  const providerSeconds = Math.ceil(generatedSeconds / VIDEO_SCENE_SECONDS) * VIDEO_SCENE_SECONDS;
-  const video = providerSeconds * perSecond;
+  const video = generatedSeconds * perSecond;
   const narration = skipVoiceover ? 0 : CREDIT_COSTS.NARRATION;
   // Combined product campaigns pair the selected video model with Graphic 2.
   const photoSet = mode === 'both' ? 4 : 0;

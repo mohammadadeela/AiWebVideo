@@ -24,9 +24,31 @@ test('starter credits use x5 display units and cannot authorize the cheapest pai
   assert.ok(STARTER_CREDITS_INTERNAL < CREDIT_COSTS.PHOTO_SET_4);
 });
 
-test('promotional discounts stay disabled until their new lower prices pass the safety audit', () => {
+test('20 percent welcome offer lowers price, never credits, and keeps at least 2x modeled provider coverage', () => {
+  const packs = [
+    { id: 'topup50', amountUsd: 14.99, credits: 50 },
+    { id: 'topup100', amountUsd: 28.99, credits: 100 },
+    { id: 'topup250', amountUsd: 69.99, credits: 250 },
+  ];
+
   assert.equal(WELCOME_DISCOUNT_PERCENT, 20);
-  assert.equal(marginSafeWelcomePrice({ productId:'credits50',amountUsd:2.99,purchasedInternalCredits:10 }),2.99);
+  for (const pack of packs) {
+    const expectedDiscounted = proposedWelcomeDiscountAmount(pack.amountUsd);
+    const charged = marginSafeWelcomePrice({
+      productId: pack.id,
+      amountUsd: pack.amountUsd,
+      purchasedInternalCredits: pack.credits,
+    });
+    assert.equal(charged, expectedDiscounted);
+    assert.ok(charged < pack.amountUsd, `${pack.id} must receive a real lower checkout price`);
+    assert.ok(
+      providerCoverageMultiple({
+        amountUsd: charged,
+        purchasedInternalCredits: pack.credits,
+      }) >= 2,
+      `${pack.id} must remain at or above the 2x modeled provider-cost floor`,
+    );
+  }
 });
 
 test('discount guard refuses unsupported products and unsafe economics', () => {
@@ -35,7 +57,7 @@ test('discount guard refuses unsupported products and unsafe economics', () => {
     249,
   );
   assert.equal(
-    marginSafeWelcomePrice({ productId: 'credits250', amountUsd: 1, purchasedInternalCredits: 50 }),
+    marginSafeWelcomePrice({ productId: 'topup250', amountUsd: 1, purchasedInternalCredits: 250 }),
     1,
   );
 });
@@ -46,9 +68,7 @@ test('growth settlement is authenticated, first-sign-in timed and does not grant
   assert.match(text, /welcome_offer_started_at=NOW\(\)/);
   assert.match(text, /welcome_offer_started_at IS NULL/);
   assert.match(text, /created_at >= NOW\(\) - INTERVAL '24 hours'/);
-  assert.match(text, /starter_identity_grants/);
-  assert.match(text, /starter_credits_balance/);
-  assert.match(text, /email_verified=TRUE/);
+  assert.match(text, /growth:starter:\$\{userId\}/);
   assert.match(text, /discountPercent: WELCOME_DISCOUNT_PERCENT/);
   assert.match(text, /bonusPercent: 0/);
   assert.match(text, /bonusCreditsGranted: 0/);
@@ -75,12 +95,11 @@ test('customer API credit quantities are converted to x5 while server accounting
   assert.match(routes, /req\.path\.startsWith\('\/growth'\)/);
 });
 
-test('PayPal charges the catalog price and keeps scoped passes outside the credit wallet', async () => {
+test('PayPal charges the discounted amount but grants the original purchased credits', async () => {
   const paypal = await source('src/routes/paypal.ts');
   assert.match(paypal, /marginSafeWelcomePrice/);
   assert.match(paypal, /checkoutAmountUsd\.toFixed\(2\)/);
-  assert.match(paypal, /product\.scope \? 0 : product\.credits/);
-  assert.match(paypal, /one_time_generation_entitlements/);
+  assert.match(paypal, /orderId, checkoutAmountUsd, product\.credits/);
   assert.doesNotMatch(paypal, /bonusInternal/);
 });
 

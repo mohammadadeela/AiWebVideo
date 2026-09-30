@@ -46,7 +46,7 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
         ['Can I generate product images and videos?', 'Yes. Supply photographs of the real product, then choose Product Photos for still images or Product Video for a moving commercial.'],
         ['Can I make interior design images or a tour?', 'Yes. Upload authorized photos, plans, or sketches and choose design images or a walkthrough. Use explicit measurements or a scaled plan when proportions matter.'],
       ],
-      links: [['Website Video Generator', '/website-video-generator'], ['AI Video Generator', '/ai-video-generator'], ['Product Photo Generator', '/product-photo-generator'], ['Product Video Generator', '/product-video-generator'], ['Talking Video Generator', '/talking-video-generator'], ['AI Interior Design Generator', '/ai-interior-design-generator'], ['How it works', '/how-it-works'], ['Examples', '/examples']],
+      links: [['Website Video Generator', '/website-video-generator'], ['AI Video Generator', '/ai-video-generator'], ['Product Photo Generator', '/product-photo-generator'], ['Product Video Generator', '/product-video-generator'], ['Talking Video Generator', '/talking-video-generator'], ['AI Interior Design Generator', '/ai-interior-design-generator'], ['All creation modes', '/features'], ['Examples', '/examples']],
     },
   },
   '/url-to-video': {
@@ -87,7 +87,7 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
         ['How is this different from URL to video?', 'URL to video describes the input pattern. Website video generation is specifically designed around turning a business website and its useful public pages into a campaign story.'],
         ['Does it need private website access?', 'No. Use public pages only and do not submit private dashboards or customer information.'],
       ],
-      links: [['URL to Video', '/url-to-video'], ['Examples', '/examples'], ['How it works', '/how-it-works'], ['How it works', '/how-it-works']],
+      links: [['URL to Video', '/url-to-video'], ['Examples', '/examples'], ['How it works', '/how-it-works'], ['Features', '/features']],
     },
   },
   '/saas-demo-video-generator': {
@@ -446,7 +446,7 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
         { heading: 'Add references selectively', body: 'Image references can guide appearance or identity, but generation should still be reviewed for visual fidelity.' },
         { heading: 'Review before publishing', body: 'Check continuity, distorted text, unsupported claims, dialogue mistakes, and mismatched audio in the final video.' },
       ],
-      links: [['AI Video Generator', '/ai-video-generator'], ['Talking Video Generator', '/talking-video-generator'], ['How it works', '/how-it-works']],
+      links: [['AI Video Generator', '/ai-video-generator'], ['Talking Video Generator', '/talking-video-generator'], ['All creation modes', '/features']],
     },
   },
   '/guides/product-photos-and-videos-from-images': {
@@ -525,7 +525,7 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
         { heading: 'Interior Design', body: 'Upload room or property photos, floor plans, or sketches; describe materials, lighting, and style. Choose still design images or a walkthrough. Give measurements when geometry matters.' },
         { heading: 'Review and delivery', body: 'Paid AI generation checks available credits before starting. Review progress and finished media in the project workspace.' },
       ],
-      links: [['How it works', '/how-it-works'], ['Website Video', '/website-video-generator'], ['Product Photos', '/product-photo-generator'], ['Interior Design', '/ai-interior-design-generator'], ['Examples', '/examples'], ['Pricing', '/pricing']],
+      links: [['All creation modes', '/features'], ['Website Video', '/website-video-generator'], ['Product Photos', '/product-photo-generator'], ['Interior Design', '/ai-interior-design-generator'], ['Examples', '/examples'], ['Pricing', '/pricing']],
     },
   },
   '/pricing': {
@@ -540,14 +540,14 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
         { heading: 'Credits before generation', body: 'See the current production estimate before starting paid generation.' },
         { heading: 'Multiple creation modes', body: 'Website video, original AI video, product photos and video, talking scenes, and interior design image or video modes use the shared credit system. Exact estimates depend on selected options.' },
       ],
-      links: [['How it works', '/how-it-works'], ['How it works', '/how-it-works'], ['Interior Design', '/ai-interior-design-generator'], ['FAQ', '/faq']],
+      links: [['How it works', '/how-it-works'], ['All creation modes', '/features'], ['Interior Design', '/ai-interior-design-generator'], ['FAQ', '/faq']],
     },
   },
   '/about': {
     title: 'About AiWebVideo — AI Video, Product Media & Interior Design | AiWebVideo',
     description:
       'Learn about AiWebVideo\'s approach to website video, AI video, product photos and video, talking scenes, and interior design.',
-    copy: { eyebrow: 'About AiWebVideo', h1: 'Create from the sources you already have', intro: 'AiWebVideo turns public websites, original ideas, real product images, and space references into directed video, images, and interior concepts.', links: [['How it works', '/how-it-works'], ['How it works', '/how-it-works']] },
+    copy: { eyebrow: 'About AiWebVideo', h1: 'Create from the sources you already have', intro: 'AiWebVideo turns public websites, original ideas, real product images, and space references into directed video, images, and interior concepts.', links: [['How it works', '/how-it-works'], ['All creation modes', '/features']] },
   },
   '/faq': {
     title: 'AI Video, Product Media & Interior Design FAQ | AiWebVideo',
@@ -563,7 +563,7 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
         ['Can I attach real product references?', 'Yes. Product photo and product video modes accept reference images.'],
         ['Can I create an interior tour from room photos?', 'Yes. Interior Design accepts authorized photos and plans for still concepts or walkthroughs. Use measured dimensions or a scaled plan when proportions matter.'],
       ],
-      links: [['How it works', '/how-it-works'], ['How it works', '/how-it-works'], ['Interior Design', '/ai-interior-design-generator'], ['Pricing', '/pricing']],
+      links: [['How it works', '/how-it-works'], ['All creation modes', '/features'], ['Interior Design', '/ai-interior-design-generator'], ['Pricing', '/pricing']],
     },
   },
   '/privacy': {
@@ -588,7 +588,7 @@ const PRIVATE_PAGES: Record<string, Omit<SeoPage, 'path' | 'index'>> = {
   '/studio': { title: 'Studio | AiWebVideo', description: 'Your private video and image editing projects.' },
 };
 
-export const SITEMAP_PATHS = Object.freeze(Object.keys(PUBLIC_PAGES).filter((path) => path !== '/features'));
+export const SITEMAP_PATHS = Object.freeze(Object.keys(PUBLIC_PAGES));
 
 function normalizePath(pathname: string): string {
   const withoutTrailingSlash = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
@@ -778,5 +778,5 @@ export function buildSitemapXml(publicUrl: string): string {
 
 export function buildAiSummary(publicUrl: string): string {
   const base = publicUrl.replace(/\/$/, '');
-  return `# AiWebVideo\n\nAiWebVideo creates AI videos, product images, and interior design concepts from user-provided sources. Choose the mode that matches your input and desired output. The official feature directory is ${base}/features.\n\n## Creation modes\n- Website Video: public website URL plus campaign goal to AI-directed marketing video. ${base}/website-video-generator\n- URL to Video: a public webpage or landing page as source context. ${base}/url-to-video\n- SaaS Demo Video: public SaaS site and a specific product or launch angle. ${base}/saas-demo-video-generator\n- Product Page to Video: public ecommerce page to campaign video. ${base}/product-page-to-video\n- AI Video: original prompt, optionally with image references, to generated video. ${base}/ai-video-generator\n- Product Photos: upload real product photos to create still campaign or ecommerce images. ${base}/product-photo-generator\n- Product Video: upload real product photos to create a product-focused moving film. ${base}/product-video-generator\n- Talking Video: describe characters, dialogue, setting, and camera direction to create a talking scene. ${base}/talking-video-generator\n- Interior Design: upload room or property photos, plans, sketches, or elevations and request design images or a walkthrough video. ${base}/ai-interior-design-generator\n\n## Interior design and property workflows\n- Interior Design Walkthrough: ${base}/interior-design-walkthrough-video\n- Real Estate Walkthrough: ${base}/real-estate-walkthrough-video\n- 3D-Style House Walkthrough: ${base}/3d-house-walkthrough\n- Architectural Visualization: ${base}/ai-architectural-visualization\n- Floor Plan to 3D-Style Concepts: ${base}/floor-plan-to-3d\n- Room Redesign From a Photo: ${base}/room-redesign-ai\n\n## Important distinctions\n- Use Product Page to Video for a public product URL; use Product Photos or Product Video when uploading real product images for reference.\n- Use AI Video for an original film without a website; use Talking Video when dialogue or a scenario leads the scene.\n- Interior Design can produce still concepts or a presentation walkthrough. A single photo does not establish exact dimensions; provide explicit measurements or a scaled plan when geometry matters. Generated concepts are not construction documents.\n- Credits are estimated from selected settings before paid generation. Production results depend on provided references and supported model capabilities.\n\n## More information\n- Official site: ${base}/\n- How it works: ${base}/how-it-works\n- How it works: ${base}/how-it-works\n- Examples and use cases: ${base}/examples\n- Pricing: ${base}/pricing\n- Frequently asked questions: ${base}/faq\n- Website video guide: ${base}/guides/turn-website-into-video\n- SaaS video guide: ${base}/guides/saas-product-demo-video\n- Product page video guide: ${base}/guides/product-page-video-ads\n- AI video prompt and dialogue guide: ${base}/guides/create-ai-video-from-prompt\n- Product photo and video reference guide: ${base}/guides/product-photos-and-videos-from-images\n- Interior design from photos and plans guide: ${base}/guides/interior-design-from-photos-and-plans\n`;
+  return `# AiWebVideo\n\nAiWebVideo creates AI videos, product images, and interior design concepts from user-provided sources. Choose the mode that matches your input and desired output. The official feature directory is ${base}/features.\n\n## Creation modes\n- Website Video: public website URL plus campaign goal to AI-directed marketing video. ${base}/website-video-generator\n- URL to Video: a public webpage or landing page as source context. ${base}/url-to-video\n- SaaS Demo Video: public SaaS site and a specific product or launch angle. ${base}/saas-demo-video-generator\n- Product Page to Video: public ecommerce page to campaign video. ${base}/product-page-to-video\n- AI Video: original prompt, optionally with image references, to generated video. ${base}/ai-video-generator\n- Product Photos: upload real product photos to create still campaign or ecommerce images. ${base}/product-photo-generator\n- Product Video: upload real product photos to create a product-focused moving film. ${base}/product-video-generator\n- Talking Video: describe characters, dialogue, setting, and camera direction to create a talking scene. ${base}/talking-video-generator\n- Interior Design: upload room or property photos, plans, sketches, or elevations and request design images or a walkthrough video. ${base}/ai-interior-design-generator\n\n## Interior design and property workflows\n- Interior Design Walkthrough: ${base}/interior-design-walkthrough-video\n- Real Estate Walkthrough: ${base}/real-estate-walkthrough-video\n- 3D-Style House Walkthrough: ${base}/3d-house-walkthrough\n- Architectural Visualization: ${base}/ai-architectural-visualization\n- Floor Plan to 3D-Style Concepts: ${base}/floor-plan-to-3d\n- Room Redesign From a Photo: ${base}/room-redesign-ai\n\n## Important distinctions\n- Use Product Page to Video for a public product URL; use Product Photos or Product Video when uploading real product images for reference.\n- Use AI Video for an original film without a website; use Talking Video when dialogue or a scenario leads the scene.\n- Interior Design can produce still concepts or a presentation walkthrough. A single photo does not establish exact dimensions; provide explicit measurements or a scaled plan when geometry matters. Generated concepts are not construction documents.\n- Credits are estimated from selected settings before paid generation. Production results depend on provided references and supported model capabilities.\n\n## More information\n- Official site: ${base}/\n- All creation modes: ${base}/features\n- How it works: ${base}/how-it-works\n- Examples and use cases: ${base}/examples\n- Pricing: ${base}/pricing\n- Frequently asked questions: ${base}/faq\n- Website video guide: ${base}/guides/turn-website-into-video\n- SaaS video guide: ${base}/guides/saas-product-demo-video\n- Product page video guide: ${base}/guides/product-page-video-ads\n- AI video prompt and dialogue guide: ${base}/guides/create-ai-video-from-prompt\n- Product photo and video reference guide: ${base}/guides/product-photos-and-videos-from-images\n- Interior design from photos and plans guide: ${base}/guides/interior-design-from-photos-and-plans\n`;
 }

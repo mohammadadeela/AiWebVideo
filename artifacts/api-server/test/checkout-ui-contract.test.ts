@@ -13,14 +13,13 @@ test('one-time checkout uses a wide responsive big-checkout layout with explicit
   assert.match(source, /PaymentState = 'idle' \| 'processing' \| 'success' \| 'error'/);
   assert.match(source, /bg-emerald-500/);
   assert.match(source, /bg-rose-500/);
-  assert.match(source, /Paid \$\{money\(checkoutTotal\)\}/);
+  assert.match(source, /Paid \$\{money\(amountUsd\)\}/);
   assert.match(source, /Try again · Buy/);
   assert.match(source, /Order summary/);
   assert.match(source, /Security code/);
   assert.match(source, /buttonType: 'buy'/);
   assert.match(source, /or enter card details/);
-  assert.match(source, /Buy with PayPal/);
-  assert.match(source, /startCheckout\(plan, jobId\)/);
+  assert.doesNotMatch(source, /Buy with PayPal|continueWithPayPal/);
 });
 
 test('checkout exposes save-card only when PayPal vault is enabled and keeps saved cards reusable', async () => {
@@ -28,7 +27,7 @@ test('checkout exposes save-card only when PayPal vault is enabled and keeps sav
   assert.match(source, /config\?\.vaultEnabled/);
   assert.match(source, /Save this card/);
   assert.match(source, /payWithSavedCard/);
-  assert.match(source, /Saved card/);
+  assert.match(source, /Saved cards/);
   assert.match(source, /PREFERRED_METHOD_KEY/);
   assert.match(source, /Your browser may offer its saved payment details/);
 });
@@ -52,7 +51,7 @@ test('subscription checkout reuses the embedded checkout UI and visual states', 
   assert.match(checkout, /Subscription active/);
   assert.match(checkout, /bg-emerald-500/);
   assert.match(checkout, /bg-rose-500/);
-  assert.match(checkout, /This card will be securely saved for your monthly renewal/);
+  assert.match(checkout, /Your payment details are encrypted in transit and securely processed/);
   assert.doesNotMatch(subscription, /writeCheckoutPlaceholder|window\.open/);
 });
 

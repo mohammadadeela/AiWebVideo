@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { requireAuth } from '../lib/auth.js';
+import { grantCreditsOnce } from '../lib/billing.js';
 import { query } from '../lib/pool.js';
 import { sendError } from '../lib/errors.js';
 import {
@@ -62,32 +63,29 @@ export async function settleGrowthCredits(userId: string) {
   const accountAgeMs = Math.max(0, now - createdAt.getTime());
   const newAccount = accountAgeMs <= NEW_ACCOUNT_ELIGIBILITY_MS;
 
-  // Starter allowance is separate from the production wallet. This conditional
-  // update is idempotent across refreshes and concurrent authenticated requests.
+  // Starter Credits are real account credits, but deliberately remain below
+  // the cheapest paid generation so they cannot trigger a provider call alone.
   if (newAccount) {
-    await query(`WITH candidate AS (
-      SELECT id,encode(digest(lower(trim(email)),'sha256'),'hex') AS email_digest FROM users
-      WHERE id=$1 AND starter_granted_at IS NULL AND email_verified=TRUE
-    ), first_grant AS (
-      INSERT INTO starter_identity_grants(email_digest)
-      SELECT email_digest FROM candidate ON CONFLICT DO NOTHING RETURNING email_digest
-    )
-    UPDATE users SET starter_credits_balance=$2,starter_granted_at=NOW(),updated_at=NOW()
-    WHERE id=$1 AND EXISTS (SELECT 1 FROM first_grant)`, [userId, STARTER_CREDITS_INTERNAL]);
+    await grantCreditsOnce({
+      key: `growth:starter:${userId}`,
+      userId,
+      credits: STARTER_CREDITS_INTERNAL,
+      reason: 'New-account starter credits',
+    });
   }
 
   const offerStartedAt = user.welcome_offer_started_at ? new Date(user.welcome_offer_started_at) : null;
   const offerExpiresAt = offerStartedAt
     ? new Date(offerStartedAt.getTime() + WELCOME_OFFER_MS)
     : createdAt;
-  const { rows: balances } = await query<{ credits_balance: number; starter_credits_balance: number }>(
-    'SELECT credits_balance,starter_credits_balance FROM users WHERE id=$1 LIMIT 1',
+  const { rows: balances } = await query<{ credits_balance: number }>(
+    'SELECT credits_balance FROM users WHERE id=$1 LIMIT 1',
     [userId],
   );
   const balanceInternal = Math.max(0, Number(balances[0]?.credits_balance ?? 0));
 
   return {
-    active: Boolean(WELCOME_OFFER_PRODUCTS.size && newAccount && offerStartedAt && now < offerExpiresAt.getTime()),
+    active: Boolean(newAccount && offerStartedAt && now < offerExpiresAt.getTime()),
     startedAt: offerStartedAt,
     expiresAt: offerExpiresAt,
     discountPercent: WELCOME_DISCOUNT_PERCENT,
@@ -98,7 +96,6 @@ export async function settleGrowthCredits(userId: string) {
     bonusCreditsGranted: 0,
     balanceInternal,
     balanceDisplay: balanceInternal * CREDIT_DISPLAY_MULTIPLIER,
-    starterBalanceDisplay: Math.max(0, Number(balances[0]?.starter_credits_balance ?? 0)) * CREDIT_DISPLAY_MULTIPLIER,
     eligibleProducts: Array.from(WELCOME_OFFER_PRODUCTS),
   };
 }

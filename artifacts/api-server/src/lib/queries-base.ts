@@ -365,8 +365,7 @@ export type GenerationReserveResult =
 export async function reserveGenerationCredits(
   jobId: string,
   userId: string,
-  amount: number,
-  scope?: { feature: string; modelId: string; durationSeconds?: number; quality: string; audioMode: string } | null,
+  amount: number
 ): Promise<GenerationReserveResult> {
   if (!Number.isSafeInteger(amount) || amount <= 0)
     throw new Error('A generation reservation must be a positive whole number of credits.');
@@ -398,27 +397,6 @@ export async function reserveGenerationCredits(
     if (job.credits_spent > 0) {
       await client.query('ROLLBACK');
       return { ok: false, reason: 'already_started' };
-    }
-    if (scope) {
-      const entitlement = await client.query<{ id: string; remaining_credits: number }>(`
-        SELECT id,remaining_credits FROM one_time_generation_entitlements
-        WHERE user_id=$1 AND feature=$2 AND model_id=$3 AND duration_seconds IS NOT DISTINCT FROM $4
-          AND quality=$5 AND audio_mode=$6 AND status='available' AND remaining_credits >= $7
-        ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1`,
-        [userId,scope.feature,scope.modelId,scope.durationSeconds ?? null,scope.quality,scope.audioMode,amount]);
-      if (entitlement.rows[0]) {
-        const pass = entitlement.rows[0];
-        await client.query(`UPDATE one_time_generation_entitlements SET remaining_credits=remaining_credits-$2,
-          status=CASE WHEN remaining_credits=$2 THEN 'used' ELSE 'available' END,updated_at=NOW()
-          WHERE id=$1`, [pass.id,amount]);
-        await client.query(`INSERT INTO one_time_entitlement_redemptions(job_id,entitlement_id,amount)
-          VALUES($1,$2,$3)`, [jobId,pass.id,amount]);
-        await client.query('UPDATE jobs SET user_id=$1,credits_spent=$3,error_message=NULL,updated_at=NOW() WHERE id=$2',
-          [userId,jobId,amount]);
-        await client.query('COMMIT');
-        const balance = await query<{ credits_balance: number }>('SELECT credits_balance FROM users WHERE id=$1',[userId]);
-        return { ok: true, remaining: balance.rows[0]?.credits_balance ?? 0 };
-      }
     }
     const { rows: users } = await client.query<{ credits_balance: number }>(
       `UPDATE users SET credits_balance=credits_balance-$1, updated_at=NOW()
@@ -472,11 +450,6 @@ export async function assertPaidProviderAuthorization(
   if (!isPaidProviderCallAuthorized(rows[0], userId, requiredCredits, expectedStage)) {
     throw new Error(`Paid provider call blocked: job ${jobId} has no valid ${expectedStage} credit reservation.`);
   }
-  const passes = await query<{ status: string }>(`SELECT e.status FROM one_time_entitlement_redemptions r
-    JOIN one_time_generation_entitlements e ON e.id=r.entitlement_id WHERE r.job_id=$1`,[jobId]);
-  if (passes.rows[0]?.status === 'revoked') {
-    throw new Error(`Paid provider call blocked: job ${jobId} has a refunded purchase.`);
-  }
 }
 
 /**
@@ -513,13 +486,6 @@ export async function claimRenderAndSpend(jobId: string, userId: string, amount:
       return { ok: false, reason: 'already_failed' };
     }
     const alreadyReserved = Math.max(0, job.credits_spent || 0);
-    const redemption = await client.query<{ amount: number }>(`SELECT amount FROM one_time_entitlement_redemptions
-      WHERE job_id=$1 AND status='reserved' FOR UPDATE`,[jobId]);
-    // A scoped pass authorizes exactly the purchased production settings.
-    if (redemption.rows[0] && redemption.rows[0].amount !== amount) {
-      await client.query('ROLLBACK');
-      return { ok: false, reason: 'insufficient_credits' };
-    }
     const extraCharge = Math.max(0, amount - alreadyReserved);
     const refundExcess = Math.max(0, alreadyReserved - amount);
 
@@ -627,19 +593,6 @@ export async function refundJobCredits(
       return 0;
     }
     const amount = Math.min(requestedAmount, job.credits_spent);
-    const redemption = await client.query<{ entitlement_id: string; amount: number }>(`
-      SELECT entitlement_id,amount FROM one_time_entitlement_redemptions
-      WHERE job_id=$1 AND status='reserved' FOR UPDATE`,[jobId]);
-    if (redemption.rows[0]) {
-      await client.query(`UPDATE one_time_generation_entitlements SET
-        remaining_credits=remaining_credits+$2,status='available',updated_at=NOW() WHERE id=$1 AND status!='revoked'`,
-        [redemption.rows[0].entitlement_id,amount]);
-      await client.query('UPDATE one_time_entitlement_redemptions SET amount=amount-$2,status=CASE WHEN amount=$2 THEN \'refunded\' ELSE status END WHERE job_id=$1',
-        [jobId,amount]);
-      await client.query('UPDATE jobs SET credits_spent=credits_spent-$1,updated_at=NOW() WHERE id=$2',[amount,jobId]);
-      await client.query('COMMIT');
-      return amount;
-    }
     await client.query('UPDATE users SET credits_balance=credits_balance+$1, updated_at=NOW() WHERE id=$2', [
       amount,
       userId

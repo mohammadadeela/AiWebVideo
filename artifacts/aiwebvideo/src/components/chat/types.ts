@@ -77,13 +77,10 @@ export interface JobWorkflowState {
 export interface CaptureMetadata {
   logoUrl: string | null;
   brandColors: string[];
-  brandProfile?: { summary: string; colors: string[] } | null;
-  readiness?: string | null;
-  campaignChecklist?: Array<{ text: string; pageTitle: string; pageUrl: string }>;
   pageCount: number;
   /** Mirrors the API capture metadata so shared workspace UI can stay source-aware. */
   sourceType?: "website" | "upload" | "studio";
-  studioKind?: "product" | "idea" | "scenario" | "interior" | "architecture" | null;
+  studioKind?: "product" | "idea" | "scenario" | "interior" | null;
   ideaPrompt?: string | null;
   screenshotUrl?: string | null;
   title?: string;

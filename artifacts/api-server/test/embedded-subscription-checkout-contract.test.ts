@@ -76,29 +76,27 @@ test('generic capture webhook cannot double-grant managed renewal credits', asyn
   assert.match(index, /ensureSubscriptionReceiptGuard\(\)/);
 });
 
-test('Create Once video uses the current server catalog and exact displayed checkout price', async () => {
+test('Quick Video uses the normal 9.99 base price consistently before checkout fees', async () => {
   const pricing = await source('../aiwebvideo/src/components/landing/PricingTable.tsx');
   const paywall = await source('../aiwebvideo/src/components/chat/PaywallModal.tsx');
   const paypal = await source('src/routes/paypal.ts');
-  const products = await source('src/lib/billing-products.ts');
   const index = await source('src/index.ts');
-  assert.match(products, /once_video_8: once\('video', 8, 2\.49\)/);
-  assert.match(paypal, /export const PRODUCTS = BILLING_PRODUCTS/);
-  assert.match(pricing, /fetchBillingCatalog/);
-  assert.match(paywall, /fetchBillingCatalog/);
+  assert.match(paypal, /single8:[^\n]*amountUsd: 9\.99/);
+  assert.match(pricing, /price: "\$9\.99"/);
+  assert.match(pricing, /amountUsd: 9\.99/);
+  assert.match(paywall, /single8[^\n]*amountUsd: 9\.99/);
   assert.match(paypal, /checkoutTotalUsd/);
-  assert.match(paypal, /return roundMoney\(Math\.max\(0, Number\(baseAmountUsd\) \|\| 0\)\)/);
   assert.doesNotMatch(index, /applyTemporaryPaymentTestPricing/);
 });
 
 test('checkout UX prewarms payment SDK and keeps hosted fields readable', async () => {
   const checkout = await source('../aiwebvideo/src/components/billing/SecureCheckoutModal.tsx');
   assert.match(checkout, /prewarm/);
-  assert.match(checkout, /fontSize: '16px'/);
-  assert.match(checkout, /color: '#171321'/);
-  assert.match(checkout, /background: 'transparent'/);
+  assert.match(checkout, /font-size': '19px'/);
+  assert.match(checkout, /color: '#101322'/);
+  assert.match(checkout, /background-color': '#ffffff'/);
   assert.match(checkout, /buttonColor: 'black'/);
   assert.match(checkout, /overflow-x-hidden/);
-  assert.match(checkout, /PayPal Card Fields are hosted inside an iframe/);
+  assert.match(checkout, /Your payment details are encrypted in transit and securely processed/);
   assert.doesNotMatch(checkout, /Card data is entered in PayPal-hosted fields/);
 });

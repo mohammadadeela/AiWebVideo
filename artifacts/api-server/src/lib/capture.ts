@@ -38,9 +38,6 @@ export interface CapturedPage {
 export interface SiteCapture {
   title: string;
   description: string | null;
-  brandProfile?: { summary: string; colors: string[] } | null;
-  readiness?: string | null;
-  campaignChecklist?: Array<{ text: string; pageTitle: string; pageUrl: string }>;
   logoUrl: string | null;
   brandColors: string[];
   htmlLang: string | null;
@@ -202,11 +199,6 @@ async function collectMetadata(page: Page, fallbackUrl: string) {
   return page.evaluate((url) => {
     const title = document.title.trim() || new URL(url).hostname;
     const description = document.querySelector<HTMLMetaElement>('meta[name="description"]')?.content?.trim() || null;
-    const heading = document.querySelector<HTMLElement>('h1')?.innerText?.replace(/\s+/g, ' ').trim().slice(0, 140) || null;
-    const callToAction = Array.from(document.querySelectorAll<HTMLElement>('a, button'))
-      .filter((element) => element.getBoundingClientRect().width > 0)
-      .map((element) => element.innerText?.replace(/\s+/g, ' ').trim())
-      .find((value) => value && value.length >= 3 && value.length <= 48 && /shop|buy|explore|book|start|contact|discover|اطلب|تسوق|احجز|ابدأ/i.test(value)) || null;
 
     // Browser-tab identity is the canonical brand mark for AiWebVideo.
     // Prefer the favicon/icon declared in <head>, because this is the exact
@@ -234,48 +226,9 @@ async function collectMetadata(page: Page, fallbackUrl: string) {
       const match = value.match(/#[0-9a-f]{6}\b/ig);
       match?.forEach((color) => colors.size < 6 && colors.add(color.toLowerCase()));
     };
-    const addComputed = (value: string) => {
-      const channels = value.match(/^rgba?\((\d+)[,\s]+(\d+)[,\s]+(\d+)/i);
-      if (!channels || colors.size >= 6) return;
-      const rgb = channels.slice(1, 4).map(Number);
-      if (Math.max(...rgb) - Math.min(...rgb) < 22) return;
-      colors.add(`#${rgb.map((channel) => Math.min(255, channel).toString(16).padStart(2, '0')).join('')}`);
-    };
-    for (const element of Array.from(document.querySelectorAll<HTMLElement>('header, h1, h2, a[href], button')).slice(0, 60)) {
-      if (!element.getBoundingClientRect().width) continue;
-      const style = getComputedStyle(element);
-      addComputed(style.backgroundColor);
-      addComputed(style.color);
-    }
-    add(document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')?.content || '');
-    if (!colors.size) add(document.documentElement.innerHTML.slice(0, 500_000));
-    return { title, description, heading, callToAction, iconUrl: icon, logoUrl: icon, brandColors: Array.from(colors), htmlLang };
+    add(document.documentElement.innerHTML.slice(0, 500_000));
+    return { title, description, iconUrl: icon, logoUrl: icon, brandColors: Array.from(colors), htmlLang };
   }, fallbackUrl);
-}
-
-function captureAnalysis(sourceUrl: string, meta: Awaited<ReturnType<typeof collectMetadata>>, pages: CapturedPage[]) {
-  const brand = meta.title.split(/\s+[|·—–-]\s+/)[0]?.trim().slice(0, 80);
-  const description = meta.description?.replace(/\s+/g, ' ').trim().slice(0, 170);
-  const summary = description && description.length >= 24
-    ? `${brand && !description.toLowerCase().startsWith(brand.toLowerCase()) ? `${brand} — ` : ''}${description}`
-    : meta.heading && meta.heading.length >= 12 ? `${brand && !meta.heading.toLowerCase().startsWith(brand.toLowerCase()) ? `${brand} — ` : ''}${meta.heading}` : null;
-  const supporting = pages.slice(1).filter((page) => !/interaction-/.test(page.screenshotUrl));
-  const productPages = supporting.filter((page) => /\/(?:products?|shop|store|collections?|catalog)(?:\/|$)/i.test(new URL(page.url, sourceUrl).pathname));
-  const checklist: Array<{ text: string; pageTitle: string; pageUrl: string }> = [];
-  if (meta.heading) checklist.push({ text: `Open on the homepage: ${meta.heading}`, pageTitle: pages[0].title, pageUrl: pages[0].url });
-  for (const page of (productPages.length ? productPages : supporting).slice(0, 2)) {
-    checklist.push({ text: `Show ${page.title}`, pageTitle: page.title, pageUrl: page.url });
-  }
-  if (meta.callToAction) checklist.push({ text: `Close with the site's “${meta.callToAction}” button`, pageTitle: pages[0].title, pageUrl: pages[0].url });
-  const readiness = productPages.length
-    ? `${productPages.length} product page${productPages.length === 1 ? '' : 's'} and the homepage captured${meta.callToAction ? ', with a visible call to action' : ''}.`
-    : supporting.length ? `Homepage and ${supporting.length} supporting page${supporting.length === 1 ? '' : 's'} captured${meta.callToAction ? ', with a visible call to action' : ''}.`
-      : meta.heading ? `Homepage captured with a clear headline${meta.callToAction ? ' and call to action' : ''}.` : null;
-  return {
-    brandProfile: summary ? { summary, colors: meta.brandColors } : null,
-    readiness,
-    campaignChecklist: checklist.slice(0, 4),
-  };
 }
 
 /**
@@ -1069,7 +1022,6 @@ async function captureSiteNow(jobId: string, sourceUrl: string, onProgress?: Cap
 
     const finalCapture: SiteCapture = {
       ...meta,
-      ...captureAnalysis(sourceUrl, meta, pages),
       logoUrl: websiteIconUrl ?? meta.logoUrl,
       screenshotUrl,
       fullPageScreenshotUrl,

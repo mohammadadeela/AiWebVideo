@@ -6,7 +6,7 @@ interface LockedTeaserProps {
   onUnlock: () => void;
 }
 
-/** Saved-production teaser. Website capture is accounted separately;
+/** Saved-production teaser. Landing website capture/screenshots are free;
  * credits are checked before any paid AI planning or provider generation. */
 export function LockedTeaser({ siteUrl, screenshotUrl, sceneCount, durationSeconds, onUnlock }: LockedTeaserProps) {
   let hostname = siteUrl;

@@ -3,8 +3,6 @@ import { ChatBubble } from "./ChatBubble";
 import { QuickReplyChips } from "./QuickReplyChips";
 import { ChatInputBar } from "./ChatInputBar";
 import { SiteCard } from "./SiteCard";
-import { SiteIcon } from "./SiteIcon";
-import { publicPlanningCopy } from "./publicCopy";
 import { GeneratedPhotoPicker, ResultGrid } from "./ResultGrid";
 import { Button } from "@/components/ui/app-button";
 import { AuthModal } from "@/components/auth/AuthModal";
@@ -24,8 +22,6 @@ import {
   uploadPhotos,
   uploadStudioMedia,
   uploadPrivatePages,
-  attachSavedReferences,
-  type SavedReference,
   claimJob,
   ApiError,
 } from "@/lib/api-client";
@@ -47,7 +43,8 @@ import {
   type WorkflowStage,
 } from "./types";
 import { normalizeWebsiteUrl } from "@/lib/websiteUrl";
-import { displayCredits, estimateInternalRenderCredits } from "@/lib/credits";
+import { INTERIOR_MASTER_PROMPT } from "@/lib/creativeIdeas";
+import { estimateRenderCredits } from "@/lib/credits";
 import { defaultModelFor } from "@/lib/generationModels";
 import {
   clearLocalJobWorkflow,
@@ -151,9 +148,7 @@ function resolveResumeStage(saved: JobStatusResponse, workflow: JobWorkflowState
   // storyboarding stage for website jobs so the existing auto-render effect
   // can immediately continue into final generation instead of parking forever
   // on a ready state.
-  if (saved.status === "storyboarding" && saved.storyboard && workflow?.stage !== "ready_to_render"
-    && (!saved.sourceUrl.startsWith("upload://") ||
-      (saved.captureMetadata?.sourceType === "studio" && workflow?.manualRenderAfterPlan !== true)))
+  if (saved.status === "storyboarding" && saved.storyboard && !saved.sourceUrl.startsWith("upload://"))
     return "storyboarding";
 
   if (saved.status === "storyboarding" && !saved.storyboard) return "storyboarding";
@@ -285,7 +280,7 @@ function storyboardSummaryMessage(
         Production plan · {scenes.length} {isImageMode(mode) ? "image" : "beat"}{scenes.length === 1 ? "" : "s"}
       </summary>
       <div className="mt-2 space-y-2 border-t border-white/[.055] pt-2">
-        <p className="text-[11px] font-semibold text-text-primary">{publicPlanningCopy(sb.concept, "Production plan")}</p>
+        <p className="text-[11px] font-semibold text-text-primary">{sb.concept || "Production plan"}</p>
         <p className="font-utility text-[9px] text-mint">
           {isImageMode(mode)
             ? "Creative photo editing · " + (sb.aspectRatio ?? aspectRatio) + " · " + (sb.outputQuality === "4k" ? "4K master" : "1080p")
@@ -297,7 +292,7 @@ function storyboardSummaryMessage(
               <p className="text-[8px] font-semibold uppercase tracking-[.12em] text-violet">
                 {isImageMode(mode) ? "Image" : "Beat"} {scene.sceneNumber ?? index + 1}
               </p>
-              <p className="mt-1 text-[10px] leading-4 text-text-muted">{publicPlanningCopy(scene.shotDescription, "Direction ready")}</p>
+              <p className="mt-1 text-[10px] leading-4 text-text-muted">{scene.shotDescription || "Direction ready"}</p>
             </div>
           ))}
         </div>
@@ -362,7 +357,6 @@ export function ChatWidget({
   const [isAdmin, setIsAdmin] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
-  const [paywallRequiredCredits, setPaywallRequiredCredits] = useState<number | null>(null);
   const [paywallContext, setPaywallContext] = useState<string | undefined>();
   const [creditBalance, setCreditBalance] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -385,7 +379,6 @@ export function ChatWidget({
   const chatRootRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const generationProcessRef = useRef<HTMLDivElement>(null);
-  const followLiveRef = useRef(true);
   const finishedResultFocusRef = useRef<string | null>(null);
   const previousPollingActiveRef = useRef(false);
   const pendingActionRef = useRef<(() => unknown | Promise<unknown>) | null>(null);
@@ -404,12 +397,11 @@ export function ChatWidget({
     audioMode: AudioMode;
     narrationLanguage: string;
     modelId: string;
-    inspirationMediaId?: string;
   } | null>(null);
 
   const pollingActive = stage === "capturing" || stage === "storyboarding" || stage === "rendering";
   const { job, error: pollError } = useJobPolling(jobId, pollingActive);
-  const estimatedCredits = estimateInternalRenderCredits(
+  const estimatedCredits = estimateRenderCredits(
     mode,
     skipVoiceover,
     job?.storyboard?.targetDurationSeconds || durationSeconds,
@@ -458,7 +450,6 @@ export function ChatWidget({
   useEffect(() => {
     setCancelling(false);
     autoRenderRef.current = false;
-    followLiveRef.current = true;
   }, [jobId]);
 
   useEffect(
@@ -634,7 +625,7 @@ export function ChatWidget({
   }, [jobId, job?.captureMetadata, activeCaptureMetadata]);
 
   useEffect(() => {
-    if (pollingActive || stage === "done") return;
+    if (pollingActive) return;
     if (scrollRef.current)
       scrollRef.current.scrollTo({
         top: scrollRef.current.scrollHeight,
@@ -691,7 +682,8 @@ export function ChatWidget({
   useEffect(() => {
     const justStarted = pollingActive && !previousPollingActiveRef.current;
     previousPollingActiveRef.current = pollingActive;
-    if (!justStarted) return;
+    const jobAttached = pollingActive && Boolean(jobId);
+    if (!justStarted && !jobAttached) return;
 
     const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     const behavior: ScrollBehavior = reducedMotion ? "auto" : "smooth";
@@ -738,40 +730,6 @@ export function ChatWidget({
       if (settleTimer) window.clearTimeout(settleTimer);
     };
   }, [pollingActive, jobId]);
-
-  useEffect(() => {
-    const scroller = scrollRef.current;
-    const panel = generationProcessRef.current;
-    if (!pollingActive || !scroller || !panel) return;
-    const onScroll = () => {
-      if (scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 120) followLiveRef.current = true;
-    };
-    const onWheel = (event: WheelEvent) => { if (event.deltaY < 0) followLiveRef.current = false; };
-    let touchY = 0;
-    const onTouchStart = (event: TouchEvent) => { touchY = event.touches[0]?.clientY ?? 0; };
-    const onTouchMove = (event: TouchEvent) => { if ((event.touches[0]?.clientY ?? 0) > touchY + 8) followLiveRef.current = false; };
-    const resize = new ResizeObserver(() => {
-      if (followLiveRef.current) scroller.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
-    });
-    resize.observe(panel);
-    scroller.addEventListener("scroll", onScroll, { passive: true });
-    scroller.addEventListener('wheel', onWheel, { passive: true });
-    scroller.addEventListener('touchstart', onTouchStart, { passive: true });
-    scroller.addEventListener('touchmove', onTouchMove, { passive: true });
-    return () => {
-      resize.disconnect();
-      scroller.removeEventListener("scroll", onScroll);
-      scroller.removeEventListener('wheel', onWheel);
-      scroller.removeEventListener('touchstart', onTouchStart);
-      scroller.removeEventListener('touchmove', onTouchMove);
-    };
-  }, [pollingActive, jobId]);
-
-  useEffect(() => {
-    if (!pollingActive || !followLiveRef.current) return;
-    const scroller = scrollRef.current;
-    if (scroller) scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' });
-  }, [pollingActive, job?.progress, job?.statusMessage, messages.length]);
 
   function persist(role: "user" | "assistant", content: ReactNode, kind = "text") {
     const activeJobId = jobIdRef.current;
@@ -1003,8 +961,7 @@ export function ChatWidget({
 
     if (job.status === "cancelled") {
       capturedRef.current = true;
-      window.dispatchEvent(new Event('aiwebvideo:balance-changed'));
-      pushBot("Stopped — your website allowance was restored.");
+      pushBot("Stopped — no credits were spent on this capture.");
       setCancelling(false);
       setStage("failed");
       return;
@@ -1012,7 +969,6 @@ export function ChatWidget({
 
     if (job.status === "failed") {
       capturedRef.current = true;
-      window.dispatchEvent(new Event('aiwebvideo:balance-changed'));
       pushBot(job.errorMessage || "We couldn't load that site. Check the URL and try again.");
       setStage("failed");
       return;
@@ -1051,7 +1007,6 @@ export function ChatWidget({
     // Lock this transition before starting async work so polling cannot launch
     // the storyboard twice on the next 1.8s tick.
     capturedRef.current = true;
-    window.dispatchEvent(new Event('aiwebvideo:balance-changed'));
     setActiveCaptureMetadata(metadata);
     pushBot(<SiteCard sourceUrl={job.sourceUrl} metadata={metadata} />);
 
@@ -1110,32 +1065,20 @@ export function ChatWidget({
       return;
     }
 
-    // Keep the capture in chat. Signed-in customers continue through the
-    // server credit gate without an extra campaign setup step.
     if (!isSignedIn) {
+      pushBot("Your capture is ready. Sign in once to save it to your account and continue into the production plan.");
       pendingActionRef.current = async () => {
         await claimJob(job.id);
-        setStage("preview_ready");
+        await startWebsiteStoryboard(job.id, metadata);
       };
+      setShowAuthModal(true);
+      setStage("preview_ready");
+      return;
     }
-    const request = websiteRequestRef.current;
-    const previewWorkflow: JobWorkflowState = {
-      savedAt: Date.now(), stage: "preview_ready", mode: request?.mode ?? mode,
-      durationSeconds: request?.durationSeconds === "auto" || request?.durationSeconds === undefined
-        ? durationSeconds : request.durationSeconds,
-      featuresText, creativeBrief: request?.brief ?? creativeBrief,
-      aspectRatio: request?.aspectRatio ?? aspectRatio,
-      outputQuality: request?.outputQuality ?? outputQuality,
-      frameRate, selectedCaptureIds: autoSelectCaptureIds(metadata, 8),
-      audioMode: request?.audioMode ?? audioMode,
-      narrationLanguage: request?.narrationLanguage ?? narrationLanguage,
-      websiteAutoFlow: Boolean(request), manualRenderAfterPlan: !isSignedIn,
-      requestedDurationSeconds: request?.durationSeconds,
-    };
-    saveLocalJobWorkflow(job.id, previewWorkflow);
-    void saveJobWorkflow(job.id, previewWorkflow).catch(() => {});
-    if (isSignedIn) setManualRenderAfterPlan(false);
-    setStage("preview_ready");
+
+    // Optional private/reference images are already available in the composer;
+    // once ownership is established we continue straight into direction.
+    void startWebsiteStoryboard(job.id, metadata);
   }, [job, jobId, stage, isSignedIn]);
 
   // Storyboard stage
@@ -1205,7 +1148,6 @@ export function ChatWidget({
     if (stage !== "rendering" || !job || job.id !== jobId || renderedRef.current) return;
     if (job.status === "done") {
       renderedRef.current = true;
-      window.dispatchEvent(new Event('aiwebvideo:balance-changed'));
       void fetchMe()
         .then((account) => setCreditBalance(account.creditsBalance))
         .catch(() => {});
@@ -1213,7 +1155,6 @@ export function ChatWidget({
       setStage("done");
     } else if (job.status === "cancelled") {
       renderedRef.current = true;
-      window.dispatchEvent(new Event('aiwebvideo:balance-changed'));
       void fetchMe()
         .then((account) => setCreditBalance(account.creditsBalance))
         .catch(() => {});
@@ -1222,7 +1163,6 @@ export function ChatWidget({
       setStage("failed");
     } else if (job.status === "failed") {
       renderedRef.current = true;
-      window.dispatchEvent(new Event('aiwebvideo:balance-changed'));
       void fetchMe()
         .then((account) => setCreditBalance(account.creditsBalance))
         .catch(() => {});
@@ -1271,7 +1211,8 @@ export function ChatWidget({
     referenceFiles: File[],
   ) {
     clearPublicCreatorHandoff();
-    // Retain the legacy saved-preview handoff for previously created sessions.
+    // Free public marketing preview: read the real site first, show its favicon
+    // and useful screenshots, then stop before AI direction/rendering.
     setManualRenderAfterPlan(true);
     websiteRequestRef.current = {
       brief,
@@ -1282,7 +1223,6 @@ export function ChatWidget({
       audioMode: settings.audioMode,
       narrationLanguage: settings.narrationLanguage,
       modelId: settings.modelId,
-      inspirationMediaId: settings.inspirationMediaId,
     };
     setMode(settings.mode);
     setCreativeBrief(brief);
@@ -1331,7 +1271,7 @@ export function ChatWidget({
           : request.durationSeconds;
       const workflow: JobWorkflowState = {
         savedAt: Date.now(),
-        stage: "preview_ready",
+        stage: "capturing",
         mode: request.mode,
         durationSeconds: seconds,
         featuresText: null,
@@ -1343,7 +1283,7 @@ export function ChatWidget({
         audioMode: request.audioMode,
         narrationLanguage: request.narrationLanguage,
         websiteAutoFlow: true,
-        manualRenderAfterPlan: false,
+        manualRenderAfterPlan: true,
         requestedDurationSeconds: request.durationSeconds,
       };
       saveLocalJobWorkflow(activeJobId, workflow);
@@ -1396,10 +1336,6 @@ export function ChatWidget({
         outputQuality: request.outputQuality,
         audioMode: request.audioMode,
         modelId: request.modelId,
-        inspirationMediaId: request.inspirationMediaId,
-        productUrl: request.productUrl,
-        productImageUrls: request.productImageUrls,
-        architecture: request.architecture,
       },
       attachmentDraftKey,
     });
@@ -1410,8 +1346,6 @@ export function ChatWidget({
           ? "scenario"
           : request.studioKind === "interior"
             ? "interior"
-            : request.studioKind === "architecture"
-              ? "architecture"
             : request.mode === "photos"
               ? "photo"
               : "product-video";
@@ -1433,7 +1367,6 @@ export function ChatWidget({
       audioMode: settings.audioMode,
       narrationLanguage: settings.narrationLanguage,
       modelId: settings.modelId,
-      inspirationMediaId: settings.inspirationMediaId,
     };
     setMode(settings.mode);
     setModelId(settings.modelId);
@@ -1459,8 +1392,9 @@ export function ChatWidget({
         void redirectSignedInWebsiteSetupToWorkspace(url, brief, settings, referenceFiles);
         return;
       }
-      pendingActionRef.current = () => redirectSignedInWebsiteSetupToWorkspace(url, brief, settings, referenceFiles);
-      setShowAuthModal(true);
+      // The landing page deliberately proves the product before asking for an
+      // account: capture the website now, then stop at preview_ready.
+      void performLandingWebsitePreview(url, brief, settings, referenceFiles);
       return;
     }
     if (!isSignedIn) {
@@ -1479,7 +1413,7 @@ export function ChatWidget({
       pushBot(error instanceof Error ? error.message : "Enter a valid website name.");
       return;
     }
-    pushUser(brief && !/^Goal:\s*Use real ecommerce pages/i.test(brief.trim()) ? `${normalized}
+    pushUser(brief ? `${normalized}
 Promotion direction: ${brief}` : normalized);
     setActiveCaptureMetadata(null);
     setSelectedCaptureIds([]);
@@ -1491,7 +1425,7 @@ Promotion direction: ${brief}` : normalized);
       const setupSummary = pendingRequest
         ? `Setup: ${MODE_OPTIONS.find((option) => option.mode === pendingRequest.mode)?.label ?? "Website video"} · ${pendingRequest.durationSeconds === "auto" ? "Auto duration" : `${pendingRequest.durationSeconds}s`} · ${pendingRequest.aspectRatio} · ${pendingRequest.outputQuality} · ${pendingRequest.audioMode === "voice_music" ? `Narration ${pendingRequest.narrationLanguage.toUpperCase()}` : pendingRequest.audioMode.replace(/_/g, " ")}`
         : undefined;
-      const res = await startCapture(normalized, brief, setupSummary, pendingRequest?.inspirationMediaId);
+      const res = await startCapture(normalized, brief, setupSummary);
       selectJobId(res.jobId);
       if (isPublicCreatorPath() && !isSignedIn && pendingWebsiteAttachmentsRef.current.length) {
         await savePhotoDraft(
@@ -1537,7 +1471,7 @@ Promotion direction: ${brief}` : normalized);
       } catch {}
       pushBot(
         isPublicCreatorPath() && !isSignedIn
-          ? `I’m opening ${hostname} now and selecting the strongest distinct pages.`
+          ? `I’m opening ${hostname} now. You’ll see the real favicon and the strongest distinct pages before I ask you to create an account.`
           : `I’m opening ${hostname} now. I’ll keep only the strongest distinct pages, learn the visual identity and prepare the promotion automatically.`,
       );
       if (isSignedIn && (window.location.pathname === "/" || window.location.pathname.startsWith("/studio"))) {
@@ -1571,7 +1505,6 @@ Promotion direction: ${brief}` : normalized);
       );
       setCreditBalance(quote.balance);
       if (!quote.affordable) {
-        setPaywallRequiredCredits(quote.totalCredits);
         const needed = quote.shortfall;
         setPaywallContext(`Add ${needed} more credit${needed === 1 ? "" : "s"} before AI production starts`);
         setShowPaywall(true);
@@ -1589,7 +1522,6 @@ Promotion direction: ${brief}` : normalized);
 
   async function startWebsiteStoryboard(activeJobId: string, metadata: CaptureMetadata | null) {
     if (!metadata || !activeJobId) return;
-    setBusy(true);
 
     // Prefer the exact request from the composer. If the component remounted
     // while Chromium was capturing, rebuild the request from restored workflow
@@ -1624,7 +1556,6 @@ Promotion direction: ${brief}` : normalized);
       request.modelId,
     );
     if (!canStartPaidPlanning) {
-      setBusy(false);
       setStage("preview_ready");
       return;
     }
@@ -1662,59 +1593,8 @@ Promotion direction: ${brief}` : normalized);
       storyboardedRef.current = false;
       pushBot(errorMessage(error));
       setStage("failed");
-    } finally {
-      setBusy(false);
     }
   }
-
-  async function startStudioStoryboard(activeJobId: string) {
-    setBusy(true);
-    const canStart = await ensureCreditsBeforePaidPlanning(activeJobId, mode, durationSeconds, outputQuality, audioMode, modelId);
-    if (!canStart) { setBusy(false); setStage('preview_ready'); return; }
-    storyboardedRef.current = false;
-    setManualRenderAfterPlan(false);
-    setStage('storyboarding');
-    try {
-      const response = await requestStoryboard(activeJobId, mode, MODE_DEFAULT_VIBES[mode], durationSeconds, undefined, {
-        creativeBrief: creativeBrief || undefined, aspectRatio, outputQuality, audioMode,
-        frameRate: 24, modelId,
-      });
-      if (response.creditsRemaining !== undefined) setCreditBalance(response.creditsRemaining);
-    } catch (error) {
-      pushBot(errorMessage(error));
-      setStage('preview_ready');
-    } finally { setBusy(false); }
-  }
-
-  const automaticWebsitePlanRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (restoring || !isSignedIn || busy || stage !== "preview_ready" || !jobId) return;
-    const current = activeCaptureMetadata ?? job?.captureMetadata ?? null;
-    if (!current || automaticWebsitePlanRef.current === jobId) return;
-    automaticWebsitePlanRef.current = jobId;
-    const start = () => {
-      setManualRenderAfterPlan(false);
-      if (current.sourceType === 'studio') void startStudioStoryboard(jobId);
-      else void startWebsiteStoryboard(jobId, current);
-    };
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('checkout') !== 'success' || params.get('job') !== jobId) { start(); return; }
-    let cancelled = false;
-    void (async () => {
-      // A payment redirect can arrive before the webhook records its credit
-      // grant. Recheck the exact server quote, then resume the saved request.
-      for (const delay of [0, 1500, 3500, 7000, 12000]) {
-        if (delay) await new Promise<void>((resolve) => window.setTimeout(resolve, delay));
-        if (cancelled) return;
-        const quote = await requestGenerationPreflight(jobId, mode, durationSeconds, outputQuality, audioMode, modelId).catch(() => null);
-        if (cancelled) return;
-        if (quote?.affordable) { setCreditBalance(quote.balance); start(); return; }
-      }
-      automaticWebsitePlanRef.current = null;
-      pushBot('Your purchase is still being confirmed. Your setup is saved; press Continue generation when the credits appear.');
-    })();
-    return () => { cancelled = true; };
-  }, [restoring, isSignedIn, busy, stage, jobId, activeCaptureMetadata, job?.captureMetadata]);
 
   async function performWebsiteAttachmentUpload(activeJobId: string, files: File[]) {
     if (!activeJobId || !files.length) return false;
@@ -1827,7 +1707,12 @@ Promotion direction: ${brief}` : normalized);
   }
 
   async function performStudioSubmit(request: StudioGenerationRequest) {
-    const effectiveStudioPrompt = request.prompt;
+    const effectiveStudioPrompt = request.studioKind === "interior"
+      ? `${INTERIOR_MASTER_PROMPT}
+
+USER DESIGN BRIEF (highest-priority creative direction):
+${request.prompt}`
+      : request.prompt;
     setBusy(true);
     setActiveCaptureMetadata(null);
     setSelectedCaptureIds([]);
@@ -1842,9 +1727,7 @@ Promotion direction: ${brief}` : normalized);
     storyboardedRef.current = false;
     renderedRef.current = false;
     pushUser(
-      request.studioKind === "architecture"
-        ? `Create architecture${request.prompt ? ` · ${request.prompt}` : ""}`
-        : request.studioKind === "interior"
+      request.studioKind === "interior"
         ? `Create an interior design${request.prompt ? ` · ${request.prompt}` : ""}`
         : request.studioKind === "product"
         ? request.mode === "photos"
@@ -1853,11 +1736,7 @@ Promotion direction: ${brief}` : normalized);
         : request.prompt,
     );
     pushBot(
-      request.studioKind === "architecture"
-        ? request.mode === "photos"
-          ? "I’m grounding the architecture in your site image and dimensions. The result will appear in this chat."
-          : "I’m planning an architectural film around your site and building references."
-        : request.studioKind === "interior"
+      request.studioKind === "interior"
         ? request.mode === "photos"
           ? "I’m cross-checking your space references, measurements and architectural constraints before creating the interior concept. The result will stay grounded in the supplied geometry."
           : "I’m building a continuous architectural walkthrough from your references, measurements and design direction. The camera path will stay consistent with the supplied space."
@@ -1872,6 +1751,19 @@ Promotion direction: ${brief}` : normalized);
       setIsSignedIn(true);
       setIsAdmin(account.isAdmin);
       setCreditBalance(account.creditsBalance);
+      const required = estimateRenderCredits(
+        request.mode,
+        request.audioMode !== "voice_music",
+        request.durationSeconds,
+        request.outputQuality,
+        request.modelId,
+      );
+      if (account.creditsBalance < required) {
+        setPaywallContext(`Add ${required - account.creditsBalance} credits to start this AI production`);
+        setShowPaywall(true);
+        setStage("awaiting_url");
+        return;
+      }
       const upload = await uploadStudioMedia({
         files: request.files,
         studioKind: request.studioKind,
@@ -1882,10 +1774,6 @@ Promotion direction: ${brief}` : normalized);
         outputQuality: request.outputQuality,
         modelId: request.modelId,
         ideaPrompt: effectiveStudioPrompt || undefined,
-        inspirationMediaId: request.inspirationMediaId,
-        productUrl: request.productUrl,
-        productImageUrls: request.productImageUrls,
-        architecture: request.architecture,
       });
       selectJobId(upload.jobId);
       onJobCreated?.(upload.jobId);
@@ -1919,16 +1807,6 @@ Promotion direction: ${brief}` : normalized);
       );
       if (storyboardResponse.creditsRemaining !== undefined) setCreditBalance(storyboardResponse.creditsRemaining);
       if (window.location.pathname === "/" || window.location.pathname.startsWith("/studio")) {
-        const workflow: JobWorkflowState = {
-          savedAt: Date.now(), stage: 'storyboarding', mode: request.mode,
-          modelId: request.modelId, durationSeconds: request.durationSeconds,
-          featuresText: null, creativeBrief: effectiveStudioPrompt || null,
-          aspectRatio: request.aspectRatio, outputQuality: request.outputQuality,
-          frameRate: 24, selectedCaptureIds: [], audioMode: request.audioMode,
-          narrationLanguage: 'en', manualRenderAfterPlan: false,
-        };
-        saveLocalJobWorkflow(upload.jobId, workflow);
-        await saveJobWorkflow(upload.jobId, workflow).catch(() => {});
         window.location.assign(`/dashboard?job=${encodeURIComponent(upload.jobId)}`);
         return;
       }
@@ -2175,7 +2053,6 @@ Promotion direction: ${brief}` : normalized);
       const quote = await requestRenderQuote(jobId, audioMode);
       setCreditBalance(quote.balance);
       if (!quote.affordable) {
-        setPaywallRequiredCredits(quote.totalCredits);
         const context = `You need ${quote.shortfall} more credit${quote.shortfall === 1 ? "" : "s"} for this ${durationLabel(quote.generatedSeconds)} production`;
         setPaywallContext(context);
         pushBot(
@@ -2207,11 +2084,11 @@ Promotion direction: ${brief}` : normalized);
         setStage("ready_to_render");
         showLockedTeaser();
       } else if (err instanceof ApiError && err.code === "INSUFFICIENT_CREDITS") {
-        const required = estimateInternalRenderCredits(mode, skipVoiceover, durationSeconds, outputQuality, modelId);
+        const required = estimateRenderCredits(mode, skipVoiceover, durationSeconds, outputQuality);
         const shortfall = Math.max(0, required - creditBalance);
-        setPaywallContext(`Add ${displayCredits(shortfall)} credits to generate this saved production`);
+        setPaywallContext(`Add ${shortfall} credit${shortfall === 1 ? "" : "s"} to generate this saved production`);
         pushBot(
-          `This production needs ${displayCredits(required)} credits. You have ${displayCredits(creditBalance)}, so you need ${displayCredits(shortfall)} more. Your project is saved.`,
+          `This production needs ${required} credits. You have ${creditBalance}, so you need ${shortfall} more. Nothing was charged and your project is saved. Choose a shorter version, reduce the selected media, or add credits.`,
         );
         setStage("ready_to_render");
         setShowPaywall(true);
@@ -2223,27 +2100,6 @@ Promotion direction: ${brief}` : normalized);
       setBusy(false);
     }
   }
-
-  const checkoutRenderRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (restoring || !isSignedIn || stage !== 'ready_to_render' || !jobId || checkoutRenderRef.current === jobId) return;
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('checkout') !== 'success' || params.get('job') !== jobId) return;
-    checkoutRenderRef.current = jobId;
-    let cancelled = false;
-    void (async () => {
-      for (const delay of [0, 1500, 3500, 7000, 12000]) {
-        if (delay) await new Promise<void>((resolve) => window.setTimeout(resolve, delay));
-        if (cancelled) return;
-        const quote = await requestRenderQuote(jobId, audioMode).catch(() => null);
-        if (cancelled) return;
-        if (quote?.affordable) { setCreditBalance(quote.balance); void handleGenerate(); return; }
-      }
-      checkoutRenderRef.current = null;
-      pushBot('Your purchase is still being confirmed. Press Generate when your credits appear.');
-    })();
-    return () => { cancelled = true; };
-  }, [restoring, isSignedIn, stage, jobId, audioMode]);
 
   function handleStartOver() {
     if (jobId) clearLocalJobWorkflow(jobId);
@@ -2608,37 +2464,6 @@ Promotion direction: ${brief}` : normalized);
     }
   }
 
-  async function handleSavedReference(item: SavedReference) {
-    if (busy) return;
-    if (!isSignedIn) { setShowAuthModal(true); return; }
-    if (!jobId) { pushBot('Start a project first, then choose an earlier file.'); return; }
-    setBusy(true);
-    try {
-      let targetJobId = jobId;
-      if (stage === 'done') {
-        const reused = await reuseSavedCapture(jobId);
-        targetJobId = reused.jobId;
-        const saved = await fetchJob(targetJobId);
-        selectJobId(saved.id);
-        onJobCreated?.(saved.id);
-        capturedRef.current = true;
-        storyboardedRef.current = false;
-        renderedRef.current = false;
-        setActiveCaptureMetadata(saved.captureMetadata);
-        setStage('awaiting_brief');
-      }
-      await attachSavedReferences(targetJobId, [{ jobId: item.jobId, index: item.index }]);
-      const refreshed = await fetchJob(targetJobId);
-      if (refreshed.captureMetadata) {
-        setActiveCaptureMetadata(refreshed.captureMetadata);
-        setSelectedCaptureIds(autoSelectCaptureIds(refreshed.captureMetadata, 30));
-      }
-      pushUser(`Added saved reference: ${item.title}`, 'attachment');
-      pushBot('Reference added. Describe what to change.');
-    } catch (error) { pushBot(errorMessage(error)); }
-    finally { setBusy(false); }
-  }
-
   async function handleRemixResult() {
     if (!jobId) return;
     const previousMode = mode;
@@ -2694,7 +2519,6 @@ Promotion direction: ${brief}` : normalized);
         className={`${immersive || (streamlinedInitialComposer && stage === "awaiting_url") ? "hidden" : "relative flex items-center gap-3 border-b border-border bg-white/[.018] px-4 py-3.5 sm:px-5"}`}
       >
         <img src="/logo.svg" alt="" width={26} height={26} className="shrink-0 rounded-md" />
-        {projectCaptureMetadata?.logoUrl && <SiteIcon url={projectCaptureMetadata.logoUrl} size={26} />}
         <div className="min-w-0 flex-1">
           <p className="font-display text-[13.5px] font-semibold text-text-primary">AiWebVideo Director</p>
           <p className="flex items-center gap-1.5 text-[11px] text-text-muted">
@@ -2813,24 +2637,68 @@ Promotion direction: ${brief}` : normalized);
               />
             )}
             {stage === "preview_ready" && (
-              <div className="mx-auto w-full max-w-xl">
+              <div className="space-y-3">
+                <div className="rounded-2xl border border-mint/25 bg-mint/[.055] p-4">
+                  <p className="font-utility text-[9px] font-semibold uppercase tracking-[.16em] text-mint">
+                    Your website is ready
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-white">
+                    We captured {websiteBrandName(job?.sourceUrl, projectCaptureMetadata?.title)} and saved the useful context.
+                  </p>
+                  <p className="mt-1 text-[11px] leading-5 text-text-muted">
+                    These are your real website pages, favicon and brand signals. The free preview proves the source is connected before you decide whether to pay for AI production.
+                  </p>
+                  <div className="mt-3 grid gap-2 text-[10px] text-text-muted sm:grid-cols-3">
+                    <span className="rounded-lg bg-black/15 px-2.5 py-2">{projectCaptureMetadata?.pageCount ?? liveReferenceItems.length} useful page{(projectCaptureMetadata?.pageCount ?? liveReferenceItems.length) === 1 ? "" : "s"} saved</span>
+                    <span className="rounded-lg bg-black/15 px-2.5 py-2">{durationLabel(durationSeconds)} · {aspectRatio}</span>
+                    <span className="rounded-lg bg-black/15 px-2.5 py-2">{outputQuality === "4k" ? "4K" : "1080p"} · {audioMode === "voice_music" ? "Narrated" : audioMode === "native_audio" ? "Scene audio" : audioMode === "music_only" ? "Music" : "Silent"}</span>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-white/[.08] bg-white/[.025] p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-utility text-[9px] font-semibold uppercase tracking-[.16em] text-violet">Your campaign setup</p>
+                      <p className="mt-1 text-xs font-semibold text-white">Everything needed to continue is saved.</p>
+                    </div>
+                    <span className="rounded-full border border-white/10 bg-black/20 px-2 py-1 text-[9px] font-semibold text-mint">Free preview</span>
+                  </div>
+                  <p className="mt-3 rounded-xl border border-white/[.06] bg-black/15 px-3 py-2.5 text-[11px] leading-5 text-text-muted">
+                    <span className="font-semibold text-white">Goal:</span> {creativeBrief?.trim() || "Create a brand-aware campaign from the captured website."}
+                  </p>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                    {[
+                      ["01", "Hook", "AI will choose the strongest opening."],
+                      ["02", "Show value", "Real site context stays attached to the plan."],
+                      ["03", "Finish", "The final generation happens only after you approve payment."],
+                    ].map(([number, title, body]) => (
+                      <div key={number} className="rounded-xl border border-white/[.06] bg-black/10 p-3">
+                        <p className="font-utility text-[8px] text-violet">{number}</p>
+                        <p className="mt-1 text-[11px] font-semibold text-white">{title}</p>
+                        <p className="mt-1 text-[10px] leading-4 text-text-dim">{body}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 <Button
                   variant="primary"
                   size="lg"
                   className="w-full"
                   onClick={() => {
                     if (!isPublicCreatorPath() && isSignedIn && jobId) {
-                      const metadata = activeCaptureMetadata ?? job?.captureMetadata ?? null;
-                      if (metadata?.sourceType === 'studio') void startStudioStoryboard(jobId);
-                      else void startWebsiteStoryboard(jobId, metadata);
+                      void startWebsiteStoryboard(jobId, activeCaptureMetadata ?? job?.captureMetadata ?? null);
                     } else {
                       continueLandingPreview();
                     }
                   }}
                   disabled={busy}
                 >
-                  {isSignedIn ? "Continue generation" : "Sign in to create video"}
+                  {!isPublicCreatorPath() && isSignedIn ? "Continue to AI production" : "Continue with this campaign"}
                 </Button>
+                <p className="text-center text-[10px] text-text-dim">
+                  Website analysis and screenshots are free. No AI generation provider has started and nothing has been charged.
+                </p>
               </div>
             )}
             {stage === "awaiting_private_pages" && (
@@ -2891,7 +2759,6 @@ Promotion direction: ${brief}` : normalized);
                   placeholder="e.g. search, wishlist, live chat, fast checkout…"
                   onSubmit={handleFeaturesSubmit}
                   onFiles={handleChatAttachments}
-                  onSavedReference={handleSavedReference}
                   disabled={busy}
                 />
               </>
@@ -2918,16 +2785,97 @@ Promotion direction: ${brief}` : normalized);
                   }
                   onSubmit={handleBriefSubmit}
                   onFiles={handleChatAttachments}
-                  onSavedReference={handleSavedReference}
                   disabled={busy}
                 />
               </>
             )}
             {stage === "ready_to_render" && (
-              <div className="mx-auto w-full max-w-xl space-y-1.5">
+              <div className="space-y-3">
+                <div
+                  className={`rounded-2xl border p-4 ${estimatedShortfall > 0 && isSignedIn ? "border-amber-300/30 bg-amber-300/10" : "border-mint/25 bg-mint/[.06]"}`}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="font-utility text-[9px] uppercase tracking-[.16em] text-mint">
+                        {mode === "photos"
+                          ? "Photo campaign ready"
+                          : isStudioProject
+                            ? "AI video plan ready"
+                            : "Website film plan ready"}
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-white">
+                        {mode === "photos"
+                          ? "AI-directed photo campaign"
+                          : isStudioProject
+                            ? projectCaptureMetadata?.studioKind === "product"
+                              ? "AI-directed product video"
+                              : projectCaptureMetadata?.studioKind === "scenario"
+                                ? "AI-directed talking scene"
+                                : "AI-directed original video"
+                            : "AI-selected website film"}
+                      </p>
+                    </div>
+                    <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 font-utility text-[10px] text-white">
+                      {estimatedAdditionalCredits > 0
+                        ? `${estimatedAdditionalCredits} more credits`
+                        : `${estimatedCredits} credits reserved`}
+                    </span>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-[10px] text-text-muted sm:grid-cols-4">
+                    <span className="rounded-lg bg-black/15 px-2.5 py-2">
+                      {durationLabel(job?.storyboard?.targetDurationSeconds || durationSeconds)}
+                    </span>
+                    <span className="rounded-lg bg-black/15 px-2.5 py-2">{aspectRatio}</span>
+                    <span className="rounded-lg bg-black/15 px-2.5 py-2">
+                      {outputQuality === "4k"
+                        ? (job?.storyboard?.targetDurationSeconds || durationSeconds) > 8
+                          ? "4K mastered"
+                          : "4K native"
+                        : (job?.storyboard?.targetDurationSeconds || durationSeconds) > 8
+                          ? "1080p master"
+                          : "1080p native"}
+                    </span>
+                    <span className="rounded-lg bg-black/15 px-2.5 py-2">
+                      {audioMode === "voice_music"
+                        ? `Narrated · ${narrationLanguage.toUpperCase()}`
+                        : audioMode === "native_audio"
+                          ? "Scene audio"
+                          : audioMode === "music_only"
+                            ? "Music only"
+                            : "Silent"}
+                    </span>
+                  </div>
+                  {isSignedIn && (
+                    <p className="mt-3 text-[10px] font-semibold text-text-muted">
+                      Balance: {creditBalance}
+                      {estimatedShortfall > 0
+                        ? ` · ${estimatedShortfall} more credits needed`
+                        : estimatedAdditionalCredits > 0
+                          ? " · ready for the final charge"
+                          : " · ready — no second charge for this production"}
+                    </p>
+                  )}
+                </div>
                 <Button variant="primary" size="lg" className="w-full" onClick={handleGenerate} disabled={busy}>
-                  {isSignedIn ? (mode === "photos" ? "Generate photos" : "Generate video") : "Sign in to generate"}
+                  {isSignedIn
+                    ? estimatedShortfall > 0
+                      ? mode === "photos"
+                        ? "Finish this photo campaign"
+                        : "Finish and generate this video"
+                      : estimatedAdditionalCredits === 0
+                        ? mode === "photos"
+                          ? "Start final photo generation · credits reserved"
+                          : "Start final video generation · credits reserved"
+                        : mode === "photos"
+                          ? `Generate the AI photo campaign · ${estimatedAdditionalCredits} more credits`
+                          : `Generate the final video · ${estimatedAdditionalCredits} more credits`
+                    : "Sign in and generate"}
                 </Button>
+                {isSignedIn && estimatedShortfall > 0 && (
+                  <p className="text-center text-[10px] leading-4 text-text-dim">
+                    Your project is saved. One-time checkout is available when a matching production pack exists; subscriptions are optional.
+                  </p>
+                )}
                 <button
                   type="button"
                   disabled={busy}
@@ -2942,7 +2890,7 @@ Promotion direction: ${brief}` : normalized);
                   }}
                   className="w-full rounded-xl py-2 text-[11px] font-semibold text-text-dim transition hover:bg-white/[.035] hover:text-white disabled:opacity-50"
                 >
-                  Change direction
+                  {isStudioProject ? "Adjust the creative direction" : "Adjust the promotion brief"}
                 </button>
               </div>
             )}
@@ -2957,7 +2905,7 @@ Promotion direction: ${brief}` : normalized);
                     disabled={busy}
                   >
                     {nextVersionShortfall > 0
-                      ? `Add ${displayCredits(nextVersionShortfall)} credits for another version`
+                      ? `Add ${nextVersionShortfall} credits for another version`
                       : `${
                           productionKind === "product-photos" || productionKind === "campaign-photos"
                             ? "Create another photo set"
@@ -2968,7 +2916,7 @@ Promotion direction: ${brief}` : normalized);
                                 : productionKind === "ai-video"
                                   ? "Create another video"
                                   : "Create another campaign cut"
-                        } · ${displayCredits(estimatedCredits)} credits`}
+                        } · ${estimatedCredits} credits`}
                   </Button>
                   <Button
                     variant="secondary"
@@ -3124,7 +3072,6 @@ Promotion direction: ${brief}` : normalized);
                     }
                     onSubmit={handleContinueAfterResult}
                     onFiles={handleChatAttachments}
-                    onSavedReference={handleSavedReference}
                     disabled={busy}
                   />
                 </div>
@@ -3174,22 +3121,15 @@ Promotion direction: ${brief}` : normalized);
 
       {showPaywall && (
         <PaywallModal
-          feature={projectCaptureMetadata?.studioKind === 'product'
-            ? mode === 'photos' ? 'product-photo' : 'product-video'
-            : projectCaptureMetadata?.studioKind === 'interior' || projectCaptureMetadata?.studioKind === 'architecture'
-              ? 'interior' : projectCaptureMetadata?.studioKind ? 'video' : 'website'}
-          onClose={() => { setShowPaywall(false); setPaywallRequiredCredits(null); }}
+          onClose={() => setShowPaywall(false)}
           context={paywallContext}
           durationSeconds={job?.storyboard?.targetDurationSeconds || durationSeconds}
           mode={mode}
           outputQuality={job?.storyboard?.outputQuality ?? outputQuality}
           skipVoiceover={skipVoiceover}
-          audioMode={audioMode}
           currentBalance={creditBalance}
-          requiredCredits={paywallRequiredCredits ?? undefined}
           reservedCredits={job?.creditsSpent ?? 0}
           jobId={jobId}
-          modelId={modelId}
         />
       )}
       {showAuthModal && (

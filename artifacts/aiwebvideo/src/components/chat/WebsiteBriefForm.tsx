@@ -8,16 +8,14 @@ import {
   Globe2,
   Image as ImageIcon,
   House,
-  Building2,
   Languages,
+  Maximize2,
   MessageCircleMore,
   Mic,
   Monitor,
   Music,
-  Minus,
   PackageOpen,
   Paperclip,
-  Plus,
   Sparkles,
   Video,
   Volume2,
@@ -25,7 +23,6 @@ import {
   X,
 } from "lucide-react";
 import { normalizeWebsiteUrl } from "@/lib/websiteUrl";
-import { CreatorPopover } from "./CreatorPopover";
 import { displayCredits, estimateRenderCredits } from "@/lib/credits";
 import { defaultModelFor, modelsFor, publicModel, type PublicModelId } from "@/lib/generationModels";
 import {
@@ -35,8 +32,6 @@ import {
   type IdeaContext,
 } from "@/lib/creativeIdeas";
 import { trackStudioEvent } from "@/lib/studio-api";
-import { InspirationGallery } from "@/components/inspiration/InspirationGallery";
-import { extractProductReference, fetchInspirationItem, resolveArchitectureLocation, type InspirationFeature, type InspirationMedia } from "@/lib/api-client";
 import type { AudioMode, JobMode } from "./types";
 
 export type CreationIntent =
@@ -45,8 +40,7 @@ export type CreationIntent =
   | "photo"
   | "product-video"
   | "scenario"
-  | "interior"
-  | "architecture";
+  | "interior";
 
 export type WebsiteProductionMode = Extract<
   JobMode,
@@ -61,11 +55,10 @@ export interface WebsiteGenerationSettings {
   audioMode: AudioMode;
   narrationLanguage: string;
   modelId: PublicModelId;
-  inspirationMediaId?: string;
 }
 
 export interface StudioGenerationRequest {
-  studioKind: "product" | "idea" | "scenario" | "interior" | "architecture";
+  studioKind: "product" | "idea" | "scenario" | "interior";
   prompt: string;
   files: File[];
   mode: "photos" | "video" | "custom";
@@ -74,10 +67,6 @@ export interface StudioGenerationRequest {
   outputQuality: "1080p" | "4k";
   audioMode: AudioMode;
   modelId: PublicModelId;
-  inspirationMediaId?: string;
-  productUrl?: string;
-  productImageUrls?: string[];
-  architecture?: Record<string, string | number | boolean | undefined>;
 }
 
 const DEFAULT_SETTINGS: WebsiteGenerationSettings = {
@@ -110,14 +99,13 @@ const CREATION_MODES = [
   { id: "product-video" as const, label: "Product Video", short: "Product", icon: PackageOpen },
   { id: "scenario" as const, label: "Talking Scene", short: "Talking", icon: MessageCircleMore },
   { id: "interior" as const, label: "Interior Design", short: "Interior", icon: House },
-  { id: "architecture" as const, label: "Architecture", short: "Architecture", icon: Building2 },
 ] as const;
 
 const ACCEPTED_IMAGES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const MIN_CREATOR_DURATION_SECONDS = 8;
 const MAX_CREATOR_DURATION_SECONDS = 60;
-const DURATION_PRESETS = [8, 16, 24, 32, 48, 60] as const;
+const DURATION_PRESETS = [8, 16, 24, 32, 40, 48, 56, 60] as const;
 const NARRATION_LANGUAGES = [
   ["en", "English"],
   ["ar", "Arabic"],
@@ -140,44 +128,13 @@ function normalizeDuration(value: number) {
   return Math.max(MIN_CREATOR_DURATION_SECONDS, Math.min(MAX_CREATOR_DURATION_SECONDS, Math.round(value)));
 }
 
-function SiteMeasure({ label, value, onChange, step, min, max = 10000, unit }: {
-  label: string; value: string; onChange: (value: string) => void; step: number; min: number; max?: number; unit?: string;
-}) {
-  const adjust = (direction: -1 | 1) => {
-    const current = Number(value.replace(',', '.'));
-    const next = Math.min(max, Math.max(min, Number.isFinite(current) && value ? current + direction * step : min));
-    onChange(String(Math.round(next * 100) / 100));
-  };
-  const normalize = () => {
-    if (!value) return;
-    const parsed = Number(value.replace(',', '.'));
-    const rounded = step === 1 ? Math.round(parsed) : Math.round(parsed * 100) / 100;
-    onChange(Number.isFinite(parsed) ? String(Math.min(max, Math.max(min, rounded))) : '');
-  };
-  return <label className="min-w-0 space-y-1.5">
-    <span className="block text-[11px] font-medium text-text-muted">{label}</span>
-    <span className="flex h-11 min-w-0 items-center rounded-xl border border-white/12 bg-[#0b0818] focus-within:border-violet/60 focus-within:ring-2 focus-within:ring-violet/15">
-      <button type="button" onClick={() => adjust(-1)} aria-label={`Decrease ${label}`} disabled={!!value && Number(value) <= min}
-        className="grid h-full w-9 shrink-0 place-items-center rounded-l-xl text-text-muted hover:bg-white/5 hover:text-white disabled:opacity-30"><Minus size={13} /></button>
-      <input type="text" inputMode={step === 1 ? 'numeric' : 'decimal'} value={value} onBlur={normalize}
-        onChange={(event) => { const next = event.target.value.replace(',', '.');
-          if ((step === 1 ? /^\d{0,3}$/ : /^\d{0,5}(?:\.\d{0,2})?$/).test(next)) onChange(next); }}
-        aria-label={label} placeholder="—" className="w-full min-w-0 bg-transparent text-center text-sm font-medium text-white outline-none placeholder:text-white/25" />
-      {unit && <span className="text-[10px] text-text-dim">{unit}</span>}
-      <button type="button" onClick={() => adjust(1)} aria-label={`Increase ${label}`} disabled={!!value && Number(value) >= max}
-        className="grid h-full w-9 shrink-0 place-items-center rounded-r-xl text-text-muted hover:bg-white/5 hover:text-white disabled:opacity-30"><Plus size={13} /></button>
-    </span>
-  </label>;
-}
-
 function intentFromSearch(): CreationIntent | null {
   if (typeof window === "undefined") return null;
   const value = new URLSearchParams(window.location.search).get("create");
   if (value === "photo" || value === "product") return "photo";
   if (value === "product-video") return "product-video";
   if (value === "scenario" || value === "talking") return "scenario";
-  if (value === "interior" || value === "interior-design") return "interior";
-  if (value === "architecture") return "architecture";
+  if (value === "interior" || value === "interior-design" || value === "architecture") return "interior";
   if (value === "video" || value === "idea") return "video";
   if (value === "website") return "website";
   return null;
@@ -202,18 +159,11 @@ function optionClass(active: boolean) {
 }
 
 function controlClass(active: boolean) {
-  return `creator-secondary-button inline-flex h-9 min-h-9 items-center gap-1.5 rounded-xl border px-2.5 text-xs font-semibold transition sm:h-9 sm:min-h-9 ${
+  return `creator-secondary-button inline-flex min-h-10 items-center gap-2 rounded-xl border px-3 text-[10px] font-semibold transition sm:text-[11px] ${
     active
       ? "border-violet/45 bg-violet/[.12] text-white shadow-[0_12px_30px_-24px_rgba(139,92,246,.95)]"
       : "border-white/[.10] bg-white/[.035] text-text-muted hover:border-violet/30 hover:bg-violet/[.07] hover:text-white"
   }`;
-}
-
-function AspectIcon({ ratio }: { ratio: "9:16" | "16:9" | "1:1" }) {
-  const size = ratio === "9:16" ? [11, 18] : ratio === "16:9" ? [20, 11] : [15, 15];
-  return <span aria-hidden="true" className="inline-flex h-5 w-6 shrink-0 items-center justify-center">
-    <span className="rounded-[2px] border-[1.5px] border-current" style={{ width: size[0], height: size[1] }} />
-  </span>;
 }
 
 type CompactDropdownOption = {
@@ -242,13 +192,11 @@ function CompactDropdown({
   ariaLabel: string;
   align?: "left" | "right";
 }) {
-  const anchor = useRef<HTMLButtonElement>(null);
   const selected = options.find((option) => option.value === value) ?? options[0];
 
   return (
     <div className="relative">
       <button
-        ref={anchor}
         type="button"
         onClick={onToggle}
         aria-expanded={open}
@@ -264,7 +212,13 @@ function CompactDropdown({
       </button>
 
       {open && (
-        <CreatorPopover anchor={anchor} onClose={onToggle} label={ariaLabel} width={230}>
+        <div
+          role="listbox"
+          aria-label={ariaLabel}
+          className={`absolute bottom-[calc(100%+8px)] z-[90] min-w-[190px] overflow-hidden rounded-2xl border border-white/[.11] bg-[#100c20]/[.99] p-1.5 shadow-[0_26px_70px_-28px_rgba(0,0,0,.98)] backdrop-blur-2xl ${
+            align === "right" ? "right-0" : "left-0"
+          }`}
+        >
           {options.map((option) => {
             const active = option.value === value;
             return (
@@ -295,7 +249,7 @@ function CompactDropdown({
               </button>
             );
           })}
-        </CreatorPopover>
+        </div>
       )}
     </div>
   );
@@ -374,23 +328,8 @@ export function WebsiteBriefForm({
   const [url, setUrl] = useState("");
   const [brief, setBrief] = useState("");
   const [prompt, setPrompt] = useState("");
-  const [inspiration, setInspiration] = useState<InspirationMedia | null>(null);
-  const [productLink, setProductLink] = useState('');
-  const [productData, setProductData] = useState<{ title: string; url: string; images: string[] } | null>(null);
-  const [chosenProductImages, setChosenProductImages] = useState<string[]>([]);
-  const [readingProduct, setReadingProduct] = useState(false);
-  const [mapLink, setMapLink] = useState('');
-  const [site, setSite] = useState<{ latitude?: number; longitude?: number; label: string | null; resolvedUrl: string } | null>(null);
-  const [resolvingSite, setResolvingSite] = useState(false);
-  const [plotWidth, setPlotWidth] = useState('');
-  const [plotDepth, setPlotDepth] = useState('');
-  const [buildingWidth, setBuildingWidth] = useState('');
-  const [buildingHeight, setBuildingHeight] = useState('');
-  const [floorCount, setFloorCount] = useState('');
-  const [setback, setSetback] = useState('');
-  const [estimatedScale, setEstimatedScale] = useState(false);
   const [compactPanel, setCompactPanel] = useState<"style" | "ideas" | "model" | null>(null);
-  const [openSettingMenu, setOpenSettingMenu] = useState<"duration" | "aspect" | "quality" | "audio" | "language" | "output" | null>(null);
+  const [openSettingMenu, setOpenSettingMenu] = useState<"duration" | "aspect" | "quality" | "audio" | "language" | null>(null);
   const [customDurationInput, setCustomDurationInput] = useState(String(DEFAULT_SETTINGS.durationSeconds));
   const [usingCustomDuration, setUsingCustomDuration] = useState(false);
   const [settings, setSettings] = useState<WebsiteGenerationSettings>(DEFAULT_SETTINGS);
@@ -403,17 +342,11 @@ export function WebsiteBriefForm({
   const dragDepthRef = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const composerRootRef = useRef<HTMLDivElement>(null);
-  const modelAnchor = useRef<HTMLButtonElement>(null);
-  const durationAnchor = useRef<HTMLButtonElement>(null);
-  const outputAnchor = useRef<HTMLButtonElement>(null);
-  const styleAnchor = useRef<HTMLButtonElement>(null);
-  const ideasAnchor = useRef<HTMLButtonElement>(null);
   const websiteBriefRef = useRef<HTMLTextAreaElement>(null);
   const studioPromptRef = useRef<HTMLTextAreaElement>(null);
 
   function applyIntent(intent: CreationIntent, userInitiated = false) {
     if (userInitiated && onIntentRequest?.(intent) === false) return;
-    if (userInitiated) setInspiration((current) => current?.features.includes(intent) ? current : null);
     const previousIntent = activeModeRef.current;
     activeModeRef.current = intent;
     setActiveMode(intent);
@@ -425,10 +358,10 @@ export function WebsiteBriefForm({
       if (intent === "photo") {
         return { ...current, aspectRatio: "1:1", audioMode: "silent", outputQuality: "1080p", modelId: defaultModelFor("image") };
       }
-      if (intent === "interior" || intent === "architecture") {
+      if (intent === "interior") {
         return { ...current, aspectRatio: "16:9", audioMode: "silent", outputQuality: "1080p", modelId: defaultModelFor("interior") };
       }
-      const leavingPhotoDefaults = (previousIntent === "photo" || previousIntent === "interior" || previousIntent === "architecture") && current.audioMode === "silent";
+      const leavingPhotoDefaults = (previousIntent === "photo" || previousIntent === "interior") && current.audioMode === "silent";
       return {
         ...current,
         ...(leavingPhotoDefaults ? { aspectRatio: "9:16" as const, audioMode: "native_audio" as const } : {}),
@@ -440,8 +373,6 @@ export function WebsiteBriefForm({
 
   useEffect(() => {
     applyIntent(initialCreationIntent ?? intentFromSearch() ?? "website");
-    const inspirationId = new URLSearchParams(window.location.search).get('inspiration');
-    if (inspirationId) void fetchInspirationItem(inspirationId).then(setInspiration).catch(() => setError('This inspiration is no longer available.'));
     const handleIntent = (event: Event) => {
       const intent = (event as CustomEvent<CreationIntent>).detail;
       if (intent) applyIntent(intent, true);
@@ -491,7 +422,7 @@ export function WebsiteBriefForm({
   }), [activeMode, brief, files, prompt, url]);
 
   const masterIdeas = useMemo(
-    () => getIdeasForIntent(activeMode === 'architecture' ? 'interior' : activeMode, ideaContext, 6),
+    () => getIdeasForIntent(activeMode, ideaContext, 6),
     [activeMode, ideaContext],
   );
 
@@ -587,15 +518,12 @@ export function WebsiteBriefForm({
     if (!openSettingMenu && compactPanel !== "model") return;
     const closeFloatingMenus = (event: PointerEvent) => {
       const root = composerRootRef.current;
-      if (!root || !(event.target instanceof Node) || root.contains(event.target)
-        || document.querySelector('[data-creator-popover]')?.contains(event.target)) return;
+      if (!root || !(event.target instanceof Node) || root.contains(event.target)) return;
       setOpenSettingMenu(null);
       setCompactPanel((current) => current === "model" ? null : current);
     };
     document.addEventListener("pointerdown", closeFloatingMenus);
-    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') { setOpenSettingMenu(null); setCompactPanel(null); } };
-    document.addEventListener('keydown',closeOnEscape);
-    return () => { document.removeEventListener("pointerdown", closeFloatingMenus); document.removeEventListener('keydown',closeOnEscape); };
+    return () => document.removeEventListener("pointerdown", closeFloatingMenus);
   }, [compactPanel, openSettingMenu]);
 
   function submit() {
@@ -634,7 +562,7 @@ export function WebsiteBriefForm({
         void onSubmit(
           normalizeWebsiteUrl(url),
           brief.trim(),
-          { ...settings, outputQuality: safeQuality, audioMode: safeAudioMode, inspirationMediaId: inspiration?.id },
+          { ...settings, outputQuality: safeQuality, audioMode: safeAudioMode },
           files,
         );
       } catch (cause) {
@@ -644,9 +572,9 @@ export function WebsiteBriefForm({
     }
 
     const isProduct = activeMode === "photo" || activeMode === "product-video";
-    const isInterior = activeMode === "interior" || activeMode === "architecture";
+    const isInterior = activeMode === "interior";
     const activePrompt = isProduct || isInterior ? brief.trim() : prompt.trim();
-    if (!activePrompt && !inspiration) {
+    if (!activePrompt) {
       setError(
         activeMode === "scenario"
           ? "Describe the talking scene you want to create before generating."
@@ -661,10 +589,7 @@ export function WebsiteBriefForm({
       studioPromptRef.current?.focus();
       return;
     }
-    if (activeMode === 'architecture' && (!site || (!estimatedScale && (!Number(plotWidth) || !Number(plotDepth))))) {
-      setError('Add a Maps location and plot width/depth, or choose estimated site scale.'); return;
-    }
-    if ((isProduct || isInterior) && files.length === 0 && (!isProduct || chosenProductImages.length === 0)) {
+    if ((isProduct || isInterior) && files.length === 0) {
       setError(isInterior ? "Attach at least one clear photo, sketch, plan, elevation, or reference image of the space." : "Attach at least one real product or reference photo.");
       return;
     }
@@ -678,49 +603,37 @@ export function WebsiteBriefForm({
           ? "scenario"
           : activeMode === "interior"
             ? "interior"
-            : activeMode === "architecture"
-              ? "architecture"
             : "idea",
-      prompt: activePrompt || 'Create with my references.',
+      prompt: activePrompt,
       files,
       mode: activeMode === "photo" ? "photos" : activeMode === "product-video" ? "video" : isInterior ? (interiorOutput === "video" ? "custom" : "photos") : "custom",
       durationSeconds: activeMode === "photo" ? 8 : durationSeconds,
       aspectRatio: settings.aspectRatio,
       outputQuality: safeQuality,
       audioMode: activeMode === "photo" || (isInterior && interiorOutput === "images") ? "silent" : safeAudioMode,
-      architecture: activeMode === 'architecture' ? {
-        location: site?.label || site?.resolvedUrl, latitude: site?.latitude, longitude: site?.longitude,
-        mapUrl: site?.resolvedUrl || undefined, plotWidth: Number(plotWidth) || undefined, plotDepth: Number(plotDepth) || undefined,
-        buildingWidth: Number(buildingWidth) || undefined, buildingHeight: Number(buildingHeight) || undefined,
-        floors: Number(floorCount) || undefined, setback: Number(setback) || undefined, estimatedScale,
-      } : undefined,
       modelId: settings.modelId,
-      inspirationMediaId: inspiration?.id,
-      productUrl: productData?.url,
-      productImageUrls: chosenProductImages,
     });
   }
 
   const isProductMode = activeMode === "photo" || activeMode === "product-video";
-  const isInteriorMode = activeMode === "interior" || activeMode === "architecture";
-  const isVideoMode = activeMode !== "photo" && (!isInteriorMode || interiorOutput === "video");
+  const isInteriorMode = activeMode === "interior";
+  const isVideoMode = activeMode !== "photo" && (activeMode !== "interior" || interiorOutput === "video");
   const durationSeconds = settings.durationSeconds === "auto" ? 8 : settings.durationSeconds;
   const formatSummary = settings.aspectRatio === "9:16" ? "Portrait" : settings.aspectRatio === "16:9" ? "Wide" : "Square";
-  const modelFamily = isVideoMode ? "video" : isInteriorMode ? "interior" : "image";
-  const availableModels = modelsFor(modelFamily).filter((model) =>
-    model.id !== 'cinema-1' || (activeMode !== 'product-video' && activeMode !== 'scenario' && activeMode !== 'architecture'));
+  const modelFamily = isVideoMode ? "video" : activeMode === "interior" ? "interior" : "image";
+  const availableModels = modelsFor(modelFamily);
   const selectedModel = publicModel(settings.modelId);
-  const exactCredits = activeMode === "photo" || (isInteriorMode && interiorOutput === "images")
+  const exactCredits = activeMode === "photo" || (activeMode === "interior" && interiorOutput === "images")
     ? estimateRenderCredits("photos", true, 8, settings.outputQuality, settings.modelId)
     : estimateRenderCredits("video", settings.audioMode !== "voice_music", durationSeconds, settings.outputQuality, settings.modelId);
   const submitDisabled = disabled || (
     activeMode === "website"
       ? !url.trim() || !brief.trim()
       : isProductMode
-        ? (files.length === 0 && chosenProductImages.length === 0) || (!brief.trim() && !inspiration)
+        ? files.length === 0 || !brief.trim()
         : isInteriorMode
-          ? files.length === 0 || (!brief.trim() && !inspiration) || (activeMode === 'architecture' && (!site || (!estimatedScale && (!Number(plotWidth) || !Number(plotDepth)))) )
-          : !prompt.trim() && !inspiration
+          ? files.length === 0 || !brief.trim()
+          : !prompt.trim()
   );
   const createLabel = activeMode === "website"
     ? "Create website campaign"
@@ -730,11 +643,9 @@ export function WebsiteBriefForm({
         ? "Create product photos"
         : activeMode === "product-video"
           ? "Create product video"
-      : activeMode === "interior"
-        ? "Create interior design"
-        : activeMode === "architecture"
-          ? "Create architecture"
-        : "Create talking scene";
+          : activeMode === "interior"
+            ? "Create interior design"
+            : "Create talking scene";
 
   return (
     <div
@@ -813,38 +724,7 @@ export function WebsiteBriefForm({
       </div>
 
       <div className={`relative ${compactLayout ? "p-3 sm:p-4" : "p-4 sm:p-5"}`}>
-        {inspiration && <div className="mb-3 flex items-center gap-3 rounded-xl border border-violet/25 bg-white/[.035] p-2"><img src={inspiration.thumbnailUrl} alt="Selected inspiration" className="h-14 w-14 rounded-lg object-cover" /><span className="min-w-0 flex-1 text-xs font-semibold text-white">Create with yours</span><button type="button" onClick={() => { setInspiration(null); const next = new URL(window.location.href); next.searchParams.delete('inspiration'); window.history.replaceState(null, '', next); }} className="rounded-lg p-2 text-text-muted hover:text-white" aria-label="Remove inspiration"><X size={15} /></button></div>}
-        {activeMode === 'architecture' && <div className="mb-3 space-y-3 rounded-xl border border-white/10 bg-white/[.015] p-3 sm:p-4">
-          <div className="flex gap-2">
-            <input type="text" value={mapLink} onChange={(event) => { setMapLink(event.target.value); setSite(null); }}
-              placeholder="Google Maps link or address" aria-label="Google Maps link or address"
-              className="min-h-11 min-w-0 flex-1 rounded-xl border border-white/15 bg-[#0b0818] px-3 text-xs text-white outline-none focus:border-violet/50" />
-            <button type="button" disabled={!mapLink.trim() || resolvingSite}
-              onClick={() => { setResolvingSite(true); setError(null);
-                void resolveArchitectureLocation(mapLink).then(setSite).catch(() => setError("Couldn't identify this location. Paste another Maps link or add the address.")).finally(() => setResolvingSite(false)); }}
-              className="min-h-11 rounded-xl border border-white/15 px-3 text-xs text-white hover:bg-white/5 disabled:opacity-40">
-              {resolvingSite ? 'Resolving…' : 'Locate'}
-            </button>
-          </div>
-          {site && <p className="text-[11px] text-mint">{site.label || `${site.latitude}, ${site.longitude}`} · Add a site photo or screenshot{site.latitude === undefined ? ' · Location not geocoded' : ''}</p>}
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <SiteMeasure label="Plot width" value={plotWidth} onChange={setPlotWidth} min={0.5} step={0.5} unit="m" />
-            <SiteMeasure label="Plot depth" value={plotDepth} onChange={setPlotDepth} min={0.5} step={0.5} unit="m" />
-            <SiteMeasure label="Building width" value={buildingWidth} onChange={setBuildingWidth} min={0.5} step={0.5} unit="m" />
-            <SiteMeasure label="Building height" value={buildingHeight} onChange={setBuildingHeight} min={0.5} step={0.5} unit="m" />
-            <SiteMeasure label="Floors" value={floorCount} onChange={setFloorCount} min={1} max={200} step={1} />
-            <SiteMeasure label="Road setback" value={setback} onChange={setSetback} min={0} max={1000} step={0.5} unit="m" />
-          </div>
-          <button type="button" role="checkbox" aria-checked={estimatedScale} onClick={() => setEstimatedScale((current) => !current)}
-            className="flex min-h-11 items-center gap-2.5 rounded-lg px-1 text-left text-xs text-text-muted hover:text-white">
-            <span aria-hidden="true" className={`grid h-[18px] w-[18px] shrink-0 place-items-center rounded-md border transition ${estimatedScale ? 'border-violet bg-violet text-white' : 'border-white/35 bg-white/[.03]'}`}>
-              {estimatedScale && <Check size={13} strokeWidth={3} />}
-            </span>
-            Use estimated site scale when measurements are unavailable
-          </button>
-        </div>}
-        {isProductMode && <div className="mb-3"><div className="flex gap-2"><input type="url" value={productLink} onChange={(event) => { setProductLink(event.target.value); setProductData(null); setChosenProductImages([]); }} placeholder="Product link" aria-label="Product link" className="min-w-0 flex-1 rounded-xl border border-white/15 bg-[#0b0818] px-3 py-2 text-xs text-white outline-none focus:border-violet" /><button type="button" disabled={!productLink.trim() || readingProduct} onClick={() => { setReadingProduct(true); setError(null); void extractProductReference(productLink).then((data) => { setProductData(data); setChosenProductImages(data.images.slice(0, 1)); }).catch(() => { setProductData(null); setChosenProductImages([]); setError("Couldn't load this product. Upload product images instead."); }).finally(() => setReadingProduct(false)); }} className="rounded-xl border border-white/15 px-3 py-2 text-xs text-white disabled:opacity-40">{readingProduct ? 'Reading product…' : 'Use link'}</button></div>{productData && <div className="mt-2"><p className="mb-2 truncate text-xs text-text-muted">{productData.title || 'Choose product images'}</p><div className="flex gap-2 overflow-x-auto">{productData.images.map((image) => <button key={image} type="button" aria-label="Use product image" aria-pressed={chosenProductImages.includes(image)} onClick={() => setChosenProductImages((current) => current.includes(image) ? current.filter((url) => url !== image) : [...current, image])} className={`h-20 w-20 shrink-0 overflow-hidden rounded-lg border-2 ${chosenProductImages.includes(image) ? 'border-mint' : 'border-transparent'}`}><img src={image} alt="Product reference" loading="lazy" className="h-full w-full object-contain" /></button>)}</div></div>}</div>}
-        {isInteriorMode && (
+        {activeMode === "interior" && (
           <div className="mb-3 inline-flex rounded-xl border border-white/[.10] bg-white/[.025] p-1">
             <button
               type="button"
@@ -872,7 +752,7 @@ export function WebsiteBriefForm({
         {!compactLayout && (
           <div className="mb-4">
             <p className="font-display text-base font-semibold text-white">
-              {activeMode === "website" ? "Create a video from your website" : activeMode === "video" ? "Create an AI video" : activeMode === "photo" ? "Create product photos" : activeMode === "product-video" ? "Create a product video" : activeMode === "interior" ? "Design an interior" : activeMode === 'architecture' ? 'Place architecture on a site' : "Create a talking scene"}
+              {activeMode === "website" ? "Create a video from your website" : activeMode === "video" ? "Create an AI video" : activeMode === "photo" ? "Create product photos" : activeMode === "product-video" ? "Create a product video" : activeMode === "interior" ? "Design an interior" : "Create a talking scene"}
             </p>
             <p className="mt-1 text-[11px] text-text-dim">Describe what you want, then use Ideas only when you want creative inspiration.</p>
           </div>
@@ -900,7 +780,7 @@ export function WebsiteBriefForm({
 
           <label className="block">
             <span className="mb-1.5 flex items-center justify-between gap-3 text-[11px] font-semibold text-white">
-              <span>{activeMode === "website" ? "What should the video highlight?" : activeMode === "video" ? "Describe your video" : activeMode === "photo" ? "Describe the product photos" : activeMode === "product-video" ? "Describe the product video" : activeMode === "interior" ? "Describe the space, measurements and design" : activeMode === 'architecture' ? 'Describe the building and placement' : "Describe the talking scene"}</span>
+              <span>{activeMode === "website" ? "What should the video highlight?" : activeMode === "video" ? "Describe your video" : activeMode === "photo" ? "Describe the product photos" : activeMode === "product-video" ? "Describe the product video" : activeMode === "interior" ? "Describe the space, measurements and design" : "Describe the talking scene"}</span>
               <span className="text-[9px] font-normal text-text-dim">Required</span>
             </span>
             <textarea
@@ -928,25 +808,53 @@ export function WebsiteBriefForm({
           </label>
         </div>
 
-        <div className="mt-1 flex items-center gap-1.5">
-          <button type="button" onClick={() => inputRef.current?.click()} disabled={disabled || files.length >= 10}
-            aria-label={isProductMode ? "Add product" : "Add reference"} title={isProductMode ? "Add product" : "Add reference"}
-            className="creator-icon-button grid h-9 w-9 place-items-center rounded-lg text-text-muted hover:bg-white/5 hover:text-white"><Paperclip size={16} /></button>
-          {files.length > 0 && <span className="text-xs text-mint">{files.length}</span>}
-          <button type="button" ref={ideasAnchor} onClick={() => { setOpenSettingMenu(null); toggleIdeas(); }}
-            aria-expanded={compactPanel === "ideas"} aria-label="Ideas" title="Ideas"
-            className="creator-icon-button grid h-9 w-9 place-items-center rounded-lg text-text-muted hover:bg-white/5 hover:text-white"><Sparkles size={16} /></button>
-          {activeMode === "website" && <button type="button" ref={styleAnchor}
-            onClick={() => { setOpenSettingMenu(null); setCompactPanel((current) => current === "style" ? null : "style"); }}
-            aria-expanded={compactPanel === "style"} aria-label="Style" title="Style"
-            className="creator-icon-button inline-flex h-9 items-center gap-1 rounded-lg px-2 text-text-muted hover:bg-white/5 hover:text-white">
-            <Film size={16} />{selectedWebsiteRecipe && <span className="text-xs">{WEBSITE_RECIPES.find((recipe) => recipe.mode === selectedWebsiteRecipe)?.label}</span>}
-          </button>}
-        </div>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {activeMode === "website" && (
+            <button
+              type="button"
+              onClick={() => {
+                setOpenSettingMenu(null);
+                setCompactPanel((current) => current === "style" ? null : "style");
+              }}
+              aria-expanded={compactPanel === "style"}
+              className={controlClass(compactPanel === "style")}
+            >
+              <Film size={13} className="text-mint" />
+              Style: {selectedWebsiteRecipe ? WEBSITE_RECIPES.find((recipe) => recipe.mode === selectedWebsiteRecipe)?.label : "Auto"}
+              <ChevronDown size={12} className={`transition-transform ${compactPanel === "style" ? "rotate-180" : ""}`} />
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => {
+              setOpenSettingMenu(null);
+              toggleIdeas();
+            }}
+            aria-expanded={compactPanel === "ideas"}
+            className={controlClass(compactPanel === "ideas")}
+          >
+            <Sparkles size={13} className="text-violet" />
+            Ideas
+            {selectedIdea && <span className="rounded-full bg-mint/10 px-1.5 py-0.5 text-[8px] text-mint">Added</span>}
+            <ChevronDown size={12} className={`transition-transform ${compactPanel === "ideas" ? "rotate-180" : ""}`} />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setOpenSettingMenu(null);
+              inputRef.current?.click();
+            }}
+            disabled={disabled || files.length >= 10}
+            className={controlClass(false)}
+          >
+            <Paperclip size={13} className="text-mint" />
+            {files.length ? `References ${files.length}` : isProductMode ? "Add product photo" : activeMode === "interior" ? "Add space references" : "References"}
+          </button>
+
           <div className="relative">
             <button
-              ref={modelAnchor}
               type="button"
               onClick={() => {
                 setOpenSettingMenu(null);
@@ -964,10 +872,15 @@ export function WebsiteBriefForm({
             </button>
 
             {compactPanel === "model" && (
-              <CreatorPopover anchor={modelAnchor} onClose={() => setCompactPanel(null)} label="Generation model" width={312}>
+              <div
+                role="listbox"
+                aria-label="Generation model"
+                className="absolute bottom-[calc(100%+8px)] left-0 z-[95] w-[min(390px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-white/[.11] bg-[#100c20]/[.99] p-1.5 shadow-[0_28px_80px_-30px_rgba(0,0,0,.98)] backdrop-blur-2xl"
+              >
                 <div className="flex items-center justify-between gap-3 px-2.5 pb-1.5 pt-1">
                   <div>
                     <p className="text-[10px] font-semibold text-white">Choose model</p>
+                    <p className="mt-0.5 text-[8px] text-white/35">Only compatible options are shown.</p>
                   </div>
                   <button
                     type="button"
@@ -1010,6 +923,7 @@ export function WebsiteBriefForm({
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center gap-2">
                           <span className="truncate text-[11px] font-semibold text-white">{model.name}</span>
+                          {model.recommended && <span className="rounded-md bg-mint/10 px-1.5 py-0.5 text-[7px] font-bold text-mint">BEST</span>}
                         </span>
                         <span className="mt-1 flex flex-wrap items-center gap-1 text-[8px] text-white/42">
                           <span>{model.speed}</span>
@@ -1028,14 +942,13 @@ export function WebsiteBriefForm({
                     </button>
                   );
                 })}
-              </CreatorPopover>
+              </div>
             )}
           </div>
 
           {selectedModel.supportsDuration && (
             <div className="relative">
               <button
-                ref={durationAnchor}
                 type="button"
                 onClick={() => {
                   setCompactPanel(null);
@@ -1053,10 +966,15 @@ export function WebsiteBriefForm({
               </button>
 
               {openSettingMenu === "duration" && (
-                <CreatorPopover anchor={durationAnchor} onClose={() => setOpenSettingMenu(null)} label="Video duration" width={280}>
+                <div
+                  role="dialog"
+                  aria-label="Video duration"
+                  className="absolute bottom-[calc(100%+8px)] left-0 z-[96] w-[min(310px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-white/[.11] bg-[#100c20]/[.99] p-3 shadow-[0_28px_80px_-30px_rgba(0,0,0,.98)] backdrop-blur-2xl"
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-[11px] font-semibold text-white">Video duration</p>
+                      <p className="mt-0.5 text-[8px] text-white/38">Choose a quick preset or enter any whole second from 8 to 60.</p>
                     </div>
                     <button
                       type="button"
@@ -1068,7 +986,7 @@ export function WebsiteBriefForm({
                     </button>
                   </div>
 
-                  <div className="mt-2 grid grid-cols-3 gap-1">
+                  <div className="mt-3 grid grid-cols-4 gap-1.5">
                     {DURATION_PRESETS.map((seconds) => {
                       const active = !usingCustomDuration && durationSeconds === seconds;
                       return (
@@ -1076,13 +994,14 @@ export function WebsiteBriefForm({
                           key={seconds}
                           type="button"
                           onClick={() => applyDurationPreset(seconds)}
-                          className={`flex min-h-10 items-center justify-center rounded-lg border px-2 py-1 transition ${
+                          className={`flex min-h-11 flex-col items-center justify-center rounded-xl border px-2 py-2 transition ${
                             active
                               ? "border-mint/35 bg-mint/[.10] text-mint"
                               : "border-white/[.08] bg-white/[.035] text-white/70 hover:border-violet/30 hover:bg-white/[.055] hover:text-white"
                           }`}
                         >
-                          <span className="text-xs font-semibold">{seconds}s</span>
+                          <Clock size={12} className={active ? "text-mint" : "text-white/40"} />
+                          <span className="mt-1 text-[10px] font-semibold">{seconds}s</span>
                         </button>
                       );
                     })}
@@ -1140,38 +1059,84 @@ export function WebsiteBriefForm({
                         Use
                       </button>
                     </div>
+                    <p className="mt-2 text-[8px] leading-3.5 text-white/32">Your value is saved only after you finish typing, so clearing or replacing the number no longer jumps back to 8 while you type.</p>
                   </div>
-                </CreatorPopover>
+                </div>
               )}
             </div>
           )}
 
-          <button ref={outputAnchor} type="button" className={controlClass(openSettingMenu === "output")}
-            aria-expanded={openSettingMenu === "output"} aria-label="Output settings"
-            onClick={() => { setCompactPanel(null); setOpenSettingMenu((current) => current === "output" ? null : "output"); }}>
-            <AspectIcon ratio={settings.aspectRatio} /> {settings.aspectRatio} · {settings.outputQuality === "4k" ? "4K" : "1080p"}
-            {selectedModel.audioModes.length > 0 && ` · ${settings.audioMode === "silent" ? "Silent" : "Sound"}`} <ChevronDown size={12} />
-          </button>
-          {openSettingMenu === "output" && <CreatorPopover anchor={outputAnchor} onClose={() => setOpenSettingMenu(null)} label="Output settings" width={300}>
-            <div className="space-y-3 p-1">
-              <fieldset><legend className="mb-1 text-xs font-semibold text-white">Format</legend><div className="grid grid-cols-3 gap-1">
-                {([['9:16','Portrait'],['16:9','Wide'],['1:1','Square']] as const).map(([value,label]) =>
-                  <button key={value} type="button" onClick={() => setSettings((current) => ({ ...current, aspectRatio:value }))}
-                    aria-pressed={settings.aspectRatio === value} className={optionClass(settings.aspectRatio === value)}><AspectIcon ratio={value} />{value}<span className="sr-only">{label}</span></button>)}
-              </div></fieldset>
-              {selectedModel.supportedQualities.length > 1 && <fieldset><legend className="mb-1 text-xs font-semibold text-white">Quality</legend><div className="flex gap-1">
-                {selectedModel.supportedQualities.map((value) => <button key={value} type="button"
-                  onClick={() => setSettings((current) => ({ ...current, outputQuality:value }))}
-                  aria-pressed={settings.outputQuality === value} className={optionClass(settings.outputQuality === value)}>{value === '4k' ? '4K' : '1080p'}</button>)}
-              </div></fieldset>}
-              {selectedModel.audioModes.length > 1 && <fieldset><legend className="mb-1 text-xs font-semibold text-white">Audio</legend><div className="flex flex-wrap gap-1">
-                {selectedModel.audioModes.map((value) => <button key={value} type="button"
-                  onClick={() => setSettings((current) => ({ ...current, audioMode:value }))}
-                  aria-pressed={settings.audioMode === value} className={optionClass(settings.audioMode === value)}>
-                    {value === 'native_audio' ? 'Sound' : value === 'voice_music' ? 'Narration' : value === 'music_only' ? 'Music' : 'Silent'}</button>)}
-              </div></fieldset>}
-            </div>
-          </CreatorPopover>}
+          <CompactDropdown
+            value={settings.aspectRatio}
+            options={[
+              { value: "9:16", label: "9:16", helper: "Portrait", icon: <span className="h-4 w-2.5 rounded-[3px] border border-current/80" /> },
+              { value: "16:9", label: "16:9", helper: "Landscape", icon: <span className="h-2.5 w-4 rounded-[3px] border border-current/80" /> },
+              { value: "1:1", label: "1:1", helper: "Square", icon: <span className="h-3.5 w-3.5 rounded-[3px] border border-current/80" /> },
+            ]}
+            open={openSettingMenu === "aspect"}
+            onToggle={() => {
+              setCompactPanel(null);
+              setOpenSettingMenu((current) => current === "aspect" ? null : "aspect");
+            }}
+            onChange={(value) => {
+              setSettings((current) => ({ ...current, aspectRatio: value as "16:9" | "9:16" | "1:1" }));
+              setOpenSettingMenu(null);
+            }}
+            icon={<Maximize2 size={12} />}
+            ariaLabel="Aspect ratio"
+          />
+
+          {selectedModel.supportedQualities.length > 1 ? (
+            <CompactDropdown
+              value={settings.outputQuality}
+              options={selectedModel.supportedQualities.map((quality) => ({
+                value: quality,
+                label: quality === "4k" ? "4K" : "1080p",
+                helper: quality === "4k" ? "Maximum detail" : "Standard HD",
+                icon: quality === "4k" ? <Sparkles size={13} /> : <Monitor size={13} />,
+              }))}
+              open={openSettingMenu === "quality"}
+              onToggle={() => {
+                setCompactPanel(null);
+                setOpenSettingMenu((current) => current === "quality" ? null : "quality");
+              }}
+              onChange={(value) => {
+                setSettings((current) => ({ ...current, outputQuality: value as "1080p" | "4k" }));
+                setOpenSettingMenu(null);
+              }}
+              icon={<Monitor size={12} />}
+              ariaLabel="Quality"
+            />
+          ) : (
+            <span className="creator-secondary-button inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.025] px-3 text-[10px] font-semibold text-white/55 sm:text-[11px]">
+              <span className="grid h-5 w-5 place-items-center rounded-md bg-white/[.04] text-mint"><Monitor size={12} /></span>
+              {selectedModel.quality}
+            </span>
+          )}
+
+          {selectedModel.audioModes.length > 0 && (
+            <CompactDropdown
+              value={settings.audioMode}
+              options={[
+                ...(selectedModel.audioModes.includes("native_audio") ? [{ value: "native_audio", label: "Sound", helper: "Native scene audio", icon: <Volume2 size={13} /> }] : []),
+                ...(selectedModel.audioModes.includes("voice_music") ? [{ value: "voice_music", label: "Narration", helper: "Voice + soundtrack", icon: <Mic size={13} /> }] : []),
+                ...(selectedModel.audioModes.includes("music_only") ? [{ value: "music_only", label: "Music", helper: "Soundtrack only", icon: <Music size={13} /> }] : []),
+                ...(selectedModel.audioModes.includes("silent") ? [{ value: "silent", label: "Silent", helper: "No audio", icon: <VolumeX size={13} /> }] : []),
+              ]}
+              open={openSettingMenu === "audio"}
+              onToggle={() => {
+                setCompactPanel(null);
+                setOpenSettingMenu((current) => current === "audio" ? null : "audio");
+              }}
+              onChange={(value) => {
+                setSettings((current) => ({ ...current, audioMode: value as AudioMode }));
+                setOpenSettingMenu(null);
+              }}
+              icon={<Volume2 size={12} />}
+              ariaLabel="Audio"
+              align="right"
+            />
+          )}
         </div>
 
         {selectedModel.audioModes.includes("voice_music") && settings.audioMode === "voice_music" && (
@@ -1196,8 +1161,8 @@ export function WebsiteBriefForm({
         )}
 
         {compactPanel === "style" && activeMode === "website" && (
-          <CreatorPopover anchor={styleAnchor} onClose={() => setCompactPanel(null)} label="Style" width={260}>
-            <div className="grid grid-cols-2 gap-1">
+          <div className="mt-2 rounded-2xl border border-mint/15 bg-mint/[.035] p-2.5">
+            <div className="chat-scroll flex gap-1.5 overflow-x-auto pb-0.5">
               <button
                 type="button"
                 onClick={() => {
@@ -1225,22 +1190,23 @@ export function WebsiteBriefForm({
                 </button>
               ))}
             </div>
-          </CreatorPopover>
+          </div>
         )}
 
         {compactPanel === "ideas" && (
-          <CreatorPopover anchor={ideasAnchor} onClose={() => setCompactPanel(null)} label="Ideas" width={310}>
+          <div className="mt-2 rounded-2xl border border-violet/15 bg-violet/[.035] p-2.5 sm:p-3">
             <div className="mb-2 flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[10px] font-semibold text-white">Pick a creative direction</p>
                 <p className="mt-0.5 text-[8px] text-text-dim">It only fills your prompt. You can change anything before generating.</p>
               </div>
               <div className="flex shrink-0 items-center gap-1.5">
+                <span className="rounded-full border border-mint/15 bg-mint/[.06] px-2 py-1 text-[7px] font-semibold text-mint">FREE</span>
                 <button type="button" onClick={() => setCompactPanel(null)} aria-label="Close ideas" className="grid h-7 w-7 place-items-center rounded-lg text-text-dim hover:bg-white/5 hover:text-white"><X size={12} /></button>
               </div>
             </div>
             <MasterIdeas ideas={masterIdeas} context={ideaContext} selectedId={selectedIdea?.id ?? null} onSelect={applyMasterIdea} />
-          </CreatorPopover>
+          </div>
         )}
 
         {previews.length > 0 && (
@@ -1265,7 +1231,7 @@ export function WebsiteBriefForm({
         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
           {!compactLayout && (
             <div className="flex-1 text-[9px] text-text-dim">
-              {isProductMode && !files.length && !chosenProductImages.length ? "Add your product to continue." : isInteriorMode && !files.length ? "Add site or space references." : `Your setup: ${isVideoMode ? `${durationSeconds}s · ` : ""}${formatSummary} · ${selectedModel.supportedQualities.length === 1 ? selectedModel.quality : (settings.outputQuality === "4k" ? "4K" : "1080p")}`}
+              {isProductMode && !files.length ? "Add a real product photo before generating." : activeMode === "interior" && !files.length ? "Add space references before generating." : `Your setup: ${isVideoMode ? `${durationSeconds}s · ` : ""}${formatSummary} · ${selectedModel.supportedQualities.length === 1 ? selectedModel.quality : (settings.outputQuality === "4k" ? "4K" : "1080p")}`}
             </div>
           )}
           <button
@@ -1280,7 +1246,6 @@ export function WebsiteBriefForm({
           </button>
         </div>
       </div>
-      {!landingWebsitePreview && <div className="px-3 pb-3"><InspirationGallery feature={activeMode as InspirationFeature} compact /></div>}
     </div>
   );
 }

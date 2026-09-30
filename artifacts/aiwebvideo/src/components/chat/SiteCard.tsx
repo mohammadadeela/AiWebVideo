@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import type { CaptureMetadata } from './types';
-import { SiteIcon } from './SiteIcon';
 
 export function SiteCard({ sourceUrl, metadata }: { sourceUrl: string; metadata: CaptureMetadata }) {
   const isUpload = sourceUrl.startsWith('upload://');
@@ -47,7 +46,7 @@ export function SiteCard({ sourceUrl, metadata }: { sourceUrl: string; metadata:
           <p className="font-utility text-[9px] font-semibold uppercase tracking-[.16em] text-mint">Website connected</p>
           <p className="mt-1 text-sm font-semibold text-white">We found {displayName}.</p>
           <p className="mt-1 text-[11px] leading-5 text-text-muted">
-            Your website context is saved and ready for a production.
+            This is real context from your website — not a demo. The capture is free and nothing has been generated or charged yet.
           </p>
           <div className="mt-3 grid gap-2 text-[10px] text-text-muted sm:grid-cols-3">
             <span className="flex items-center gap-1.5 rounded-lg bg-black/15 px-2.5 py-2"><Check size={12} className="text-mint" />Website reached</span>
@@ -75,7 +74,6 @@ export function SiteCard({ sourceUrl, metadata }: { sourceUrl: string; metadata:
               >
                 <div className="relative">
                   <img src={page.screenshotUrl} alt={`Saved capture of ${page.title || displayName}`} className="aspect-[16/10] w-full object-cover object-top" />
-                  {metadata.logoUrl && <span className="absolute bottom-2 left-2"><SiteIcon url={metadata.logoUrl} size={25} /></span>}
                   <span className="absolute left-2 top-2 rounded-full border border-black/10 bg-black/60 px-2 py-1 font-utility text-[8px] uppercase tracking-[.12em] text-white/85">{String(index + 1).padStart(2, '0')}</span>
                 </div>
                 <p className="truncate border-t border-border px-3 py-2 text-[10px] text-text-dim">{page.title || `Page ${index + 1}`}</p>
@@ -85,7 +83,13 @@ export function SiteCard({ sourceUrl, metadata }: { sourceUrl: string; metadata:
         </div>
       )}
       <div className="flex items-center gap-3">
-        <SiteIcon url={metadata.logoUrl} size={44} />
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-panel-alt border border-border overflow-hidden">
+          {metadata.logoUrl ? (
+            <img src={metadata.logoUrl} alt="" width={28} height={28} className="object-contain" />
+          ) : (
+            <span className="text-text-dim text-xs font-utility">{displayName.slice(0, 2).toUpperCase()}</span>
+          )}
+        </div>
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-text-primary">{displayName}</p>
           <p className="font-utility text-xs text-text-dim">

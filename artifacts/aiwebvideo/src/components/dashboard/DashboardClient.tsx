@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { ChatWidget } from "@/components/chat/ChatWidget";
 import type { CreationIntent } from "@/components/chat/WebsiteBriefForm";
@@ -8,15 +8,16 @@ import { Wordmark } from "@/components/ui/Wordmark";
 import { UserMenu, formatCredits } from "@/components/account/UserMenu";
 import { CreditUpgradeNotice } from "@/components/account/CreditUpgradeNotice";
 import { watchAuthState } from "@/lib/firebase/client";
-import { deleteSavedChat, fetchMe, fetchUserJobs, reuseSavedCapture, updateSavedChat, type UserJobSummary } from "@/lib/api-client";
+import { deleteSavedChat, fetchMe, fetchUserJobs, updateSavedChat, type UserJobSummary } from "@/lib/api-client";
 import { type JobMode } from "@/components/chat/types";
 import {
+  CircleUserRound,
   MoreHorizontal,
-  SquarePen,
   PanelLeftClose,
   PanelLeftOpen,
   Pin,
   Search,
+  ShieldCheck,
   Trash2,
   X,
 } from "lucide-react";
@@ -42,17 +43,8 @@ function relativeTime(value: string) {
 
 function statusLabel(status: string, progress: number) {
   if (status === "captured") return "Ready to continue";
-  if (status === "done") return "Completed";
-  if (ACTIVE_STATUSES.has(status)) return `Generating... · ${Math.max(0, Math.min(100, Math.round(progress)))}%`;
-  if (status === "failed") return "Needs attention";
-  return "Draft";
-}
-
-function projectLabel(item: UserJobSummary) {
-  const title = (item.title || "").replace(/\(?https?:\/\/\S+\)?/gi, "").replace(/\b[0-9a-f]{8}-[0-9a-f-]{27,}\b/gi, "").replace(/[()]+/g, "").trim();
-  const plain = title.replace(/^(?:Website Video|AI Video|Product Video)\s*[·:—-]?\s*(?:Ready to continue|Completed|Generating\.{0,3})?\s*[·:—-]?\s*/i, "").trim();
-  if (plain && !/^(?:Website Video|AI Video|Product Video|Ready to continue)$/i.test(plain)) return plain.slice(0, 54);
-  try { return new URL(item.sourceUrl).hostname.replace(/^www\./, ""); } catch { return item.featureLabel || "Project"; }
+  if (ACTIVE_STATUSES.has(status)) return `Running · ${Math.max(0, Math.min(100, Math.round(progress)))}%`;
+  return status;
 }
 
 export function DashboardClient() {
@@ -81,15 +73,13 @@ export function DashboardClient() {
       requested === "photo" ||
       requested === "product-video" ||
       requested === "scenario" ||
-      requested === "interior" ||
-      requested === "architecture"
+      requested === "interior"
       ? requested
       : undefined;
   }, []);
   const [reuseMode, setReuseMode] = useState<JobMode | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const swipeStart = useRef<{ x: number; y: number; opening: boolean } | null>(null);
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -176,7 +166,7 @@ export function DashboardClient() {
   const runningJobs = useMemo(() => jobs.filter((job) => ACTIVE_STATUSES.has(job.status)), [jobs]);
 
   const filteredJobs = useMemo(
-    () => jobs.filter((job) => `${projectLabel(job)} ${job.sourceUrl} ${job.mode} ${job.featureLabel ?? ""}`.toLowerCase().includes(query.toLowerCase())),
+    () => jobs.filter((job) => `${job.title} ${job.sourceUrl} ${job.mode} ${job.featureLabel ?? ""}`.toLowerCase().includes(query.toLowerCase())),
     [jobs, query],
   );
 
@@ -209,23 +199,6 @@ export function DashboardClient() {
       await refresh();
     } catch {
       setError("We could not update that production. Please try again.");
-    }
-  }
-
-  async function reuseFiles(item: UserJobSummary) {
-    setActionMenuId(null);
-    try {
-      const copy = await reuseSavedCapture(item.id);
-      setSelectedJobId(null);
-      setComposerJobId(null);
-      setReuseJobId(copy.jobId);
-      setReuseMode(null);
-      setNewProjectKey((value) => value + 1);
-      navigate(`/dashboard?reuse=${encodeURIComponent(copy.jobId)}`);
-      setSidebarOpen(false);
-      void refresh();
-    } catch {
-      setError("We could not reuse those files. Please try again.");
     }
   }
 
@@ -281,23 +254,7 @@ export function DashboardClient() {
     );
 
   return (
-    <div className="min-h-screen bg-bg lg:flex"
-      onTouchStart={(event) => {
-        if (window.innerWidth >= 1024) return;
-        const touch = event.touches[0];
-        if (!touch || (!sidebarOpen && touch.clientX > 36)) return;
-        swipeStart.current = { x: touch.clientX, y: touch.clientY, opening: !sidebarOpen };
-      }}
-      onTouchEnd={(event) => {
-        const start = swipeStart.current;
-        swipeStart.current = null;
-        const touch = event.changedTouches[0];
-        if (!start || !touch) return;
-        const dx = touch.clientX - start.x;
-        if (Math.abs(touch.clientY - start.y) > Math.abs(dx) || Math.abs(dx) < 72) return;
-        if (start.opening && dx > 0) setSidebarOpen(true);
-        if (!start.opening && dx < 0) setSidebarOpen(false);
-      }}>
+    <div className="min-h-screen bg-bg lg:flex">
       {sidebarOpen && (
         <button
           type="button"
@@ -332,7 +289,9 @@ export function DashboardClient() {
           onClick={startNew}
           className="premium-button mt-2.5 flex w-full items-center gap-2.5 rounded-xl border border-violet/30 bg-violet/10 px-3 py-2.5 text-left text-[12px] font-semibold text-text-primary transition hover:bg-violet/15 active:scale-[.99] sm:mt-3 sm:py-3 sm:text-sm"
         >
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-signature text-white"><SquarePen size={15} /></span>
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-signature text-sm text-white">
+            ＋
+          </span>
           New creation
         </button>
         <div className="relative mt-3">
@@ -379,7 +338,7 @@ export function DashboardClient() {
                   }}
                   className="block rounded-lg px-2 py-1.5 text-left transition hover:bg-white/5"
                 >
-                  <p className="truncate text-[11px] font-medium text-text-primary">{projectLabel(job)}</p>
+                  <p className="truncate text-[11px] font-medium text-text-primary">{job.title}</p>
                   <div className="mt-1 flex items-center gap-2">
                     <span className="h-1 flex-1 overflow-hidden rounded-full bg-white/10">
                       <span
@@ -397,25 +356,11 @@ export function DashboardClient() {
               ))}
             </div>
           )}
-          {filteredJobs.some((item) => item.pinned) && (
-            <div className="mb-4 space-y-1">
-              <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-[.16em] text-text-dim">Pinned projects</p>
-              {filteredJobs.filter((item) => item.pinned).map((item) => (
-                <div key={item.id} className="flex items-center gap-1 rounded-xl hover:bg-white/5">
-                  <a href={`/dashboard?job=${encodeURIComponent(item.id)}`} onClick={(event) => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); openProject(item.id); }} className="flex min-w-0 flex-1 items-center gap-2 px-2 py-2">
-                    <span className="min-w-0 flex-1"><span className="block truncate text-xs text-white">{projectLabel(item)}</span><span className="block truncate text-[10px] text-text-dim">{statusLabel(item.status, item.progress)}</span></span>
-                  </a>
-                  <button type="button" onClick={() => void reuseFiles(item)} title="Create with these files" aria-label={`Create with files from ${projectLabel(item)}`} className="rounded-lg p-2 text-text-dim hover:text-white"><SquarePen size={13} /></button>
-                  <button type="button" onClick={() => void togglePin(item)} title="Unpin project" aria-label={`Unpin ${projectLabel(item)}`} className="rounded-lg p-2 text-text-dim hover:text-white"><Pin size={13} className="fill-violet" /></button>
-                </div>
-              ))}
-            </div>
-          )}
           <p className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-[.16em] text-text-dim">
             Recent projects
           </p>
           <div className="space-y-1">
-            {filteredJobs.filter((item) => !item.pinned).map((item) => (
+            {filteredJobs.map((item) => (
               <div
                 key={item.id}
                 className={`group relative rounded-xl transition-colors ${(selectedJobId ?? composerJobId) === item.id ? "bg-white/10" : "hover:bg-white/5"}`}
@@ -434,11 +379,14 @@ export function DashboardClient() {
                   className="block w-full px-3 py-2.5 pr-9 text-left"
                 >
                   <div className="flex items-center gap-2">
+                    {(item.previewUrl || item.screenshotUrl) && (
+                      <img src={item.previewUrl || item.screenshotUrl || ""} alt="" loading="lazy" className="h-8 w-8 shrink-0 rounded-lg border border-white/10 object-cover" />
+                    )}
                     <span
                       className={`h-1.5 w-1.5 shrink-0 rounded-full ${item.status === "done" ? "bg-mint" : item.status === "failed" ? "bg-pink" : "bg-violet animate-pulse-soft"}`}
                     />
                     {item.pinned && <Pin size={11} className="shrink-0 fill-violet text-violet" />}
-                    <span className="min-w-0 flex-1 truncate text-xs font-medium text-text-primary">{projectLabel(item)}</span>
+                    <span className="min-w-0 flex-1 truncate text-xs font-medium text-text-primary">{item.title}</span>
                     <span className="text-[10px] text-text-dim">{relativeTime(item.updatedAt)}</span>
                   </div>
                   <div className="mt-1 flex items-center gap-2 pl-3.5">
@@ -461,16 +409,12 @@ export function DashboardClient() {
                   type="button"
                   onClick={() => setActionMenuId((value) => (value === item.id ? null : item.id))}
                   className="absolute right-1 top-1 flex h-10 w-10 items-center justify-center rounded-lg text-text-dim opacity-100 hover:bg-white/10 hover:text-text-primary sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
-                  aria-label={`Production options for ${projectLabel(item)}`}
+                  aria-label={`Production options for ${item.title}`}
                 >
                   <MoreHorizontal size={15} />
                 </button>
                 {actionMenuId === item.id && (
-                  <div className="absolute right-2 top-10 z-50 w-52 rounded-xl border border-border bg-panel p-1.5 shadow-2xl">
-                    <button type="button" onClick={() => void reuseFiles(item)}
-                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-text-muted hover:bg-white/5 hover:text-white">
-                      <SquarePen size={14} /> Create with these files
-                    </button>
+                  <div className="absolute right-2 top-10 z-50 w-44 rounded-xl border border-border bg-panel p-1.5 shadow-2xl">
                     <button
                       type="button"
                       onClick={() => void togglePin(item)}
@@ -500,7 +444,30 @@ export function DashboardClient() {
         </div>
         {me && (
           <div className="mt-3 space-y-2">
-            <UserMenu email={me.email} plan={me.plan} creditsBalance={me.creditsBalance} isAdmin={me.isAdmin} sidebar />
+            {me.isAdmin && (
+              <Link
+                href="/admin"
+                className="flex items-center gap-2 rounded-xl border border-violet/25 bg-violet/10 px-3 py-2.5 text-xs font-semibold text-violet transition hover:bg-violet/15"
+              >
+                <ShieldCheck size={15} />
+                Admin control center
+              </Link>
+            )}
+            <Link
+              href="/profile"
+              className="flex items-center gap-2.5 rounded-xl border border-border bg-panel/60 p-2.5 transition hover:bg-panel sm:gap-3 sm:p-3"
+            >
+              <span className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-panel-alt text-text-primary sm:h-9 sm:w-9">
+                <CircleUserRound size={19} strokeWidth={1.8} aria-hidden="true" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-xs font-semibold text-text-primary">{me.email}</span>
+                <span className="block text-[10px] capitalize text-text-muted">
+                  {me.plan} · {formatCredits(me.creditsBalance)} credits
+                </span>
+              </span>
+              <span className="text-text-dim">›</span>
+            </Link>
           </div>
         )}
       </aside>
@@ -521,10 +488,6 @@ export function DashboardClient() {
             >
               <PanelLeftOpen size={16} />
             </button>
-            <button type="button" onClick={startNew} aria-label="New creation" title="New creation"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-text-muted transition hover:bg-white/[.05] hover:text-white sm:h-10 sm:w-10">
-              <SquarePen size={17} />
-            </button>
             <div>
               <p className="text-sm font-semibold text-text-primary">
                 {selectedJobId || composerJobId ? "Creative chat" : "New creation"}
@@ -533,12 +496,22 @@ export function DashboardClient() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {me?.isAdmin && (
+              <Link
+                href="/admin"
+                className="hidden items-center gap-2 rounded-xl border border-violet/25 bg-violet/10 px-3 py-2 text-xs font-semibold text-violet transition hover:bg-violet/15 md:flex"
+              >
+                <ShieldCheck size={14} />
+                Admin
+              </Link>
+            )}
             <Link
               href={me && me.creditsBalance <= 0 ? "/pricing#buy-credits" : "/pricing"}
               className={`hidden rounded-full border px-3 py-1.5 text-xs sm:block ${me && me.creditsBalance <= 0 ? "border-violet/40 bg-violet/10 font-semibold text-violet hover:bg-violet/15" : "border-border bg-panel text-text-muted hover:text-text-primary"}`}
             >
               {me && me.creditsBalance <= 0 ? "Recharge credits" : `${formatCredits(me?.creditsBalance)} credits`}
             </Link>
+            {me && <UserMenu email={me.email} plan={me.plan} creditsBalance={me.creditsBalance} isAdmin={me.isAdmin} />}
           </div>
         </header>
 

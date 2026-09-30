@@ -6,11 +6,6 @@ import { CheckCircle2, Clapperboard, Download, Images, Loader2, X } from "lucide
 
 const ASPECT_RATIOS = ["9:16", "1:1", "16:9"] as const;
 
-function AspectIcon({ ratio }: { ratio: (typeof ASPECT_RATIOS)[number] }) {
-  const [width, height] = ratio === "9:16" ? [10, 17] : ratio === "16:9" ? [19, 11] : [14, 14];
-  return <span aria-hidden="true" className="inline-flex h-5 w-5 items-center justify-center"><span className="rounded-[2px] border-[1.5px] border-current" style={{ width, height }} /></span>;
-}
-
 function videoPreviewUrl(url: string) {
   return `${url.split("#", 1)[0]}#t=0.001`;
 }
@@ -43,7 +38,6 @@ export function GeneratedPhotoPicker({ photos, selectedGeneratedPhotoIds = [], o
 }
 
 export function ResultGrid({ assets, onUnlock, sourceKind = "website", onGeneratedPhotoSelectionChange, selectedGeneratedPhotoIds = [] }: { assets: JobAsset[]; onUnlock: () => void; sourceKind?: "website" | "studio" | "upload"; onGeneratedPhotoSelectionChange?: (assetIds: string[]) => void; selectedGeneratedPhotoIds?: string[] }) {
-  const [selectedReferences, setSelectedReferences] = useState(selectedGeneratedPhotoIds);
   const videos = assets.filter((asset) => asset.type === "video");
   const photos = assets.filter((asset) => asset.type === "photo");
   const screenshots = assets.filter((asset) => asset.type === "screenshot");
@@ -112,7 +106,7 @@ export function ResultGrid({ assets, onUnlock, sourceKind = "website", onGenerat
             {activeVideo.downloadable && <button type="button" onClick={() => downloadFile(activeVideo)} aria-label="Download video" className="absolute right-2.5 top-2.5 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur transition hover:bg-black/75"><Download size={16} /></button>}
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-            {videos.length > 1 ? <div className="flex gap-1.5">{ASPECT_RATIOS.map((ratio) => videos.some((video) => video.aspectRatio === ratio) ? <button key={ratio} onClick={() => setActiveRatio(ratio)} data-active={activeRatio === ratio} aria-label={`${ratio} video`} className="flex min-h-10 items-center gap-1 rounded-lg border border-border px-3 py-2 text-xs text-text-muted hover:text-white data-[active=true]:border-violet data-[active=true]:text-white"><AspectIcon ratio={ratio} />{ratio}</button> : null)}</div> : <span className="text-[9px] uppercase tracking-wider text-text-dim">{activeVideo.aspectRatio || activeRatio} master</span>}
+            {videos.length > 1 ? <div className="flex gap-1.5">{ASPECT_RATIOS.map((ratio) => videos.some((video) => video.aspectRatio === ratio) ? <button key={ratio} onClick={() => setActiveRatio(ratio)} data-active={activeRatio === ratio} className="min-h-10 rounded-lg border border-border px-3 py-2 text-xs text-text-muted hover:text-white data-[active=true]:border-violet data-[active=true]:text-white">{ratio}</button> : null)}</div> : <span className="text-[9px] uppercase tracking-wider text-text-dim">{activeVideo.aspectRatio || activeRatio} master</span>}
             <div className="flex flex-wrap items-center gap-2">
               {activeVideo.downloadable && <Button variant="secondary" size="sm" onClick={() => downloadFile(activeVideo)}><Download size={14} /> Export video</Button>}
             </div>
@@ -120,6 +114,8 @@ export function ResultGrid({ assets, onUnlock, sourceKind = "website", onGenerat
           <div className="border-t border-white/[.05] px-4 py-2 text-[8px] text-text-dim">Studio opens this exact result with timeline, layers, text, audio, transforms, AI Edit, undo/redo and export.</div>
         </div>
       )}
+
+      {photos.length > 0 && <GeneratedPhotoPicker photos={photos} selectedGeneratedPhotoIds={selectedGeneratedPhotoIds} onSelectionChange={(next) => { onGeneratedPhotoSelectionChange?.(next); }} />}
 
       {photos.length > 0 && (
         <div className="overflow-hidden rounded-[22px] border border-white/[.09] bg-[#0c0917] p-4 shadow-[0_28px_70px_-42px_rgba(139,92,246,.75)] sm:p-5">
@@ -134,21 +130,9 @@ export function ResultGrid({ assets, onUnlock, sourceKind = "website", onGenerat
                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_35%_25%,rgba(139,92,246,.22),transparent_36%)]" />
                   <div className="generation-soft-flash pointer-events-none absolute inset-0" />
                   <img src={photo.url} alt={`Generated photo ${index + 1}`} loading="eager" decoding="async" fetchPriority={index < 2 ? "high" : "auto"} style={{ opacity: 0 }} onLoad={(event) => { event.currentTarget.style.opacity = "1"; }} className="relative h-full w-full object-cover transition-opacity duration-500" />
+                  <span className="absolute left-2.5 top-2.5 rounded-full border border-white/10 bg-black/45 px-2.5 py-1 text-[9px] font-semibold text-white backdrop-blur">Photo {index + 1}</span>
                   <span className="absolute inset-x-3 bottom-3 rounded-xl border border-white/10 bg-black/55 px-3 py-2 text-center text-[10px] font-semibold text-white backdrop-blur transition group-hover:bg-black/70">View full size</span>
                 </button>
-                {onGeneratedPhotoSelectionChange && <button type="button"
-                  aria-label={`${selectedReferences.includes(`generated-photo-${index + 1}`) ? 'Remove' : 'Use'} photo ${index + 1} as a reference`}
-                  aria-pressed={selectedReferences.includes(`generated-photo-${index + 1}`)}
-                  onClick={() => {
-                    const id = `generated-photo-${index + 1}`;
-                    const next = selectedReferences.includes(id)
-                      ? selectedReferences.filter((value) => value !== id) : [...selectedReferences, id];
-                    setSelectedReferences(next);
-                    onGeneratedPhotoSelectionChange(next);
-                  }}
-                  className="absolute left-2.5 top-2.5 z-20 flex min-h-10 items-center gap-2 rounded-full border border-white/20 bg-black/70 px-3 text-[10px] font-semibold text-white backdrop-blur aria-pressed:border-mint aria-pressed:bg-mint/90 aria-pressed:text-black">
-                  <span aria-hidden="true" className="grid h-4 w-4 place-items-center rounded border border-current">{selectedReferences.includes(`generated-photo-${index + 1}`) ? '✓' : ''}</span>Use as reference
-                </button>}
                 {photo.downloadable && <button type="button" onClick={(event) => { event.stopPropagation(); downloadFile(photo); }} aria-label="Download photo" className="absolute right-2.5 top-2.5 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur transition hover:bg-black/75"><Download size={13} /></button>}
               </div>
             ))}

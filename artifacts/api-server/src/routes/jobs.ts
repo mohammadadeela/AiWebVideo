@@ -45,8 +45,6 @@ import { ensureLocalAsset, uploadFileToR2 } from "../lib/r2-storage.js";
 import type { JobStatusResponse, JobWorkflowState } from "../types.js";
 import type { Storyboard } from "../lib/gemini.js";
 import { generationModelForMode, imageModelCreditsPerImage } from "../lib/generation-models.js";
-import { providerBrief } from "../lib/reference-context.js";
-import { creationScope, hasScopedEntitlement } from "../lib/entitlements.js";
 
 const router = Router();
 const MAX_REFERENCE_CAPTURES = MAX_VIDEO_SECONDS / VIDEO_SCENE_SECONDS;
@@ -154,10 +152,7 @@ type CaptureMeta = {
   logoUrl?: string | null;
   pages?: Array<{ url?: string; title?: string; screenshotUrl?: string }>;
   sourceType?: "website" | "upload" | "studio";
-  studioKind?: "product" | "idea" | "scenario" | "interior" | "architecture" | null;
-  inspirationMediaId?: string | null;
-  inspirationMediaType?: string | null;
-  architecture?: { plotWidth?: number; plotDepth?: number; buildingWidth?: number; buildingHeight?: number; floors?: number; setback?: number; location?: string; mapUrl?: string; latitude?: number; longitude?: number; estimatedScale?: boolean } | null;
+  studioKind?: "product" | "idea" | "scenario" | "interior" | null;
   ideaPrompt?: string | null;
   generatedReferenceUrls?: string[];
 };
@@ -350,9 +345,7 @@ router.get("/:id", tryAuth, async (req, res) => {
           id: message.id,
           role: message.role,
           kind: message.kind,
-          content: /^(?:Goal:\s*Use real ecommerce pages|SYSTEM(?:\s+PROMPT|\s+INSTRUCTION)?\s*:|INTERNAL\s+INSTRUCTIONS?\s*:)/i.test(message.content.trim())
-            ? 'Website campaign direction saved.'
-            : showTechnicalErrors ? message.content : publicJobMessageContent(message.content),
+          content: showTechnicalErrors ? message.content : publicJobMessageContent(message.content),
           payload: {
             ...(message.payload ?? {}),
             ...(resultAssets.length
@@ -612,16 +605,11 @@ router.post("/:id/preflight", requireAuth, async (req, res) => {
       (job.capture_metadata as CaptureMeta | null)?.studioKind,
     );
     const balance = req.user!.creditsBalance;
-    const scoped = creationScope({ studioKind: (job.capture_metadata as CaptureMeta | null)?.studioKind,
-      mode: input.mode, modelId: quote.modelId ?? 'cinema-2', durationSeconds: input.durationSeconds,
-      outputQuality: input.outputQuality, audioMode: input.audioMode });
-    const entitlementAvailable = await hasScopedEntitlement(req.user!.id, scoped, quote.totalCredits);
     res.json({
       ...quote,
       balance,
       shortfall: Math.max(0, quote.totalCredits - balance),
-      entitlementAvailable,
-      affordable: req.user!.isAdmin || entitlementAvailable || balance >= quote.totalCredits,
+      affordable: req.user!.isAdmin || balance >= quote.totalCredits,
     });
   } catch (err) {
     sendError(res, err);
@@ -726,11 +714,7 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
       selectedGenerationModel.id,
       (job.capture_metadata as CaptureMeta | null)?.studioKind,
     );
-    const scope = creationScope({ studioKind: (job.capture_metadata as CaptureMeta | null)?.studioKind,
-      mode, modelId: selectedGenerationModel.id, durationSeconds, outputQuality,
-      audioMode: planningAudioMode });
-    const entitlementAvailable = await hasScopedEntitlement(req.user!.id, scope, planningQuote.totalCredits);
-    if (!req.user!.isAdmin && !entitlementAvailable && req.user!.creditsBalance < planningQuote.totalCredits) {
+    if (!req.user!.isAdmin && req.user!.creditsBalance < planningQuote.totalCredits) {
       const shortfall = planningQuote.totalCredits - req.user!.creditsBalance;
       throw new AppError(
         `This production needs ${planningQuote.totalCredits} credits. You have ${req.user!.creditsBalance}, so add ${shortfall} more before AI generation starts. Your saved source and references remain available, and no paid AI/provider API was used.`,
@@ -785,8 +769,8 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
     }
 
     // Atomically reserve the complete production budget before any paid AI or
-    // media-provider call. The separate website-capture allowance was settled earlier.
-    const reservation = await reserveGenerationCredits(job.id, req.user!.id, planningQuote.totalCredits, scope);
+    // media-provider call. Capture/screenshots have already happened for free.
+    const reservation = await reserveGenerationCredits(job.id, req.user!.id, planningQuote.totalCredits);
     if (!reservation.ok && reservation.reason === "insufficient_credits") {
       throw new AppError(
         `This production needs ${planningQuote.totalCredits} credits. Your available balance changed before generation could start. Add credits and try again. No paid AI/provider API was used.`,
@@ -929,7 +913,7 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
           vibeBrief,
           targetDurationSeconds: durationSeconds,
           featuresText: featuresText ?? null,
-          creativeBrief: providerBrief(creativeBrief, meta),
+          creativeBrief: creativeBrief ?? null,
           aspectRatio,
           outputQuality,
           frameRate,
@@ -940,8 +924,6 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
         // no direct API request or future UI path can bypass this invariant.
         await assertPaidProviderAuthorization(job.id, req.user!.id, planningQuote.totalCredits, "storyboarding");
         const { storyboard, aiError } = await generateStoryboard(plannerRequest);
-        // Keep the internal provider instructions out of persisted API data.
-        storyboard.creativeBrief = creativeBrief ?? undefined;
         storyboard.sceneCaptureIds = storyboard.scenes.map((scene) =>
           (scene.sourceIndices ?? [])
             .map((sourceIndex) => plannerCaptures[sourceIndex]?.id)
@@ -1270,9 +1252,6 @@ router.post("/:id/render", requireAuth, async (req, res) => {
           storyboard.selectedCaptureIds,
         );
         const referenceImages = loadedCaptures.map((capture) => capture.buffer);
-        const photoReferences = meta?.inspirationMediaId && referenceImages.length > 4
-          ? [...referenceImages.slice(0, 2), ...referenceImages.slice(-2)]
-          : referenceImages;
         if (referenceImages.length === 0 && meta?.screenshotUrl && /^https?:\/\//i.test(meta.screenshotUrl)) {
           // Last-resort fallback for legacy jobs whose metadata points at an
           // absolute external screenshot URL (e.g. thum.io). Local asset paths
@@ -1291,7 +1270,6 @@ router.post("/:id/render", requireAuth, async (req, res) => {
           loadedCaptures.map((capture) => capture.id),
         );
         const effectiveVideoMode = effectiveVideoModeForMeta(meta, job.mode);
-        const renderBrief = providerBrief(storyboard.creativeBrief, meta);
 
         const wantsVideo = job.mode !== "photos" && job.mode !== "icon";
         const wantsPhotos = job.mode === "photos" || job.mode === "icon" || job.mode === "both";
@@ -1349,9 +1327,9 @@ router.post("/:id/render", requireAuth, async (req, res) => {
             try {
               if (job.mode === "icon") {
                 const iconReferences =
-                  photoReferences.length > 1
-                    ? [photoReferences[photoReferences.length - 1], ...photoReferences.slice(0, -1)]
-                    : photoReferences;
+                  referenceImages.length > 1
+                    ? [referenceImages[referenceImages.length - 1], ...referenceImages.slice(0, -1)]
+                    : referenceImages;
                 return await generateWebsiteIcon(
                   job.id,
                   i,
@@ -1359,7 +1337,7 @@ router.post("/:id/render", requireAuth, async (req, res) => {
                   vibe,
                   iconReferences,
                   storyboard.outputQuality ?? "1080p",
-                  renderBrief,
+                  storyboard.creativeBrief ?? null,
                   selectedRenderModel.creditUnit === "image" ? selectedRenderModel.id : "graphic-2",
                 );
               }
@@ -1371,10 +1349,10 @@ router.post("/:id/render", requireAuth, async (req, res) => {
                 scene.shotDescription,
                 scene.onScreenCopy,
                 vibe,
-                photoReferences,
+                referenceImages,
                 storyboard.aspectRatio ?? "16:9",
                 storyboard.outputQuality ?? "1080p",
-                renderBrief,
+                storyboard.creativeBrief ?? null,
                 meta?.sourceType === "studio" && meta.studioKind === "product"
                   ? "product-photos"
                   : job.mode === "both"
@@ -1414,7 +1392,7 @@ router.post("/:id/render", requireAuth, async (req, res) => {
                   concept,
                   vibe,
                   scenes: scenes as Storyboard["scenes"],
-                  creativeBrief: renderBrief ?? undefined,
+                  creativeBrief: storyboard.creativeBrief,
                   aspectRatio: storyboard.aspectRatio,
                   outputQuality: storyboard.outputQuality,
                   frameRate: storyboard.frameRate,

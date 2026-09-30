@@ -3,15 +3,8 @@ import { z } from 'zod';
 import { getOperationsSettings, productionCapacity } from '../lib/provider-config.js';
 import { addJobMessage, createAsset, createJob, getJob, isCancelRequested, updateJob } from '../lib/queries.js';
 import { validateUrl, SsrfError } from '../lib/ssrf.js';
-import { captureSite, saveImageFile } from '../lib/capture.js';
-import { normalizeUploadToJpeg } from '../lib/uploads.js';
-import { ensureLocalAsset } from '../lib/r2-storage.js';
-import { query } from '../lib/pool.js';
-import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
-import { requireAuth } from '../lib/auth.js';
-import { settleGrowthCredits } from './growth.js';
-import { reserveCapture, settleCapture } from '../lib/starter-capture.js';
+import { captureSite } from '../lib/capture.js';
+import { tryAuth } from '../lib/auth.js';
 import { AppError, sendError } from '../lib/errors.js';
 
 const router = Router();
@@ -20,7 +13,6 @@ const CaptureBody = z.object({
   url: z.string().url().min(1),
   creativeBrief: z.string().trim().min(1).max(8000),
   setupSummary: z.string().trim().max(500).optional(),
-  inspirationMediaId: z.string().uuid().optional(),
 });
 
 const CAPTURE_WINDOW_MS = 10 * 60 * 1000;
@@ -65,7 +57,7 @@ async function finalizeCapturedJob(jobId: string, values: Parameters<typeof upda
   throw lastError instanceof Error ? lastError : new Error('Could not finalize capture status');
 }
 
-router.post('/', requireAuth, async (req, res) => {
+router.post('/', tryAuth, async (req, res) => {
   try {
     const operations = await getOperationsSettings();
     if (operations.maintenanceMode && !req.user?.isAdmin) throw new AppError('Productions are temporarily paused for maintenance. Please try again shortly.', 503, 'MAINTENANCE_MODE');
@@ -74,14 +66,7 @@ router.post('/', requireAuth, async (req, res) => {
     if (!allowCapture(req.ip ?? req.socket.remoteAddress ?? 'unknown')) {
       throw new AppError('Too many capture requests. Please wait a few minutes and try again.', 429, 'RATE_LIMITED');
     }
-    const { url, creativeBrief, setupSummary, inspirationMediaId } = CaptureBody.parse(req.body);
-    let inspiration: { id: string; thumbnail_url: string; media_type: string } | null = null;
-    if (inspirationMediaId) {
-      const found = await query<{ id: string; thumbnail_url: string; media_type: string }>(`SELECT m.id,m.thumbnail_url,m.media_type FROM inspiration_media m WHERE m.id=$1 AND m.status='published'
-        AND EXISTS (SELECT 1 FROM inspiration_features f WHERE f.media_id=m.id AND f.feature_id='website')`, [inspirationMediaId]);
-      if (!found.rows[0]) throw new AppError('Inspiration is unavailable.', 404, 'INSPIRATION_UNAVAILABLE');
-      inspiration = found.rows[0];
-    }
+    const { url, creativeBrief, setupSummary } = CaptureBody.parse(req.body);
 
     // SSRF protection
     let safeUrl: string;
@@ -92,13 +77,8 @@ router.post('/', requireAuth, async (req, res) => {
       throw err;
     }
 
-    const userId = req.user!.id;
-    await settleGrowthCredits(userId);
+    const userId = req.user?.id ?? null;
     const job = await createJob(userId, safeUrl, 'video');
-    if (!await reserveCapture(job.id, userId)) {
-      await query('DELETE FROM jobs WHERE id=$1', [job.id]);
-      throw new AppError('Add credits to read this website.', 402, 'INSUFFICIENT_CREDITS');
-    }
     await addJobMessage(job.id, 'user', safeUrl, 'url');
     await addJobMessage(job.id, 'user', creativeBrief, 'prompt');
     if (setupSummary) await addJobMessage(job.id, 'user', setupSummary, 'setup');
@@ -120,17 +100,6 @@ router.post('/', requireAuth, async (req, res) => {
             ...(partialCapture ? { capture_metadata: partialCapture as unknown as Record<string, unknown> } : {}),
           });
         });
-        if (inspiration) {
-          const filename = path.basename(new URL(inspiration.thumbnail_url, 'http://local').pathname);
-          const local = await ensureLocalAsset('marketing', filename);
-          if (local) {
-            const jpeg = await normalizeUploadToJpeg(await fs.readFile(local));
-            const screenshotUrl = await saveImageFile(job.id, 'interaction-inspiration.jpg', jpeg);
-            captureMetadata.pages.push({ url: `inspiration://${inspiration.id}`, title: 'Inspiration visual direction', screenshotUrl });
-            captureMetadata.pageCount = captureMetadata.pages.length;
-            Object.assign(captureMetadata, { inspirationMediaId: inspiration.id, inspirationMediaType: inspiration.media_type });
-          }
-        }
 
         console.info(`[capture] captureSite returned job=${job.id}; finalizing captured status`);
         await finalizeCapturedJob(job.id, {
@@ -170,12 +139,10 @@ router.post('/', requireAuth, async (req, res) => {
             recordingUrl: captureMetadata.recordingUrl,
           }
         );
-        await settleCapture(job.id, true);
       } catch (err) {
-        await settleCapture(job.id, false).catch(() => {});
         if ((err as Error).message === 'JOB_CANCELLED') {
           await updateJob(job.id, { status: 'cancelled' as never, progress: 0, status_message: 'Cancelled', eta_seconds: 0 }).catch(() => {});
-          await addJobMessage(job.id, 'assistant', 'Stopped — your website allowance was restored.', 'cancelled').catch(() => {});
+          await addJobMessage(job.id, 'assistant', 'Stopped — no credits were spent on this capture.', 'cancelled').catch(() => {});
           return;
         }
         console.error('[capture] async error:', (err as Error).message);

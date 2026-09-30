@@ -66,28 +66,24 @@ export async function signInWithEmail(email: string, password: string) {
 }
 
 export async function signOut() {
-  if (isFirebaseConfigured) await firebaseSignOut(getFirebaseAuth());
-  if (serverSyncPromise) await serverSyncPromise.catch(() => false);
-  const response = await fetch('/api/auth/logout', {
-    method: 'POST',
-    credentials: 'same-origin',
-    cache: 'no-store',
-    headers: { 'Content-Type': 'application/json' },
-    body: '{}',
-  });
-  if (!response.ok) throw new Error('Could not sign out. Please try again.');
+  try {
+    await fetch('/api/auth/logout', {
+      method: 'POST',
+      credentials: 'same-origin',
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+  } catch {
+    // Local cleanup still completes if the network is temporarily unavailable.
+  }
   serverSyncedUid = null;
   localStorage.removeItem('aiwebvideo_token');
+  if (isFirebaseConfigured) await firebaseSignOut(getFirebaseAuth()).catch(() => undefined);
   window.dispatchEvent(new Event('aiwebvideo-auth-changed'));
 }
 
-export async function clearFirebaseIdentity() {
-  if (isFirebaseConfigured && getFirebaseAuth().currentUser) await firebaseSignOut(getFirebaseAuth());
-  if (serverSyncPromise) await serverSyncPromise.catch(() => false);
-  serverSyncedUid = null;
-}
-
-async function serverSession(): Promise<{ active: boolean; email: string | null } | null> {
+async function hasServerSession(): Promise<boolean> {
   const legacyToken = localStorage.getItem('aiwebvideo_token');
   try {
     const response = await fetch('/api/auth/me', {
@@ -99,15 +95,13 @@ async function serverSession(): Promise<{ active: boolean; email: string | null 
       // /me refreshes a secure cookie, so the old browser-readable JWT is no
       // longer needed after one successful migration request.
       localStorage.removeItem('aiwebvideo_token');
-      const account = await response.json().catch(() => ({})) as { email?: string };
-      return { active: true, email: account.email?.toLowerCase() ?? null };
+      return true;
     }
     if (response.status === 401) localStorage.removeItem('aiwebvideo_token');
-    return { active: false, email: null };
+    return false;
   } catch {
-    // A temporary network failure does not invalidate a previously verified
-    // cookie. Keep the workspace state until the server can answer again.
-    return null;
+    // Do not pretend a session exists when it could not be verified.
+    return false;
   }
 }
 
@@ -149,51 +143,63 @@ async function ensureFirebaseServerSession(user: User): Promise<boolean> {
 export function watchAuthState(callback: (user: User | null) => void) {
   if (typeof window === 'undefined') { callback(null); return () => {}; }
   let stopped = false;
-  let revision = 0;
+  let serverReady = false;
   let firebaseReady = !isFirebaseConfigured;
-  let lastVerified = false;
+  let serverUser: User | null = null;
+  let firebaseUser: User | null = null;
+
+  const emit = () => {
+    if (!stopped && serverReady && firebaseReady) callback(serverUser ?? firebaseUser);
+  };
 
   const refreshServerSession = async () => {
-    const currentRevision = ++revision;
-    if (!firebaseReady) return;
-    let session = await serverSession();
-    if (stopped || currentRevision !== revision) return;
+    let active = await hasServerSession();
+    if (stopped) return;
 
     // If Firebase completed provider auth while the popup promise was delayed,
     // establish the server cookie here instead of depending on AuthModal still
     // being mounted/focused. Never creates a second provider login request.
     const currentFirebaseUser = isFirebaseConfigured ? getFirebaseAuth().currentUser : null;
-    const providerEmail = currentFirebaseUser?.email?.toLowerCase() ?? null;
-    const sessionBelongsToAnotherAccount = Boolean(session?.active && providerEmail && session.email && session.email !== providerEmail);
-    if (currentFirebaseUser && (session?.active === false || sessionBelongsToAnotherAccount)) {
-      serverSyncedUid = null;
-      const synced = await ensureFirebaseServerSession(currentFirebaseUser);
-      session = { active: synced, email: synced ? providerEmail : null };
-      if (stopped || currentRevision !== revision || getFirebaseAuth().currentUser?.uid !== currentFirebaseUser.uid) return;
+    if (!active && currentFirebaseUser) {
+      active = await ensureFirebaseServerSession(currentFirebaseUser);
+      if (stopped) return;
     }
 
-    // A Firebase identity alone is not a usable AiWebVideo session. Wait for
-    // the server cookie before showing Workspace or starting paid work.
-    if (session === null) {
-      if (!lastVerified) callback(null);
-      return;
-    }
-    lastVerified = session.active;
-    callback(session.active ? { uid: 'server-session', email: session.email } as User : null);
+    serverUser = active ? { uid: 'server-session', email: null } as unknown as User : null;
+    serverReady = true;
+    emit();
   };
 
   const unsubscribe = isFirebaseConfigured
     ? onAuthStateChanged(getFirebaseAuth(), (user) => {
+        firebaseUser = user;
         firebaseReady = true;
         if (!user) serverSyncedUid = null;
-        void refreshServerSession();
+        // First emit can rely on the Firebase identity immediately; API calls
+        // already carry its bearer token. Then refresh the server cookie in the
+        // background so navigation/reloads remain authenticated as well.
+        if (!serverReady) {
+          serverReady = true;
+          serverUser = null;
+        }
+        emit();
+        if (user) {
+          void ensureFirebaseServerSession(user).then(() => {
+            if (stopped) return;
+            serverReady = false;
+            void refreshServerSession();
+          });
+        }
       })
     : () => {};
 
   const onLocalChange = () => {
+    serverReady = false;
     void refreshServerSession();
   };
   const onResume = () => {
+    if (!isFirebaseConfigured || !getFirebaseAuth().currentUser) return;
+    serverReady = false;
     void refreshServerSession();
   };
   const onVisibilityChange = () => {
@@ -207,7 +213,6 @@ export function watchAuthState(callback: (user: User | null) => void) {
 
   return () => {
     stopped = true;
-    revision++;
     unsubscribe();
     window.removeEventListener('aiwebvideo-auth-changed', onLocalChange);
     window.removeEventListener('focus', onResume);

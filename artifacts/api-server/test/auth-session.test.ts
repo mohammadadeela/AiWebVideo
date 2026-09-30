@@ -7,7 +7,6 @@ import {
   SESSION_TTL_DAYS,
   sessionCookieOptions,
   signLocalJwt,
-  requestToken,
 } from '../src/lib/auth.js';
 import { passwordMatchesAny } from '../src/lib/password-security.js';
 
@@ -36,12 +35,6 @@ test('local session token contains the revocable session version', () => {
   assert.equal(decoded.sub, 'user-123');
   assert.equal(decoded.type, 'local');
   assert.equal(decoded.sv, 7);
-});
-
-test('a fresh bearer identity wins over a stale cookie after account switching', () => {
-  const request = { headers: { authorization: 'Bearer new-session' }, cookies: { [SESSION_COOKIE_NAME]: 'old-session' } };
-  assert.equal(requestToken(request as Parameters<typeof requestToken>[0]), 'new-session');
-  assert.equal(requestToken({ ...request, headers: {} } as Parameters<typeof requestToken>[0]), 'old-session');
 });
 
 test('password history comparison rejects current or previous passwords', async () => {

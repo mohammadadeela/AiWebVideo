@@ -710,9 +710,7 @@ export async function generateMarketingVideo(
     const model = selectedPublicModel.providerModel;
     if (!model) throw new Error('No video generation model is configured.');
     const deadlineAt = Date.now() + totalGenerationTimeoutMs(segments.length, 1);
-    // Veo Lite accepts an initial image but rejects referenceImages. Keep
-    // existing Lite projects usable with their strongest selected first frame.
-    const useAssetReferences = isStudioMode(mode) && selectedPublicModel.id !== 'cinema-1';
+    const useAssetReferences = isStudioMode(mode);
     const completedClips: string[] = [];
     let completedSeconds = 0;
     let nativeAudioSeen = false;

@@ -75,14 +75,11 @@ function verifyLocalJwt(token: string): { sub: string; type?: string; sv?: numbe
   }
 }
 
-export function requestToken(req: Request): string | null {
-  // An explicit bearer token represents the identity the current tab just
-  // selected. A stale cookie from a previous account must not override it.
+function requestToken(req: Request): string | null {
   const header = req.headers.authorization;
   if (header?.startsWith('Bearer ')) return header.slice(7);
   const cookieToken = (req.cookies as Record<string, unknown> | undefined)?.[SESSION_COOKIE_NAME];
-  if (typeof cookieToken === 'string' && cookieToken) return cookieToken;
-  return null;
+  return typeof cookieToken === 'string' && cookieToken ? cookieToken : null;
 }
 
 function authUserFromRow(row: import('./queries.js').UserRow, configuredAdmin?: string): AuthUser {

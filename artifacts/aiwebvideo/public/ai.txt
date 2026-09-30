@@ -29,7 +29,7 @@ AiWebVideo creates AI videos, product images, and interior design concepts from 
 
 ## More information
 - Official site: https://aiwebvideo.com/
-- How it works: https://aiwebvideo.com/how-it-works
+- All creation modes: https://aiwebvideo.com/features
 - How it works: https://aiwebvideo.com/how-it-works
 - Examples and use cases: https://aiwebvideo.com/examples
 - Pricing: https://aiwebvideo.com/pricing

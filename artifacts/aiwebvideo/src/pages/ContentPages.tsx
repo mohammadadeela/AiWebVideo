@@ -217,7 +217,7 @@ const sharedWorkflow = [
   ["Choose what you are creating", "Start with Website Video, AI Video, Product Photos, Product Video, Talking Scene, or Interior Design."],
   ["Give AI the source", "Paste a public website, write the creative direction, or attach product, room, or plan references depending on the mode."],
   ["Keep defaults or adjust settings", "Smart settings handle the common choices. Open them only when you want to change duration, format, quality, or audio."],
-  ["Credits are verified before production starts", "The server checks the exact production cost before generation."],
+  ["Credits are verified before paid AI starts", "Website screenshots can be captured for free. Before AI planning, video, image, or voice providers are used, the server verifies and reserves the exact production credits."],
   ["Generate in the same conversation", "After the credit gate passes, the project continues in Workspace, where the source, prompt, references, settings, and generation state stay together."],
   ["Follow progress and get the result", "Live production status stays visible until the final media is ready to review, download, or continue from."],
 ] as const;
@@ -232,7 +232,7 @@ const creationFlows = [
     border: "border-mint/25",
     glow: "bg-mint/[.06]",
     input: "Paste a public website URL and tell AI what you want the video to highlight.",
-    process: "AiWebVideo captures useful public pages and visual source. When you continue, the server checks credits before AI planning; the captured brand, products, interface, and calls to action guide the video.",
+    process: "AiWebVideo first captures useful public pages, the favicon, and visual source as a free preview. When you continue to production, credits are verified before paid AI planning begins; then the captured brand, products, interface, and calls to action guide the video.",
     result: "A brand-aware campaign video built from the website context and your direction, with no paid AI/provider step started before the credit gate passes.",
     href: "/?create=website#generate",
   },
@@ -322,30 +322,147 @@ const smartControls = [
 
 export function HowItWorksPage() {
   return (
-    <Shell eyebrow="How it works" title="From something real to something new."
-      seoTitle="How AiWebVideo works" intro="Add a source, choose the result, and create in one workspace."
-      description="Create video and images from websites, products, ideas, and spaces." path="/how-it-works">
-      <div className="how-story mx-auto max-w-7xl space-y-4 px-4 pb-20 sm:px-5">
-        <section className="how-stage grid min-h-[420px] items-center gap-10 overflow-hidden rounded-[28px] border border-white/[.08] bg-[#110d20] p-7 md:grid-cols-2 md:p-14">
-          <div><span className="text-sm text-mint">01</span><h2 className="mt-4 font-display text-3xl font-semibold text-white sm:text-4xl">Give it something real.</h2>
-            <p className="mt-4 max-w-md text-base text-text-muted">A website, product, photo, or reference becomes the starting point.</p></div>
-          <div className="how-perspective relative mx-auto flex h-64 w-full max-w-md items-center justify-center" aria-hidden="true">
-            <div className="how-float absolute left-3 top-2 h-40 w-56 rotate-[-9deg] rounded-2xl border border-violet/40 bg-[#292044] p-3 shadow-2xl sm:left-8"><div className="mb-3 flex gap-1"><i className="h-2 w-2 rounded-full bg-pink/60" /><i className="h-2 w-2 rounded-full bg-mint/60" /></div><div className="h-20 rounded-lg bg-violet/25" /><div className="mt-3 h-2 w-2/3 rounded-full bg-white/20" /></div>
-            <div className="how-float-delayed absolute bottom-0 right-4 h-44 w-36 rotate-[9deg] rounded-2xl border border-mint/40 bg-[#17292d] p-3 shadow-2xl sm:right-8"><div className="h-28 rounded-xl bg-mint/20" /><div className="mt-3 h-2 w-2/3 rounded-full bg-white/20" /></div>
+    <Shell
+      eyebrow="How it works"
+      title="One creator. Six ways to start."
+      seoTitle="How AI Video, Product Images & Interior Design Work"
+      intro="Start with a website, an idea, a product, dialogue, or a real space. AiWebVideo keeps the source, direction, settings, generation progress, and final result together in one workflow."
+      description="See the input, AI workflow, and output for website video, original AI video, product images and video, talking scenes, and interior design tours."
+      path="/how-it-works"
+    >
+      <section className="border-b border-white/[.06]">
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-5 sm:py-16">
+          <div className="grid gap-10 lg:grid-cols-[.78fr_1.22fr] lg:items-start">
+            <div className="lg:sticky lg:top-28">
+              <p className="font-utility text-[10px] uppercase tracking-[.2em] text-mint">The shared workflow</p>
+              <h2 className="mt-4 max-w-xl font-display text-2xl font-bold tracking-[-.04em] text-white sm:text-4xl">The same simple path, whichever feature you choose.</h2>
+              <p className="mt-4 max-w-lg text-sm leading-7 text-text-muted">You do not need to learn a different editor for every feature. Only the source changes; the project still continues in the same creator and Workspace.</p>
+            </div>
+            <div className="relative">
+              <div className="absolute bottom-8 left-5 top-8 hidden w-px bg-gradient-to-b from-mint via-violet to-pink opacity-50 sm:block" aria-hidden="true" />
+              {sharedWorkflow.map(([title, body], index) => (
+                <article key={title} className="relative grid gap-3 border-b border-white/[.07] py-6 first:pt-0 last:border-0 sm:grid-cols-[56px_1fr]">
+                  <span className="relative z-10 flex h-10 w-10 items-center justify-center rounded-xl border border-violet/30 bg-bg font-utility text-[10px] font-bold text-violet">{String(index + 1).padStart(2, "0")}</span>
+                  <div>
+                    <h3 className="font-display text-lg font-semibold text-white">{title}</h3>
+                    <p className="mt-1.5 max-w-2xl text-sm leading-6 text-text-muted">{body}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
           </div>
-        </section>
-        <section className="how-stage grid min-h-[420px] items-center gap-10 overflow-hidden rounded-[28px] border border-white/[.08] bg-[#101525] p-7 md:grid-cols-2 md:p-14">
-          <div className="order-2 md:order-1"><div className="how-float mx-auto grid max-w-sm gap-3 rounded-[26px] border border-white/10 bg-[#191b32] p-5 shadow-2xl" aria-hidden="true"><div className="h-3 w-2/3 rounded-full bg-white/25" /><div className="h-16 rounded-xl bg-violet/20" /><div className="flex gap-2"><span className="rounded-full bg-mint/20 px-4 py-2 text-mint">Video</span><span className="rounded-full bg-pink/20 px-4 py-2 text-pink">Images</span></div></div></div>
-          <div className="order-1 md:order-2"><span className="text-sm text-mint">02</span><h2 className="mt-4 font-display text-3xl font-semibold text-white sm:text-4xl">Choose the result.</h2>
-            <p className="mt-4 max-w-md text-base text-text-muted">Set your direction, model, and format.</p></div>
-        </section>
-        <section className="how-stage grid min-h-[420px] items-center gap-10 overflow-hidden rounded-[28px] border border-white/[.08] bg-[#1c1126] p-7 md:grid-cols-2 md:p-14">
-          <div><span className="text-sm text-mint">03</span><h2 className="mt-4 font-display text-3xl font-semibold text-white sm:text-4xl">Create.</h2>
-            <p className="mt-4 max-w-md text-base text-text-muted">Your result and conversation stay together for the next version.</p>
-            <Button className="mt-8" asChild><Link href="/#generate">Start creating <ArrowRight size={16} /></Link></Button></div>
-          <div className="how-perspective relative mx-auto h-64 w-full max-w-md" aria-hidden="true"><div className="how-float-delayed absolute inset-x-12 top-4 h-52 rotate-[-7deg] rounded-2xl border border-pink/30 bg-pink/15" /><div className="how-float absolute inset-x-10 top-5 flex h-52 rotate-[5deg] items-center justify-center rounded-2xl border border-mint/30 bg-[#251c38] shadow-2xl"><Film className="text-mint" size={48} strokeWidth={1.2} /></div></div>
-        </section>
-      </div>
+        </div>
+      </section>
+
+      <section className="border-b border-white/[.06] bg-black/10">
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-5 sm:py-16">
+          <div className="max-w-3xl">
+            <p className="font-utility text-[10px] uppercase tracking-[.2em] text-violet">Every creation mode</p>
+            <h2 className="mt-4 font-display text-2xl font-bold tracking-[-.04em] text-white sm:text-4xl">What you give AI, what it does, and what you get.</h2>
+          </div>
+          <div className="mt-8 grid gap-4 lg:grid-cols-2">
+            {creationFlows.map(({ id, icon: Icon, eyebrow, title, accent, border, glow, input, process, result, href }, index) => (
+              <article key={id} className={`group relative overflow-hidden rounded-[28px] border ${border} bg-panel p-5 sm:p-6 ${index === 0 ? "lg:col-span-2" : ""}`}>
+                <div className={`pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full ${glow} blur-3xl`} />
+                <div className="relative flex items-start gap-4">
+                  <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/[.09] bg-black/20 ${accent}`}><Icon size={19} /></span>
+                  <div className="min-w-0">
+                    <p className={`font-utility text-[9px] uppercase tracking-[.16em] ${accent}`}>{eyebrow}</p>
+                    <h3 className="mt-1 font-display text-xl font-semibold text-white">{title}</h3>
+                  </div>
+                </div>
+                <div className={`relative mt-5 grid gap-3 ${index === 0 ? "md:grid-cols-3" : ""}`}>
+                  {[["You provide", input], ["AiWebVideo does", process], ["You receive", result]].map(([label, body]) => (
+                    <div key={label} className="rounded-2xl border border-white/[.07] bg-white/[.025] p-4">
+                      <p className="font-utility text-[9px] uppercase tracking-[.14em] text-text-dim">{label}</p>
+                      <p className="mt-2 text-xs leading-6 text-text-muted">{body}</p>
+                    </div>
+                  ))}
+                </div>
+                <Button variant="secondary" className="relative mt-4 h-10 px-3 text-xs" asChild>
+                  <Link href={href}>Try {title} <ArrowRight size={13} /></Link>
+                </Button>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="border-b border-white/[.06]">
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-5 sm:py-16">
+          <div className="grid gap-10 lg:grid-cols-[.78fr_1.22fr] lg:items-start">
+            <div>
+              <p className="font-utility text-[10px] uppercase tracking-[.2em] text-mint">Website Video styles</p>
+              <h2 className="mt-4 font-display text-2xl font-bold tracking-[-.04em] text-white sm:text-4xl">Choose the video style that matches the goal of the website campaign.</h2>
+              <p className="mt-4 max-w-lg text-sm leading-7 text-text-muted">The style control changes the creative direction; it does not send you into a different tool.</p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {websiteStyles.map(([title, body], index) => (
+                <article key={title} className="rounded-[22px] border border-white/[.08] bg-white/[.025] p-4">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-violet/25 bg-violet/[.08] font-utility text-[9px] text-violet">0{index + 1}</span>
+                    <h3 className="text-sm font-semibold text-white">{title}</h3>
+                  </div>
+                  <p className="mt-3 text-xs leading-6 text-text-muted">{body}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="border-b border-white/[.06] bg-black/10">
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-5 sm:py-16">
+          <div className="max-w-3xl">
+            <p className="font-utility text-[10px] uppercase tracking-[.2em] text-gold">Smart settings</p>
+            <h2 className="mt-4 font-display text-2xl font-bold tracking-[-.04em] text-white sm:text-4xl">Defaults first. Controls only when you need them.</h2>
+            <p className="mt-4 text-sm leading-7 text-text-muted">The main form stays simple. Open Smart settings when the delivery format matters.</p>
+          </div>
+          <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            {smartControls.map(({ icon: Icon, title, body }) => (
+              <article key={title} className="rounded-[22px] border border-white/[.08] bg-panel p-4">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/[.08] bg-black/20 text-gold"><Icon size={16} /></span>
+                <h3 className="mt-4 text-sm font-semibold text-white">{title}</h3>
+                <p className="mt-2 text-xs leading-5 text-text-muted">{body}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="border-b border-white/[.06]">
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-5 sm:py-16">
+          <div className="grid gap-8 lg:grid-cols-[1.05fr_.95fr] lg:items-center">
+            <div className="relative overflow-hidden rounded-[30px] border border-white/[.1] bg-[#0c0917] p-5 sm:p-6">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(139,92,246,.18),transparent_42%)]" />
+              <div className="relative rounded-[22px] border border-white/[.08] bg-black/20 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2"><span className="h-2 w-2 animate-pulse rounded-full bg-mint" /><span className="text-xs font-semibold text-white">Generation in progress</span></div>
+                  <span className="font-utility text-[9px] text-mint">68%</span>
+                </div>
+                <div className="mt-4 grid grid-cols-4 gap-2">
+                  {["Source", "Direction", "Generate", "Result"].map((stage, index) => <div key={stage}><div className={`h-1.5 rounded-full ${index < 2 ? "bg-mint" : index === 2 ? "bg-violet" : "bg-white/[.08]"}`} /><p className="mt-2 text-[9px] text-text-dim">{stage}</p></div>)}
+                </div>
+                <div className="mt-5 rounded-2xl border border-white/[.07] bg-white/[.025] p-4 text-xs leading-6 text-text-muted">The conversation keeps the original source, your prompt, references, chosen settings, progress, and completed media together.</div>
+              </div>
+            </div>
+            <div>
+              <p className="font-utility text-[10px] uppercase tracking-[.2em] text-pink">Workspace</p>
+              <h2 className="mt-4 font-display text-2xl font-bold tracking-[-.04em] text-white sm:text-4xl">You can leave the page without losing the project.</h2>
+              <div className="mt-6 space-y-3">
+                {[
+                  [Activity, "Live progress", "See which production stage is currently running."],
+                  [Sparkles, "Project context", "Prompts, source material, references, and prior results stay with the conversation."],
+                  [Download, "Final delivery", "When generation finishes, review and download the result or continue creating from the same project."],
+                ].map(([Icon, title, body]) => {
+                  const ItemIcon = Icon as typeof Activity;
+                  return <div key={String(title)} className="flex gap-3 rounded-2xl border border-white/[.07] bg-white/[.02] p-4"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-mint/20 bg-mint/[.07] text-mint"><ItemIcon size={15} /></span><div><h3 className="text-sm font-semibold text-white">{String(title)}</h3><p className="mt-1 text-xs leading-5 text-text-muted">{String(body)}</p></div></div>;
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
     </Shell>
   );
 }

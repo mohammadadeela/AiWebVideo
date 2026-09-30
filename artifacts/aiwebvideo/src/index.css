@@ -643,7 +643,7 @@ picture {
 
   .creator-secondary-button,
   .creator-icon-button {
-    min-height: 40px;
+    min-height: 44px;
   }
 
   /* Keep media and long generated content from creating horizontal page scroll. */
@@ -666,16 +666,4 @@ picture {
   .creator-composer {
     border-radius: 18px;
   }
-}
-
-.feature-icon-surface.text-mint { background: rgba(52,211,153,.12); }
-.feature-icon-surface.text-violet { background: rgba(139,92,246,.13); }
-.feature-icon-surface.text-pink { background: rgba(236,72,153,.12); }
-.feature-icon-surface.text-gold { background: rgba(245,158,11,.12); }
-.how-perspective { perspective: 700px; }
-.how-float { animation: how-float 7s ease-in-out infinite; will-change: transform; }
-.how-float-delayed { animation: how-float 8s ease-in-out -3s infinite; will-change: transform; }
-@keyframes how-float { 50% { transform: translate3d(0,-12px,0) rotateY(4deg); } }
-@media (prefers-reduced-motion: reduce) {
-  .how-float,.how-float-delayed { animation: none; will-change: auto; }
 }
