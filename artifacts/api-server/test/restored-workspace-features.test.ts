@@ -42,6 +42,9 @@ test('firebase provider auth remains resilient to tab and popup focus changes', 
   assert.match(firebase, /document\.addEventListener\('visibilitychange', onVisibilityChange\)/);
   assert.match(modal, /window\.addEventListener\('blur', onBlur\)/);
   assert.match(modal, /window\.addEventListener\('focus', onFocus\)/);
+  assert.match(modal, /watchAuthState/);
+  assert.match(modal, /finishSignInRef/);
+  assert.match(modal, /providerAttempt\.current <= 0/);
   assert.match(modal, /45_000/);
 });
 
