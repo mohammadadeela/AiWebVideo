@@ -59,9 +59,6 @@ export interface WebsiteGenerationSettings {
   audioMode: AudioMode;
   narrationLanguage: string;
   modelId: PublicModelId;
-  productUrl?: string;
-  productImageUrls?: string[];
-  architecture?: Record<string, string | number | boolean | undefined>;
 }
 
 export interface StudioGenerationRequest {
@@ -74,6 +71,9 @@ export interface StudioGenerationRequest {
   outputQuality: "1080p" | "4k";
   audioMode: AudioMode;
   modelId: PublicModelId;
+  productUrl?: string;
+  productImageUrls?: string[];
+  architecture?: Record<string, string | number | boolean | undefined>;
 }
 
 const DEFAULT_SETTINGS: WebsiteGenerationSettings = {
