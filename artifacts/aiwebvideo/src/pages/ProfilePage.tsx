@@ -133,6 +133,13 @@ export function ProfilePage() {
     [jobs],
   );
 
+  const monthlyUsagePercent = useMemo(() => {
+    const used = Math.max(0, usage?.thisMonth.creditsUsed ?? 0);
+    const balance = Math.max(0, usage?.balance ?? me?.creditsBalance ?? 0);
+    const total = used + balance;
+    return total > 0 ? Math.min(100, Math.round((used / total) * 100)) : 0;
+  }, [usage, me?.creditsBalance]);
+
   function buyCredits() {
     setError(null);
     setShowTopupCheckout(true);
@@ -363,6 +370,19 @@ export function ProfilePage() {
                 <div className="rounded-xl border border-mint/20 bg-mint/[.06] px-3 py-2 text-left sm:text-right">
                   <p className="text-[10px] font-semibold uppercase tracking-[.14em] text-text-dim">Current balance</p>
                   <p className="mt-0.5 font-utility text-lg font-bold text-mint">{formatCredits(usage?.balance ?? me?.creditsBalance)}</p>
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-white/[.07] bg-bg/25 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-semibold text-text-primary">Usage this month</p>
+                    <p className="mt-0.5 text-[10px] text-text-dim">{formatCredits(usage?.thisMonth.creditsUsed)} credits used · {formatCredits(usage?.balance ?? me?.creditsBalance)} available</p>
+                  </div>
+                  <span className="font-utility text-xs font-semibold text-violet">{monthlyUsagePercent}%</span>
+                </div>
+                <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-white/[.08]">
+                  <div className="h-full rounded-full bg-signature transition-[width] duration-300" style={{ width: `${monthlyUsagePercent}%` }} />
                 </div>
               </div>
 
