@@ -170,6 +170,36 @@ export function DashboardClient() {
   }, [sidebarOpen]);
 
   useEffect(() => {
+    let startX = 0;
+    let startY = 0;
+    let tracking = false;
+    const onStart = (event: TouchEvent) => {
+      const touch = event.touches[0];
+      if (!touch || window.innerWidth >= 1024) return;
+      startX = touch.clientX;
+      startY = touch.clientY;
+      tracking = sidebarOpen || startX <= 28;
+    };
+    const onEnd = (event: TouchEvent) => {
+      if (!tracking || window.innerWidth >= 1024) return;
+      const touch = event.changedTouches[0];
+      tracking = false;
+      if (!touch) return;
+      const dx = touch.clientX - startX;
+      const dy = touch.clientY - startY;
+      if (Math.abs(dx) < 64 || Math.abs(dx) < Math.abs(dy) * 1.25) return;
+      if (sidebarOpen && dx < 0) setSidebarOpen(false);
+      else if (!sidebarOpen && startX <= 28 && dx > 0) setSidebarOpen(true);
+    };
+    document.addEventListener("touchstart", onStart, { passive: true });
+    document.addEventListener("touchend", onEnd, { passive: true });
+    return () => {
+      document.removeEventListener("touchstart", onStart);
+      document.removeEventListener("touchend", onEnd);
+    };
+  }, [sidebarOpen]);
+
+  useEffect(() => {
     if (!actionMenuId) return;
     const close = (event: MouseEvent) => {
       const target = event.target as HTMLElement | null;
