@@ -67,13 +67,16 @@ export async function uploadStudioMedia(opts: {
   files?: File[];
   title?: string;
   ideaPrompt?: string;
-  studioKind: 'product' | 'idea' | 'scenario' | 'interior';
+  studioKind: 'product' | 'idea' | 'scenario' | 'interior' | 'architecture';
   mode: JobMode;
   durationSeconds: number;
   audioMode: AudioMode;
   aspectRatio: '16:9' | '9:16' | '1:1';
   outputQuality: '1080p' | '4k';
   modelId?: string;
+  productUrl?: string;
+  productImageUrls?: string[];
+  architecture?: Record<string, string | number | boolean | undefined>;
 }) {
   const token = await getIdToken();
   const form = new FormData();
@@ -87,6 +90,9 @@ export async function uploadStudioMedia(opts: {
   form.append('aspectRatio', opts.aspectRatio);
   form.append('outputQuality', opts.outputQuality);
   if (opts.modelId) form.append('modelId', opts.modelId);
+  if (opts.productUrl) form.append('productUrl', opts.productUrl);
+  if (opts.productImageUrls?.length) form.append('productImageUrls', JSON.stringify(opts.productImageUrls));
+  if (opts.architecture) form.append('architecture', JSON.stringify(opts.architecture));
   const res = await fetch('/api/uploads', {
     method: 'POST',
     signal: AbortSignal.timeout(10 * 60_000),
@@ -295,6 +301,20 @@ export async function uploadMarketingAsset(file: File) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new ApiError(data.error || 'The marketing asset could not be uploaded.', res.status, data.code);
   return data as { url: string; kind: 'video' | 'image' };
+}
+
+export function resolveArchitectureLocation(link: string) {
+  return request<{ latitude?: number; longitude?: number; label: string | null; resolvedUrl: string; scale: 'unknown'; imageryAvailable: false }>('/api/architecture/location', {
+    method: 'POST',
+    body: JSON.stringify({ link }),
+  });
+}
+
+export function extractProductReference(url: string) {
+  return request<{ title: string; description: string; url: string; images: string[] }>('/api/product-reference/extract', {
+    method: 'POST',
+    body: JSON.stringify({ url }),
+  });
 }
 
 export interface UserJobSummary {
