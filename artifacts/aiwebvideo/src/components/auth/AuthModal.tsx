@@ -116,14 +116,18 @@ export function AuthModal({ onClose, onSignedIn }: { onClose: () => void; onSign
     // global verified auth-state watcher. Share one promise so pending project
     // handoff/onSignedIn can never run twice.
     if (finishSignInRef.current) return finishSignInRef.current;
-    finishSignInRef.current = (async () => {
+    const operation = (async () => {
       const pendingJobId = getActiveJobId();
       if (pendingJobId) {
         try { await claimJob(pendingJobId); } catch { /* non-fatal -- dashboard still resumes via ?job= */ }
       }
       await onSignedIn();
     })();
-    return finishSignInRef.current;
+    finishSignInRef.current = operation;
+    void operation.catch(() => {
+      if (finishSignInRef.current === operation) finishSignInRef.current = null;
+    });
+    return operation;
   }
 
   useEffect(() => {
@@ -133,7 +137,7 @@ export function AuthModal({ onClose, onSignedIn }: { onClose: () => void; onSign
     // resolves the original popup promise.
     const unsubscribe = watchAuthState((user) => {
       if (!user || providerAttempt.current <= 0) return;
-      void finishSignIn();
+      void finishSignIn().catch(() => {});
     });
     return () => {
       providerAttempt.current += 1;
