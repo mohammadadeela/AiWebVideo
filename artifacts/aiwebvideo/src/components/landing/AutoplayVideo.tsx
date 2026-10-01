@@ -24,12 +24,14 @@ export function AutoplayVideo({
   label,
   eager = false,
   className = "",
+  showBlockedControl = true,
 }: {
   src: string;
   poster?: string | null;
   label?: string;
   eager?: boolean;
   className?: string;
+  showBlockedControl?: boolean;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -150,7 +152,7 @@ export function AutoplayVideo({
           setBlocked(false);
         }}
       />
-      {blocked && (
+      {blocked && showBlockedControl && (
         <button
           type="button"
           onClick={tryPlay}

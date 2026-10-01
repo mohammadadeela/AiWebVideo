@@ -110,9 +110,15 @@ function App() {
 
   return (
     <AppErrorBoundary>
-      <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
-        <Suspense fallback={<PageLoader />}><Router /></Suspense>
-      </WouterRouter>
+      <div className="cinematic-site">
+        <div className="cinematic-site-backdrop" aria-hidden="true">
+          <span className="cinematic-orb cinematic-orb-one" />
+          <span className="cinematic-orb cinematic-orb-two" />
+        </div>
+        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
+          <Suspense fallback={<PageLoader />}><Router /></Suspense>
+        </WouterRouter>
+      </div>
     </AppErrorBoundary>
   );
 }

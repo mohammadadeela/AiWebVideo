@@ -589,6 +589,10 @@ export function AdminPage() {
         const patchItems = (ids: string[], patch: Partial<(typeof items)[number]>) => setShowcase(showcase.map((item) => ids.includes(item.id) ? { ...item, ...patch } : item));
         const chip = (active: boolean) => `shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition ${active ? 'bg-white text-[#1b1030]' : 'bg-white/[.06] text-text-muted hover:text-white'}`;
         return <section className="mt-6 space-y-4">
+          <div className="rounded-2xl border border-violet/20 bg-[linear-gradient(135deg,rgba(139,92,246,.10),rgba(34,211,238,.05),rgba(236,72,153,.07))] p-4">
+            <p className="text-sm font-semibold text-white">Cinematic landing media</p>
+            <p className="mt-1 text-xs leading-5 text-text-muted">These same published images and videos power the landing gallery and the floating hero orbit. Hero videos autoplay muted, loop, stay inline and show no playback or media-type icons. Upload here only—there is no second media library to manage.</p>
+          </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-text-muted"><span className="font-semibold text-text-primary">{items.length}</span> of {LANDING_VIDEO_LIMIT} items{unassigned.length > 0 && <span className="ml-2 font-semibold text-amber-200">· {unassigned.length} need a feature</span>}</p>
             <div className="flex flex-wrap gap-2">
@@ -628,7 +632,7 @@ export function AdminPage() {
             <button type="button" onClick={() => setGallerySelected([])} aria-label="Clear selection" className="grid h-8 w-8 place-items-center rounded-full text-text-muted hover:bg-white/10"><X size={14} /></button>
           </div>}
 
-          {visible.length === 0 ? <Empty>{items.length ? 'Nothing matches these filters.' : 'Upload images and videos to build the homepage gallery.'}</Empty> : <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
+          {visible.length === 0 ? <Empty>{items.length ? 'Nothing matches these filters.' : 'Upload images and videos to build the cinematic hero and homepage gallery.'}</Empty> : <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
             {visible.map((item) => {
               const selected = gallerySelected.includes(item.id);
               return <article key={item.id} className={`overflow-hidden rounded-2xl border bg-panel transition ${selected ? 'border-violet ring-2 ring-violet/40' : item.feature ? 'border-border' : 'border-amber-300/40'}`}>
