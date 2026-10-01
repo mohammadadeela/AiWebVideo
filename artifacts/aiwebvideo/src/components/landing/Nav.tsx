@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { BadgeDollarSign, ShieldCheck } from "lucide-react";
 import { Wordmark } from "@/components/ui/Wordmark";
 import { Button } from "@/components/ui/app-button";
@@ -7,6 +7,7 @@ import { AuthModal } from "@/components/auth/AuthModal";
 import { UserMenu, formatCredits } from "@/components/account/UserMenu";
 import { fetchMe } from "@/lib/api-client";
 import { watchAuthState } from "@/lib/firebase/client";
+import { resolveDashboardDestination } from "@/lib/guestSession";
 
 interface Me {
   email: string;
@@ -21,6 +22,7 @@ export function Nav() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [me, setMe] = useState<Me | null>(null);
+  const [, navigate] = useLocation();
 
   useEffect(
     () =>
@@ -104,7 +106,15 @@ export function Nav() {
         </nav>
       </header>
 
-      <AuthModal open={showAuthModal} onOpenChange={setShowAuthModal} />
+      {showAuthModal && (
+        <AuthModal
+          onClose={() => setShowAuthModal(false)}
+          onSignedIn={() => {
+            setShowAuthModal(false);
+            navigate(resolveDashboardDestination());
+          }}
+        />
+      )}
     </>
   );
 }
