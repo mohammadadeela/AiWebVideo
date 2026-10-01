@@ -415,7 +415,7 @@ export function WebsiteBriefForm({
   const [chosenProductImages, setChosenProductImages] = useState<string[]>([]);
   const [readingProduct, setReadingProduct] = useState(false);
   const [mapLink, setMapLink] = useState("");
-  const [site, setSite] = useState<{ latitude?: number; longitude?: number; label: string | null; resolvedUrl: string } | null>(null);
+  const [site, setSite] = useState<{ latitude?: number; longitude?: number; label: string | null; resolvedUrl: string; precision?: "pin" | "view" | "none" } | null>(null);
   const [resolvingSite, setResolvingSite] = useState(false);
   const [plotWidth, setPlotWidth] = useState("");
   const [plotDepth, setPlotDepth] = useState("");
@@ -1080,6 +1080,11 @@ export function WebsiteBriefForm({
                 </div>
               </div>
               {site && <p className="mt-2 flex items-center gap-1.5 text-[12px] text-mint"><Check size={13} /> {site.label || `${site.latitude}, ${site.longitude}`}</p>}
+              {site?.precision === "view" && (
+                <p className="mt-1.5 text-[11px] leading-4 text-amber-200">
+                  This link shows the map view, not an exact pin, so the spot may be a little off. For the exact place, open it in Google Maps, tap Share and paste that link.
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-2">

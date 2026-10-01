@@ -1541,9 +1541,12 @@ router.post("/:id/render", requireAuth, async (req, res) => {
                   });
                 },
                 narrationPromise,
-                loadedCaptures.map((capture) => capture.label),
+                // Labels must describe the SAME images, in the same order, as referenceImages.
+                referenceLabels ?? loadedCaptures.map((capture) => capture.label),
                 () => isCancelRequested(job.id),
                 selectedRenderModel.id,
+                // Studio productions use the same references (customer's own first) in every scene.
+                meta?.sourceType === "studio",
               ).then(
                 (value) => ({ status: "fulfilled" as const, value }),
                 (reason) => ({ status: "rejected" as const, reason }),

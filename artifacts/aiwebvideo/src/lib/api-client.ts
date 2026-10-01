@@ -342,7 +342,7 @@ export async function uploadMarketingAsset(file: File) {
 }
 
 export function resolveArchitectureLocation(link: string) {
-  return request<{ latitude?: number; longitude?: number; label: string | null; resolvedUrl: string; scale: 'unknown'; imageryAvailable: false }>('/api/architecture/location', {
+  return request<{ latitude?: number; longitude?: number; label: string | null; resolvedUrl: string; scale: 'unknown'; imageryAvailable: false; precision?: 'pin' | 'view' | 'none' }>('/api/architecture/location', {
     method: 'POST',
     body: JSON.stringify({ link }),
   });

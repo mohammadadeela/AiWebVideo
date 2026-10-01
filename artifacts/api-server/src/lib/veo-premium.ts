@@ -130,7 +130,17 @@ function isStudioMode(mode: string) {
   return ['custom', 'ai-video', 'product-video', 'talking-scene'].includes(mode);
 }
 
-function sceneReferenceIndices(scene: StoryboardScene, sceneIndex: number, count: number, mode: string): number[] {
+/**
+ * Studio productions (product, talking scene, idea): the customer's own references are already ordered first,
+ * so every scene uses the same first three. The planner may not swap the customer's product for something else
+ * from scene to scene, which is what made a film drift away from the product.
+ */
+export function pinnedReferenceIndices(count: number): number[] {
+  return Array.from({ length: Math.min(3, Math.max(0, count)) }, (_, index) => index);
+}
+
+function sceneReferenceIndices(scene: StoryboardScene, sceneIndex: number, count: number, mode: string, pinned = false): number[] {
+  if (pinned) return pinnedReferenceIndices(count);
   const requested = ((scene.sourceIndices ?? []) as number[])
     .filter((index: number) => Number.isInteger(index) && index >= 0 && index < count);
   const unique = [...new Set(requested)];
@@ -679,6 +689,7 @@ export async function generateMarketingVideo(
   referenceLabels: string[] = [],
   shouldCancel?: () => Promise<boolean>,
   publicModelId?: string | null,
+  pinReferences = false,
 ): Promise<GeneratedVideo> {
   try {
     const sourceScenes = (storyboard.scenes ?? []).slice(0, 30);
@@ -724,7 +735,7 @@ export async function generateMarketingVideo(
     for (let index = 0; index < segments.length; index++) {
       if (shouldCancel && await shouldCancel()) throw new Error('AI video generation was cancelled by the user.');
       const scene = segments[index];
-      const refs = sceneReferenceIndices(scene, index, referenceImages.length, mode);
+      const refs = sceneReferenceIndices(scene, index, referenceImages.length, mode, pinReferences);
       const selectedLabels = refs.map((refIndex) => referenceLabels[refIndex] || `Reference ${refIndex + 1}`);
       const prompt = buildAiVideoScenePrompt({
         mode,

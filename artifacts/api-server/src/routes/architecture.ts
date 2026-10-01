@@ -18,7 +18,7 @@ router.post('/location', async (req, res) => {
     const { link } = z.object({ link: z.string().trim().min(3).max(2048) }).parse(req.body);
     let url: URL | null = /^https?:\/\//i.test(link) ? new URL(link) : null;
     if (url && !isGoogleMapsUrl(url.toString())) throw new AppError('Paste a Google Maps link or address.', 400, 'INVALID_MAP_LINK');
-    for (let redirects = 0; url && redirects < 4 && url.hostname === 'maps.app.goo.gl'; redirects++) {
+    for (let redirects = 0; url && redirects < 4 && (url.hostname === 'maps.app.goo.gl' || url.hostname === 'goo.gl'); redirects++) {
       const safe = await validateUrl(url.toString());
       const response = await fetch(safe, { method: 'GET', redirect: 'manual', signal: AbortSignal.timeout(8000), headers: { 'User-Agent': 'AiWebVideo/1.0' } });
       const next = response.headers.get('location');
@@ -46,13 +46,13 @@ router.post('/location', async (req, res) => {
         const latitude = result?.geometry?.location?.lat, longitude = result?.geometry?.location?.lng;
         if (typeof latitude === 'number' && typeof longitude === 'number'
           && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180) {
-          position = { latitude, longitude };
+          position = { latitude, longitude, precision: 'pin' };
           label = result?.formatted_address?.slice(0, 150) || label;
         }
       }
     }
     if (!position && !label) throw new AppError('Could not identify this location. Paste another Maps link or add a site screenshot.', 422, 'LOCATION_UNRESOLVED');
-    res.json({ ...position, label, resolvedUrl: url?.toString() ?? '', scale: 'unknown', imageryAvailable: false });
+    res.json({ ...position, label, resolvedUrl: url?.toString() ?? '', scale: 'unknown', imageryAvailable: false, precision: position?.precision ?? 'none' });
   } catch (error) { sendError(res, error); }
 });
 

@@ -141,3 +141,21 @@ test('uploads: architecture needs a place but not a reference; one failed produc
   assert.ok(jobs.indexOf('await studioInsightsFor(') > jobs.indexOf('await reserveGenerationCredits('), 'the analysis runs only after credits are reserved');
   assert.ok(jobs.indexOf('await studioInsightsFor(') < jobs.indexOf('await generateStoryboard('));
 });
+
+import { pinnedReferenceIndices } from '../src/lib/veo-premium.js';
+
+test('video: every scene of a studio production uses the same first references (customer\'s own first)', () => {
+  assert.deepEqual(pinnedReferenceIndices(5), [0, 1, 2]);
+  assert.deepEqual(pinnedReferenceIndices(2), [0, 1]);
+  assert.deepEqual(pinnedReferenceIndices(0), []);
+});
+
+test('video gets role labels that describe the same images in the same order, and the pin flag', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const path = await import('node:path');
+  const jobs = await readFile(path.resolve(process.cwd(), 'src/routes/jobs.ts'), 'utf8');
+  assert.match(jobs, /referenceLabels \?\? loadedCaptures\.map\(\(capture\) => capture\.label\)/);
+  assert.match(jobs, /selectedRenderModel\.id,\s*\/\/ Studio productions use the same references[\s\S]{0,60}meta\?\.sourceType === "studio",/);
+  const premium = await readFile(path.resolve(process.cwd(), 'src/lib/veo-premium.ts'), 'utf8');
+  assert.match(premium, /sceneReferenceIndices\(scene, index, referenceImages\.length, mode, pinReferences\)/);
+});
