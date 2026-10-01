@@ -51,3 +51,9 @@
 - Admin: labelled role pill (Admin / Customer) with a two-step confirmation and a green "Updated" flash; cannot remove your own or the last admin's access.
 - Chat: Generate sits above examples and attachments; attachments are file chips; example cards restyled; gallery limit 280 with "Show more". Website field has a globe that turns around itself.
 - Not verified: pixel look in a real browser, real Google/GitHub popups, real Postgres, real payments.
+
+## 2026-10-01 — First real-browser pass (Chromium) and phone fix
+- Ran the frontend in headless Chromium at 320, 390, 768 and 1440px over `/`, `/pricing`, `/ai-video-generator`, `/url-to-video`, `/examples`, `/product-photo-generator`, `/ai-interior-design-generator`: no horizontal overflow, no page errors.
+- Composer menus at 320px: model, duration, aspect ratio, quality, audio and "+" all open inside the viewport.
+- Fixed: on phones, tapping Ideas (and Style) opened its panel below the fold, so only its title showed at the bottom edge. The opened inline panel now scrolls into view (`block: "nearest"`, instant under reduced motion). Contract test added.
+- Not covered (needs the API, sign-in and data): signed-in workspace/chat, profile, admin, checkout. Firebase popups and real payments remain unverified.

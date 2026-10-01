@@ -426,6 +426,18 @@ export function WebsiteBriefForm({
   const composerRootRef = useRef<HTMLDivElement>(null);
   const websiteBriefRef = useRef<HTMLTextAreaElement>(null);
   const studioPromptRef = useRef<HTMLTextAreaElement>(null);
+  const inlinePanelRef = useRef<HTMLDivElement>(null);
+
+  // Ideas and Style open inline under the toolbar; on phones that is often
+  // below the fold, so bring the opened panel into view.
+  useEffect(() => {
+    if (compactPanel !== "ideas" && compactPanel !== "style") return;
+    const frame = window.requestAnimationFrame(() => {
+      const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      inlinePanelRef.current?.scrollIntoView?.({ block: "nearest", behavior: reduce ? "auto" : "smooth" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [compactPanel]);
 
   function applyIntent(intent: CreationIntent, userInitiated = false) {
     if (userInitiated && onIntentRequest?.(intent) === false) return;
@@ -1427,7 +1439,7 @@ export function WebsiteBriefForm({
         )}
 
         {compactPanel === "style" && activeMode === "website" && (
-          <div className="mt-2 rounded-2xl border border-mint/15 bg-mint/[.035] p-2.5">
+          <div ref={inlinePanelRef} className="mt-2 rounded-2xl border border-mint/15 bg-mint/[.035] p-2.5">
             <div className="chat-scroll flex gap-1.5 overflow-x-auto pb-0.5">
               <button
                 type="button"
@@ -1460,7 +1472,7 @@ export function WebsiteBriefForm({
         )}
 
         {compactPanel === "ideas" && (
-          <div className="mt-2 rounded-2xl border border-violet/15 bg-violet/[.035] p-2.5 sm:p-3">
+          <div ref={inlinePanelRef} className="mt-2 rounded-2xl border border-violet/15 bg-violet/[.035] p-2.5 sm:p-3">
             <div className="mb-2 flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[12px] font-semibold text-white">Pick a creative direction</p>

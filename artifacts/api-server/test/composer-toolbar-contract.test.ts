@@ -62,3 +62,11 @@ test('Ideas and format use their own drawn icons, not generic sparkles or monito
   const format = await fe('components/chat/FormatIcon.tsx');
   for (const ratio of ['"9:16"', '"16:9"']) assert.ok(format.includes(ratio));
 });
+
+test('Ideas and Style panels scroll into view when opened, so phones see them below the toolbar', async () => {
+  const form = await fe('components/chat/WebsiteBriefForm.tsx');
+  assert.match(form, /compactPanel === "ideas" && \(\n\s*<div ref=\{inlinePanelRef\}/);
+  assert.match(form, /compactPanel === "style" && activeMode === "website" && \(\n\s*<div ref=\{inlinePanelRef\}/);
+  assert.match(form, /inlinePanelRef\.current\?\.scrollIntoView\?\.\(\{ block: "nearest"/);
+  assert.match(form, /prefers-reduced-motion: reduce/);
+});
