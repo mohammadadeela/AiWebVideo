@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import * as Popover from "@radix-ui/react-popover";
-import { Check, ChevronDown, Coins } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 import { displayCredits } from "@/lib/credits";
 import type { PublicModelCard, PublicModelId } from "@/lib/generationModels";
 
@@ -89,26 +89,3 @@ export function ModelPicker({ models, selected, quality, open, onOpenChange, onS
   );
 }
 
-/**
- * What the selected model costs, shown right after the model button: credits per second for video, per image
- * for image and space models. It follows the chosen quality (4K costs more).
- */
-export function ModelRatePill({ model, quality }: { model: PublicModelCard; quality: "1080p" | "4k" }) {
-  const amount = creditsFor(model, quality);
-  const unit = model.family === "video" ? "sec" : "image";
-  const effective = model.supportedQualities.includes(quality) ? quality : (model.supportedQualities[0] ?? "1080p");
-  const detail = model.family === "video"
-    ? `${amount} credits for every second of video at ${effective === "4k" ? "4K" : "1080p"}`
-    : `${amount} credits for every image at ${effective === "4k" ? "4K" : "standard quality"}`;
-  return (
-    <span
-      title={detail}
-      aria-label={detail}
-      className="inline-flex h-[26px] shrink-0 items-center gap-1.5 rounded-full border border-amber-300/20 bg-amber-300/[.08] px-2.5 text-[12px] font-semibold tabular-nums leading-none text-amber-100"
-    >
-      <Coins size={12} className="text-amber-300" aria-hidden="true" />
-      {amount}
-      <span className="font-medium text-amber-100/60">cr / {unit}</span>
-    </span>
-  );
-}

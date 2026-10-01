@@ -89,3 +89,6 @@
 ## 2026-10-03 (night) — Real-browser audit
 - Walked the running app in a real Chromium (stub API) and checked what was asked for: landing composer (rotating URL tile, 7 modes + swipe arrow, separate toolbar controls, cost pill, HD/4K, format icons, narration shake, model picker, "+" menu with/without Recent files, style picker, bulb, Generate above examples, auto-growing text box, gallery tiles without text), pricing (order, prices, no extra blocks), profile (tabs, usage bar), every admin tab (no page errors, Role pill, filters, gallery manager), sign-in-first purchases, signed-in gallery tap, drag cursor.
 - Hardening found by the audit: the profile page no longer crashes if the usage reply's `byMode` is not a list.
+
+## 2026-10-03 (late) — Ideas and model buttons back to their original look
+- Per request ("turn these as they were"): the Ideas button is the original violet sparkle with the small mint "Added" badge; the model button is the original mint icon tile (video / house / image) + name + chevron. The light-bulb icon and the credits-per-second pill beside the model were removed (not hidden). Credits per second/image are still shown in each row of the model list. Both removed pieces are in git history (IdeasIcon.tsx, ModelRatePill) if wanted back.

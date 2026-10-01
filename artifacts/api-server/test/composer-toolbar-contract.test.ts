@@ -51,14 +51,11 @@ test('recent files stay on the device and only keep types the studio can reuse',
   assert.doesNotMatch(lib, /fetch\(|XMLHttpRequest|\/api\//);          // never uploaded just by being remembered
 });
 
-test('Ideas and format use their own drawn icons, not generic sparkles or monitors', async () => {
+test('format uses its own drawn icons (phone, cinema frame, square)', async () => {
   const form = await fe('components/chat/WebsiteBriefForm.tsx');
-  assert.match(form, /<IdeasIcon size=\{17\} lit=\{compactPanel === "ideas" \|\| Boolean\(selectedIdea\)\}/);
   assert.match(form, /<FormatIcon ratio="9:16"/);
   assert.match(form, /<FormatIcon ratio="16:9"/);
   assert.match(form, /<FormatIcon ratio="1:1"/);
-  const ideas = await fe('components/chat/IdeasIcon.tsx');
-  assert.match(ideas, /<svg/);
   const format = await fe('components/chat/FormatIcon.tsx');
   for (const ratio of ['"9:16"', '"16:9"']) assert.ok(format.includes(ratio));
 });
@@ -74,14 +71,15 @@ test('recent files exist only for signed-in people and belong to one account', a
   assert.match(widget, /recentFilesOwner=\{isSignedIn \? accountEmail : null\}/);
 });
 
-test('the Ideas icon is a bulb that switches on and off, held on when open or chosen, still for reduced motion', async () => {
-  const icon = await fe('components/chat/IdeasIcon.tsx');
-  assert.match(icon, /ideas-bulb-on/);
-  assert.match(icon, /lit \? "is-lit" : ""/);
+test('Ideas and the model button look as they originally did: a violet sparkle with an "Added" badge, and a mint icon tile; no extra cost pill', async () => {
+  const form = await fe('components/chat/WebsiteBriefForm.tsx');
+  assert.match(form, /<Sparkles size=\{13\} className="text-violet" \/>\s*Ideas/);
+  assert.match(form, /<span className="rounded-full bg-mint\/10 px-1\.5 py-0\.5 text-\[8px\] text-mint">Added<\/span>/);
+  assert.match(form, /<span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-mint\/\[\.08\] text-mint">\s*\{modelFamily === "video" \? <Video size=\{13\} \/> : modelFamily === "interior" \? <House size=\{13\} \/> : <ImageIcon size=\{13\} \/>\}/);
+  assert.doesNotMatch(form, /IdeasIcon|ModelRatePill/);
+  // the bulb and the pill are gone from the app, not just hidden
   const css = await fe('index.css');
-  assert.match(css, /@keyframes ideas-light/);
-  assert.match(css, /\.ideas-bulb\.is-lit \.ideas-bulb-on \{ opacity: 1; \}/);
-  assert.match(css, /prefers-reduced-motion: reduce\) \{\s*\.ideas-bulb:not\(\.is-lit\), \.ideas-bulb:not\(\.is-lit\) \.ideas-bulb-on \{ animation: none; \}/);
+  assert.doesNotMatch(css, /ideas-bulb/);
 });
 
 test('example tiles are never disabled buttons, so a drag can start on them in every mode', async () => {

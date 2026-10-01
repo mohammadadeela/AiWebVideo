@@ -52,8 +52,7 @@ import { SampleStrip } from "./SampleStrip";
 import { USE_SAMPLE_EVENT, clearPendingSample, peekPendingSample, rememberPendingSample, useSamples, type Sample, type UseSampleDetail } from "@/lib/showcase";
 import { ComposerPlusMenu } from "./ComposerPlusMenu";
 import { FormatIcon } from "./FormatIcon";
-import { IdeasIcon } from "./IdeasIcon";
-import { ModelPicker, ModelRatePill } from "./ModelPicker";
+import { ModelPicker } from "./ModelPicker";
 import { QualityGlyph } from "./QualityGlyph";
 import { fileKey, rememberFiles } from "@/lib/recentFiles";
 import { ApiError, extractProductReference, resolveArchitectureLocation, type ProductReference } from "@/lib/api-client";
@@ -1226,9 +1225,9 @@ export function WebsiteBriefForm({
               aria-expanded={compactPanel === "ideas"}
               className={controlClass(compactPanel === "ideas")}
             >
-              <IdeasIcon size={17} lit={compactPanel === "ideas" || Boolean(selectedIdea)} className="text-violet" />
+              <Sparkles size={13} className="text-violet" />
               Ideas
-              {selectedIdea && <span className="h-1.5 w-1.5 rounded-full bg-mint" aria-label="An idea is added" />}
+              {selectedIdea && <span className="rounded-full bg-mint/10 px-1.5 py-0.5 text-[8px] text-mint">Added</span>}
               <ChevronDown size={12} className={`transition-transform ${compactPanel === "ideas" ? "rotate-180" : ""}`} />
             </button>
           </div>
@@ -1241,8 +1240,12 @@ export function WebsiteBriefForm({
               open={compactPanel === "model"}
               onOpenChange={(next) => { setOpenSettingMenu(null); setCompactPanel(next ? "model" : null); }}
               onSelect={(id) => { chooseModel(id); setCompactPanel(null); }}
+              trigger={
+                <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-mint/[.08] text-mint">
+                  {modelFamily === "video" ? <Video size={13} /> : modelFamily === "interior" ? <House size={13} /> : <ImageIcon size={13} />}
+                </span>
+              }
             />
-            <ModelRatePill model={selectedModel} quality={settings.outputQuality} />
 
           {selectedModel.supportsDuration && (
             <ControlMenu open={openSettingMenu === "duration"} onClose={() => setOpenSettingMenu(null)} label="Video duration" wide trigger={
