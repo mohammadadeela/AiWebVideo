@@ -1,9 +1,12 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/app-button";
+import { AuthModal } from "@/components/auth/AuthModal";
 import { SecureCheckoutModal } from "@/components/billing/SecureCheckoutModal";
 import { SubscriptionCheckoutModal } from "@/components/billing/SubscriptionCheckoutModal";
-import type { CheckoutId } from "@/lib/api-client";
+import { fetchMe, type CheckoutId } from "@/lib/api-client";
+import { watchAuthState } from "@/lib/firebase/client";
+import { clearPendingPurchase, savePendingPurchase, takePendingPurchase, type PendingPurchase } from "@/lib/pendingPurchase";
 import { displayCredits, estimateRenderCredits } from "@/lib/credits";
 import { discountedPrice, fetchWelcomeGrowthOffer, formatUsd, formatWelcomeCountdown, type WelcomeGrowthOffer } from "@/lib/growth";
 import {
@@ -70,15 +73,25 @@ function seconds(value: number) {
 
 export function PricingTable() {
   const [welcomeOffer, setWelcomeOffer] = useState<WelcomeGrowthOffer | null>(null);
+  const [offerLoaded, setOfferLoaded] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [directCheckout, setDirectCheckout] = useState<DirectCheckout | null>(null);
   const [subscriptionCheckout, setSubscriptionCheckout] = useState<SubscriptionCheckout | null>(null);
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
+  const [showAuth, setShowAuth] = useState(false);
 
+  useEffect(() => watchAuthState((user) => setSignedIn(Boolean(user))), []);
+
+  // The welcome price belongs to the account: load it again once the person is signed in.
   useEffect(() => {
     let cancelled = false;
-    fetchWelcomeGrowthOffer().then((offer) => { if (!cancelled) setWelcomeOffer(offer); }).catch(() => {});
+    setOfferLoaded(false);
+    fetchWelcomeGrowthOffer()
+      .then((offer) => { if (!cancelled) setWelcomeOffer(offer); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setOfferLoaded(true); });
     return () => { cancelled = true; };
-  }, []);
+  }, [signedIn]);
 
   useEffect(() => {
     if (!welcomeOffer?.active) return;
@@ -89,6 +102,44 @@ export function PricingTable() {
   const activeOffer = welcomeOffer?.active && welcomeOffer.discountPercent > 0 && new Date(welcomeOffer.expiresAt).getTime() > now
     ? welcomeOffer
     : null;
+
+  /** Opens the checkout for a remembered choice, priced exactly as the pricing page shows it. */
+  function openChoice(choice: PendingPurchase) {
+    if (choice.kind === "plan") {
+      const plan = PLAN_PACKS.find((item) => item.id === choice.id);
+      if (plan) setSubscriptionCheckout({ plan: plan.id, planName: plan.name, amountUsd: plan.amountUsd, credits: displayCredits(plan.credits) });
+      return;
+    }
+    const video = VIDEO_PACKS.find((item) => item.id === choice.id);
+    if (video) {
+      setDirectCheckout({ plan: video.id, productName: video.name, amountUsd: video.amountUsd, originalAmountUsd: video.amountUsd, credits: displayCredits(video.credits) });
+      return;
+    }
+    const pack = CREDIT_PACKS.find((item) => item.id === choice.id);
+    if (pack) {
+      const discounted = activeOffer && activeOffer.eligibleProducts.includes(pack.id) ? discountedPrice(pack.amountUsd, activeOffer.discountPercent) : pack.amountUsd;
+      const credits = displayCredits(pack.credits);
+      setDirectCheckout({ plan: pack.id, productName: `${credits.toLocaleString()} production credits`, amountUsd: discounted, originalAmountUsd: pack.amountUsd, credits });
+    }
+  }
+
+  /**
+   * Buy / Subscribe. A signed-out visitor is asked to sign in FIRST, and lands on exactly what they clicked
+   * afterwards. Sign-in is checked with the server at click time (not from page state that may still be loading).
+   */
+  async function requestPurchase(choice: PendingPurchase) {
+    const ok = signedIn === true || await fetchMe().then(() => true).catch(() => false);
+    if (ok) { openChoice(choice); return; }
+    savePendingPurchase(choice);
+    setShowAuth(true);
+  }
+
+  // Signed in by any route (same tab, after a reload, another tab): resume the purchase that was waiting.
+  useEffect(() => {
+    if (signedIn !== true || !offerLoaded) return;
+    const waiting = takePendingPurchase();
+    if (waiting) openChoice(waiting);
+  }, [signedIn, offerLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const modelRows = modelPriceRows();
   const costRows: Array<[string, number, number]> = [
@@ -136,13 +187,7 @@ export function PricingTable() {
                 <Button
                   variant={featured || hasDiscount ? "primary" : "secondary"}
                   className="mt-5 w-full"
-                  onClick={() => setDirectCheckout({
-                    plan: pack.id,
-                    productName: `${packCredits.toLocaleString()} production credits`,
-                    amountUsd: discounted,
-                    originalAmountUsd: pack.amountUsd,
-                    credits: packCredits,
-                  })}
+                  onClick={() => void requestPurchase({ kind: "pack", id: pack.id })}
                 >
                   Buy {formatUsd(discounted)}
                 </Button>
@@ -179,13 +224,7 @@ export function PricingTable() {
               <Button
                 variant={pack.popular ? "primary" : "secondary"}
                 className="mt-5 w-full"
-                onClick={() => setDirectCheckout({
-                  plan: pack.id,
-                  productName: pack.name,
-                  amountUsd: pack.amountUsd,
-                  originalAmountUsd: pack.amountUsd,
-                  credits: displayCredits(pack.credits),
-                })}
+                onClick={() => void requestPurchase({ kind: "pack", id: pack.id })}
               >
                 Buy {formatUsd(pack.amountUsd)}
               </Button>
@@ -222,12 +261,7 @@ export function PricingTable() {
               <Button
                 variant={plan.highlight ? "primary" : "secondary"}
                 className="mt-5 w-full"
-                onClick={() => setSubscriptionCheckout({
-                  plan: plan.id,
-                  planName: plan.name,
-                  amountUsd: plan.amountUsd,
-                  credits: displayCredits(plan.credits),
-                })}
+                onClick={() => void requestPurchase({ kind: "plan", id: plan.id })}
               >
                 Subscribe ${plan.amountUsd}/mo
               </Button>
@@ -284,6 +318,17 @@ export function PricingTable() {
           </div>
         </div>
       </Section>
+
+      {showAuth && (
+        <AuthModal
+          onClose={() => { clearPendingPurchase(); setShowAuth(false); }}
+          onSignedIn={() => {
+            setShowAuth(false);
+            setSignedIn(true);
+            // The effect above opens the waiting purchase as soon as the account's offer has loaded.
+          }}
+        />
+      )}
 
       {directCheckout && (
         <SecureCheckoutModal

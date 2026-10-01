@@ -69,3 +69,8 @@
 ## 2026-10-03 (later) — Maps pin accuracy, video references
 - Maps links: the extractor used the `@lat,lng` part first, which is where the map VIEW was centred (often hundreds of metres from the place). It now prefers the place pin (`!8m2!3d…!4d…`), then explicit `q`/`query`/`ll`/path coordinates, and only then the map view, which is reported as precision "view"; the form tells the customer to share the exact pin. Legacy `goo.gl/maps` short links accepted. Tests added (none existed).
 - Video: studio productions use the same first three references (customer's own first) in every scene instead of whatever the planner picked per scene; the labels passed to video now describe the same images in the same order (they were attached to the original, un-reordered list).
+
+## 2026-10-03 (evening) — Sign-in first purchases, signed-in prompt bug
+- Pricing page: Buy / Subscribe by a signed-out visitor now asks them to sign in first, remembers exactly what they clicked (`lib/pendingPurchase.ts`, 30 min), and opens that same checkout when sign-in completes (same tab, after a reload, or another tab). Sign-in is checked with the server at click time. Closing the sign-in window cancels it. Verified in a real browser (sign in → "Checkout for 265 production credits" opens by itself; reload resume; stale ignored; signed-in click opens directly).
+- Bug: signed-in people were sent to the sign-in window when they tapped a gallery example or a feature card on the landing page. Those listeners are registered once and called the FIRST render's handler (created before the sign-in check finished). They now call the latest handler through a ref. Reproduced and verified fixed in a real browser.
+- Hardening: a malformed saved-cards reply can no longer crash checkout.

@@ -514,7 +514,8 @@ export function SecureCheckoutModal({
         if (cancelled) return;
         setConfig(nextConfig);
 
-        let methods = methodsResponse.methods;
+        // A malformed reply must never take the whole checkout down.
+        let methods = Array.isArray(methodsResponse.methods) ? methodsResponse.methods : [];
         try {
           const preferred = localStorage.getItem(PREFERRED_METHOD_KEY);
           setPreferredSavedMethodId(preferred);

@@ -470,11 +470,18 @@ export function WebsiteBriefForm({
     });
   }
 
+  // Listeners below are registered once, but they must always call the LATEST applyIntent: that one knows whether
+  // the person is signed in NOW. The first render's version still thinks everyone is signed out (the sign-in check
+  // has not finished yet), which sent signed-in people to the sign-in window when they chose a feature or tapped an
+  // example on the landing page.
+  const applyIntentRef = useRef(applyIntent);
+  applyIntentRef.current = applyIntent;
+
   useEffect(() => {
     applyIntent(initialCreationIntent ?? intentFromSearch() ?? "website");
     const handleIntent = (event: Event) => {
       const intent = (event as CustomEvent<CreationIntent>).detail;
-      if (intent) applyIntent(intent, true);
+      if (intent) applyIntentRef.current(intent, true);
     };
     const handleHistoryIntent = () => {
       if (initialCreationIntent) return;
@@ -551,7 +558,7 @@ export function WebsiteBriefForm({
       // On the public landing page this may first send the visitor through sign-in to the workspace.
       // Remember the pick so it is selected again when they arrive.
       if (sample.feature !== "website") rememberPendingSample(sample);
-      applyIntent(sample.feature, true);
+      applyIntentRef.current(sample.feature, true);
       if (sample.feature !== "website") setSelectedSample(sample);
       window.requestAnimationFrame(() => studioPromptRef.current?.focus());
     };
@@ -568,7 +575,7 @@ export function WebsiteBriefForm({
     const match = publishedSamples.find((sample) => sample.id === pending.id);
     if (!match) return;
     clearPendingSample();
-    if (activeModeRef.current !== match.feature) applyIntent(match.feature);
+    if (activeModeRef.current !== match.feature) applyIntentRef.current(match.feature);
     setSelectedSample(match);
   }, [publishedSamples]);
 
