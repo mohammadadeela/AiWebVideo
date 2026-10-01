@@ -24,16 +24,12 @@ export function AutoplayVideo({
   label,
   eager = false,
   className = "",
-  showBlockedControl = true,
-  respectReducedMotion = false,
 }: {
   src: string;
   poster?: string | null;
   label?: string;
   eager?: boolean;
   className?: string;
-  showBlockedControl?: boolean;
-  respectReducedMotion?: boolean;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -41,17 +37,6 @@ export function AutoplayVideo({
   const [near, setNear] = useState(eager);
   const [blocked, setBlocked] = useState(false);
   const [ready, setReady] = useState(false);
-  const [reducedMotion, setReducedMotion] = useState(() =>
-    respectReducedMotion && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-  );
-  useEffect(() => {
-    if (!respectReducedMotion) return;
-    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const update = () => setReducedMotion(query.matches);
-    update();
-    query.addEventListener("change", update);
-    return () => query.removeEventListener("change", update);
-  }, [respectReducedMotion]);
 
   const attachVideo = useCallback((node: HTMLVideoElement | null) => {
     videoRef.current = node;
@@ -66,7 +51,7 @@ export function AutoplayVideo({
 
   const tryPlay = useCallback(() => {
     const video = videoRef.current;
-    if (!video || reducedMotion || !visibleRef.current || document.visibilityState === "hidden") return;
+    if (!video || !visibleRef.current || document.visibilityState === "hidden") return;
     video.defaultMuted = true;
     video.muted = true;
     const attempt = video.play();
@@ -75,12 +60,7 @@ export function AutoplayVideo({
         if ((error as { name?: string })?.name === "NotAllowedError") setBlocked(true);
       });
     }
-  }, [reducedMotion]);
-
-  useEffect(() => {
-    if (reducedMotion) videoRef.current?.pause();
-    else tryPlay();
-  }, [reducedMotion, tryPlay]);
+  }, []);
 
   // Attach the source only near the viewport; play while visible, pause when not.
   useEffect(() => {
@@ -112,7 +92,6 @@ export function AutoplayVideo({
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState === "visible") tryPlay();
-      else videoRef.current?.pause();
     };
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("pageshow", tryPlay);
@@ -154,7 +133,7 @@ export function AutoplayVideo({
         muted
         loop
         playsInline
-        autoPlay={!reducedMotion}
+        autoPlay
         preload={eager ? "auto" : "metadata"}
         controls={false}
         disablePictureInPicture
@@ -171,7 +150,7 @@ export function AutoplayVideo({
           setBlocked(false);
         }}
       />
-      {blocked && showBlockedControl && (
+      {blocked && (
         <button
           type="button"
           onClick={tryPlay}

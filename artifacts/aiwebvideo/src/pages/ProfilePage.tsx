@@ -224,7 +224,7 @@ export function ProfilePage() {
   return (
     <>
       <Nav />
-      <main className="cinematic-page min-h-[72vh] border-b border-white/[.06] bg-bg">
+      <main className="min-h-[72vh] border-b border-white/[.06] bg-bg">
         {!authChecked ? (
           <div className="mx-auto mt-24 h-8 w-8 animate-spin rounded-full border-2 border-violet border-t-transparent" role="status" aria-label="Loading account" />
         ) : !signedIn ? (

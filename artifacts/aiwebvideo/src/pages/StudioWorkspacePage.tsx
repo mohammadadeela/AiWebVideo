@@ -654,7 +654,7 @@ export function StudioWorkspacePage() {
   const paidBlocked = Boolean(aiPlan?.execution === 'paid' && (account?.creditsBalance ?? 0) < (aiPlan?.costCredits ?? 0));
 
   return (
-    <div className="cinematic-page flex h-[100dvh] min-h-[680px] flex-col overflow-hidden bg-[#090710] text-text-primary">
+    <div className="flex h-[100dvh] min-h-[680px] flex-col overflow-hidden bg-[#090710] text-text-primary">
       <input ref={fileInputRef} type="file" accept={ACCEPT} multiple className="hidden" onChange={(event) => { void addFiles(Array.from(event.currentTarget.files ?? [])); event.currentTarget.value = ''; }} />
 
       <header className="z-30 flex h-14 shrink-0 items-center gap-2 border-b border-white/[.08] bg-[#0c0913]/95 px-2.5 backdrop-blur-xl sm:px-4">
