@@ -81,3 +81,6 @@
 
 ## 2026-10-03 (late) — Ideas and model buttons back to their original look
 - Per request ("turn these as they were"): the Ideas button is the original violet sparkle with the small mint "Added" badge; the model button is the original mint icon tile (video / house / image) + name + chevron. The light-bulb icon and the credits-per-second pill beside the model were removed (not hidden). Credits per second/image are still shown in each row of the model list. Both removed pieces are in git history (IdeasIcon.tsx, ModelRatePill) if wanted back.
+
+## 2026-10-03 (late) — The prompt follows the person across features
+- The creation box had two separate texts (website/photos/product video/interior/architecture vs AI video/scenario), so moving between those groups lost it. It is now ONE text shared by every feature, also kept for the browser session (`lib/promptDraft.ts`, 12 h) so it survives the landing page → workspace navigation and the sign-in step, and cleared when a production is submitted. Verified in a real browser: workspace tab switches, landing page signed in (goes to the workspace) and landing page signed out (sign in, then the workspace) all keep the text; an edit made in one feature shows in the others.

@@ -44,6 +44,7 @@ import {
 } from "@/lib/creativeIdeas";
 import { trackStudioEvent } from "@/lib/studio-api";
 import { withHiddenDirection } from "@/lib/hiddenDirection";
+import { clearPromptDraft, loadPromptDraft, savePromptDraft } from "@/lib/promptDraft";
 import { useAutoGrow } from "@/lib/useAutoGrow";
 import { ScrollRow } from "@/components/ui/scroll-row";
 import { NumberStepper } from "@/components/ui/number-stepper";
@@ -407,8 +408,12 @@ export function WebsiteBriefForm({
   const [activeMode, setActiveMode] = useState<CreationIntent>("website");
   const activeModeRef = useRef<CreationIntent>("website");
   const [url, setUrl] = useState("");
-  const [brief, setBrief] = useState("");
-  const [prompt, setPrompt] = useState("");
+  // ONE text for every feature: typing it once and then switching feature (or page) keeps it, so nobody has to
+  // retype or paste it. It is also kept for this browser session and cleared when a production is submitted.
+  const [brief, setBrief] = useState(() => loadPromptDraft());
+  const prompt = brief;
+  const setPrompt = setBrief;
+  useEffect(() => { savePromptDraft(brief); }, [brief]);
   const [productLink, setProductLink] = useState("");
   const [productData, setProductData] = useState<ProductReference | null>(null);
   const [chosenProductImages, setChosenProductImages] = useState<string[]>([]);
@@ -784,6 +789,8 @@ export function WebsiteBriefForm({
       }
       try {
         setError(null);
+        // The request is on its way (and saved for after sign-in), so the draft has done its job.
+        clearPromptDraft();
         void onSubmit(
           normalizeWebsiteUrl(url),
           withHiddenDirection(brief.trim(), selectedIdea?.masterPrompt),
@@ -849,6 +856,7 @@ export function WebsiteBriefForm({
 
     const durationSeconds = settings.durationSeconds === "auto" ? 8 : settings.durationSeconds;
     setError(null);
+    clearPromptDraft();
     void onStudioSubmit({
       studioKind: isProduct
         ? "product"
