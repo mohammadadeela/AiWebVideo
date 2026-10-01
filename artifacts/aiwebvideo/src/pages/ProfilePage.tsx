@@ -61,7 +61,7 @@ function billingKindLabel(kind: string) {
 }
 
 function modeCount(usage: UserUsageSummary | null, ...modes: string[]) {
-  return (usage?.byMode ?? [])
+  return (Array.isArray(usage?.byMode) ? usage.byMode : [])
     .filter((item) => modes.includes(item.mode))
     .reduce((total, item) => total + item.count, 0);
 }

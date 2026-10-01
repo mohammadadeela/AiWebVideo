@@ -85,3 +85,7 @@
 - Compatibility: No migrations, new project dependencies or environment variables; existing provider, pricing, auth, billing, generation and progress behavior preserved.
 - Remaining: Live Hostinger deployment and real production integration checks are separate. No claim of production deployment.
 - Continue: Deploy main using README-DEPLOY.md; manage the background in Admin → Homepage → Upload / Use in background → Save.
+
+## 2026-10-03 (night) — Real-browser audit
+- Walked the running app in a real Chromium (stub API) and checked what was asked for: landing composer (rotating URL tile, 7 modes + swipe arrow, separate toolbar controls, cost pill, HD/4K, format icons, narration shake, model picker, "+" menu with/without Recent files, style picker, bulb, Generate above examples, auto-growing text box, gallery tiles without text), pricing (order, prices, no extra blocks), profile (tabs, usage bar), every admin tab (no page errors, Role pill, filters, gallery manager), sign-in-first purchases, signed-in gallery tap, drag cursor.
+- Hardening found by the audit: the profile page no longer crashes if the usage reply's `byMode` is not a list.
