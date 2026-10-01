@@ -123,6 +123,9 @@ const staticDir = process.env.STATIC_DIR ?? path.resolve(process.cwd(), 'artifac
 if (fs.existsSync(staticDir)) {
   app.use('/assets', express.static(path.join(staticDir, 'assets'), { index: false, maxAge: '1y', immutable: true }));
   app.use(express.static(staticDir, { index: false, maxAge: '1h' }));
+  // A missing build file (an old tab asking for a script from a previous deploy) must be a real 404, never the
+  // HTML page: handing HTML to a script request only produces a confusing MIME-type error in the browser.
+  app.use('/assets', (_req, res) => res.status(404).type('text/plain').set('Cache-Control', 'no-store').send('Not found'));
   const indexHtml = fs.readFileSync(path.join(staticDir, 'index.html'), 'utf8');
   app.get('/{*path}', async (req, res, next) => {
     if (req.path.startsWith('/api/')) return next();
