@@ -9,8 +9,8 @@ test('sliders can be dragged with a mouse and show grab / grabbing instead of th
   assert.match(await fe('main.tsx'), /installDragScroll\(\)/);
   const css = await fe('index.css');
   assert.match(css, /\.drag-scroll-ready button:not\(:disabled\)/);
-  assert.match(css, /cursor: grab;/);
-  assert.match(css, /\.drag-scroll-active \*[\s\S]{0,40}cursor: grabbing !important/);
+  assert.match(css, /cursor: url\("data:image\/svg\+xml,[^"]+"\) 23 15, grab;/);          // distinct drag cursor, grab as fallback
+  assert.match(css, /\.drag-scroll-active \*[\s\S]{0,1200}\) 23 15, grabbing !important/);
   const lib = await fe('lib/dragScroll.ts');
   assert.match(lib, /pointerType !== "mouse"/);          // touch keeps its native swipe
   assert.match(lib, /swallowClick/);                     // a drag is never a click

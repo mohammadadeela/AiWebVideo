@@ -1,12 +1,19 @@
 /**
- * Files a person has attached before, kept ON THIS DEVICE (IndexedDB) so they can be reused from the
- * composer's "+" menu without picking them again. Nothing here is uploaded anywhere until the file is
+ * Files a signed-in person has attached before, kept ON THIS DEVICE (IndexedDB) so they can be reused from
+ * the composer's "+" menu without picking them again. Nothing here is uploaded anywhere until the file is
  * attached to a generation.
  *
- * Only reference types the studio accepts are kept (JPEG, PNG, WEBP), so anything shown can be reused.
+ * - Only for signed-in people: with no owner nothing is remembered and nothing is listed.
+ * - Every record belongs to one account (its email). Someone else signing in on the same computer never
+ *   sees them, and older records from before accounts were tracked are discarded.
+ * - Only reference types the studio accepts are kept (JPEG, PNG, WEBP), so anything shown can be reused.
  */
 export interface RecentFile {
+  /** Unique per account: `${owner}|${key}`. */
   id: string;
+  /** The same file picked twice (same name, size and modified time) has the same key. */
+  key: string;
+  owner: string;
   name: string;
   type: string;
   size: number;
@@ -21,9 +28,12 @@ const MAX_FILES = 24;
 const MAX_TOTAL_BYTES = 60 * 1024 * 1024;
 const ACCEPTED = ["image/jpeg", "image/png", "image/webp"];
 
-/** Same file picked twice (same name, size and modified time) is one entry. */
 export function fileKey(file: Pick<File, "name" | "size" | "lastModified">) {
   return `${file.name}|${file.size}|${file.lastModified}`;
+}
+
+function normalizeOwner(owner: string | null | undefined) {
+  return (owner ?? "").trim().toLowerCase();
 }
 
 function open(): Promise<IDBDatabase> {
@@ -49,14 +59,18 @@ function run<T>(mode: IDBTransactionMode, work: (store: IDBObjectStore) => IDBRe
   }));
 }
 
-/** Most recently used first. Never throws: storage can be unavailable (private mode, blocked). */
-export async function listRecentFiles(): Promise<RecentFile[]> {
+/** This account's files, most recently used first. Never throws: storage can be unavailable. */
+export async function listRecentFiles(owner: string | null | undefined): Promise<RecentFile[]> {
+  const who = normalizeOwner(owner);
+  if (!who) return [];
   try {
     const rows = await run<RecentFile[]>("readonly", (store) => store.getAll() as IDBRequest<RecentFile[]>);
+    // Records written before accounts were tracked have no owner: they are not anyone's, so drop them.
+    const orphans = rows.filter((row) => !row?.owner).map((row) => row?.id).filter((id): id is string => typeof id === "string");
+    if (orphans.length) void Promise.all(orphans.map((id) => run("readwrite", (store) => store.delete(id)))).catch(() => {});
     return rows
-      .filter((row) => row?.file instanceof Blob)
-      // Some browsers hand back a bare Blob without its name; rebuild a real File so it attaches correctly
-      // and keeps the same identity (name, size, modified time) as the original.
+      .filter((row) => row?.owner === who && row.file instanceof Blob)
+      // Some browsers hand back a bare Blob without its name; rebuild a real File so it attaches correctly.
       .map((row) => ({
         ...row,
         file: row.file instanceof File && row.file.name === row.name
@@ -67,15 +81,18 @@ export async function listRecentFiles(): Promise<RecentFile[]> {
   } catch { return []; }
 }
 
-/** Remembers (or bumps) files, then trims the oldest beyond the count and size limits. */
-export async function rememberFiles(files: File[]): Promise<void> {
+/** Remembers (or bumps) files for this account, then trims its oldest beyond the count and size limits. */
+export async function rememberFiles(files: File[], owner: string | null | undefined): Promise<void> {
+  const who = normalizeOwner(owner);
   const usable = files.filter((file) => ACCEPTED.includes(file.type));
-  if (!usable.length) return;
+  if (!who || !usable.length) return;
   try {
     const now = Date.now();
-    await Promise.all(usable.map((file, index) => run("readwrite", (store) =>
-      store.put({ id: fileKey(file), name: file.name, type: file.type, size: file.size, lastModified: file.lastModified, usedAt: now + index, file } satisfies RecentFile))));
-    const all = await listRecentFiles();
+    await Promise.all(usable.map((file, index) => run("readwrite", (store) => {
+      const key = fileKey(file);
+      return store.put({ id: `${who}|${key}`, key, owner: who, name: file.name, type: file.type, size: file.size, lastModified: file.lastModified, usedAt: now + index, file } satisfies RecentFile);
+    })));
+    const all = await listRecentFiles(who);
     let total = 0;
     const stale: string[] = [];
     all.forEach((row, index) => {
@@ -90,6 +107,8 @@ export async function forgetRecentFile(id: string): Promise<void> {
   try { await run("readwrite", (store) => store.delete(id)); } catch { /* ignore */ }
 }
 
-export async function clearRecentFiles(): Promise<void> {
-  try { await run("readwrite", (store) => store.clear()); } catch { /* ignore */ }
+/** Removes only this account's files. */
+export async function clearRecentFiles(owner: string | null | undefined): Promise<void> {
+  const mine = await listRecentFiles(owner);
+  await Promise.all(mine.map((row) => forgetRecentFile(row.id)));
 }

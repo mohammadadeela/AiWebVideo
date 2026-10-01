@@ -10,7 +10,8 @@
     "start": "node --enable-source-maps ./dist/index.mjs",
     "test": "node ./test.mjs",
     "smoke:render": "node ./smoke.mjs",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "check:browser": "node ./browser-checks/run.cjs"
   },
   "dependencies": {
     "@google/genai": "^2.15.0",

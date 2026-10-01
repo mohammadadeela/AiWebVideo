@@ -51,3 +51,10 @@
 - Admin: labelled role pill (Admin / Customer) with a two-step confirmation and a green "Updated" flash; cannot remove your own or the last admin's access.
 - Chat: Generate sits above examples and attachments; attachments are file chips; example cards restyled; gallery limit 280 with "Show more". Website field has a globe that turns around itself.
 - Not verified: pixel look in a real browser, real Google/GitHub popups, real Postgres, real payments.
+
+## 2026-10-02 — Slider cursor, signed-out Recent files, Ideas bulb (checked in a real browser)
+- Slider drag: a real Chromium run showed the drag itself works; the visible problem was the cursor. Rows that scroll sideways now show a clear left-right drag cursor (an image cursor with `grab` / `grabbing` fallbacks) on hover and while dragging. In website mode the example tiles were DISABLED buttons, which swallow the mouse press so the row could not be dragged from them; they are plain tiles now.
+- Recent files: shown only to signed-in people, kept per account on the device (older anonymous records are dropped, nothing is remembered while signed out). Signed out, the "+" menu has just Add photos and Style.
+- Ideas icon: a light bulb that switches on and off (outline when off, warm glass + filament + rays + glow when on), stays lit while the Ideas panel is open or an idea is chosen, held lit for reduced motion.
+- Fixed a regression: the "+" button measured 20px because its size rule had been deleted; 34px (44px on phones) restored and covered by a test.
+- `pnpm --filter @workspace/api-server run check:browser` runs real-browser checks (cursor, drag, recent files) against the built frontend; set CHROMIUM_PATH to use a specific browser. Skipped when no browser can launch.

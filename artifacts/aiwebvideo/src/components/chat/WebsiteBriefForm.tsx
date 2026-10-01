@@ -374,6 +374,7 @@ export function WebsiteBriefForm({
   landingWebsitePreview = false,
   onIntentRequest,
   compactLayout = false,
+  recentFilesOwner = null,
 }: {
   onSubmit: (
     url: string,
@@ -387,6 +388,8 @@ export function WebsiteBriefForm({
   showCreditPricing?: boolean;
   landingWebsitePreview?: boolean;
   onIntentRequest?: (intent: CreationIntent) => boolean | void;
+  /** Email of the signed-in account. Recent files are remembered and offered only when this is set. */
+  recentFilesOwner?: string | null;
   compactLayout?: boolean;
 }) {
   const [activeMode, setActiveMode] = useState<CreationIntent>("website");
@@ -571,7 +574,7 @@ export function WebsiteBriefForm({
       return [...current, ...accepted.filter((file) => !known.has(fileKey(file)))].slice(0, 10);
     });
     // Remember them on this device so they can be reused later from the "+" menu.
-    void rememberFiles(accepted);
+    void rememberFiles(accepted, recentFilesOwner);
     if (files.length + accepted.length > 10) nextError = "You can attach up to 10 reference images.";
     setError(nextError);
   }
@@ -1168,6 +1171,7 @@ export function WebsiteBriefForm({
               maxFiles={10}
               onPickFiles={() => { setOpenSettingMenu(null); inputRef.current?.click(); }}
               onUseRecent={(file) => addFiles([file])}
+              recentOwner={recentFilesOwner}
               styleValue={activeMode === "website" ? (selectedWebsiteRecipe ? WEBSITE_RECIPES.find((recipe) => recipe.mode === selectedWebsiteRecipe)?.label : "Auto") : undefined}
               onStyle={activeMode === "website" ? () => { setOpenSettingMenu(null); setCompactPanel("style"); } : undefined}
             />
@@ -1181,7 +1185,7 @@ export function WebsiteBriefForm({
               aria-expanded={compactPanel === "ideas"}
               className={controlClass(compactPanel === "ideas")}
             >
-              <IdeasIcon size={16} className="text-violet" />
+              <IdeasIcon size={17} lit={compactPanel === "ideas" || Boolean(selectedIdea)} className="text-violet" />
               Ideas
               {selectedIdea && <span className="h-1.5 w-1.5 rounded-full bg-mint" aria-label="An idea is added" />}
               <ChevronDown size={12} className={`transition-transform ${compactPanel === "ideas" ? "rotate-180" : ""}`} />

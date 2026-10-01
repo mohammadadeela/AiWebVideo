@@ -778,18 +778,19 @@ picture {
   .attention-shake { animation: attention-glow 1.2s ease-in-out 2; }
 }
 
-/* Sliders: a grab hand (not the click hand) over a row that scrolls sideways, grabbing while dragged.
-   Buttons inside get the same cursor on purpose; the global button rule would otherwise win. */
+/* Sliders: a left-right drag cursor (clearly not the click hand) over any row that scrolls sideways, a
+   filled one while it is being dragged. `grab` / `grabbing` are the fallbacks. Buttons inside get the same
+   cursor on purpose; the global button rule would otherwise win. */
 .drag-scroll-ready,
 .drag-scroll-ready button:not(:disabled),
 .drag-scroll-ready [role="button"]:not([aria-disabled="true"]),
 .drag-scroll-ready a[href],
 .drag-scroll-ready label[for] {
-  cursor: grab;
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='46' height='30' viewBox='0 0 46 30'%3E%3Crect x='1' y='1' width='44' height='28' rx='14' fill='%230f0a1e' fill-opacity='.92' stroke='%23ffffff' stroke-opacity='.9' stroke-width='1.5'/%3E%3Cpath d='M15 9l-6 6 6 6M31 9l6 6-6 6' fill='none' stroke='%23ffffff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='23' cy='15' r='2.6' fill='%23a78bfa'/%3E%3C/svg%3E") 23 15, grab;
 }
 .drag-scroll-active,
 .drag-scroll-active * {
-  cursor: grabbing !important;
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='46' height='30' viewBox='0 0 46 30'%3E%3Crect x='1' y='1' width='44' height='28' rx='14' fill='%237c3aed' stroke='%23ffffff' stroke-opacity='.95' stroke-width='1.5'/%3E%3Cpath d='M18 10l-5 5 5 5M28 10l5 5-5 5' fill='none' stroke='%23ffffff' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='23' cy='15' r='2.6' fill='%23ffffff'/%3E%3C/svg%3E") 23 15, grabbing !important;
   user-select: none;
   -webkit-user-select: none;
 }
@@ -815,4 +816,30 @@ picture {
 }
 @media (prefers-reduced-motion: reduce) {
   .globe-meridian { animation: none; transform: scaleX(.45); }
+}
+
+/* Ideas light bulb: on and off. */
+.ideas-bulb { display: inline-grid; place-items: center; flex-shrink: 0; overflow: visible; }
+.ideas-bulb svg { overflow: visible; }
+.ideas-bulb-on { opacity: 0; }
+.ideas-bulb:not(.is-lit) { animation: ideas-glow 3.6s ease-in-out infinite; }
+.ideas-bulb:not(.is-lit) .ideas-bulb-on { animation: ideas-light 3.6s ease-in-out infinite; }
+.ideas-bulb.is-lit { filter: drop-shadow(0 0 4px rgba(253, 224, 71, .85)); }
+.ideas-bulb.is-lit .ideas-bulb-on { opacity: 1; }
+@keyframes ideas-light {
+  0%, 8%  { opacity: 0; }
+  11%     { opacity: .95; }
+  13%     { opacity: .3; }
+  16%, 58% { opacity: 1; }
+  72%, 100% { opacity: 0; }
+}
+@keyframes ideas-glow {
+  0%, 8%  { filter: drop-shadow(0 0 0 rgba(253, 224, 71, 0)); }
+  16%, 58% { filter: drop-shadow(0 0 4px rgba(253, 224, 71, .85)); }
+  72%, 100% { filter: drop-shadow(0 0 0 rgba(253, 224, 71, 0)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ideas-bulb:not(.is-lit), .ideas-bulb:not(.is-lit) .ideas-bulb-on { animation: none; }
+  .ideas-bulb:not(.is-lit) .ideas-bulb-on { opacity: .9; }
+  .ideas-bulb:not(.is-lit) { filter: drop-shadow(0 0 3px rgba(253, 224, 71, .6)); }
 }

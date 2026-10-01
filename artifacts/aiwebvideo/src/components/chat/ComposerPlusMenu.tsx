@@ -42,7 +42,7 @@ function Thumb({ item }: { item: RecentFile }) {
  * The composer's "+" button, like the ones in Claude and ChatGPT. One place for everything you can add:
  * new photos, a style, and files you have used before (kept on this device only).
  */
-export function ComposerPlusMenu({ disabled, addLabel, attachedCount, attachedKeys, maxFiles, onPickFiles, onUseRecent, styleValue, onStyle }: {
+export function ComposerPlusMenu({ disabled, addLabel, attachedCount, attachedKeys, maxFiles, onPickFiles, onUseRecent, styleValue, onStyle, recentOwner }: {
   disabled?: boolean;
   addLabel: string;
   attachedCount: number;
@@ -54,6 +54,8 @@ export function ComposerPlusMenu({ disabled, addLabel, attachedCount, attachedKe
   /** Website mode only: the current style name. Omit to hide the row. */
   styleValue?: string;
   onStyle?: () => void;
+  /** The signed-in account whose recent files are offered. Signed out (null): the Recent files section is not shown at all. */
+  recentOwner: string | null;
 }) {
   const [open, setOpen] = useState(false);
   const [recent, setRecent] = useState<RecentFile[]>([]);
@@ -61,11 +63,11 @@ export function ComposerPlusMenu({ disabled, addLabel, attachedCount, attachedKe
   const full = attachedCount >= maxFiles;
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || !recentOwner) return;
     let cancelled = false;
-    void listRecentFiles().then((rows) => { if (!cancelled) { setRecent(rows); setLoaded(true); } });
+    void listRecentFiles(recentOwner).then((rows) => { if (!cancelled) { setRecent(rows); setLoaded(true); } });
     return () => { cancelled = true; };
-  }, [open]);
+  }, [open, recentOwner]);
 
   const rows = useMemo(() => recent.slice(0, 12), [recent]);
 
@@ -76,7 +78,7 @@ export function ComposerPlusMenu({ disabled, addLabel, attachedCount, attachedKe
 
   async function clearAll() {
     setRecent([]);
-    await clearRecentFiles();
+    await clearRecentFiles(recentOwner);
   }
 
   const item = "flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left text-[13px] font-medium text-white transition hover:bg-white/[.06] disabled:opacity-40";
@@ -119,6 +121,7 @@ export function ComposerPlusMenu({ disabled, addLabel, attachedCount, attachedKe
               </button>
             )}
 
+            {recentOwner && (<>
             <div className="mx-2 my-1.5 h-px bg-white/[.08]" />
 
             <div className="flex items-center justify-between px-2.5 pb-1 pt-1">
@@ -133,7 +136,7 @@ export function ComposerPlusMenu({ disabled, addLabel, attachedCount, attachedKe
             ) : (
               <ul className="chat-scroll max-h-[244px] overflow-y-auto pr-0.5">
                 {rows.map((row) => {
-                  const inUse = attachedKeys.has(row.id);
+                  const inUse = attachedKeys.has(row.key);
                   return (
                     <li key={row.id} className="group relative">
                       <button
@@ -162,6 +165,7 @@ export function ComposerPlusMenu({ disabled, addLabel, attachedCount, attachedKe
                 })}
               </ul>
             )}
+            </>)}
           </div>
         </Popover.Content>
       </Popover.Portal>

@@ -48,21 +48,21 @@ export function SampleStrip({ feature, selectedId, onSelect, selectable }: {
           const active = sample.id === selectedId;
           const dimmed = selectable && hasSelection && !active;
           return (
-            <button
-              key={sample.id}
-              type="button"
-              disabled={!selectable}
-              aria-pressed={selectable ? active : undefined}
-              aria-label={selectable ? (active ? "Remove this example" : "Use this example") : "Example"}
-              onClick={() => onSelect(active ? null : sample)}
-              className={`group relative h-[132px] w-[96px] shrink-0 overflow-hidden rounded-[18px] bg-[#0d0919] transition duration-200 sm:h-[148px] sm:w-[108px] ${
+            selectable ? (
+              <button
+                key={sample.id}
+                type="button"
+                aria-pressed={active}
+                aria-label={active ? "Remove this example" : "Use this example"}
+                onClick={() => onSelect(active ? null : sample)}
+                className={`group relative h-[132px] w-[96px] shrink-0 overflow-hidden rounded-[18px] bg-[#0d0919] transition duration-200 sm:h-[148px] sm:w-[108px] ${
                 active
                   ? "scale-[1.02] ring-2 ring-mint shadow-[0_14px_34px_-14px_rgba(52,211,153,.7)]"
                   : selectable
                     ? `ring-1 ring-white/10 hover:-translate-y-0.5 hover:ring-violet/60 ${dimmed ? "opacity-60 hover:opacity-100" : ""}`
-                    : "cursor-default ring-1 ring-white/10"
+                    : "ring-1 ring-white/10"
               }`}
-            >
+              >
               <Thumb sample={sample} />
               <span className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/55 to-transparent" />
               {sample.kind === "video" && (
@@ -75,7 +75,31 @@ export function SampleStrip({ feature, selectedId, onSelect, selectable }: {
                   <Check size={13} strokeWidth={3} />
                 </span>
               )}
-            </button>
+              </button>
+            ) : (
+              // Inspiration only: a plain tile, not a disabled button (a disabled button swallows the mouse press,
+              // so the row could not be dragged from it).
+              <div key={sample.id} aria-label="Example" role="img" className={`group relative h-[132px] w-[96px] shrink-0 overflow-hidden rounded-[18px] bg-[#0d0919] transition duration-200 sm:h-[148px] sm:w-[108px] ${
+                active
+                  ? "scale-[1.02] ring-2 ring-mint shadow-[0_14px_34px_-14px_rgba(52,211,153,.7)]"
+                  : selectable
+                    ? `ring-1 ring-white/10 hover:-translate-y-0.5 hover:ring-violet/60 ${dimmed ? "opacity-60 hover:opacity-100" : ""}`
+                    : "ring-1 ring-white/10"
+              }`}>
+              <Thumb sample={sample} />
+              <span className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/55 to-transparent" />
+              {sample.kind === "video" && (
+                <span className="pointer-events-none absolute bottom-2 left-2 grid h-6 w-6 place-items-center rounded-full bg-black/45 text-white backdrop-blur-sm">
+                  <Play size={11} className="ml-px fill-white" />
+                </span>
+              )}
+              {active && (
+                <span className="absolute right-2 top-2 grid h-6 w-6 place-items-center rounded-full bg-mint text-[#10231f] shadow">
+                  <Check size={13} strokeWidth={3} />
+                </span>
+              )}
+              </div>
+            )
           );
         })}
       </ScrollRow>

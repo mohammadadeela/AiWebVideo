@@ -359,6 +359,7 @@ export function ChatWidget({
   const [mode, setMode] = useState<JobMode>("video");
   const [modelId, setModelId] = useState("cinema-2");
   const [isSignedIn, setIsSignedIn] = useState(false);
+  const [accountEmail, setAccountEmail] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
@@ -465,6 +466,7 @@ export function ChatWidget({
     () =>
       watchAuthState((user) => {
         setIsSignedIn(!!user);
+        setAccountEmail(user?.email ? String(user.email).toLowerCase() : null);
         if (!user) {
           setIsAdmin(false);
           setCreditBalance(0);
@@ -2689,6 +2691,7 @@ Promotion direction: ${visibleBrief(brief)}` : normalized);
                 showCreditPricing={!isPublicCreatorPath()}
                 landingWebsitePreview={isPublicCreatorPath()}
                 onIntentRequest={handlePublicIntentRequest}
+                recentFilesOwner={isSignedIn ? accountEmail : null}
                 compactLayout={streamlinedInitialComposer}
               />
             )}
