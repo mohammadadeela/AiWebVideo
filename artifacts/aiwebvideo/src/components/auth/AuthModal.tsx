@@ -57,6 +57,13 @@ function LastUsedMethod({ active, children }: { active: boolean; children: React
 // provider not enabled in the console, popup blocked, etc.) instead of
 // staring at one generic sentence for every possible failure.
 function firebaseErrorMessage(err: unknown): string {
+  // The AiWebVideo server answered (after Google/GitHub itself succeeded) and refused or failed: its
+  // message is written for customers (suspended account, email not verified, registrations paused...).
+  if (err instanceof ApiError) {
+    if (err.code === 'FIREBASE_NOT_CONFIGURED') return 'Google and GitHub sign-in are temporarily unavailable. Please use email instead.';
+    if (err.status >= 500) return 'We could not finish signing you in. Please try again in a moment, or use email instead.';
+    return err.message;
+  }
   const code = (err as { code?: string } | null)?.code ?? '';
   const known: Record<string, string> = {
     'auth/unauthorized-domain': "This site's domain is not authorized for sign-in yet. An admin needs to add it under Firebase Console -> Authentication -> Settings -> Authorized domains.",
@@ -64,12 +71,20 @@ function firebaseErrorMessage(err: unknown): string {
     'auth/popup-blocked': 'Your browser blocked the sign-in popup. Please allow popups for this site and try again.',
     'auth/popup-closed-by-user': 'The sign-in window was closed before finishing. Please try again.',
     'auth/cancelled-popup-request': 'The sign-in window was closed before finishing. Please try again.',
+    'auth/user-cancelled': 'Sign-in was cancelled. Please try again.',
     'auth/network-request-failed': 'We could not reach the sign-in service. Please check your connection and try again.',
-    'auth/account-exists-with-different-credential': 'An account already exists with this email using a different sign-in method.',
+    'auth/timeout': 'The sign-in service took too long to answer. Please try again.',
+    'auth/too-many-requests': 'Too many attempts. Please wait a few minutes and try again, or use email instead.',
+    'auth/user-disabled': 'This account has been disabled. Please contact support.',
+    'auth/account-exists-with-different-credential': 'An account already exists with this email using a different sign-in method. Sign in with that method, or use email.',
+    'auth/web-storage-unsupported': 'Your browser is blocking the storage sign-in needs (private mode or blocked cookies). Allow cookies for this site, or use email instead.',
+    'auth/operation-not-supported-in-this-environment': 'This browser cannot open the sign-in window (common inside in-app browsers). Open the site in Chrome or Safari, or use email instead.',
     'auth/invalid-api-key': 'Sign-in is not configured correctly for this site yet.',
     'auth/configuration-not-found': 'Sign-in is not configured correctly for this site yet.',
   };
-  return known[code] ?? 'We could not complete sign-in. Please try again or use email instead.';
+  if (known[code]) return known[code];
+  // Keep the technical code visible so a screenshot is enough for support to find the cause.
+  return `We could not complete sign-in${code ? ` (${code.replace('auth/', '')})` : ''}. Please try again or use email instead.`;
 }
 
 export function AuthModal({ onClose, onSignedIn }: { onClose: () => void; onSignedIn: () => void | Promise<void> }) {
@@ -468,7 +483,7 @@ export function AuthModal({ onClose, onSignedIn }: { onClose: () => void; onSign
           <form onSubmit={handleForgotSubmit} className="space-y-2">
             <input
               name="email" type="email" required autoComplete="email" autoCapitalize="none" spellCheck={false} placeholder="Email" value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => { setEmail(e.target.value); if (error) setError(null); }}
               className="w-full rounded-xl border border-border bg-panel-alt px-3.5 py-2.5 text-base text-text-primary placeholder:text-text-dim focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet"
             />
             {notice && !error && <p className="text-xs text-mint">{notice}</p>}
@@ -493,7 +508,7 @@ export function AuthModal({ onClose, onSignedIn }: { onClose: () => void; onSign
             <div className="relative">
               <input
                 name="new-password" type={showPassword ? 'text' : 'password'} required minLength={8} maxLength={128} autoComplete="new-password"
-                placeholder="New password" value={password} onChange={(e) => setPassword(e.target.value)}
+                placeholder="New password" value={password} onChange={(e) => { setPassword(e.target.value); if (error) setError(null); }}
                 className="w-full rounded-xl border border-border bg-panel-alt py-2.5 pl-3.5 pr-11 text-base text-text-primary placeholder:text-text-dim focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet"
               />
               <button type="button" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? 'Hide password' : 'Show password'} className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-xl text-text-muted hover:text-text-primary">
@@ -502,7 +517,7 @@ export function AuthModal({ onClose, onSignedIn }: { onClose: () => void; onSign
             </div>
             <input
               name="new-password-confirmation" type={showPassword ? 'text' : 'password'} required minLength={8} maxLength={128} autoComplete="new-password"
-              placeholder="Confirm new password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Confirm new password" value={confirmPassword} onChange={(e) => { setConfirmPassword(e.target.value); if (error) setError(null); }}
               className="w-full rounded-xl border border-border bg-panel-alt px-3.5 py-2.5 text-base text-text-primary placeholder:text-text-dim focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet"
             />
             {notice && !error && <p className="text-xs text-mint">{notice}</p>}
@@ -518,7 +533,7 @@ export function AuthModal({ onClose, onSignedIn }: { onClose: () => void; onSign
           <form onSubmit={handleEmailSubmit} className="space-y-2">
             <input
               name="username" type="email" required autoComplete="username" autoCapitalize="none" spellCheck={false} placeholder="Email" value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => { setEmail(e.target.value); if (error) setError(null); }}
               className="w-full rounded-xl border border-border bg-panel-alt px-3.5 py-2.5 text-base text-text-primary placeholder:text-text-dim focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet"
             />
             <div className="relative">
@@ -526,7 +541,7 @@ export function AuthModal({ onClose, onSignedIn }: { onClose: () => void; onSign
                 name={mode === 'signin' ? 'password' : 'new-password'}
                 type={showPassword ? 'text' : 'password'} required minLength={mode === 'signup' ? 8 : 1} maxLength={128}
                 autoComplete={mode === 'signin' ? 'current-password' : 'new-password'} placeholder="Password"
-                value={password} onChange={(e) => setPassword(e.target.value)}
+                value={password} onChange={(e) => { setPassword(e.target.value); if (error) setError(null); }}
                 className="w-full rounded-xl border border-border bg-panel-alt py-2.5 pl-3.5 pr-11 text-base text-text-primary placeholder:text-text-dim focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet"
               />
               <button type="button" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword} className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-xl text-text-muted transition-colors hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet">

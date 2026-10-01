@@ -6,6 +6,8 @@ import { useGalleryItems, startFromSample, scrollToGenerator, isSample, type Gal
 import { AutoplayVideo } from "./AutoplayVideo";
 
 // A quiet rhythm of proportions so the grid reads as a wall of work, not a table of thumbnails.
+// Big galleries load progressively so the page stays fast.
+const PAGE_SIZE = 16;
 const SHAPES = ["aspect-[3/4]", "aspect-square", "aspect-[4/5]", "aspect-[9/16]", "aspect-[4/5]", "aspect-[3/4]", "aspect-square"];
 
 function Media({ sample, eager }: { sample: GalleryItem; eager: boolean }) {
@@ -22,9 +24,11 @@ function Media({ sample, eager }: { sample: GalleryItem; eager: boolean }) {
 export function VideoShowcase() {
   const { items: samples, loaded } = useGalleryItems();
   const [filter, setFilter] = useState<ShowcaseFeature | "all">("all");
+  const [shown, setShown] = useState(PAGE_SIZE);
 
   const features = useMemo(() => SHOWCASE_FEATURES.filter((feature) => samples.some((sample) => sample.feature === feature)), [samples]);
-  const visible = filter === "all" ? samples : samples.filter((sample) => sample.feature === filter);
+  const filtered = filter === "all" ? samples : samples.filter((sample) => sample.feature === filter);
+  const visible = filtered.slice(0, shown);
 
   // Nothing published yet: show no empty frame.
   if (loaded && !samples.length) return null;
@@ -45,7 +49,7 @@ export function VideoShowcase() {
                   type="button"
                   role="tab"
                   aria-selected={filter === feature}
-                  onClick={() => setFilter(feature)}
+                  onClick={() => { setFilter(feature); setShown(PAGE_SIZE); }}
                   className={`min-h-9 shrink-0 rounded-xl px-3.5 text-xs font-semibold transition ${filter === feature ? "bg-white text-[#1b1030]" : "text-white/60 hover:text-white"}`}
                 >
                   {feature === "all" ? "All" : SHOWCASE_FEATURE_LABELS[feature]}
@@ -72,6 +76,18 @@ export function VideoShowcase() {
             </button>
           ))}
         </div>
+
+        {filtered.length > shown && (
+          <div className="mt-6 flex justify-center">
+            <button
+              type="button"
+              onClick={() => setShown((count) => count + PAGE_SIZE)}
+              className="rounded-full border border-white/15 bg-white/[.05] px-6 py-2.5 text-sm font-semibold text-white transition hover:border-white/30 hover:bg-white/10"
+            >
+              Show more
+            </button>
+          </div>
+        )}
       </div>
     </section>
   );

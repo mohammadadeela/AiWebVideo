@@ -35,6 +35,8 @@ async function run() {
     banner: {
       js: 'import { createRequire as __createRequire } from "node:module"; const require = __createRequire(import.meta.url);',
     },
+    // Pure app logic (prices, purchase ranking) is tested directly; "@/..." means aiwebvideo/src.
+    alias: { "@": path.resolve(artifactDir, "../aiwebvideo/src") },
     outdir: outDir,
     outExtension: { ".js": ".mjs" },
     logLevel: "warning",

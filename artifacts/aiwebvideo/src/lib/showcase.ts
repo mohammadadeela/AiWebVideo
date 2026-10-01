@@ -61,3 +61,31 @@ export function useSamples() {
 export function scrollToGenerator() {
   document.getElementById("generate")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
+
+const PENDING_SAMPLE_KEY = "aiwebvideo_pending_sample";
+const PENDING_SAMPLE_MAX_AGE_MS = 30 * 60 * 1000;
+
+/**
+ * Picking an example on the public landing page sends the visitor through sign-in to the workspace.
+ * Remember which example they picked so it is selected again when they arrive (and only for a short while).
+ */
+export function rememberPendingSample(sample: Pick<Sample, "id" | "feature">) {
+  try { sessionStorage.setItem(PENDING_SAMPLE_KEY, JSON.stringify({ id: sample.id, feature: sample.feature, savedAt: Date.now() })); } catch { /* storage can be blocked */ }
+}
+
+export function peekPendingSample(): { id: string; feature: ShowcaseFeature } | null {
+  try {
+    const raw = sessionStorage.getItem(PENDING_SAMPLE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { id?: string; feature?: ShowcaseFeature; savedAt?: number } | null;
+    if (!parsed?.id || !parsed.feature || typeof parsed.savedAt !== "number" || Date.now() - parsed.savedAt > PENDING_SAMPLE_MAX_AGE_MS) {
+      sessionStorage.removeItem(PENDING_SAMPLE_KEY);
+      return null;
+    }
+    return { id: parsed.id, feature: parsed.feature };
+  } catch { return null; }
+}
+
+export function clearPendingSample() {
+  try { sessionStorage.removeItem(PENDING_SAMPLE_KEY); } catch { /* ignore */ }
+}

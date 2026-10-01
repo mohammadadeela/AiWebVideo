@@ -93,7 +93,7 @@ test('only a non-sensitive preferred alias may be remembered locally', async () 
 
 test('one-time pricing and generation paywall use the in-app checkout modal and Buy labels', async () => {
   const pricing = await source('../aiwebvideo/src/components/landing/PricingTable.tsx');
-  const paywall = await source('../aiwebvideo/src/components/chat/PaywallModal.tsx');
+  const paywall = await source('../aiwebvideo/src/components/billing/PurchaseModal.tsx');
   assert.match(pricing, /SecureCheckoutModal/);
   assert.match(pricing, /setDirectCheckout/);
   assert.match(paywall, /SecureCheckoutModal/);
@@ -101,12 +101,14 @@ test('one-time pricing and generation paywall use the in-app checkout modal and 
   assert.doesNotMatch(pricing, /Pay securely/);
   assert.doesNotMatch(paywall, /Pay securely/);
   assert.match(pricing, /Buy \{formatUsd\(/);
-  assert.match(paywall, />Buy</);
+  assert.match(paywall, /: "Buy"\}/);
+  assert.doesNotMatch(paywall, /Pay now|Purchase now/);
 });
 
 test('subscription checkout reuses the embedded card checkout', async () => {
   const pricing = await source('../aiwebvideo/src/components/landing/PricingTable.tsx');
-  const paywall = await source('../aiwebvideo/src/components/chat/PaywallModal.tsx');
+  // The paywall and the profile share one purchase window; the checkout modals live there.
+  const paywall = await source('../aiwebvideo/src/components/billing/PurchaseModal.tsx');
   const subscription = await source('../aiwebvideo/src/components/billing/SubscriptionCheckoutModal.tsx');
   const checkout = await source('../aiwebvideo/src/components/billing/SecureCheckoutModal.tsx');
   const server = await source('src/routes/paypal-card-subscriptions.ts');

@@ -6,6 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { Wordmark } from '@/components/ui/Wordmark';
 import { AdminReports } from '@/components/admin/AdminReports';
 import { Empty, FilterBar, FilterSelect, StatCard } from '@/components/admin/adminUi';
+import { RoleControl } from '@/components/admin/RoleControl';
 import {
   fetchAdminAudit, fetchAdminJobs, fetchAdminOverview, fetchAdminReports, fetchAdminUsers, fetchAdminUserDetails, fetchMe,
   saveAdminSettings, updateAdminJob, updateAdminUser, saveMarketingSettings, uploadMarketingAsset, optimizeMarketingVideo,
@@ -18,7 +19,7 @@ import { useSeo } from '@/lib/useSeo';
 type Tab = 'overview' | 'reports' | 'landing' | 'users' | 'jobs' | 'providers' | 'audit';
 type Row = Record<string, unknown>;
 type MetricCard = [label: string, value: string, icon: ComponentType<LucideProps>, hint: string];
-const LANDING_VIDEO_LIMIT = 30;
+const LANDING_VIDEO_LIMIT = 280;
 const tabs: Array<{ id: Tab; label: string; icon: typeof LayoutDashboard }> = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'reports', label: 'Reports', icon: BarChart3 },
@@ -74,7 +75,7 @@ function authLabel(value: unknown) {
 
 function UserRow({
   user, isSelf, isOnlyAdmin, busy, creditDraft, onCreditDraftChange, onSaveCredits,
-  onChangePlan, onToggleStatus, onToggleAdmin, onViewJobs, onViewDetails,
+  onChangePlan, onToggleStatus, onToggleAdmin, onViewJobs, onViewDetails, roleChanged,
 }: {
   user: Row;
   isSelf: boolean;
@@ -88,6 +89,7 @@ function UserRow({
   onToggleAdmin: (next: boolean) => void;
   onViewJobs: () => void;
   onViewDetails: () => void;
+  roleChanged: boolean;
 }) {
   const currentBalance = number(user.credits_balance);
   const creditsDirty = creditDraft !== '' && Number(creditDraft) !== currentBalance && !Number.isNaN(Number(creditDraft));
@@ -135,7 +137,7 @@ function UserRow({
           {isActive ? 'Active' : 'Suspended'}
         </button>
       </td>
-      <td className="pr-3" title={adminDisabledReason}><Switch checked={isAdmin} disabled={adminDisabled} onCheckedChange={onToggleAdmin} aria-label="Administrator" /></td>
+      <td className="pr-3"><RoleControl email={text(user.email)} isAdmin={isAdmin} isSelf={isSelf} isOnlyAdmin={isOnlyAdmin} busy={busy} justChanged={roleChanged} onChange={onToggleAdmin} /></td>
       <td className="pr-4 text-xs text-text-dim">{user.created_at ? new Date(String(user.created_at)).toLocaleDateString() : '—'}</td>
     </tr>
   );
@@ -233,6 +235,7 @@ export function AdminPage() {
   const [settings, setSettings] = useState<AdminSettings | null>(null);
   const [marketing, setMarketing] = useState<MarketingSettings | null>(null);
   const [dirty, setDirty] = useState(false);
+  const [roleFlash, setRoleFlash] = useState<string | null>(null);
   const [gallerySelected, setGallerySelected] = useState<string[]>([]);
   const [galleryFeature, setGalleryFeature] = useState<'all' | 'unassigned' | ShowcaseFeature>('all');
   const [galleryKind, setGalleryKind] = useState<'all' | 'image' | 'video'>('all');
@@ -450,7 +453,7 @@ export function AdminPage() {
     } finally { setBusy(false); }
   }
 
-  async function editUser(user: Row, patch: { plan?: string; creditsBalance?: number; accountStatus?: string; isAdmin?: boolean }) {
+  async function editUser(user: Row, patch: { plan?: string; creditsBalance?: number; accountStatus?: string; isAdmin?: boolean }, successMessage = 'User account updated.') {
     setBusy(true); setMessage(null);
     try {
       await updateAdminUser(text(user.id), patch);
@@ -460,7 +463,11 @@ export function AdminPage() {
         setUserDetails(details);
       }
       if (patch.creditsBalance !== undefined) setCreditDrafts((current) => { const next = { ...current }; delete next[text(user.id)]; return next; });
-      setMessage('User account updated.');
+      setMessage(successMessage);
+      if (patch.isAdmin !== undefined) {
+        setRoleFlash(text(user.id));
+        window.setTimeout(() => setRoleFlash((current) => (current === text(user.id) ? null : current)), 4000);
+      }
     }
     catch (error) { setMessage(error instanceof Error ? error.message : 'User could not be updated.'); }
     finally { setBusy(false); }
@@ -678,7 +685,7 @@ export function AdminPage() {
           </FilterBar>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[860px] text-left text-xs">
-              <thead className="border-b border-border bg-panel-alt text-text-dim"><tr><th className="p-4">Account</th><th>Plan</th><th>Credits</th><th>Productions</th><th>Status</th><th>Admin</th><th className="pr-4">Joined</th></tr></thead>
+              <thead className="border-b border-border bg-panel-alt text-text-dim"><tr><th className="p-4">Account</th><th>Plan</th><th>Credits</th><th>Productions</th><th>Status</th><th>Role</th><th className="pr-4">Joined</th></tr></thead>
               <tbody className="divide-y divide-border">{users.map((user) => <UserRow
                 key={text(user.id)}
                 user={user}
@@ -690,7 +697,8 @@ export function AdminPage() {
                 onSaveCredits={() => { const draft = creditDrafts[text(user.id)]; if (draft === undefined || draft === '') return; void editUser(user, { creditsBalance: Number(draft) }); }}
                 onChangePlan={(plan) => void editUser(user, { plan })}
                 onToggleStatus={() => void editUser(user, { accountStatus: text(user.account_status) === 'active' ? 'suspended' : 'active' })}
-                onToggleAdmin={(next) => void editUser(user, { isAdmin: next })}
+                onToggleAdmin={(next) => void editUser(user, { isAdmin: next }, next ? `${text(user.email)} is now an administrator.` : `Administrator access removed. ${text(user.email)} is now a customer.`)}
+                roleChanged={roleFlash === text(user.id)}
                 onViewJobs={() => viewUserJobs(user)}
                 onViewDetails={() => void openUserDetails(user)}
               />)}</tbody>

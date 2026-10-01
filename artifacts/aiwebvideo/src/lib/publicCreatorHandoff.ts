@@ -33,6 +33,9 @@ export interface StudioCreatorHandoff {
     productUrl?: string;
     productImageUrls?: string[];
     architecture?: Record<string, string | number | boolean | undefined>;
+    /** Hidden idea direction and the chosen example: both must survive signing in. */
+    studioDirection?: string;
+    templateId?: string;
   };
   attachmentDraftKey?: string;
 }
@@ -40,6 +43,8 @@ export interface StudioCreatorHandoff {
 export type PublicCreatorHandoff = WebsiteCreatorHandoff | StudioCreatorHandoff;
 
 const KEY = "aiwebvideo_public_creator_handoff";
+// A waiting action is only resumed for a short while. After that it is stale and must never start paid work on its own.
+export const HANDOFF_MAX_AGE_MS = 30 * 60 * 1000;
 
 export function savePublicCreatorHandoff(value: PublicCreatorHandoff) {
   try {
@@ -53,6 +58,10 @@ export function loadPublicCreatorHandoff(): PublicCreatorHandoff | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as (PublicCreatorHandoff & { savedAt?: number }) | null;
     if (!parsed || (parsed.kind !== "website" && parsed.kind !== "studio")) return null;
+    if (typeof parsed.savedAt === "number" && Date.now() - parsed.savedAt > HANDOFF_MAX_AGE_MS) {
+      sessionStorage.removeItem(KEY);
+      return null;
+    }
     return parsed;
   } catch {
     return null;
@@ -63,4 +72,16 @@ export function clearPublicCreatorHandoff() {
   try {
     sessionStorage.removeItem(KEY);
   } catch {}
+}
+
+/** Where the workspace opens for a saved handoff. */
+export function handoffDestination(handoff: PublicCreatorHandoff): string {
+  if (handoff.kind === "website") return "/dashboard?create=website&handoff=1";
+  const { studioKind, mode } = handoff.request;
+  const create = studioKind === "idea" ? "video"
+    : studioKind === "scenario" ? "scenario"
+      : studioKind === "interior" ? "interior"
+        : studioKind === "architecture" ? "architecture"
+          : mode === "photos" ? "photo" : "product-video";
+  return `/dashboard?create=${encodeURIComponent(create)}&handoff=1`;
 }

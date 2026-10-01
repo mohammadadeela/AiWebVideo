@@ -5,6 +5,8 @@ import {
   type PaidGenerationStage
 } from './generation-authorization.js';
 import { persistAssetUrlToR2 } from './r2-storage.js';
+import { AppError } from './errors.js';
+import { decideFirebaseAccount } from './firebase-account.js';
 
 export interface UserRow {
   id: string;
@@ -75,34 +77,74 @@ export async function getOrCreateUser(
   email: string,
   adminEmail?: string,
   authProvider = 'firebase',
-  emailVerified = false
+  emailVerified = false,
+  options: { allowCreate?: boolean } = {}
 ): Promise<UserRow> {
-  const isAdmin = adminEmail && email.toLowerCase() === adminEmail.toLowerCase();
-  const { rows } = await query<UserRow>(
-    `INSERT INTO users (firebase_uid, email, plan, credits_balance, is_admin, auth_provider, email_verified, last_sign_in_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-     ON CONFLICT (firebase_uid) DO UPDATE
-       SET email = EXCLUDED.email,
-           is_admin = users.is_admin OR EXCLUDED.is_admin,
-           auth_provider = CASE
-             WHEN EXCLUDED.auth_provider='firebase' AND users.auth_provider NOT IN ('unknown','firebase') THEN users.auth_provider
-             ELSE EXCLUDED.auth_provider
-           END,
-           email_verified = users.email_verified OR EXCLUDED.email_verified,
-           last_sign_in_at = NOW(),
-           updated_at = NOW()
-     RETURNING *`,
-    [
-      firebaseUid,
-      email,
-      isAdmin ? 'agency' : 'free',
-      isAdmin ? 999999 : 0,
-      Boolean(isAdmin),
-      authProvider,
-      emailVerified
-    ]
-  );
-  const user = rows[0];
+  const cleanEmail = email.trim();
+  const isAdmin = Boolean(adminEmail && cleanEmail && cleanEmail.toLowerCase() === adminEmail.toLowerCase());
+
+  const [{ rows: uidRows }, { rows: emailRows }] = await Promise.all([
+    query<UserRow>('SELECT * FROM users WHERE firebase_uid=$1 LIMIT 1', [firebaseUid]),
+    cleanEmail
+      // Older accounts may have been stored with different capitalisation.
+      ? query<UserRow>('SELECT * FROM users WHERE lower(email)=lower($1) ORDER BY (password_hash IS NOT NULL) DESC, created_at ASC LIMIT 1', [cleanEmail])
+      : Promise.resolve({ rows: [] as UserRow[] }),
+  ]);
+
+  const decision = decideFirebaseAccount({ byUid: uidRows[0] ?? null, byEmail: emailRows[0] ?? null, email: cleanEmail, emailVerified });
+  if (decision.action === 'reject') throw new AppError(decision.message, decision.status, decision.code);
+  if (decision.action === 'create' && options.allowCreate === false) {
+    throw new AppError('New registrations are temporarily paused.', 503, 'REGISTRATIONS_PAUSED');
+  }
+
+  let user: UserRow | undefined;
+  if (decision.action === 'existing' || decision.action === 'link') {
+    // A provider email change is applied only when no OTHER account already uses that address.
+    let nextEmail = decision.user.email;
+    if (cleanEmail && cleanEmail.toLowerCase() !== decision.user.email.toLowerCase()) {
+      const { rows: taken } = await query<{ id: string }>(
+        'SELECT id FROM users WHERE lower(email)=lower($1) AND id <> $2 LIMIT 1',
+        [cleanEmail, decision.user.id]
+      );
+      if (!taken.length) nextEmail = cleanEmail;
+    }
+    const { rows } = await query<UserRow>(
+      `UPDATE users SET
+         firebase_uid = COALESCE(firebase_uid, $2),
+         email = $3,
+         is_admin = is_admin OR $4,
+         auth_provider = CASE
+           WHEN $5='firebase' AND auth_provider NOT IN ('unknown','firebase') THEN auth_provider
+           ELSE $5
+         END,
+         email_verified = email_verified OR $6,
+         last_sign_in_at = NOW(),
+         updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [decision.user.id, firebaseUid, nextEmail, isAdmin, authProvider, emailVerified]
+    );
+    user = rows[0];
+  } else {
+    const { rows } = await query<UserRow>(
+      `INSERT INTO users (firebase_uid, email, plan, credits_balance, is_admin, auth_provider, email_verified, last_sign_in_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+       ON CONFLICT DO NOTHING
+       RETURNING *`,
+      [firebaseUid, cleanEmail, isAdmin ? 'agency' : 'free', isAdmin ? 999999 : 0, isAdmin, authProvider, emailVerified]
+    );
+    user = rows[0];
+    if (!user) {
+      // Two sign-ins for the same person raced each other and the other one created the row first.
+      const { rows: again } = await query<UserRow>(
+        'SELECT * FROM users WHERE firebase_uid=$1 OR lower(email)=lower($2) ORDER BY (firebase_uid=$1) DESC LIMIT 1',
+        [firebaseUid, cleanEmail]
+      );
+      user = again[0];
+    }
+  }
+  if (!user) throw new AppError('We could not finish creating your account. Please try again.', 500, 'ACCOUNT_CREATE_FAILED');
+
   // If admin and not already on agency/999999, upgrade
   if (isAdmin && (user.plan !== 'agency' || user.credits_balance < 999999)) {
     const { rows: upgraded } = await query<UserRow>(
@@ -115,7 +157,11 @@ export async function getOrCreateUser(
 }
 
 export async function getUserByLocalAuth(email: string): Promise<UserRow | null> {
-  const { rows } = await query<UserRow>('SELECT * FROM users WHERE email=$1 LIMIT 1', [email]);
+  // Case-insensitive: accounts created by older sign-in systems may be stored with capital letters.
+  const { rows } = await query<UserRow>(
+    'SELECT * FROM users WHERE lower(email)=lower($1) ORDER BY (password_hash IS NOT NULL) DESC, created_at ASC LIMIT 1',
+    [email]
+  );
   return rows[0] ?? null;
 }
 
@@ -147,6 +193,23 @@ export async function createLocalUser(
 ): Promise<UserRow> {
   const isAdmin = adminEmail && email.toLowerCase() === adminEmail.toLowerCase();
   const localIdentity = `local:${email.toLowerCase()}`;
+  // An older account stored with different capitalisation is the same person: give THAT account the
+  // password instead of creating a second one.
+  const existing = await getUserByLocalAuth(email);
+  if (existing) {
+    const { rows: updated } = await query<UserRow>(
+      `UPDATE users SET
+         password_hash=$2,
+         is_admin=is_admin OR $3,
+         auth_provider='email',
+         email_verified=email_verified OR $4,
+         updated_at=NOW()
+       WHERE id=$1
+       RETURNING *`,
+      [existing.id, passwordHash, Boolean(isAdmin), emailVerified]
+    );
+    return updated[0];
+  }
   const { rows } = await query<UserRow>(
     `INSERT INTO users (firebase_uid, email, password_hash, plan, credits_balance, is_admin, email_verified, auth_provider)
      VALUES ($1, $2, $3, $4, $5, $6, $7, 'email')

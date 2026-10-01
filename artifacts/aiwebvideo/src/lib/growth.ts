@@ -17,11 +17,7 @@ export async function fetchWelcomeGrowthOffer(): Promise<WelcomeGrowthOffer> {
   return request<WelcomeGrowthOffer>('/api/growth/welcome', { method: 'GET' });
 }
 
-export function discountedPrice(amountUsd: number, percent: number): number {
-  const safeAmount = Math.max(0, Number(amountUsd) || 0);
-  const safePercent = Math.max(0, Math.min(100, Number(percent) || 0));
-  return Math.round((safeAmount * (1 - safePercent / 100) + Number.EPSILON) * 100) / 100;
-}
+export { discountedPrice } from './money';
 
 export function formatUsd(amountUsd: number): string {
   return `$${Math.max(0, Number(amountUsd) || 0).toFixed(2)}`;

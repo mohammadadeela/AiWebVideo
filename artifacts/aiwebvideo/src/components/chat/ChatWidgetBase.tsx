@@ -63,6 +63,7 @@ import {
 import { GenerationCanvas, type ProductionKind } from "./GenerationCanvas";
 import {
   clearPublicCreatorHandoff,
+  handoffDestination,
   loadPublicCreatorHandoff,
   savePublicCreatorHandoff,
 } from "@/lib/publicCreatorHandoff";
@@ -480,6 +481,16 @@ export function ChatWidget({
       }),
     [],
   );
+
+  // Signed in while the original page was gone (reload, or the sign-up finished in another tab): the saved
+  // request is still waiting, so take the person straight to the workspace where it starts.
+  useEffect(() => {
+    if (!isSignedIn || restoring) return;
+    if (!isPublicCreatorPath() || pendingActionRef.current) return;
+    const waiting = loadPublicCreatorHandoff();
+    if (!waiting) return;
+    window.location.assign(handoffDestination(waiting));
+  }, [isSignedIn, restoring]);
 
   useEffect(() => {
     if (publicHandoffStartedRef.current) return;
@@ -1327,7 +1338,8 @@ export function ChatWidget({
     return false;
   }
 
-  async function redirectStudioSubmitToWorkspace(request: StudioGenerationRequest) {
+  /** Saves the creator request (and its photos) so it can resume after signing in, even across a reload. */
+  async function saveStudioHandoff(request: StudioGenerationRequest) {
     let attachmentDraftKey: string | undefined;
     if (request.files.length) {
       attachmentDraftKey = `public-studio-${Date.now()}`;
@@ -1347,22 +1359,18 @@ export function ChatWidget({
         productUrl: request.productUrl,
         productImageUrls: request.productImageUrls,
         architecture: request.architecture,
+        studioDirection: request.studioDirection,
+        templateId: request.templateId,
       },
       attachmentDraftKey,
     });
-    const mappedCreate =
-      request.studioKind === "idea"
-        ? "video"
-        : request.studioKind === "scenario"
-          ? "scenario"
-          : request.studioKind === "interior"
-            ? "interior"
-            : request.studioKind === "architecture"
-              ? "architecture"
-              : request.mode === "photos"
-              ? "photo"
-              : "product-video";
-    window.location.assign(`/dashboard?create=${encodeURIComponent(mappedCreate)}&handoff=1`);
+    return attachmentDraftKey;
+  }
+
+  async function redirectStudioSubmitToWorkspace(request: StudioGenerationRequest) {
+    await saveStudioHandoff(request);
+    const handoff = loadPublicCreatorHandoff();
+    window.location.assign(handoff ? handoffDestination(handoff) : "/dashboard?handoff=1");
   }
 
   async function performWebsiteSubmit(
@@ -1411,6 +1419,7 @@ export function ChatWidget({
       return;
     }
     if (!isSignedIn) {
+      savePublicCreatorHandoff({ kind: "website", url, brief, settings: { ...settings } });
       pendingActionRef.current = () => performWebsiteSubmit(url, brief, settings, referenceFiles);
       setShowAuthModal(true);
       return;
@@ -1845,6 +1854,9 @@ Promotion direction: ${visibleBrief(brief)}` : normalized);
   function handleStudioSubmit(request: StudioGenerationRequest) {
     if (isPublicCreatorPath()) {
       if (!isSignedIn) {
+        // Remember the request on this device first. Whatever happens while the person signs up (a slow
+        // verification email, a reload, finishing in another tab) it is still waiting afterwards.
+        void saveStudioHandoff(request);
         pendingActionRef.current = () => redirectStudioSubmitToWorkspace(request);
         setShowAuthModal(true);
         return;
@@ -3134,11 +3146,20 @@ Promotion direction: ${visibleBrief(brief)}` : normalized);
       )}
       {showAuthModal && (
         <AuthModal
-          onClose={() => setShowAuthModal(false)}
+          onClose={() => {
+            // Closing the window means "not now": the waiting action must not fire on a later, unrelated sign-in.
+            setShowAuthModal(false);
+            pendingActionRef.current = null;
+            const abandoned = loadPublicCreatorHandoff();
+            if (abandoned?.attachmentDraftKey) void clearPhotoDraft(abandoned.attachmentDraftKey).catch(() => {});
+            clearPublicCreatorHandoff();
+          }}
           onSignedIn={async () => {
             setShowAuthModal(false);
             const resume = pendingActionRef.current;
             pendingActionRef.current = null;
+            // The live action below takes over; the saved copy must not run a second time at the workspace.
+            if (resume) clearPublicCreatorHandoff();
             const isPublicCreator = window.location.pathname === "/" || window.location.pathname.startsWith("/studio");
 
             // On a public creator/landing page, authentication should always

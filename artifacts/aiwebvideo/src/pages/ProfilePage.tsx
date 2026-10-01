@@ -6,7 +6,7 @@ import { Footer } from "@/components/landing/Footer";
 import { Button } from "@/components/ui/app-button";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { SavedCardsPanel } from "@/components/account/SavedCardsPanel";
-import { SecureCheckoutModal } from "@/components/billing/SecureCheckoutModal";
+import { PurchaseModal } from "@/components/billing/PurchaseModal";
 import { formatCredits } from "@/components/account/UserMenu";
 import { watchAuthState } from "@/lib/firebase/client";
 import {
@@ -23,8 +23,6 @@ import {
   type UserUsageSummary,
   type BillingPaymentSummary,
 } from "@/lib/api-client";
-import { displayCredits } from "@/lib/credits";
-import { CREDIT_PACKS } from "@/lib/pricing";
 import { useSeo } from "@/lib/useSeo";
 import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/support";
 
@@ -81,8 +79,6 @@ function tabFromHash(): ProfileTab {
   const hash = window.location.hash.replace("#", "");
   return PROFILE_TABS.some(([id]) => id === hash) ? (hash as ProfileTab) : "usage";
 }
-
-const TOPUP_PACK = CREDIT_PACKS[1];
 
 const INPUT_CLASS =
   "mt-1.5 w-full rounded-xl border border-white/[.09] bg-white/[.04] px-3.5 py-3 text-base font-normal text-text-primary outline-none transition focus:border-violet/60 focus:ring-4 focus:ring-violet/10";
@@ -485,11 +481,12 @@ export function ProfilePage() {
       </main>
       <Footer />
       {showTopupCheckout && (
-        <SecureCheckoutModal
-          plan={TOPUP_PACK.id}
-          productName={`${displayCredits(TOPUP_PACK.credits).toLocaleString()} production credits`}
-          amountUsd={TOPUP_PACK.amountUsd}
-          credits={displayCredits(TOPUP_PACK.credits)}
+        <PurchaseModal
+          title="Add credits"
+          summary={`You have ${formatCredits(balance)} credits`}
+          funded={Number(balance ?? 0)}
+          required={0}
+          videoTabLabel="One video"
           onClose={() => setShowTopupCheckout(false)}
         />
       )}

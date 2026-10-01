@@ -1,3 +1,4 @@
+import { providerDisplayName } from '../lib/firebase-account.js';
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { randomInt, timingSafeEqual } from 'node:crypto';
@@ -290,10 +291,24 @@ router.post('/login', async (req, res) => {
       user = await createLocalUser(normalizedEmail, await bcrypt.hash(password, 12), process.env.ADMIN_EMAIL);
     }
 
+    if (user && !user.password_hash) {
+      // The account exists but was created with Google/GitHub and never got a password.
+      const provider = providerDisplayName(user.auth_provider);
+      throw new AppError(
+        provider
+          ? `This email signs in with ${provider}. Choose "Continue with ${provider}", or use Sign up with this email to add a password.`
+          : 'This account has no password yet. Use Sign up with this email to add one, or sign in with the method you used before.',
+        401,
+        'NO_PASSWORD_SET'
+      );
+    }
     if (!user?.password_hash) throw new AppError('Invalid email or password.', 401, 'INVALID_CREDENTIALS');
 
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) throw new AppError('Invalid email or password.', 401, 'INVALID_CREDENTIALS');
+    if (user.account_status !== 'active') {
+      throw new AppError('This account has been suspended. Please contact support.', 403, 'ACCOUNT_SUSPENDED');
+    }
 
     await recordUserSignIn(user.id, 'email', user.email_verified);
     setSessionCookie(res, user.id, user.session_version);
@@ -597,11 +612,23 @@ router.post('/firebase', async (req, res) => {
     const auth = getFirebaseAuth();
     if (!auth) throw new AppError('Firebase auth not configured.', 503, 'FIREBASE_NOT_CONFIGURED');
 
-    const decoded = await auth.verifyIdToken(idToken, true);
+    let decoded: Awaited<ReturnType<typeof auth.verifyIdToken>>;
+    try {
+      decoded = await auth.verifyIdToken(idToken, true);
+    } catch {
+      // Expired, revoked or malformed token: the person only needs to sign in again.
+      throw new AppError('Your sign-in session expired. Please try again.', 401, 'INVALID_TOKEN');
+    }
     const adminEmail = process.env.ADMIN_EMAIL;
     const provider = firebaseProviderLabel(decoded.firebase?.sign_in_provider);
     const verified = Boolean(decoded.email_verified);
-    const user = await getOrCreateUser(decoded.uid, decoded.email ?? '', adminEmail, provider, verified);
+    const operations = await getOperationsSettings();
+    const user = await getOrCreateUser(decoded.uid, decoded.email ?? '', adminEmail, provider, verified, {
+      allowCreate: operations.registrationsEnabled,
+    });
+    if (user.account_status !== 'active') {
+      throw new AppError('This account has been suspended. Please contact support.', 403, 'ACCOUNT_SUSPENDED');
+    }
     await recordUserSignIn(user.id, provider, verified);
 
     setSessionCookie(res, user.id, user.session_version);

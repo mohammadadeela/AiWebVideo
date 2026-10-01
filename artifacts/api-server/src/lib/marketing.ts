@@ -31,7 +31,8 @@ export interface MarketingSettings {
   };
 }
 
-export const MAX_MARKETING_VIDEOS = 30;
+// Room for roughly 40 examples per feature (7 features). The chat and landing page load them progressively.
+export const MAX_MARKETING_VIDEOS = 280;
 const emptyVideo = (id: string): MarketingVideo => ({ id, url: null, posterUrl: null, caption: null, overlayText: null, eyebrow: null, kind: 'video', feature: null });
 const defaults: MarketingSettings = {
   heading: 'Made with AiWebVideo',

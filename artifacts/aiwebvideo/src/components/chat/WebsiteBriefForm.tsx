@@ -36,11 +36,12 @@ import {
 } from "@/lib/creativeIdeas";
 import { trackStudioEvent } from "@/lib/studio-api";
 import { withHiddenDirection } from "@/lib/hiddenDirection";
+import { SpinningGlobe } from "@/components/ui/SpinningGlobe";
 import { ScrollRow } from "@/components/ui/scroll-row";
 import { NumberStepper } from "@/components/ui/number-stepper";
 import { ToggleRow } from "@/components/ui/toggle-row";
 import { SampleStrip } from "./SampleStrip";
-import { USE_SAMPLE_EVENT, type Sample, type UseSampleDetail } from "@/lib/showcase";
+import { USE_SAMPLE_EVENT, clearPendingSample, peekPendingSample, rememberPendingSample, useSamples, type Sample, type UseSampleDetail } from "@/lib/showcase";
 import { ComposerPlusMenu } from "./ComposerPlusMenu";
 import { FormatIcon } from "./FormatIcon";
 import { IdeasIcon } from "./IdeasIcon";
@@ -513,6 +514,9 @@ export function WebsiteBriefForm({
     const handleSample = (event: Event) => {
       const sample = (event as CustomEvent<UseSampleDetail>).detail?.sample;
       if (!sample) return;
+      // On the public landing page this may first send the visitor through sign-in to the workspace.
+      // Remember the pick so it is selected again when they arrive.
+      if (sample.feature !== "website") rememberPendingSample(sample);
       applyIntent(sample.feature, true);
       if (sample.feature !== "website") setSelectedSample(sample);
       window.requestAnimationFrame(() => studioPromptRef.current?.focus());
@@ -520,6 +524,19 @@ export function WebsiteBriefForm({
     window.addEventListener(USE_SAMPLE_EVENT, handleSample);
     return () => window.removeEventListener(USE_SAMPLE_EVENT, handleSample);
   }, []);
+
+  // Arrived in the workspace after picking an example on the landing page: select it again.
+  const { samples: publishedSamples } = useSamples();
+  useEffect(() => {
+    if (!window.location.pathname.startsWith("/dashboard")) return;
+    const pending = peekPendingSample();
+    if (!pending) return;
+    const match = publishedSamples.find((sample) => sample.id === pending.id);
+    if (!match) return;
+    clearPendingSample();
+    if (activeModeRef.current !== match.feature) applyIntent(match.feature);
+    setSelectedSample(match);
+  }, [publishedSamples]);
 
   /** Draw the eye to the narration-language button (it shakes) right after Narration is chosen. */
   function pulseLanguage() {
@@ -1092,7 +1109,7 @@ export function WebsiteBriefForm({
             <label className="block">
               <span className="mb-1.5 block text-[11px] font-semibold text-white">Website URL</span>
               <div className="flex items-center gap-3 rounded-2xl border border-mint/30 bg-[#0b0818] px-3 transition focus-within:border-mint/60 focus-within:ring-2 focus-within:ring-mint/10">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-mint/[.08] text-mint"><Globe2 size={16} /></span>
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-mint/[.08] text-mint"><SpinningGlobe size={18} /></span>
                 <input
                   value={url}
                   onChange={(event) => setUrl(event.currentTarget.value)}
@@ -1457,33 +1474,9 @@ export function WebsiteBriefForm({
           </div>
         )}
 
-        <SampleStrip
-          feature={activeMode}
-          selectedId={selectedSample?.id ?? null}
-          onSelect={(sample) => { setSelectedSample(sample); setError(null); }}
-          selectable={activeMode !== "website"}
-        />
-
-        {previews.length > 0 && (
-          <div className="chat-scroll mt-3 flex gap-2 overflow-x-auto pb-1">
-            {previews.map((preview, index) => (
-              <div key={`${preview.file.name}-${preview.file.lastModified}-${index}`} className="group relative w-20 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-black sm:w-24">
-                <div className="relative h-14 overflow-hidden sm:h-16">
-                  <img src={preview.url} alt={`Reference ${index + 1}: ${preview.file.name}`} className="h-full w-full object-cover" />
-                  <button type="button" onClick={() => setFiles((current) => current.filter((_, i) => i !== index))} className="absolute right-1 top-1 grid h-7 w-7 place-items-center rounded-full bg-black/75 text-white hover:bg-pink" aria-label={`Remove ${preview.file.name}`}><X size={11} /></button>
-                </div>
-                <div className="px-2 py-1.5">
-                  <p className="truncate text-[8px] text-white/70" title={preview.file.name}>{preview.file.name}</p>
-                  <p className="mt-0.5 text-[7px] text-text-dim">{fileSize(preview.file.size)}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
         {error && <p role="alert" className="mt-3 rounded-xl border border-pink/20 bg-pink/5 px-3 py-2 text-xs text-pink">{error}</p>}
 
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
           {!compactLayout && (
             <div className="flex-1 text-[9px] text-text-dim">
               {isProductMode && !files.length && !chosenProductImages.length && !productLink.trim() ? "Paste a product link or upload a product photo." : activeMode === "interior" && !files.length ? "Add space references before generating." : `Your setup: ${isVideoMode ? `${durationSeconds}s · ` : ""}${formatSummary} · ${selectedModel.supportedQualities.length === 1 ? selectedModel.quality : (settings.outputQuality === "4k" ? "4K" : "1080p")}`}
@@ -1500,6 +1493,42 @@ export function WebsiteBriefForm({
             <ArrowRight size={15} />
           </button>
         </div>
+
+        <SampleStrip
+          feature={activeMode}
+          selectedId={selectedSample?.id ?? null}
+          onSelect={(sample) => { setSelectedSample(sample); setError(null); }}
+          selectable={activeMode !== "website"}
+        />
+
+        {previews.length > 0 && (
+          <div className="mt-4">
+            <div className="mb-1.5 flex items-center justify-between gap-3">
+              <p className="text-[11px] font-medium text-white/50">{previews.length} attached</p>
+              <button type="button" onClick={() => setFiles([])} className="text-[11px] font-medium text-white/40 transition hover:text-white">Remove all</button>
+            </div>
+            <ScrollRow className="gap-2 pb-1" nudge={false}>
+              {previews.map((preview, index) => (
+                <div key={`${preview.file.name}-${preview.file.lastModified}-${index}`} className="group flex w-[196px] shrink-0 items-center gap-2.5 rounded-2xl border border-white/10 bg-white/[.04] p-1.5 pr-2 transition hover:border-white/20 hover:bg-white/[.06]">
+                  <img src={preview.url} alt={`Reference ${index + 1}: ${preview.file.name}`} className="h-12 w-12 shrink-0 rounded-xl object-cover" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[12px] font-medium leading-tight text-white" title={preview.file.name}>{preview.file.name}</p>
+                    <p className="mt-0.5 text-[11px] text-white/40">{preview.file.type.replace("image/", "").replace("jpeg", "jpg").toUpperCase()} · {fileSize(preview.file.size)}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setFiles((current) => current.filter((_, i) => i !== index))}
+                    aria-label={`Remove ${preview.file.name}`}
+                    className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-white/45 transition hover:bg-white/10 hover:text-white"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+            </ScrollRow>
+          </div>
+        )}
+
       </div>
     </div>
   );

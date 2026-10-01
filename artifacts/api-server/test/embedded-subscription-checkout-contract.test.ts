@@ -86,7 +86,9 @@ test('Quick Video uses one base price everywhere before checkout fees', async ()
   assert.match(pricing, /id: \"single8\"[^\n]*amountUsd: 5\.99/);
   // The pricing page and the paywall read the shared list instead of keeping their own copies.
   assert.match(table, /from \"@\/lib\/pricing\"/);
-  assert.match(paywall, /from '@\/lib\/pricing'/);
+  const options = await source('../aiwebvideo/src/lib/purchaseOptions.ts');
+  assert.match(options, /from "\.\/pricing"/);
+  assert.match(paywall, /from '@\/components\/billing\/PurchaseModal'/);
   assert.doesNotMatch(table, /amountUsd: \d/);
   assert.doesNotMatch(paywall, /amountUsd: \d/);
   assert.match(paypal, /checkoutTotalUsd/);
