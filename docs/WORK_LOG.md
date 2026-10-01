@@ -35,3 +35,10 @@
 ## 2026-10-01 — Slider drag cursor, website hidden direction
 - Sliders: there was no mouse drag-to-scroll anywhere, and the global `button { cursor: pointer }` rule made every slider item show the click hand. Added `lib/dragScroll.ts` (installed in main.tsx): rows that scroll sideways (`.chat-scroll`, `[data-drag-scroll]`) show a grab cursor, grabbing while dragged; a drag never counts as a click; touch keeps its native swipe. Verified with pointer-event tests and the real stylesheet's computed cursor.
 - Website-mode Idea chips now show only their short text. The full direction rides behind a marker inside the brief; the server splits it off (capture message, storyboard, workflow drafts), persists it on the job and composes it at plan/render time. The client strips it wherever a brief is displayed or restored.
+
+## 2026-10-01 — Composer toolbar: original controls back, ChatGPT/Claude-style model list, "+" menu with recent files
+- Toolbar is back to the original separate controls (model, duration, aspect ratio, quality, audio). Kept: the HD / 4K badges (`QualityGlyph`) and the narration-language shake.
+- `ModelPicker`: trigger is the model name + chevron; the list shows name, credits, one-line description and a check on the chosen row (grouped as Video / Image / Space models).
+- `FormatIcon`: drawn portrait phone, cinema frame and square-post icons for 9:16 / 16:9 / 1:1. `IdeasIcon`: a bulb with a spark replaces the generic sparkle.
+- `ComposerPlusMenu`: a "+" like Claude/ChatGPT replaces the Style and References buttons: add photos, Style (website mode) and Recent files (name, size, when; reuse in one tap, remove one, clear all). Recent files live in IndexedDB on this device only and only keep JPEG/PNG/WEBP (the studio's accepted reference types). Nothing is uploaded by being remembered.
+- Verified by mounting the real form in jsdom (every mode, model list, format, quality, narration shake, remember/reuse across a simulated reload) plus 5 new contract tests. Not verified: pixel look in a real browser.

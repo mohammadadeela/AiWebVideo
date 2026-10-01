@@ -41,7 +41,12 @@ import { NumberStepper } from "@/components/ui/number-stepper";
 import { ToggleRow } from "@/components/ui/toggle-row";
 import { SampleStrip } from "./SampleStrip";
 import { USE_SAMPLE_EVENT, type Sample, type UseSampleDetail } from "@/lib/showcase";
-import { OutputSettings } from "./OutputSettings";
+import { ComposerPlusMenu } from "./ComposerPlusMenu";
+import { FormatIcon } from "./FormatIcon";
+import { IdeasIcon } from "./IdeasIcon";
+import { ModelPicker } from "./ModelPicker";
+import { QualityGlyph } from "./QualityGlyph";
+import { fileKey, rememberFiles } from "@/lib/recentFiles";
 import { extractProductReference, resolveArchitectureLocation } from "@/lib/api-client";
 import type { AudioMode, JobMode } from "./types";
 
@@ -227,6 +232,8 @@ type CompactDropdownOption = {
   label: string;
   helper?: string;
   icon?: ReactNode;
+  /** The icon already has its own shape (for example the HD / 4K badge): no extra tile around it. */
+  iconBare?: boolean;
 };
 
 function CompactDropdown({
@@ -262,9 +269,9 @@ function CompactDropdown({
         aria-label={`${ariaLabel}: ${selected?.label ?? value}`}
         className={controlClass(open)}
       >
-        <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-white/[.045] text-mint">
-          {selected?.icon ?? icon}
-        </span>
+        {selected?.iconBare
+          ? selected.icon
+          : <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-white/[.045] text-mint">{selected?.icon ?? icon}</span>}
         <span className="whitespace-nowrap">{selected?.label ?? value}</span>
         <ChevronDown size={12} className={`transition-transform ${open ? "rotate-180" : ""}`} />
       </button>}>
@@ -288,11 +295,13 @@ function CompactDropdown({
                   active ? "bg-violet/[.14] text-white" : "text-white/70 hover:bg-white/[.055] hover:text-white"
                 }`}
               >
-                <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg border ${
-                  active ? "border-mint/25 bg-mint/[.10] text-mint" : "border-white/[.08] bg-white/[.035] text-white/55"
-                }`}>
-                  {option.icon ?? icon}
-                </span>
+                {option.iconBare
+                  ? <span className="grid h-8 w-10 shrink-0 place-items-center">{option.icon}</span>
+                  : <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg border ${
+                      active ? "border-mint/25 bg-mint/[.10] text-mint" : "border-white/[.08] bg-white/[.035] text-white/55"
+                    }`}>
+                      {option.icon ?? icon}
+                    </span>}
                 <span className="min-w-0 flex-1">
                   <span className="block text-[11px] font-semibold">{option.label}</span>
                   {option.helper && <span className="mt-0.5 block text-[8px] leading-3.5 text-white/38">{option.helper}</span>}
@@ -397,6 +406,8 @@ export function WebsiteBriefForm({
   const [setback, setSetback] = useState("");
   const [estimatedScale, setEstimatedScale] = useState(false);
   const [selectedSample, setSelectedSample] = useState<Sample | null>(null);
+  const [languageShake, setLanguageShake] = useState(false);
+  const languageShakeTimer = useRef<number | null>(null);
   const lastReadLinkRef = useRef("");
   const [compactPanel, setCompactPanel] = useState<"style" | "ideas" | "model" | null>(null);
   const [openSettingMenu, setOpenSettingMenu] = useState<"duration" | "aspect" | "quality" | "audio" | "language" | null>(null);
@@ -510,6 +521,19 @@ export function WebsiteBriefForm({
     return () => window.removeEventListener(USE_SAMPLE_EVENT, handleSample);
   }, []);
 
+  /** Draw the eye to the narration-language button (it shakes) right after Narration is chosen. */
+  function pulseLanguage() {
+    setLanguageShake(false);
+    window.requestAnimationFrame(() => {
+      setLanguageShake(true);
+      if (languageShakeTimer.current) window.clearTimeout(languageShakeTimer.current);
+      languageShakeTimer.current = window.setTimeout(() => setLanguageShake(false), 1500);
+    });
+  }
+  useEffect(() => () => { if (languageShakeTimer.current) window.clearTimeout(languageShakeTimer.current); }, []);
+
+  const attachedKeys = useMemo(() => new Set(files.map((file) => fileKey(file))), [files]);
+
   function addFiles(list: FileList | File[] | null) {
     if (!list || !list.length) return;
     const accepted: File[] = [];
@@ -525,7 +549,12 @@ export function WebsiteBriefForm({
       }
       accepted.push(file);
     }
-    setFiles((current) => [...current, ...accepted].slice(0, 10));
+    setFiles((current) => {
+      const known = new Set(current.map((file) => fileKey(file)));
+      return [...current, ...accepted.filter((file) => !known.has(fileKey(file)))].slice(0, 10);
+    });
+    // Remember them on this device so they can be reused later from the "+" menu.
+    void rememberFiles(accepted);
     if (files.length + accepted.length > 10) nextError = "You can attach up to 10 reference images.";
     setError(nextError);
   }
@@ -1114,77 +1143,271 @@ export function WebsiteBriefForm({
 
         <div className="generation-toolbar" role="group" aria-label="Generation settings">
           <div className="generation-creative-actions" role="group" aria-label="Creative tools">
-          {activeMode === "website" && (
+            <ComposerPlusMenu
+              disabled={disabled}
+              addLabel={isProductMode ? "Upload product photo" : activeMode === "interior" ? "Add space photos or plans" : activeMode === "architecture" ? "Add site or building reference" : "Add photos"}
+              attachedCount={files.length}
+              attachedKeys={attachedKeys}
+              maxFiles={10}
+              onPickFiles={() => { setOpenSettingMenu(null); inputRef.current?.click(); }}
+              onUseRecent={(file) => addFiles([file])}
+              styleValue={activeMode === "website" ? (selectedWebsiteRecipe ? WEBSITE_RECIPES.find((recipe) => recipe.mode === selectedWebsiteRecipe)?.label : "Auto") : undefined}
+              onStyle={activeMode === "website" ? () => { setOpenSettingMenu(null); setCompactPanel("style"); } : undefined}
+            />
+
             <button
               type="button"
               onClick={() => {
                 setOpenSettingMenu(null);
-                setCompactPanel((current) => current === "style" ? null : "style");
+                toggleIdeas();
               }}
-              aria-expanded={compactPanel === "style"}
-              className={controlClass(compactPanel === "style")}
+              aria-expanded={compactPanel === "ideas"}
+              className={controlClass(compactPanel === "ideas")}
             >
-              <Film size={13} className="text-mint" />
-              Style · {selectedWebsiteRecipe ? WEBSITE_RECIPES.find((recipe) => recipe.mode === selectedWebsiteRecipe)?.label : "Auto"}
-              <ChevronDown size={12} className={`transition-transform ${compactPanel === "style" ? "rotate-180" : ""}`} />
+              <IdeasIcon size={16} className="text-violet" />
+              Ideas
+              {selectedIdea && <span className="h-1.5 w-1.5 rounded-full bg-mint" aria-label="An idea is added" />}
+              <ChevronDown size={12} className={`transition-transform ${compactPanel === "ideas" ? "rotate-180" : ""}`} />
             </button>
+          </div>
+
+          <div className="generation-output-controls" role="group" aria-label="Output settings">
+            <ModelPicker
+              models={availableModels}
+              selected={selectedModel}
+              quality={settings.outputQuality}
+              open={compactPanel === "model"}
+              onOpenChange={(next) => { setOpenSettingMenu(null); setCompactPanel(next ? "model" : null); }}
+              onSelect={(id) => { chooseModel(id); setCompactPanel(null); }}
+            />
+
+          {selectedModel.supportsDuration && (
+            <ControlMenu open={openSettingMenu === "duration"} onClose={() => setOpenSettingMenu(null)} label="Video duration" wide trigger={
+              <button
+                type="button"
+                onClick={() => {
+                  setCompactPanel(null);
+                  setOpenSettingMenu((current) => current === "duration" ? null : "duration");
+                }}
+                aria-label={`Duration: ${durationSeconds} seconds`}
+                aria-expanded={openSettingMenu === "duration"}
+                aria-haspopup="dialog"
+                className={controlClass(openSettingMenu === "duration")}
+              >
+                <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-white/[.045] text-mint">
+                  <Clock size={12} />
+                </span>
+                <span>{durationSeconds}s</span>
+                <ChevronDown size={12} className={`transition-transform ${openSettingMenu === "duration" ? "rotate-180" : ""}`} />
+              </button>}>
+
+              {openSettingMenu === "duration" && (
+                <div
+                  role="dialog"
+                  aria-label="Video duration"
+                  className="p-1"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] font-semibold text-white">Video duration</p>
+                      <p className="mt-0.5 text-[8px] text-white/38">Choose a quick preset or enter any whole second from 8 to 60.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setOpenSettingMenu(null)}
+                      aria-label="Close duration menu"
+                      className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-white/35 transition hover:bg-white/[.06] hover:text-white"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-4 gap-1.5">
+                    {DURATION_PRESETS.map((seconds) => {
+                      const active = !usingCustomDuration && durationSeconds === seconds;
+                      return (
+                        <button
+                          key={seconds}
+                          type="button"
+                          onClick={() => applyDurationPreset(seconds)}
+                          className={`flex min-h-11 flex-col items-center justify-center rounded-xl border px-2 py-2 transition ${
+                            active
+                              ? "border-mint/35 bg-mint/[.10] text-mint"
+                              : "border-white/[.08] bg-white/[.035] text-white/70 hover:border-violet/30 hover:bg-white/[.055] hover:text-white"
+                          }`}
+                        >
+                          <Clock size={12} className={active ? "text-mint" : "text-white/40"} />
+                          <span className="mt-1 text-[10px] font-semibold">{seconds}s</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className={`mt-3 rounded-xl border p-2.5 transition ${
+                    usingCustomDuration ? "border-violet/35 bg-violet/[.07]" : "border-white/[.08] bg-white/[.025]"
+                  }`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5 text-[10px] font-semibold text-white">
+                        <Clock size={12} className="text-violet" />
+                        Custom
+                      </span>
+                      <span className="text-[8px] text-white/35">8–60 sec</span>
+                    </div>
+                    <div className="mt-2 flex items-center gap-2">
+                      <div className="relative min-w-0 flex-1">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={customDurationInput}
+                          onFocus={() => setUsingCustomDuration(true)}
+                          onChange={(event) => {
+                            const digits = event.currentTarget.value.replace(/\D/g, "").slice(0, 3);
+                            setUsingCustomDuration(true);
+                            setCustomDurationInput(digits);
+                          }}
+                          onBlur={() => commitCustomDuration()}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              commitCustomDuration();
+                              setOpenSettingMenu(null);
+                            }
+                            if (event.key === "Escape") {
+                              setCustomDurationInput(String(durationSeconds));
+                              setOpenSettingMenu(null);
+                            }
+                          }}
+                          placeholder="8–60"
+                          className="h-10 w-full rounded-xl border border-white/[.10] bg-[#0b0818] px-3 pr-10 text-center text-sm font-semibold text-white outline-none transition placeholder:text-white/25 focus:border-violet/55 focus:ring-2 focus:ring-violet/10"
+                          aria-label="Custom video duration in seconds"
+                        />
+                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[8px] font-semibold uppercase tracking-[.12em] text-white/30">sec</span>
+                      </div>
+                      <button
+                        type="button"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => {
+                          commitCustomDuration();
+                          setOpenSettingMenu(null);
+                        }}
+                        className="h-10 rounded-xl border border-violet/30 bg-violet/[.12] px-3 text-[10px] font-semibold text-white transition hover:bg-violet/[.18]"
+                      >
+                        Use
+                      </button>
+                    </div>
+                    <p className="mt-2 text-[8px] leading-3.5 text-white/32">Your value is saved only after you finish typing, so clearing or replacing the number no longer jumps back to 8 while you type.</p>
+                  </div>
+                </div>
+              )}
+            </ControlMenu>
           )}
 
-          <button
-            type="button"
-            onClick={() => {
-              setOpenSettingMenu(null);
-              toggleIdeas();
+          <CompactDropdown
+            onClose={() => setOpenSettingMenu(null)}
+            value={settings.aspectRatio}
+            options={[
+              { value: "9:16", label: "9:16", helper: "Portrait · Reels", icon: <FormatIcon ratio="9:16" size={20} /> },
+              { value: "16:9", label: "16:9", helper: "Landscape · YouTube", icon: <FormatIcon ratio="16:9" size={20} /> },
+              { value: "1:1", label: "1:1", helper: "Square · Feed", icon: <FormatIcon ratio="1:1" size={20} /> },
+            ]}
+            open={openSettingMenu === "aspect"}
+            onToggle={() => {
+              setCompactPanel(null);
+              setOpenSettingMenu((current) => current === "aspect" ? null : "aspect");
             }}
-            aria-expanded={compactPanel === "ideas"}
-            className={controlClass(compactPanel === "ideas")}
-          >
-            <Sparkles size={13} className="text-violet" />
-            Ideas
-            {selectedIdea && <span className="rounded-full bg-mint/10 px-1.5 py-0.5 text-[8px] text-mint">Added</span>}
-            <ChevronDown size={12} className={`transition-transform ${compactPanel === "ideas" ? "rotate-180" : ""}`} />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
+            onChange={(value) => {
+              setSettings((current) => ({ ...current, aspectRatio: value as "16:9" | "9:16" | "1:1" }));
               setOpenSettingMenu(null);
-              inputRef.current?.click();
             }}
-            disabled={disabled || files.length >= 10}
-            className={controlClass(files.length > 0)}
-          >
-            <Paperclip size={13} className="text-mint" />
-            {files.length ? `References ${files.length}` : isProductMode ? "Upload product photo" : activeMode === "interior" ? "Add space references" : activeMode === "architecture" ? "Add site / building" : "References"}
-          </button>
+            icon={<FormatIcon ratio="9:16" size={16} />}
+            ariaLabel="Aspect ratio"
+          />
 
-          </div>
-          <div className="generation-output-controls min-w-0 max-w-full" role="group" aria-label="Output settings">
-            <OutputSettings
-              value={{
-                modelId: settings.modelId,
-                durationSeconds: settings.durationSeconds,
-                aspectRatio: settings.aspectRatio,
-                outputQuality: settings.outputQuality,
-                audioMode: settings.audioMode,
-                narrationLanguage: settings.narrationLanguage,
+          {selectedModel.supportedQualities.length > 1 ? (
+            <CompactDropdown
+              onClose={() => setOpenSettingMenu(null)}
+              value={settings.outputQuality}
+              options={selectedModel.supportedQualities.map((quality) => ({
+                value: quality,
+                label: quality === "4k" ? "Ultra HD" : "Full HD",
+                helper: quality === "4k" ? "4K · max detail" : "1080p · fast",
+                icon: <QualityGlyph quality={quality} size={18} />,
+                iconBare: true,
+              }))}
+              open={openSettingMenu === "quality"}
+              onToggle={() => {
+                setCompactPanel(null);
+                setOpenSettingMenu((current) => current === "quality" ? null : "quality");
               }}
-              models={availableModels}
-              selectedModel={selectedModel}
-              disabled={disabled}
-              onModel={chooseModel}
-              onDuration={(seconds) => {
-                const safe = normalizeDuration(seconds);
-                setSettings((current) => ({ ...current, durationSeconds: safe }));
+              onChange={(value) => {
+                setSettings((current) => ({ ...current, outputQuality: value as "1080p" | "4k" }));
+                setOpenSettingMenu(null);
               }}
-              onAspect={(aspectRatio) => setSettings((current) => ({ ...current, aspectRatio }))}
-              onQuality={(outputQuality) => setSettings((current) => ({ ...current, outputQuality }))}
-              onAudio={(audioMode) => setSettings((current) => ({ ...current, audioMode }))}
-              onLanguage={(narrationLanguage) => setSettings((current) => ({ ...current, narrationLanguage }))}
-              languages={NARRATION_LANGUAGES}
+              icon={<QualityGlyph quality="1080p" size={18} />}
+              ariaLabel="Quality"
             />
+          ) : (
+            <span className="generation-control generation-control-static" title="Fixed quality for this model">
+              <QualityGlyph quality={selectedModel.supportedQualities[0] === "4k" ? "4k" : "1080p"} size={18} />
+              {selectedModel.quality}
+            </span>
+          )}
+
+          {selectedModel.audioModes.length > 0 && (
+            <CompactDropdown
+              onClose={() => setOpenSettingMenu(null)}
+              value={settings.audioMode}
+              options={[
+                ...(selectedModel.audioModes.includes("native_audio") ? [{ value: "native_audio", label: "Sound", helper: "Native scene audio", icon: <Volume2 size={13} /> }] : []),
+                ...(selectedModel.audioModes.includes("voice_music") ? [{ value: "voice_music", label: "Narration", helper: "Voice + soundtrack", icon: <Mic size={13} /> }] : []),
+                ...(selectedModel.audioModes.includes("music_only") ? [{ value: "music_only", label: "Music", helper: "Soundtrack only", icon: <Music size={13} /> }] : []),
+                ...(selectedModel.audioModes.includes("silent") ? [{ value: "silent", label: "Silent", helper: "No audio", icon: <VolumeX size={13} /> }] : []),
+              ]}
+              open={openSettingMenu === "audio"}
+              onToggle={() => {
+                setCompactPanel(null);
+                setOpenSettingMenu((current) => current === "audio" ? null : "audio");
+              }}
+              onChange={(value) => {
+                setSettings((current) => ({ ...current, audioMode: value as AudioMode }));
+                setOpenSettingMenu(null);
+                if (value === "voice_music") pulseLanguage();
+              }}
+              icon={<Volume2 size={12} />}
+              ariaLabel="Audio"
+              align="right"
+            />
+          )}
           </div>
         </div>
+
+        {selectedModel.audioModes.includes("voice_music") && settings.audioMode === "voice_music" && (
+          <div className="mt-2 flex justify-end">
+            <div className={languageShake ? "attention-shake rounded-xl" : ""}>
+              <CompactDropdown
+                onClose={() => setOpenSettingMenu(null)}
+                value={settings.narrationLanguage}
+                options={[
+                  { value: "auto", label: "Auto", helper: "Speaks the language of your prompt", icon: <Languages size={13} /> },
+                  ...NARRATION_LANGUAGES.map(([code, label]) => ({ value: code, label, icon: <Languages size={13} /> })),
+                ]}
+                open={openSettingMenu === "language"}
+                onToggle={() => {
+                  setCompactPanel(null);
+                  setLanguageShake(false);
+                  setOpenSettingMenu((current) => current === "language" ? null : "language");
+                }}
+                onChange={(value) => {
+                  setSettings((current) => ({ ...current, narrationLanguage: value }));
+                  setOpenSettingMenu(null);
+                }}
+                icon={<Languages size={12} />}
+                ariaLabel="Narration language"
+                align="right"
+              />
+            </div>
+          </div>
+        )}
 
         {compactPanel === "style" && activeMode === "website" && (
           <div className="mt-2 rounded-2xl border border-mint/15 bg-mint/[.035] p-2.5">
