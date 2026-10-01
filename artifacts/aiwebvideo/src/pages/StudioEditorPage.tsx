@@ -668,7 +668,7 @@ export function StudioEditorPage() {
 
   return (
     <div
-      className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-[#060409] text-text-primary"
+      className="cinematic-page flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-[#060409] text-text-primary"
       onDragEnter={(event) => { event.preventDefault(); setDragging(true); }}
       onDragOver={(event) => event.preventDefault()}
       onDragLeave={(event) => { if (event.currentTarget === event.target) setDragging(false); }}

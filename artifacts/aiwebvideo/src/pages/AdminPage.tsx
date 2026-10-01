@@ -15,6 +15,8 @@ import {
 } from '@/lib/api-client';
 import { watchAuthState } from '@/lib/firebase/client';
 import { useSeo } from '@/lib/useSeo';
+import { publishGallery } from '@/lib/showcase';
+import { resolveVideoEmbed } from '@/lib/videoEmbed';
 
 type Tab = 'overview' | 'reports' | 'landing' | 'users' | 'jobs' | 'providers' | 'audit';
 type Row = Record<string, unknown>;
@@ -378,7 +380,7 @@ export function AdminPage() {
   async function saveLanding() {
     if (!marketing) return;
     setBusy(true); setMessage(null);
-    try { const saved = await saveMarketingSettings(marketing); setMarketing(saved); setDirty(false); setMessage('Homepage videos are live.'); }
+    try { const saved = await saveMarketingSettings(marketing); setMarketing(saved); publishGallery(saved); setDirty(false); setMessage('Homepage media is live.'); }
     catch (error) { setMessage(error instanceof Error ? error.message : 'Homepage video settings could not be saved.'); }
     finally { setBusy(false); }
   }
@@ -526,7 +528,7 @@ export function AdminPage() {
   const setShowcase = (next: typeof showcase) => { if (!marketing) return; setMarketing({ ...marketing, videos: { showcase: next } }); setDirty(true); };
   const checkoutState = providerStatus.checkout;
 
-  return <div className="min-h-screen bg-bg lg:flex">
+  return <div className="cinematic-page min-h-screen bg-bg lg:flex">
     <aside className="border-b border-border bg-[#100c20] p-4 lg:sticky lg:top-0 lg:h-screen lg:w-56 lg:border-b-0 lg:border-r">
       <Link href="/"><Wordmark /></Link>
       <nav className="chat-scroll mt-5 flex gap-1 overflow-x-auto lg:mt-8 lg:flex-col lg:overflow-visible" aria-label="Admin sections">
@@ -591,7 +593,7 @@ export function AdminPage() {
         return <section className="mt-6 space-y-4">
           <div className="rounded-2xl border border-violet/20 bg-[linear-gradient(135deg,rgba(139,92,246,.10),rgba(34,211,238,.05),rgba(236,72,153,.07))] p-4">
             <p className="text-sm font-semibold text-white">Cinematic landing media</p>
-            <p className="mt-1 text-xs leading-5 text-text-muted">These same published images and videos power the landing gallery and the floating hero orbit. Hero videos autoplay muted, loop, stay inline and show no playback or media-type icons. Upload here only—there is no second media library to manage.</p>
+            <p className="mt-1 text-xs leading-5 text-text-muted">First five items appear in the background; phones show the first two. Choose “Use in background” to move an item first, then Save. Uploaded videos loop silently. YouTube and Vimeo links show a poster.</p>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-text-muted"><span className="font-semibold text-text-primary">{items.length}</span> of {LANDING_VIDEO_LIMIT} items{unassigned.length > 0 && <span className="ml-2 font-semibold text-amber-200">· {unassigned.length} need a feature</span>}</p>
@@ -643,7 +645,11 @@ export function AdminPage() {
                   <button type="button" aria-pressed={selected} aria-label={selected ? 'Deselect' : 'Select'} onClick={() => setGallerySelected(selected ? gallerySelected.filter((id) => id !== item.id) : [...gallerySelected, item.id])} className={`absolute left-2 top-2 grid h-7 w-7 place-items-center rounded-full border-2 transition ${selected ? 'border-violet bg-violet text-white' : 'border-white/70 bg-black/40 text-transparent hover:text-white/70'}`}><CheckCircle2 size={14} /></button>
                   <button type="button" disabled={busy} aria-label="Delete" onClick={() => { setShowcase(showcase.filter((entry) => entry.id !== item.id)); setGallerySelected(gallerySelected.filter((id) => id !== item.id)); }} className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-black/60 text-white/80 transition hover:bg-pink/80 hover:text-white"><Trash2 size={12} /></button>
                 </div>
-                <div className="p-2">
+                <div className="space-y-2 p-2">
+                  <button type="button" disabled={busy || items[0]?.id === item.id} onClick={() => setShowcase([item, ...showcase.filter((entry) => entry.id !== item.id)])} className="min-h-11 w-full rounded-lg border border-violet/25 bg-violet/10 px-2 text-xs font-semibold text-white transition hover:bg-violet/20 disabled:opacity-60">
+                    {items[0]?.id === item.id ? 'First in background' : 'Use in background'}
+                  </button>
+                  {items.findIndex((entry) => entry.id === item.id) < 5 && <p className="text-center text-[10px] text-mint">Background {items.findIndex((entry) => entry.id === item.id) + 1}{kindOf(item) === 'video' && resolveVideoEmbed(item.url ?? '').kind !== 'file' ? ' · Poster only' : ''}</p>}
                   <select aria-label="Feature" value={item.feature ?? ''} onChange={(event) => patchItems([item.id], { feature: (event.target.value || null) as ShowcaseFeature | null })} className={`h-9 w-full rounded-lg border bg-bg px-2 text-xs ${item.feature ? 'border-border text-text-primary' : 'border-amber-300/50 text-amber-200'}`}>
                     <option value="">Choose a feature…</option>
                     {SHOWCASE_FEATURES.map((feature) => <option key={feature} value={feature}>{SHOWCASE_FEATURE_LABELS[feature]}</option>)}

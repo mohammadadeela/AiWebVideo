@@ -74,3 +74,14 @@
 - Pricing page: Buy / Subscribe by a signed-out visitor now asks them to sign in first, remembers exactly what they clicked (`lib/pendingPurchase.ts`, 30 min), and opens that same checkout when sign-in completes (same tab, after a reload, or another tab). Sign-in is checked with the server at click time. Closing the sign-in window cancels it. Verified in a real browser (sign in → "Checkout for 265 production credits" opens by itself; reload resume; stale ignored; signed-in click opens directly).
 - Bug: signed-in people were sent to the sign-in window when they tapped a gallery example or a feature card on the landing page. Those listeners are registered once and called the FIRST render's handler (created before the sign-in check finished). They now call the latest handler through a ref. Reproduced and verified fixed in a real browser.
 - Hardening: a malformed saved-cards reply can no longer crash checkout.
+
+## 2026-10-01 — Complete and verify the cinematic redesign on main
+- Request: Implement the approved space/rocket-speed landing direction, admin-managed looping background media without playback/type icons, Pricing navigation, cohesive page styling and new logo.
+- Found: `22768b4` already implemented the cinematic hero, orbital logo/favicon, minimal navigation and gallery-backed orbit; `8ef2e80` subsequently fixed purchase/auth behavior. Both are preserved.
+- Changed: Keep the orbit visible on laptop/tablet/phone screens with responsive artwork placement. Fix sticky navigation by removing global child positioning/z-index and preserving mobile body overflow clipping. Keep mobile Log in and Pricing reachable. Apply the shared cinematic surface and creator treatment to profile/workspace/admin/Studio/editor shells.
+- Admin: Use in background moves an item to the front of the existing persisted gallery; first five fill the orbit, first two appear on phones. Save publishes the returned gallery to the shared cache, so navigation Home shows the saved order immediately. Clarify uploaded-file looping versus embed posters.
+- Motion: Decorative video honors reduced motion and pauses when the browser tab is hidden. No video or media-type icons in the hero.
+- Verified: Frozen-lockfile install, full production build/type checks, 307 automated tests, existing Chromium interaction checks and cinematic Chromium checks with local API fixtures. See docs/TESTING.md. Screenshots reviewed on mobile/desktop; no user media or live production data modified.
+- Compatibility: No migrations, new project dependencies or environment variables; existing provider, pricing, auth, billing, generation and progress behavior preserved.
+- Remaining: Live Hostinger deployment and real production integration checks are separate. No claim of production deployment.
+- Continue: Deploy main using README-DEPLOY.md; manage the background in Admin → Homepage → Upload / Use in background → Save.

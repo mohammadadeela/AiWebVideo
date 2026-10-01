@@ -7,6 +7,7 @@
 }
 
 body {
+  overflow-x: clip;
   background:
     radial-gradient(circle at 16% -8%, rgba(88, 28, 135, .28), transparent 35%),
     radial-gradient(circle at 88% 6%, rgba(37, 99, 235, .18), transparent 30%),
@@ -20,16 +21,11 @@ body {
   overflow-x: clip;
 }
 
-.cinematic-site > *:not(.cinematic-site-backdrop) {
-  position: relative;
-  z-index: 1;
-}
-
 .cinematic-site-backdrop {
   pointer-events: none;
   position: fixed;
   inset: 0;
-  z-index: 0;
+  z-index: -1;
   overflow: hidden;
   background:
     radial-gradient(circle at 16% 4%, rgba(124, 58, 237, .25), transparent 27%),
@@ -142,7 +138,7 @@ body {
   isolation: isolate;
 }
 
-.hero-creator-shell .creator-composer {
+:is(.hero-creator-shell, .cinematic-page) .creator-composer {
   background:
     linear-gradient(180deg, rgba(18,14,40,.93), rgba(10,7,24,.96)) !important;
   border-color: rgba(164,139,255,.30) !important;
@@ -152,7 +148,7 @@ body {
     0 0 0 1px rgba(34,211,238,.04) !important;
 }
 
-.hero-creator-shell .creator-composer::after {
+:is(.hero-creator-shell, .cinematic-page) .creator-composer::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -164,26 +160,26 @@ body {
     radial-gradient(circle at 84% 0%, rgba(236,72,153,.10), transparent 26%);
 }
 
-.hero-creator-shell .creator-composer [role="tab"] {
+:is(.hero-creator-shell, .cinematic-page) .creator-composer [role="tab"] {
   border: 1px solid transparent;
   color: rgba(237,233,254,.56);
 }
 
-.hero-creator-shell .creator-composer [role="tab"][aria-selected="true"] {
+:is(.hero-creator-shell, .cinematic-page) .creator-composer [role="tab"][aria-selected="true"] {
   color: #fff !important;
   border-color: rgba(255,255,255,.16) !important;
   background: linear-gradient(115deg, rgba(37,211,229,.78), rgba(124,58,237,.90) 46%, rgba(236,72,153,.88)) !important;
   box-shadow: 0 10px 30px -18px rgba(99,102,241,.90), inset 0 1px 0 rgba(255,255,255,.22) !important;
 }
 
-.hero-creator-shell .creator-composer [role="tab"]:not([aria-selected="true"]):hover {
+:is(.hero-creator-shell, .cinematic-page) .creator-composer [role="tab"]:not([aria-selected="true"]):hover {
   background: rgba(255,255,255,.055) !important;
   color: rgba(255,255,255,.92) !important;
 }
 
-.hero-creator-shell .creator-field,
-.hero-creator-shell .creator-composer input[type="url"],
-.hero-creator-shell .creator-composer input[type="text"] {
+:is(.hero-creator-shell, .cinematic-page) .creator-field,
+:is(.hero-creator-shell, .cinematic-page) .creator-composer input[type="url"],
+:is(.hero-creator-shell, .cinematic-page) .creator-composer input[type="text"] {
   background-color: rgba(3,2,11,.72) !important;
 }
 
@@ -324,7 +320,7 @@ body {
   .cinematic-orb-two { right: -45vw; }
   .cinematic-title { line-height: .92; letter-spacing: -.055em; }
   .hero-creator-shell { margin-top: 2rem; }
-  .hero-creator-shell .creator-composer { border-radius: 22px !important; }
+  :is(.hero-creator-shell, .cinematic-page) .creator-composer { border-radius: 22px !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -337,4 +333,34 @@ body {
   .hero-orbit-card-e {
     animation: none !important;
   }
+}
+
+/* Page shells share the art direction; inputs and result canvases stay opaque. */
+.cinematic-page {
+  position: relative;
+  background: linear-gradient(135deg, rgba(9, 6, 22, .78), rgba(9, 6, 22, .48) 55%, rgba(22, 9, 39, .7));
+}
+.cinematic-page > aside {
+  background: linear-gradient(180deg, rgba(19, 12, 39, .96), rgba(8, 6, 20, .94));
+  border-color: rgba(167, 139, 250, .17);
+}
+.cinematic-page > header {
+  background: rgba(9, 6, 22, .92);
+  border-color: rgba(167, 139, 250, .17);
+}
+
+/* Keep the uploaded artwork visible beyond ultra-wide monitors, behind the form. */
+@media (min-width: 1024px) and (max-width: 1535px) {
+  .hero-orbit-card-a { left: -55px; top: 9%; width: 210px; }
+  .hero-orbit-card-b { right: -45px; top: 11%; width: 200px; }
+  .hero-orbit-card-c { left: -65px; bottom: 12%; width: 210px; }
+  .hero-orbit-card-d { right: -65px; bottom: 8%; width: 220px; }
+  .hero-orbit-card-e { display: none; }
+}
+@media (max-width: 1023px) {
+  .hero-media-orbit { opacity: .36; }
+  .hero-orbit-caption { display: none; }
+  .hero-orbit-card-a { left: -55px; top: 24px; width: 150px; }
+  .hero-orbit-card-b { right: -55px; top: 75px; width: 150px; }
+  .hero-orbit-card-c, .hero-orbit-card-d, .hero-orbit-card-e { display: none; }
 }

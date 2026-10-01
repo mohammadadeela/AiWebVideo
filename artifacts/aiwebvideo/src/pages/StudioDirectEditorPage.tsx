@@ -748,7 +748,7 @@ export function StudioDirectEditorPage() {
   if (!signedIn) return <div className="grid min-h-screen place-items-center bg-[#090710] p-5"><div className="max-w-md rounded-3xl border border-white/10 bg-[#120e1d] p-7 text-center"><Layers3 className="mx-auto text-violet" size={34} /><h1 className="mt-4 text-2xl font-semibold text-white">Sign in to use AI Editor</h1><p className="mt-2 text-sm text-text-muted">Your projects and uploaded media stay private in your account.</p><Link href="/?signin=1" className="mt-6 inline-flex rounded-xl bg-violet px-5 py-3 text-sm font-semibold text-white">Sign in</Link></div></div>;
 
   return (
-    <div className="flex h-[100dvh] min-h-[680px] flex-col overflow-hidden bg-[#08060d] text-text-primary">
+    <div className="cinematic-page flex h-[100dvh] min-h-[680px] flex-col overflow-hidden bg-[#08060d] text-text-primary">
       <input ref={fileInputRef} type="file" accept={ACCEPT} multiple className="hidden" onChange={(event) => { void addFiles(Array.from(event.currentTarget.files ?? [])); event.currentTarget.value = ''; }} />
 
       <header className="z-30 flex h-14 shrink-0 items-center gap-2 border-b border-white/[.08] bg-[#0c0913]/95 px-2.5 backdrop-blur-xl sm:px-4">

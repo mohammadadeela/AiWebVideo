@@ -54,7 +54,7 @@ export function Nav() {
             <Link
               href="/pricing"
               aria-label="Pricing"
-              className="cinematic-nav-pill group inline-flex h-10 items-center gap-2 rounded-xl border border-white/[.10] bg-white/[.045] px-2.5 text-white/80 shadow-[inset_0_1px_0_rgba(255,255,255,.06)] backdrop-blur-xl transition hover:-translate-y-0.5 hover:border-violet/40 hover:bg-violet/[.10] hover:text-white sm:px-3"
+              className="cinematic-nav-pill group inline-flex h-11 items-center gap-2 rounded-xl border border-white/[.10] bg-white/[.045] px-2.5 text-white/80 shadow-[inset_0_1px_0_rgba(255,255,255,.06)] backdrop-blur-xl transition hover:-translate-y-0.5 hover:border-violet/40 hover:bg-violet/[.10] hover:text-white sm:px-3"
             >
               <span className="grid h-6 w-6 place-items-center rounded-lg bg-[linear-gradient(135deg,rgba(52,217,196,.16),rgba(139,92,246,.22),rgba(236,72,153,.16))] text-mint">
                 <BadgeDollarSign size={14} />
@@ -94,12 +94,14 @@ export function Nav() {
               </>
             ) : (
               <>
-                <Button className="hidden sm:inline-flex" variant="ghost" size="sm" onClick={() => setShowAuthModal(true)}>
+                <Button className="min-h-11 shrink-0 whitespace-nowrap" variant="ghost" size="sm" onClick={() => setShowAuthModal(true)}>
                   Log in
                 </Button>
-                <Button variant="primary" size="sm" className="px-3 text-xs" asChild>
-                  <a href="/#generate" className="inline-flex">Start creating</a>
-                </Button>
+                <span className="hidden sm:inline-flex">
+                  <Button variant="primary" size="sm" className="px-3 text-xs" asChild>
+                    <a href="/#generate">Start creating</a>
+                  </Button>
+                </span>
               </>
             )}
           </div>

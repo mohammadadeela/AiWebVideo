@@ -25,6 +25,7 @@ function Media({ item, eager }: { item: GalleryItem; eager: boolean }) {
         poster={item.posterUrl}
         eager={eager}
         showBlockedControl={false}
+        respectReducedMotion
         className="h-full w-full"
       />
     );
@@ -51,7 +52,7 @@ export function HeroMediaOrbit() {
   if (!media.length) return null;
 
   return (
-    <div className="hero-media-orbit pointer-events-none absolute inset-0 z-10 hidden 2xl:block" aria-hidden="true">
+    <div className="hero-media-orbit pointer-events-none absolute inset-0 z-10" aria-hidden="true">
       {media.map((item, index) => (
         <div key={item.id} className={POSITIONS[index]}>
           <div className="hero-orbit-media">
