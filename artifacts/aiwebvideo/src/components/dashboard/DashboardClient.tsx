@@ -242,6 +242,9 @@ export function DashboardClient() {
     [jobs, query],
   );
 
+  // A running project lives in the "Running now" card; the list below never repeats it.
+  const recentJobs = useMemo(() => filteredJobs.filter((job) => !ACTIVE_STATUSES.has(job.status)), [filteredJobs]);
+
   const monthlyUsagePercent = useMemo(() => {
     const used = Math.max(0, usage?.thisMonth.creditsUsed ?? 0);
     const balance = Math.max(0, me?.creditsBalance ?? usage?.balance ?? 0);
@@ -394,51 +397,57 @@ export function DashboardClient() {
         </div>
         <div className="chat-scroll mt-4 flex-1 overflow-y-auto">
           {runningJobs.length > 0 && (
-            <div className="sticky top-0 z-10 mx-1 mb-3 space-y-1.5 rounded-xl border border-violet/25 bg-[#100c20] p-2 shadow-lg shadow-black/20">
-              <div className="flex items-center gap-2 px-1 pt-0.5">
-                <span className="h-2 w-2 animate-pulse rounded-full bg-mint" />
-                <p className="text-[11px] font-semibold text-text-primary">
-                  {runningJobs.length} generation
-                  {runningJobs.length === 1 ? "" : "s"} running
-                </p>
+            <section aria-label="Running now" className="sticky top-0 z-10 mx-1 mb-3 rounded-2xl border border-violet/30 bg-[#100c20]/95 p-1.5 shadow-lg shadow-black/25 backdrop-blur">
+              <div className="flex items-center gap-2 px-2 pb-1 pt-1">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-mint/60" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-mint" />
+                </span>
+                <p className="text-[11px] font-semibold text-text-primary">Running now</p>
+                <span className="ml-auto rounded-full bg-white/[.08] px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-text-muted">{runningJobs.length}</span>
               </div>
-              {/* Always-visible and clickable — pinned to the top of the list
-                  (even while scrolled) so a running job is never something
-                  you have to go hunting for after switching chats. */}
-              {runningJobs.map((job) => (
-                <a
-                  key={job.id}
-                  href={`/dashboard?job=${encodeURIComponent(job.id)}`}
-                  onClick={(event) => {
-                    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-                    event.preventDefault();
-                    openProject(job.id);
-                  }}
-                  className="block rounded-lg px-2 py-1.5 text-left transition hover:bg-white/5"
-                >
-                  <p className="truncate text-[11px] font-medium text-text-primary">{job.title}</p>
-                  <div className="mt-1 flex items-center gap-2">
-                    <span className="h-1 flex-1 overflow-hidden rounded-full bg-white/10">
-                      <span
-                        className="block h-full rounded-full bg-signature transition-all"
-                        style={{
-                          width: `${Math.max(4, Math.min(100, job.progress))}%`,
-                        }}
-                      />
-                    </span>
-                    <span className="text-[9px] text-text-dim">
-                      {Math.max(0, Math.min(100, Math.round(job.progress)))}%
-                    </span>
-                  </div>
-                </a>
-              ))}
-            </div>
+              {/* The one place a running project is shown: pinned to the top so it is never something to hunt
+                  for. It is NOT repeated in the list below. */}
+              <div className="space-y-1">
+                {runningJobs.map((job) => {
+                  const percent = Math.max(0, Math.min(100, Math.round(job.progress)));
+                  const selected = (selectedJobId ?? composerJobId) === job.id;
+                  return (
+                    <a
+                      key={job.id}
+                      href={`/dashboard?job=${encodeURIComponent(job.id)}`}
+                      onClick={(event) => {
+                        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                        event.preventDefault();
+                        openProject(job.id);
+                      }}
+                      aria-current={selected ? "true" : undefined}
+                      className={`block rounded-xl px-2.5 py-2 text-left transition ${selected ? "bg-violet/[.14]" : "hover:bg-white/[.05]"}`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        {(job.previewUrl || job.screenshotUrl) && (
+                          <img src={job.previewUrl || job.screenshotUrl || ""} alt="" loading="lazy" className="h-8 w-8 shrink-0 rounded-lg border border-white/10 object-cover" />
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-semibold text-text-primary">{job.title}</p>
+                          <p className="truncate text-[10px] capitalize text-text-dim">{job.featureLabel || job.mode}</p>
+                        </div>
+                        <span className="shrink-0 text-[11px] font-semibold tabular-nums text-violet">{percent}%</span>
+                      </div>
+                      <span className="mt-2 block h-1 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-label={`${job.title} progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}>
+                        <span className="block h-full rounded-full bg-signature transition-all" style={{ width: `${Math.max(4, percent)}%` }} />
+                      </span>
+                    </a>
+                  );
+                })}
+              </div>
+            </section>
           )}
           <p className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-[.16em] text-text-dim">
             Recent projects
           </p>
           <div className="space-y-1">
-            {filteredJobs.map((item) => (
+            {recentJobs.map((item) => (
               <div
                 key={item.id}
                 className={`group relative rounded-xl border transition-colors ${item.pinned ? "border-violet/20 bg-violet/[.045]" : "border-transparent"} ${(selectedJobId ?? composerJobId) === item.id ? "bg-white/10" : "hover:bg-white/5"}`}
@@ -514,9 +523,9 @@ export function DashboardClient() {
                 )}
               </div>
             ))}
-            {!filteredJobs.length && (
+            {!recentJobs.length && (
               <p className="px-3 py-6 text-center text-xs text-text-dim">
-                {query ? "No matching projects." : "Your first project will appear here."}
+                {query ? "No matching projects." : runningJobs.length ? "Finished projects will appear here." : "Your first project will appear here."}
               </p>
             )}
           </div>

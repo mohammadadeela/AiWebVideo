@@ -1,4 +1,5 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
+import { forgetAccountOnSignOut, reconcileAccount } from '../accountScope';
 import {
   getAuth,
   GoogleAuthProvider,
@@ -78,6 +79,8 @@ export async function signOut() {
   if (!response.ok) throw new Error('Could not sign out. Please try again.');
   serverSyncedUid = null;
   localStorage.removeItem('aiwebvideo_token');
+  // The next person on this browser must not see this account's project, drafts or waiting requests.
+  forgetAccountOnSignOut();
   window.dispatchEvent(new Event('aiwebvideo-auth-changed'));
 }
 
@@ -179,6 +182,8 @@ export function watchAuthState(callback: (user: User | null) => void) {
       return;
     }
     lastVerified = session.active;
+    // A different account replacing the previous one on this browser starts clean.
+    if (session.active) reconcileAccount(session.email);
     callback(session.active ? { uid: 'server-session', email: session.email } as User : null);
   };
 

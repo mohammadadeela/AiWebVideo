@@ -12,6 +12,8 @@ import { generationModelForMode } from '../lib/generation-models.js';
 import { readPublicUrl } from '../lib/external-reference.js';
 import { coordinatesFromMapsUrl, isGoogleMapsUrl } from '../lib/maps-url.js';
 import { TEMPLATE_REPLACEMENT_DIRECTION } from '../lib/studio-direction.js';
+import { sanitizeProductFacts } from '../lib/studio-insights.js';
+import { fetchSiteImagery } from '../lib/site-imagery.js';
 import { findShowcaseSample, loadShowcaseStill } from '../lib/marketing.js';
 import { z } from 'zod';
 
@@ -95,6 +97,9 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
     // Hidden creative direction (from an Idea chip). Stored separately so it never shows in the chat.
     const clientDirection = typeof req.body?.studioDirection === 'string' ? req.body.studioDirection.trim().slice(0, 6000) : '';
     const templateId = typeof req.body?.templateId === 'string' ? req.body.templateId.trim().slice(0, 80) : '';
+    // What the product page itself says (title, description, price...). Untrusted text: sanitised before use.
+    let productFacts: ReturnType<typeof sanitizeProductFacts> = null;
+    try { productFacts = sanitizeProductFacts(JSON.parse(String(req.body?.productFacts || 'null'))); } catch { productFacts = null; }
     if (ideaPrompt.length > 8000) {
       throw new AppError('Your prompt is longer than 8,000 characters. Shorten it slightly so every detail can be sent without hidden truncation.', 400, 'PROMPT_TOO_LONG');
     }
@@ -152,11 +157,12 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
         throw new AppError('Upload at least one interior photo, plan, sketch, elevation, or reference image.', 400, 'INTERIOR_REFERENCE_REQUIRED');
       }
       if (studioKind === 'architecture') {
-        if (!files.length) throw new AppError('Add a site screenshot, site photo, plan, or building reference.', 400, 'SITE_REFERENCE_REQUIRED');
+        // A reference (site screenshot, plan, building to place) improves accuracy but is not required: without one
+        // the site is understood from the location and the customer's words.
         if (!architecture?.location && !architecture?.mapUrl) throw new AppError('Add a Google Maps link or address.', 400, 'LOCATION_REQUIRED');
-        if (!architecture.estimatedScale && (!architecture.plotWidth || !architecture.plotDepth)) {
-          throw new AppError('Add plot width and depth or choose estimated site scale.', 400, 'PLOT_DIMENSIONS_REQUIRED');
-        }
+        // Plot figures are optional: a shop inside an existing building or a shop front has no use for them. Without
+        // figures the plot is treated as estimated, so nothing is invented as exact.
+        if (!architecture.plotWidth || !architecture.plotDepth) architecture.estimatedScale = true;
         if (architecture.mapUrl && !isGoogleMapsUrl(architecture.mapUrl)) {
           throw new AppError('Use a Google Maps link.', 400, 'INVALID_MAP_LINK');
         }
@@ -255,13 +261,39 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
       pages.push({ url: `upload://${job.id}/${index}`, title: uploadPhotoLabel(index, file.originalname), screenshotUrl });
     }
 
+    let downloadedProductImages = 0;
     for (const [index, imageUrl] of productImageUrls.entries()) {
-      const source = await readPublicUrl(imageUrl, 10 * 1024 * 1024, /^image\/(?:jpeg|png|webp)$/);
-      const jpeg = await normalizeUploadToJpeg(source.buffer);
-      const pageIndex = pages.length;
-      const filename = pageIndex === 0 ? 'screenshot-full.jpg' : `page-${pageIndex}.jpg`;
-      const screenshotUrl = await saveImageFile(job.id, filename, jpeg);
-      pages.push({ url: `product-reference://${index}`, title: `Product image ${index + 1}`, screenshotUrl });
+      try {
+        // Many shops refuse hot-linked images: present the product page as the referrer, and skip a photo that
+        // still cannot be fetched instead of failing the whole production.
+        const source = await readPublicUrl(imageUrl, 10 * 1024 * 1024, /^image\/(?:jpeg|png|webp)$/, { referer: productUrl || undefined });
+        const jpeg = await normalizeUploadToJpeg(source.buffer);
+        const pageIndex = pages.length;
+        const filename = pageIndex === 0 ? 'screenshot-full.jpg' : `page-${pageIndex}.jpg`;
+        const screenshotUrl = await saveImageFile(job.id, filename, jpeg);
+        pages.push({ url: `product-reference://${index}`, title: `Product image ${index + 1}`, screenshotUrl });
+        downloadedProductImages += 1;
+      } catch (err) {
+        console.warn(`[uploads] job=${job.id} product image ${index + 1} skipped: ${(err as Error).message}`);
+      }
+    }
+    if (productImageUrls.length && !downloadedProductImages && !pages.length) {
+      throw new AppError('We could not download the product photos from that page. Upload a photo of the product instead.', 422, 'PRODUCT_IMAGES_UNREADABLE');
+    }
+
+    // Architecture: optional map imagery of the site (off unless the site owner enabled it).
+    if (studioKind === 'architecture' && typeof architecture?.latitude === 'number' && typeof architecture?.longitude === 'number') {
+      for (const shot of await fetchSiteImagery({ latitude: architecture.latitude, longitude: architecture.longitude })) {
+        try {
+          const jpeg = await normalizeUploadToJpeg(shot.buffer);
+          const pageIndex = pages.length;
+          const filename = pageIndex === 0 ? 'screenshot-full.jpg' : `page-${pageIndex}.jpg`;
+          const screenshotUrl = await saveImageFile(job.id, filename, jpeg);
+          pages.push({ url: `site-imagery://${pageIndex}`, title: shot.label, screenshotUrl });
+        } catch (err) {
+          console.warn(`[uploads] job=${job.id} site imagery skipped: ${(err as Error).message}`);
+        }
+      }
     }
 
     // "Make one like this with my product": attach the chosen showcase sample as the LAST reference.
@@ -287,7 +319,9 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
     // Text-only Custom Idea and Scenario jobs never call an image provider at
     // upload time. The paid render transaction is the first expensive model
     // call, so this endpoint cannot be abused for free image generation.
-    const directTextToVideo = (studioKind === 'idea' || studioKind === 'scenario') && studioMode === 'custom' && Boolean(ideaPrompt) && !files.length && !productImageUrls.length && !usedTemplateId;
+    const directTextToVideo = ((studioKind === 'idea' || studioKind === 'scenario') && studioMode === 'custom' && Boolean(ideaPrompt) && !files.length && !productImageUrls.length && !usedTemplateId)
+      // Architecture from a location alone: no reference images, the site is understood from the place and the words.
+      || (studioKind === 'architecture' && !pages.length && Boolean(architecture?.location || architecture?.mapUrl));
 
     if (!pages.length && !directTextToVideo) {
       throw new AppError('None of the uploaded files could be read as images. Please try again with JPEG, PNG, or WEBP photos.', 400, 'NO_VALID_FILES');
@@ -318,6 +352,7 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
         sourceType: studioKind ? 'studio' : 'upload',
         studioKind,
         productUrl,
+        productFacts,
         productImageUrls: productImageUrls.length,
         architecture,
         studioDirection: studioKind && studioDirection ? studioDirection : null,

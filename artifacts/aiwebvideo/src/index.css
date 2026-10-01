@@ -803,20 +803,6 @@ picture {
 .composer-plus { width: 34px; height: 34px; }
 @media (max-width: 639px) { .composer-plus { width: 44px; height: 44px; } }
 
-/* The website field's globe turns around its own axis. */
-@keyframes globe-turn {
-  0%   { transform: scaleX(1); }
-  50%  { transform: scaleX(.04); }
-  100% { transform: scaleX(1); }
-}
-.globe-meridian {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: globe-turn 6s ease-in-out infinite;
-}
-@media (prefers-reduced-motion: reduce) {
-  .globe-meridian { animation: none; transform: scaleX(.45); }
-}
 
 /* Ideas light bulb: on and off. */
 .ideas-bulb { display: inline-grid; place-items: center; flex-shrink: 0; overflow: visible; }

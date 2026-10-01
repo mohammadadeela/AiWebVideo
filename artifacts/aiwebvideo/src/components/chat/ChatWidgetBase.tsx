@@ -1146,14 +1146,9 @@ export function ChatWidget({
         setStage("ready_to_render");
         return;
       }
-      if (manualRenderAfterPlan) {
-        autoRenderRef.current = false;
-        pushBot(
-          "Your saved setup and direction are ready, and the production credits are reserved. Review the plan once, then start the final generation when you are ready.",
-        );
-        setStage("ready_to_render");
-        return;
-      }
+      // The person already pressed Generate and the production credits are reserved (planning only happens
+      // after that). Asking them to press Generate a second time was the "it stopped and asked me to
+      // generate again" bug, so a signed-in plan always continues straight into the final generation.
       if (!autoRenderRef.current) {
         autoRenderRef.current = true;
         void handleGenerate();
@@ -1363,6 +1358,7 @@ export function ChatWidget({
         architecture: request.architecture,
         studioDirection: request.studioDirection,
         templateId: request.templateId,
+        productFacts: request.productFacts,
       },
       attachmentDraftKey,
     });
@@ -1805,6 +1801,7 @@ Promotion direction: ${visibleBrief(brief)}` : normalized);
         architecture: request.architecture,
         studioDirection: request.studioDirection,
         templateId: request.templateId,
+        productFacts: request.productFacts,
       });
       selectJobId(upload.jobId);
       onJobCreated?.(upload.jobId);

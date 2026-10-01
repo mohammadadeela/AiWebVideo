@@ -36,6 +36,7 @@ export interface StudioCreatorHandoff {
     /** Hidden idea direction and the chosen example: both must survive signing in. */
     studioDirection?: string;
     templateId?: string;
+    productFacts?: { title?: string; description?: string; facts?: Record<string, string> };
   };
   attachmentDraftKey?: string;
 }

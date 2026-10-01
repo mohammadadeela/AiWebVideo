@@ -81,6 +81,8 @@ export async function uploadStudioMedia(opts: {
   studioDirection?: string;
   /** A showcase sample to recreate with the customer's own references. */
   templateId?: string;
+  /** What the product page says (title, description, price...), to brief the AI accurately. */
+  productFacts?: { title?: string; description?: string; facts?: Record<string, string> };
 }) {
   const token = await getIdToken();
   const form = new FormData();
@@ -99,6 +101,7 @@ export async function uploadStudioMedia(opts: {
   if (opts.architecture) form.append('architecture', JSON.stringify(opts.architecture));
   if (opts.studioDirection) form.append('studioDirection', opts.studioDirection);
   if (opts.templateId) form.append('templateId', opts.templateId);
+  if (opts.productFacts) form.append('productFacts', JSON.stringify(opts.productFacts));
   const res = await fetch('/api/uploads', {
     method: 'POST',
     signal: AbortSignal.timeout(10 * 60_000),
@@ -345,8 +348,18 @@ export function resolveArchitectureLocation(link: string) {
   });
 }
 
+/** What reading a product link returns: its name, what the page says about it, and its photos. */
+export interface ProductReference {
+  title: string;
+  description: string;
+  url: string;
+  images: string[];
+  facts?: Record<string, string>;
+  source?: 'page' | 'shop-data' | 'rendered';
+}
+
 export function extractProductReference(url: string) {
-  return request<{ title: string; description: string; url: string; images: string[] }>('/api/product-reference/extract', {
+  return request<ProductReference>('/api/product-reference/extract', {
     method: 'POST',
     body: JSON.stringify({ url }),
   });

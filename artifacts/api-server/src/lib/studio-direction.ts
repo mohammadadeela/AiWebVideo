@@ -129,6 +129,136 @@ export function extractUserBrief(brief: string | null | undefined): string {
   return (at >= 0 ? text.slice(at + USER_BRIEF_HEADER.length) : text).trim();
 }
 
+
+// ---------------------------------------------------------------------------------------------------------
+// What the AI learned about the product / the site (see studio-insights.ts). Pure data + pure rendering.
+// ---------------------------------------------------------------------------------------------------------
+
+export const PROJECT_SCOPES = ['new_building', 'fit_out_interior', 'facade_retrofit', 'storefront_exterior', 'extension', 'landscape'] as const;
+export type ProjectScope = (typeof PROJECT_SCOPES)[number];
+
+export interface ProductFactsInput {
+  title?: string;
+  description?: string;
+  facts?: Record<string, string | undefined>;
+}
+
+export interface ProductInsights {
+  name: string;
+  category: string;
+  brand?: string;
+  summary: string;
+  keyFeatures: string[];
+  colors: string[];
+  materials: string[];
+  /** Details a faithful image or film must not change: logos, printed text, shape, proportions, hardware. */
+  mustPreserve: string[];
+  approximateSize?: string;
+  suggestedScenes: string[];
+  audience?: string;
+  avoid: string[];
+}
+
+export interface SiteInsights {
+  placeName?: string;
+  address?: string;
+  settlement: string;
+  siteCondition: string;
+  whatIsHere: string;
+  frontage?: string;
+  surroundings: string[];
+  neighbourHeights?: string;
+  localCharacter: string[];
+  climate?: string;
+  constraints: string[];
+  projectScope: ProjectScope;
+  scopeReason?: string;
+  /** The customer's wish translated onto THIS site. */
+  designBrief: string;
+  confidence: 'high' | 'medium' | 'low';
+  unknowns: string[];
+}
+
+const SCOPE_LABELS: Record<ProjectScope, string> = {
+  new_building: 'a NEW building on the plot',
+  fit_out_interior: 'the INTERIOR fit-out of a unit inside an existing building (the shell, structure and facade stay as they are)',
+  facade_retrofit: 'a FACADE / exterior renovation of an existing building (massing and structure stay)',
+  storefront_exterior: 'a STOREFRONT on the street: the shop frontage, signage zone, entrance and glazing of an existing unit',
+  extension: 'an EXTENSION or additional floors on an existing building',
+  landscape: 'LANDSCAPE / outdoor design of the site',
+};
+
+/**
+ * Works out what the customer actually wants built from their own words, so "make me a clothes shop" on a
+ * link to an apartment block is read as a shop fit-out and not as a new tower. A model refines this with the site;
+ * this keyword reading is the fallback and the starting point.
+ */
+export function inferProjectScope(brief: string | null | undefined, siteHint?: string | null): ProjectScope {
+  const text = `${brief ?? ''} ${siteHint ?? ''}`.toLowerCase();
+  const has = (pattern: RegExp) => pattern.test(text);
+  if (has(/\b(landscap|garden|courtyard|park|pool area|outdoor space)\b/)) return 'landscape';
+  if (has(/\b(extension|add (?:\w+ ){0,3}floors?|extra floors?|vertical extension|rooftop addition)\b/)) return 'extension';
+  if (has(/\b(facade|façade|renovat|refurbish|re-?clad|exterior (?:redesign|makeover)|repaint the building)\b/)) return 'facade_retrofit';
+  if (has(/\b(storefront|shop ?front|shop sign|signage|shop window|entrance of the shop)\b/)) return 'storefront_exterior';
+  if (has(/\b(inside|interior|fit-?out|layout|inside the (?:shop|unit|apartment|store)|existing (?:unit|apartment|shop|store|space|building)|rented|rent)\b/)) return 'fit_out_interior';
+  if (has(/\b(land|plot|empty|vacant|build (?:a|an|me)|new building|from scratch|ground-?up|construct)\b/)) return 'new_building';
+  if (has(/\b(shop|store|boutique|clinic|salon|restaurant|cafe|café|office|gym|showroom)\b/) && has(/\b(apartment|unit|flat|building|mall|market|floor|ground floor)\b/)) return 'fit_out_interior';
+  return 'new_building';
+}
+
+export function isProjectScope(value: unknown): value is ProjectScope {
+  return typeof value === 'string' && (PROJECT_SCOPES as readonly string[]).includes(value);
+}
+
+function bullet(label: string, value: string | undefined | null) {
+  return value && value.trim() ? `- ${label}: ${value.trim()}` : null;
+}
+function list(label: string, values: string[] | undefined) {
+  return values && values.length ? `- ${label}: ${values.join('; ')}` : null;
+}
+
+export function productInsightsBlock(insights: ProductInsights | null | undefined, facts?: ProductFactsInput | null): string {
+  if (!insights && !facts?.title) return '';
+  const lines: Array<string | null> = [];
+  if (insights) {
+    lines.push(
+      bullet('Product', insights.name), bullet('Category', insights.category), bullet('Brand', insights.brand),
+      bullet('What it is', insights.summary), list('Key features', insights.keyFeatures), list('Colors', insights.colors),
+      list('Materials', insights.materials), bullet('Real-world size', insights.approximateSize),
+      list('MUST BE REPRODUCED EXACTLY (do not redraw, restyle or invent)', insights.mustPreserve),
+      list('Scenes that suit it', insights.suggestedScenes), bullet('Who it is for', insights.audience), list('Avoid', insights.avoid),
+    );
+  } else if (facts) {
+    lines.push(bullet('Product', facts.title), bullet('From the product page', facts.description?.slice(0, 300)),
+      ...Object.entries(facts.facts ?? {}).map(([key, value]) => bullet(key, value)));
+  }
+  const body = lines.filter(Boolean).join('\n');
+  if (!body) return '';
+  return `PRODUCT FACTS (read from the product page and its photos). The product in the supplied photos IS the product: keep its exact shape, proportions, colors, materials, printed text and logos. Never invent a different product or add features it does not have:\n${body}`;
+}
+
+export function siteInsightsBlock(insights: SiteInsights | null | undefined): string {
+  if (!insights) return '';
+  const lines = [
+    bullet('Place', [insights.placeName, insights.address].filter(Boolean).join(' — ')),
+    bullet('Area type', insights.settlement), bullet('What is at this exact spot', insights.whatIsHere),
+    bullet('Site condition', insights.siteCondition), bullet('Street frontage', insights.frontage),
+    list('Surroundings', insights.surroundings), bullet('Neighbouring building heights', insights.neighbourHeights),
+    list('Local architectural character', insights.localCharacter), bullet('Climate', insights.climate), list('Constraints', insights.constraints),
+  ].filter(Boolean).join('\n');
+  return `SITE ANALYSIS (worked out from the customer's location; the customer's own words and supplied images win wherever they conflict):
+${lines}
+PROJECT SCOPE: ${insights.projectScope} — this is ${SCOPE_LABELS[insights.projectScope]}.${insights.scopeReason ? ` (${insights.scopeReason})` : ''}
+DESIGN INTENT FOR THIS SITE: ${insights.designBrief}
+Confidence in this analysis: ${insights.confidence}.${insights.unknowns.length ? ` Not known (do not invent these): ${insights.unknowns.join('; ')}.` : ''}`;
+}
+
+/** Reads the scope back out of a directed brief, so the image step can choose the right camera views. */
+export function extractProjectScope(directedBrief: string | null | undefined): ProjectScope | null {
+  const match = /PROJECT SCOPE:\s*([a-z_]+)/.exec(directedBrief ?? '');
+  return match && isProjectScope(match[1]) ? match[1] : null;
+}
+
 /**
  * Builds the brief the AI planner and renderers receive. The customer's own words always come
  * last and carry the highest priority. Idempotent: an already-directed brief is returned as is.
@@ -138,6 +268,9 @@ export function composeStudioBrief(input: {
   architecture?: ArchitectureInput | null;
   userBrief?: string | null;
   hiddenDirection?: string | null;
+  productFacts?: ProductFactsInput | null;
+  productInsights?: ProductInsights | null;
+  siteInsights?: SiteInsights | null;
 }): string {
   const userBrief = (input.userBrief ?? '').trim();
   if (userBrief.includes(DIRECTION_MARKER) || userBrief.includes(LEGACY_FRONTEND_MARKER)) return userBrief;
@@ -148,6 +281,13 @@ export function composeStudioBrief(input: {
   if (input.studioKind === 'architecture') {
     const context = architectureContext(input.architecture);
     if (context) sections.push(context);
+    // Without any analysis the scope is still read from the customer's own words.
+    const site = siteInsightsBlock(input.siteInsights);
+    sections.push(site || `PROJECT SCOPE: ${inferProjectScope(userBrief)} — this is ${SCOPE_LABELS[inferProjectScope(userBrief)]}.`);
+  }
+  if (input.studioKind === 'product') {
+    const product = productInsightsBlock(input.productInsights, input.productFacts);
+    if (product) sections.push(product);
   }
   const hidden = (input.hiddenDirection ?? '').trim();
   if (hidden) sections.push(`ADDITIONAL DIRECTION (the customer's own words below override it wherever they conflict):\n${hidden}`);
@@ -182,3 +322,17 @@ One attached reference image is a finished SAMPLE (it is marked "STYLE SAMPLE").
 - Place the customer's subject naturally into the scene: correct scale, perspective, contact shadows, reflections and lighting that match the sample's environment.
 - If the customer's own words ask for changes to the sample (colours, background, mood, camera), apply them; their words win over the sample.
 - Do not show the sample image itself, a split screen, a collage or any text.`;
+
+/** Street-level views for a shop front: the face the customer's business shows to the road. */
+export const STOREFRONT_VIEW_ROLES = [
+  'VIEW 1 — EYE-LEVEL STREET VIEW of the SAME shop front as a passer-by sees it, in soft daylight, with the neighbouring units visible.',
+  'VIEW 2 — ENTRANCE CLOSE-UP of the same shop front: door, glazing, signage zone (no readable lettering) and the first metres of the interior.',
+  'VIEW 3 — DUSK VIEW of the same shop front with warm interior light spilling onto the pavement.',
+  'VIEW 4 — INSIDE-OUT VIEW from just inside the entrance looking out through the glazing to the street.',
+] as const;
+
+export function viewRolesForScope(scope: ProjectScope | null, kind: 'interior-design' | 'architecture') {
+  if (scope === 'fit_out_interior') return INTERIOR_VIEW_ROLES;
+  if (scope === 'storefront_exterior') return STOREFRONT_VIEW_ROLES;
+  return kind === 'architecture' ? ARCHITECTURE_VIEW_ROLES : INTERIOR_VIEW_ROLES;
+}

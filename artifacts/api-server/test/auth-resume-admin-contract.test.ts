@@ -59,11 +59,12 @@ test('Generate stays above the examples and attachments, which scroll sideways a
   assert.match(await fe('components/landing/VideoShowcase.tsx'), /Show more/);
 });
 
-test('the website field has a globe that turns around itself and respects reduced motion', async () => {
-  assert.match(await fe('components/chat/WebsiteBriefForm.tsx'), /<SpinningGlobe size=\{18\} \/>/);
+test('the website field keeps the original globe tile, which rotates in a slow circle (and holds still for reduced motion)', async () => {
+  assert.match(await fe('components/chat/WebsiteBriefForm.tsx'), /<span className="globe-orbit flex h-9 w-9[^>]*><Globe2 size=\{17\} \/><\/span>/);
   const css = await fe('index.css');
-  assert.match(css, /\.globe-meridian \{[\s\S]*animation: globe-turn 6s/);
-  assert.match(css, /prefers-reduced-motion: reduce\) \{\s*\.globe-meridian \{ animation: none/);
+  assert.match(css, /\.globe-orbit \{\s*animation: globe-orbit-spin 8s linear infinite;/);
+  assert.match(css, /@keyframes globe-orbit-spin \{\s*from \{ transform: rotate\(0deg\); \}\s*to \{ transform: rotate\(360deg\); \}/);
+  assert.match(css, /\.globe-orbit \{ animation: none; \}/);
 });
 
 test('the profile Add credits button opens the full purchase list', async () => {

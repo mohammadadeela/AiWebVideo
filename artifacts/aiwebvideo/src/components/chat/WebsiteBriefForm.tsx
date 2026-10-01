@@ -5,6 +5,14 @@ import {
   ChevronDown,
   Clock,
   Film,
+  BriefcaseBusiness,
+  Clapperboard,
+  Compass,
+  GraduationCap,
+  Megaphone,
+  ShoppingCart,
+  Wand2,
+  type LucideIcon,
   Globe2,
   Image as ImageIcon,
   House,
@@ -36,7 +44,7 @@ import {
 } from "@/lib/creativeIdeas";
 import { trackStudioEvent } from "@/lib/studio-api";
 import { withHiddenDirection } from "@/lib/hiddenDirection";
-import { SpinningGlobe } from "@/components/ui/SpinningGlobe";
+import { useAutoGrow } from "@/lib/useAutoGrow";
 import { ScrollRow } from "@/components/ui/scroll-row";
 import { NumberStepper } from "@/components/ui/number-stepper";
 import { ToggleRow } from "@/components/ui/toggle-row";
@@ -45,10 +53,10 @@ import { USE_SAMPLE_EVENT, clearPendingSample, peekPendingSample, rememberPendin
 import { ComposerPlusMenu } from "./ComposerPlusMenu";
 import { FormatIcon } from "./FormatIcon";
 import { IdeasIcon } from "./IdeasIcon";
-import { ModelPicker } from "./ModelPicker";
+import { ModelPicker, ModelRatePill } from "./ModelPicker";
 import { QualityGlyph } from "./QualityGlyph";
 import { fileKey, rememberFiles } from "@/lib/recentFiles";
-import { extractProductReference, resolveArchitectureLocation } from "@/lib/api-client";
+import { ApiError, extractProductReference, resolveArchitectureLocation, type ProductReference } from "@/lib/api-client";
 import type { AudioMode, JobMode } from "./types";
 
 export type CreationIntent =
@@ -92,6 +100,8 @@ export interface StudioGenerationRequest {
   studioDirection?: string;
   /** A showcase sample to recreate with the customer's own references. */
   templateId?: string;
+  /** What the product page says, to brief the AI accurately. */
+  productFacts?: { title?: string; description?: string; facts?: Record<string, string> };
 }
 
 const TEMPLATE_PROMPTS: Partial<Record<CreationIntent, string>> = {
@@ -117,13 +127,16 @@ const WEBSITE_RECIPES: Array<{
   mode: WebsiteProductionMode;
   label: string;
   helper: string;
+  icon: LucideIcon;
+  /** Gradient for the icon tile. */
+  tint: string;
 }> = [
-  { mode: "video", label: "Promo", helper: "Brand campaign" },
-  { mode: "demo", label: "Cinematic", helper: "Generated brand film" },
-  { mode: "tutorial", label: "Tutorial", helper: "Teach the workflow" },
-  { mode: "tour", label: "Feature tour", helper: "Show the product" },
-  { mode: "buy", label: "How to buy", helper: "Conversion journey" },
-  { mode: "linkedin", label: "LinkedIn", helper: "Professional social" },
+  { mode: "video", label: "Promo", helper: "A punchy brand campaign", icon: Megaphone, tint: "from-violet to-pink" },
+  { mode: "demo", label: "Cinematic", helper: "A generated brand film", icon: Clapperboard, tint: "from-amber-400 to-pink" },
+  { mode: "tutorial", label: "Tutorial", helper: "Teach how it works", icon: GraduationCap, tint: "from-sky-400 to-violet" },
+  { mode: "tour", label: "Feature tour", helper: "Walk through the product", icon: Compass, tint: "from-mint to-sky-400" },
+  { mode: "buy", label: "How to buy", helper: "Guide visitors to checkout", icon: ShoppingCart, tint: "from-emerald-400 to-mint" },
+  { mode: "linkedin", label: "LinkedIn", helper: "Polished and professional", icon: BriefcaseBusiness, tint: "from-blue-500 to-sky-400" },
 ];
 
 const CREATION_MODES = [
@@ -398,7 +411,7 @@ export function WebsiteBriefForm({
   const [brief, setBrief] = useState("");
   const [prompt, setPrompt] = useState("");
   const [productLink, setProductLink] = useState("");
-  const [productData, setProductData] = useState<{ title: string; description: string; url: string; images: string[] } | null>(null);
+  const [productData, setProductData] = useState<ProductReference | null>(null);
   const [chosenProductImages, setChosenProductImages] = useState<string[]>([]);
   const [readingProduct, setReadingProduct] = useState(false);
   const [mapLink, setMapLink] = useState("");
@@ -512,6 +525,24 @@ export function WebsiteBriefForm({
     [activeMode, ideaContext],
   );
 
+  // Another account (or a sign-out) took over this browser: what the previous person attached or picked must not
+  // follow into the next account. Going from signed-out to signed-in keeps it (a guest's request is carried over).
+  const previousOwnerRef = useRef(recentFilesOwner);
+  useEffect(() => {
+    const previous = previousOwnerRef.current;
+    previousOwnerRef.current = recentFilesOwner;
+    if (previous && previous !== recentFilesOwner) {
+      setFiles([]);
+      setSelectedSample(null);
+      setProductData(null);
+      setChosenProductImages([]);
+      setProductLink("");
+    }
+  }, [recentFilesOwner]);
+
+  // The prompt box grows with the text (up to ~40% of the screen) and scrolls inside after that.
+  useAutoGrow(activeMode === "website" ? websiteBriefRef : studioPromptRef, activeMode === "video" || activeMode === "scenario" ? prompt : brief, { minPx: compactLayout ? 96 : 120, maxPx: 260 });
+
   // A visitor tapped an example ("make one like this"): open that feature with the example attached.
   useEffect(() => {
     const handleSample = (event: Event) => {
@@ -614,11 +645,13 @@ export function WebsiteBriefForm({
       setChosenProductImages(data.images.slice(0, 1));
       if (!brief.trim() && data.description) setBrief(data.description.slice(0, 1200));
       return data;
-    } catch {
+    } catch (error) {
       lastReadLinkRef.current = "";
       setProductData(null);
       setChosenProductImages([]);
-      setError("We couldn't read photos from that link. Upload a photo of the product instead.");
+      setError(error instanceof ApiError && error.message
+        ? error.message
+        : "We couldn't read photos from that link. Upload a photo of the product instead.");
       return null;
     } finally {
       setReadingProduct(false);
@@ -787,21 +820,16 @@ export function WebsiteBriefForm({
         setError("Add the plot's location: paste a Google Maps link or type the address.");
         return;
       }
-      if (!estimatedScale && (!Number(plotWidth) || !Number(plotDepth))) {
-        setError("Add the plot width and depth in metres, or switch on \"Estimate the plot size\".");
-        return;
-      }
-      if (files.length === 0) {
-        setError("Add a screenshot of the plot from Google Maps, a site photo or a plan. The link shows us where it is; the screenshot shows us what is there.");
-        return;
-      }
+      // Plot size and a site image are optional: the location and your words are enough to start.
     }
     let productUrl = productData?.url;
+    let productReference = productData;
     let productImages = chosenProductImages;
     if (isProduct && files.length === 0 && productImages.length === 0 && productLink.trim()) {
       const data = await loadProductLink();
       if (!data) return;
       productUrl = data.url;
+      productReference = data;
       productImages = data.images.slice(0, 1);
     }
     if (isInterior && activeMode === "interior" && files.length === 0) {
@@ -837,6 +865,7 @@ export function WebsiteBriefForm({
       productImageUrls: productImages,
       studioDirection: selectedIdea ? selectedIdea.masterPrompt : undefined,
       templateId: selectedSample?.id,
+      productFacts: isProduct && productReference ? { title: productReference.title, description: productReference.description, facts: productReference.facts } : undefined,
       architecture: activeMode === "architecture" ? {
         location: resolvedSite?.label || resolvedSite?.resolvedUrl,
         latitude: resolvedSite?.latitude,
@@ -1068,7 +1097,7 @@ export function WebsiteBriefForm({
             />
 
             <p className="text-[11px] leading-4 text-white/45">
-              Add a screenshot of the plot from Google Maps, a site photo or a plan with “Add site / building”. To place an existing building design, add its image too.
+              Paste the link and say what you want, for example “a clothes shop here”. A screenshot of the plot or the building to place (via “Add site / building”) is optional but makes it more exact.
             </p>
           </div>
         )}
@@ -1112,7 +1141,7 @@ export function WebsiteBriefForm({
             <label className="block">
               <span className="mb-1.5 block text-[11px] font-semibold text-white">Website URL</span>
               <div className="flex items-center gap-3 rounded-2xl border border-mint/30 bg-[#0b0818] px-3 transition focus-within:border-mint/60 focus-within:ring-2 focus-within:ring-mint/10">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-mint/[.08] text-mint"><SpinningGlobe size={18} /></span>
+                <span className="globe-orbit flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-mint/20 bg-mint/[.08] text-mint" aria-hidden="true"><Globe2 size={17} /></span>
                 <input
                   value={url}
                   onChange={(event) => setUrl(event.currentTarget.value)}
@@ -1201,6 +1230,7 @@ export function WebsiteBriefForm({
               onOpenChange={(next) => { setOpenSettingMenu(null); setCompactPanel(next ? "model" : null); }}
               onSelect={(id) => { chooseModel(id); setCompactPanel(null); }}
             />
+            <ModelRatePill model={selectedModel} quality={settings.outputQuality} />
 
           {selectedModel.supportsDuration && (
             <ControlMenu open={openSettingMenu === "duration"} onClose={() => setOpenSettingMenu(null)} label="Video duration" wide trigger={
@@ -1431,34 +1461,45 @@ export function WebsiteBriefForm({
         )}
 
         {compactPanel === "style" && activeMode === "website" && (
-          <div className="mt-2 rounded-2xl border border-mint/15 bg-mint/[.035] p-2.5">
-            <div className="chat-scroll flex gap-1.5 overflow-x-auto pb-0.5">
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedWebsiteRecipe(null);
-                  setSettings((current) => ({ ...current, mode: "video" }));
-                  setCompactPanel(null);
-                }}
-                className={optionClass(!selectedWebsiteRecipe)}
-              >
-                Auto
-              </button>
-              {WEBSITE_RECIPES.map((recipe) => (
-                <button
-                  key={recipe.mode}
-                  type="button"
-                  title={recipe.helper}
-                  onClick={() => {
-                    setSelectedWebsiteRecipe(recipe.mode);
-                    setSettings((current) => ({ ...current, mode: recipe.mode }));
-                    setCompactPanel(null);
-                  }}
-                  className={optionClass(selectedWebsiteRecipe === recipe.mode)}
-                >
-                  {recipe.label}
-                </button>
-              ))}
+          <div className="mt-2 rounded-2xl border border-white/[.08] bg-white/[.025] p-3" role="radiogroup" aria-label="Video style">
+            <div className="mb-2.5 flex items-baseline justify-between gap-3">
+              <p className="text-[12px] font-semibold text-white">Choose a style</p>
+              <p className="text-[11px] text-white/40">How should the video feel?</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {[{ mode: null, label: "Auto", helper: "We pick the best fit", icon: Wand2, tint: "from-white/25 to-white/10" }, ...WEBSITE_RECIPES].map((recipe) => {
+                const active = (selectedWebsiteRecipe ?? null) === recipe.mode;
+                const Icon = recipe.icon;
+                return (
+                  <button
+                    key={recipe.mode ?? "auto"}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => {
+                      setSelectedWebsiteRecipe(recipe.mode);
+                      setSettings((current) => ({ ...current, mode: recipe.mode ?? "video" }));
+                      setCompactPanel(null);
+                    }}
+                    className={`group relative flex items-start gap-2.5 rounded-2xl border p-2.5 text-left transition active:scale-[.98] ${
+                      active ? "border-mint/60 bg-mint/[.09] shadow-[0_12px_30px_-20px_rgba(52,211,153,.9)]" : "border-white/[.08] bg-white/[.02] hover:border-white/25 hover:bg-white/[.05]"
+                    }`}
+                  >
+                    <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br text-white shadow-[inset_0_1px_0_rgba(255,255,255,.35)] ${recipe.tint}`}>
+                      <Icon size={17} />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-[13px] font-semibold leading-tight text-white">{recipe.label}</span>
+                      <span className="mt-0.5 block text-[11px] leading-[1.3] text-white/50">{recipe.helper}</span>
+                    </span>
+                    {active && (
+                      <span className="absolute right-2 top-2 grid h-5 w-5 place-items-center rounded-full bg-mint text-[#10231f]">
+                        <Check size={12} strokeWidth={3} />
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}

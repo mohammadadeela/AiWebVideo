@@ -14,6 +14,8 @@ import {
   INTERIOR_MASTER_DIRECTION,
   INTERIOR_VIEW_ROLES,
   composeStudioBrief,
+  extractProjectScope,
+  viewRolesForScope,
 } from './studio-direction.js';
 
 const execFileAsync = promisify(execFile);
@@ -119,16 +121,29 @@ export function buildArchitecturalImagePrompt(input: {
   sceneDescription: string;
   brief?: string | null;
 }) {
-  const roles = input.kind === 'architecture' ? ARCHITECTURE_VIEW_ROLES : INTERIOR_VIEW_ROLES;
+  // A shop fit-out is shown from inside, a storefront from the street, a new building from outside:
+  // the project scope in the directed brief decides which four camera views make up the set.
+  const roles = viewRolesForScope(extractProjectScope(input.brief), input.kind);
   const role = roles[input.sceneIndex % roles.length];
   const userBrief = input.brief?.trim() || (input.kind === 'architecture'
     ? 'Design a well-proportioned contemporary building that suits the site.'
     : 'Create a refined, coherent interior design that keeps the existing architecture.');
   // The route normally supplies a fully directed brief; add the master only if it is missing.
   const directed = composeStudioBrief({ studioKind: input.kind === 'architecture' ? 'architecture' : 'interior', userBrief });
-  const subject = input.kind === 'architecture'
-    ? 'a NEW building placed on the REAL site shown in the attached references'
-    : 'the redesigned interior of the EXACT space shown in the attached references';
+  const scope = extractProjectScope(input.brief);
+  const subject = input.kind === 'interior-design'
+    ? 'the redesigned interior of the EXACT space shown in the attached references'
+    : scope === 'fit_out_interior'
+      ? 'the finished INTERIOR of a unit inside the EXISTING building at the real location (the shell, structure and facade stay as they are)'
+      : scope === 'storefront_exterior'
+        ? 'the finished SHOP FRONT of an existing unit on the real street (the building around it stays as it is)'
+        : scope === 'facade_retrofit'
+          ? 'the RENOVATED FACADE of the existing building at the real location (massing and structure stay)'
+          : scope === 'extension'
+            ? 'the existing building at the real location WITH the requested extension'
+            : scope === 'landscape'
+              ? 'the landscaped outdoor space at the real location'
+              : 'a NEW building placed on the REAL site described and shown in the references';
   return `Create ONE photoreal architectural visualization image of ${subject}.
 
 THIS IMAGE'S CAMERA (the design itself never changes between images of the set):
@@ -155,6 +170,32 @@ OUTPUT RULES:
 }
 
 /** Rotate large reference sets so four generated photos collectively use all inputs. */
+/**
+ * Names the role each reference plays, so the model is told which image is the customer's own product, which is
+ * the style sample and which is a view of the site, instead of guessing from the order.
+ */
+export function referenceRoleLabel(rawLabel: string, index: number): string {
+  const label = (rawLabel || '').trim();
+  if (/STYLE SAMPLE/i.test(label)) return "STYLE SAMPLE: copy its composition, light and mood. Do NOT copy its subject; the customer's references replace it";
+  if (/^Product image/i.test(label)) return `THE CUSTOMER'S PRODUCT PHOTO (${label}): ground truth. The product must look exactly like this: shape, colours, materials, printed text, logos`;
+  if (/Satellite view|Street-level view/i.test(label)) return `VIEW OF THE REAL SITE (${label}): ground truth for the surroundings, street position and orientation`;
+  if (/^upload|^photo \d|^reference|\.(jpe?g|png|webp)\b/i.test(label) || !label) return `THE CUSTOMER'S OWN REFERENCE ${index + 1}${label ? ` (${label})` : ''}: ground truth. Use exactly what it shows`;
+  return label;
+}
+
+/**
+ * Studio productions must look like ONE product / ONE place across the whole set. So instead of rotating a
+ * different subset of references into every image, choose them once: the customer's own references first (in the
+ * order they gave them), the style sample last, never more than the model accepts.
+ */
+export function pickStudioReferences<T extends { label: string }>(items: T[], limit = 4): T[] {
+  const template = items.filter((item) => /STYLE SAMPLE/i.test(item.label));
+  const own = items.filter((item) => !/STYLE SAMPLE/i.test(item.label));
+  if (items.length <= limit) return [...own, ...template];
+  const keepTemplate = template.slice(0, 1);
+  return [...own.slice(0, limit - keepTemplate.length), ...keepTemplate];
+}
+
 export function selectMarketingPhotoReferences(referenceImages: Buffer[], sceneIndex: number, limit = 4) {
   const usable = referenceImages.filter((buffer) => buffer.length > 0);
   if (usable.length <= limit) return usable;
@@ -182,7 +223,8 @@ async function runImageGeneration(
   aspectRatio: '16:9' | '9:16' | '1:1',
   outputQuality: '1080p' | '4k',
   operation = 'marketing_image',
-  publicModelId?: string | null
+  publicModelId?: string | null,
+  referenceLabels?: string[]
 ): Promise<GeneratedImage> {
   const selected = publicModelId && GENERATION_MODELS[publicModelId as keyof typeof GENERATION_MODELS]?.creditUnit === 'image'
     ? GENERATION_MODELS[publicModelId as keyof typeof GENERATION_MODELS]
@@ -197,15 +239,18 @@ async function runImageGeneration(
       `model=${geminiImageModel} reference_assets=${referenceImages.length}`
   );
 
-  const input: Array<{ type: 'image'; data: string; mime_type: string } | { type: 'text'; text: string }> =
-    referenceImages
-      .filter((buffer) => buffer.length > 0)
-      .slice(0, 4)
-      .map((buffer) => ({
-        type: 'image' as const,
-        data: buffer.toString('base64'),
-        mime_type: 'image/jpeg'
-      }));
+  const usable = referenceImages
+    .map((buffer, index) => ({ buffer, label: referenceLabels?.[index] }))
+    .filter((item) => item.buffer.length > 0)
+    .slice(0, 4);
+  const input: Array<{ type: 'image'; data: string; mime_type: string } | { type: 'text'; text: string }> = [];
+  if (usable.length && usable.some((item) => item.label)) {
+    input.push({ type: 'text', text: `The ${usable.length} reference image${usable.length === 1 ? '' : 's'} below ${usable.length === 1 ? 'is' : 'are'} each introduced by its role. Follow the role exactly.` });
+  }
+  usable.forEach((item, index) => {
+    if (item.label) input.push({ type: 'text', text: `REFERENCE ${index + 1} of ${usable.length} — ${item.label}` });
+    input.push({ type: 'image' as const, data: item.buffer.toString('base64'), mime_type: 'image/jpeg' });
+  });
   input.push({
     type: 'text',
     text: `${prompt}\n\n${INTERNAL_MASTER_IMAGE_QUALITY_DIRECTIVE}`
@@ -375,9 +420,11 @@ export async function generateMarketingPhoto(
   outputQuality: '1080p' | '4k',
   customBrief?: string | null,
   featureKind: MarketingPhotoKind = 'website-photos',
-  publicModelId?: string | null
+  publicModelId?: string | null,
+  referenceLabels?: string[]
 ): Promise<GeneratedImage> {
-  if (!referenceImages.length) {
+  // Interior and architecture can start from the customer's words and the analysed site alone.
+  if (!referenceImages.length && featureKind !== 'architecture' && featureKind !== 'interior-design') {
     throw new Error('No captured website images are available to use as references for the marketing photo.');
   }
 
@@ -400,7 +447,8 @@ export async function generateMarketingPhoto(
       aspectRatio,
       outputQuality,
       'marketing_image',
-      publicModelId
+      publicModelId,
+      referenceLabels?.filter((_, index) => (referenceImages[index]?.length ?? 0) > 0).slice(0, 4)
     );
   }
 
@@ -458,7 +506,9 @@ Premium commercial art direction, realistic materials and fabric, accurate produ
     aspectRatio,
     outputQuality,
     'marketing_image',
-    publicModelId
+    publicModelId,
+    // Labels follow the images: the rotation only applies to many-capture website campaigns (more than four).
+    referenceImages.length <= 4 ? referenceLabels : undefined
   );
 }
 

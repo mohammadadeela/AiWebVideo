@@ -7,6 +7,7 @@ import {
   type FormEvent,
   type KeyboardEvent,
 } from "react";
+import { useAutoGrow } from "@/lib/useAutoGrow";
 import { ArrowUp, Paperclip } from "lucide-react";
 
 const CHAT_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -32,6 +33,9 @@ export function ChatInputBar({
   const [dragging, setDragging] = useState(false);
   const dragDepthRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Grows with the message, never taller than ~40% of the screen, then scrolls inside.
+  useAutoGrow(textareaRef, value, { minPx: 72, maxPx: 240 });
 
   useEffect(() => {
     const resetDragState = () => {
@@ -177,6 +181,7 @@ export function ChatInputBar({
         )}
         {multiline ? (
           <textarea
+            ref={textareaRef}
             rows={2}
             value={value}
             onChange={(e) => setValue(e.target.value)}

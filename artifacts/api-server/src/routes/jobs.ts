@@ -30,6 +30,10 @@ import { publicJobErrorMessage, publicJobMessageContent } from "../lib/public-er
 import { generateStoryboard, remapStoryboardScenesToCaptures, storyboardModelName } from "../lib/gemini.js";
 import { generateMarketingPhoto, generateWebsiteIcon } from "../lib/imagen.js";
 import { composeStudioBrief, splitHiddenDirection, type ArchitectureInput } from "../lib/studio-direction.js";
+import { isPlannedBilling, plannedBillingFrom, plannedRenderCost, type PlannedBilling } from "../lib/job-billing.js";
+import { analyzeProduct, analyzeSite } from "../lib/studio-insights.js";
+import { pickStudioReferences, referenceRoleLabel } from "../lib/imagen.js";
+import type { ProductFactsInput, ProductInsights, SiteInsights } from "../lib/studio-direction.js";
 import { generateMarketingVideo, premiumSceneOperationCount, type AudioMode } from "../lib/veo.js";
 import { generateVoiceoverScript, synthesizeVoiceover, resolveNarrationLanguage } from "../lib/voiceover.js";
 import {
@@ -158,6 +162,13 @@ type CaptureMeta = {
   architecture?: ArchitectureInput | null;
   /** Optional creative direction chosen from an Idea chip. Hidden from the customer. */
   studioDirection?: string | null;
+  /** The price frozen when planning reserved the credits (see lib/job-billing.ts). */
+  planning?: PlannedBilling | null;
+  /** What the product page says, and what the AI understood from the product photos (see studio-insights.ts). */
+  productFacts?: ProductFactsInput | null;
+  productInsights?: ProductInsights | null;
+  /** What the AI worked out about the site and the project scope for an architecture job. */
+  siteInsights?: SiteInsights | null;
   generatedReferenceUrls?: string[];
 };
 
@@ -173,7 +184,34 @@ function directedBriefFor(meta: CaptureMeta | null, userBrief: string | null | u
     architecture: meta?.architecture ?? null,
     userBrief,
     hiddenDirection: meta?.studioDirection ?? null,
+    productFacts: meta?.productFacts ?? null,
+    productInsights: meta?.productInsights ?? null,
+    siteInsights: meta?.siteInsights ?? null,
   }) || null;
+}
+
+/**
+ * Product and architecture jobs get the AI's understanding of the product photos / the site BEFORE planning, so
+ * every later image and film is directed from facts and not from a guess. Runs only inside planning (credits are
+ * already reserved) and is non-fatal: a failure just means the production uses the customer's own inputs.
+ */
+async function studioInsightsFor(
+  jobId: string,
+  meta: CaptureMeta | null,
+  captures: Array<{ label: string; buffer: Buffer }>,
+  customerBrief: string,
+): Promise<Partial<CaptureMeta> | null> {
+  if (meta?.sourceType !== "studio") return null;
+  const images = captures.slice(0, 4).map((capture) => ({ label: capture.label, base64: capture.buffer.toString("base64") }));
+  if (meta.studioKind === "product" && !meta.productInsights) {
+    const productInsights = await analyzeProduct({ jobId, facts: meta.productFacts ?? null, customerBrief, images });
+    return productInsights ? { productInsights } : null;
+  }
+  if (meta.studioKind === "architecture" && !meta.siteInsights && meta.architecture) {
+    const siteInsights = await analyzeSite({ jobId, architecture: meta.architecture, customerBrief, images });
+    return siteInsights ? { siteInsights } : null;
+  }
+  return null;
 }
 
 function effectiveVideoModeForMeta(meta: CaptureMeta | null, requestedMode: string) {
@@ -820,9 +858,18 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
     }
 
     let meta = job.capture_metadata as CaptureMeta | null;
-    if (submittedDirection && meta && meta.studioDirection !== submittedDirection) {
-      // Persist it so later renders and regenerations keep the chosen direction without the browser resending it.
-      meta = { ...meta, studioDirection: submittedDirection };
+    // Freeze the price the person just agreed to. Quote and render use exactly this number.
+    const planningBilling = plannedBillingFrom({
+      totalCredits: planningQuote.totalCredits,
+      narrationCredits: planningQuote.narrationCredits,
+      narrationIncluded: planningAudioMode === "voice_music",
+    });
+    if (meta) {
+      meta = { ...meta, planning: planningBilling };
+      if (submittedDirection && meta.studioDirection !== submittedDirection) {
+        // Persist it so later renders and regenerations keep the chosen direction without the browser resending it.
+        meta = { ...meta, studioDirection: submittedDirection };
+      }
       await updateJob(job.id, { capture_metadata: meta as never });
     }
     const plannerMode = effectiveVideoModeForMeta(meta, mode);
@@ -915,6 +962,12 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
         }
 
         const plannerCaptures = await loadReferenceCaptures(job.id, meta, aspectRatio, selectedCaptureIds, selectedGeneratedPhotoIds);
+        // Understand the product / the site first (saved on the job, so every later step reads the same facts).
+        const insights = await studioInsightsFor(job.id, meta, plannerCaptures, creativeBrief ?? "");
+        if (insights) {
+          meta = { ...(meta as CaptureMeta), ...insights };
+          await updateJob(job.id, { capture_metadata: meta as never });
+        }
         if (
           selectedCaptureIds?.length &&
           plannerCaptures.filter((capture) => capture.id !== "website-icon.jpg").length === 0
@@ -1066,6 +1119,11 @@ router.post("/:id/quote", requireAuth, async (req, res) => {
     );
     const balance = req.user!.creditsBalance;
     const reservedCredits = Math.max(0, job.credits_spent || 0);
+    const quoteMeta = job.capture_metadata as CaptureMeta | null;
+    // Same rule as render: the frozen planning price, adjusted only for narration.
+    if (isPlannedBilling(quoteMeta?.planning)) {
+      quote.totalCredits = plannedRenderCost(quoteMeta!.planning!, input.audioMode === "voice_music");
+    }
     const additionalRequired = Math.max(0, quote.totalCredits - reservedCredits);
     res.json({
       ...quote,
@@ -1157,7 +1215,7 @@ router.post("/:id/render", requireAuth, async (req, res) => {
     if (renderQuality === "4k" && !selectedRenderModel.supports4k) {
       throw new AppError("The selected AiWebVideo model does not support 4K. Choose 1080p or a higher model.", 400, "MODEL_QUALITY_UNSUPPORTED");
     }
-    const cost = videoCreditCost(
+    const recomputedCost = videoCreditCost(
       job.mode,
       skipVoiceover,
       targetDuration,
@@ -1165,6 +1223,13 @@ router.post("/:id/render", requireAuth, async (req, res) => {
       selectedRenderModel.id,
       meta?.studioKind,
     );
+    // After planning the price is frozen: render charges what was reserved (narration add-on aside), so a
+    // production the customer already paid for can never ask for more halfway through.
+    const frozenBilling = isPlannedBilling(meta?.planning) ? meta!.planning! : null;
+    const cost = frozenBilling ? plannedRenderCost(frozenBilling, !skipVoiceover) : recomputedCost;
+    if (frozenBilling && cost !== recomputedCost) {
+      console.warn(`[billing] job=${job.id} frozen price ${cost} differs from recomputed ${recomputedCost}; charging the frozen price`);
+    }
     const claim = await claimRenderAndSpend(job.id, req.user!.id, cost);
     if (!claim.ok && claim.reason === "already_started") {
       throw new AppError("This job is already rendering or has finished.", 409, "RENDER_ALREADY_STARTED");
@@ -1281,7 +1346,12 @@ router.post("/:id/render", requireAuth, async (req, res) => {
           storyboard.aspectRatio ?? "16:9",
           storyboard.selectedCaptureIds,
         );
-        const referenceImages = loadedCaptures.map((capture) => capture.buffer);
+        // Studio productions (product, interior, architecture, idea) must look like ONE product / ONE place across
+        // the whole set: choose the customer's own references once, in their order, style sample last, at most
+        // four, and tell the model what each image is. Website campaigns keep their page rotation.
+        const studioReferences = meta?.sourceType === "studio" ? pickStudioReferences(loadedCaptures) : null;
+        const referenceImages = (studioReferences ?? loadedCaptures).map((capture) => capture.buffer);
+        const referenceLabels = studioReferences?.map((capture, index) => referenceRoleLabel(capture.label, index));
         if (referenceImages.length === 0 && meta?.screenshotUrl && /^https?:\/\//i.test(meta.screenshotUrl)) {
           // Last-resort fallback for legacy jobs whose metadata points at an
           // absolute external screenshot URL (e.g. thum.io). Local asset paths
@@ -1393,6 +1463,7 @@ router.post("/:id/render", requireAuth, async (req, res) => {
                         ? "mixed-campaign"
                         : "website-photos",
                 selectedRenderModel.creditUnit === "image" ? selectedRenderModel.id : "graphic-2",
+                referenceLabels,
               );
             } finally {
               completedPhotos++;
