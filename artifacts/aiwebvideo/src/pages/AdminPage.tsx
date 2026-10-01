@@ -15,11 +15,15 @@ import {
 } from '@/lib/api-client';
 import { watchAuthState } from '@/lib/firebase/client';
 import { useSeo } from '@/lib/useSeo';
+import { publishGallery } from '@/lib/showcase';
+import { resolveVideoEmbed } from '@/lib/videoEmbed';
 
 type Tab = 'overview' | 'reports' | 'landing' | 'users' | 'jobs' | 'providers' | 'audit';
 type Row = Record<string, unknown>;
 type MetricCard = [label: string, value: string, icon: ComponentType<LucideProps>, hint: string];
 const LANDING_VIDEO_LIMIT = 280;
+/** Features that have a floating card on the landing hero (same list as HeroMediaOrbit). */
+const HERO_FEATURES: string[] = ['website', 'product-video', 'interior', 'scenario', 'architecture'];
 const tabs: Array<{ id: Tab; label: string; icon: typeof LayoutDashboard }> = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'reports', label: 'Reports', icon: BarChart3 },
@@ -378,7 +382,7 @@ export function AdminPage() {
   async function saveLanding() {
     if (!marketing) return;
     setBusy(true); setMessage(null);
-    try { const saved = await saveMarketingSettings(marketing); setMarketing(saved); setDirty(false); setMessage('Homepage videos are live.'); }
+    try { const saved = await saveMarketingSettings(marketing); setMarketing(saved); publishGallery(saved); setDirty(false); setMessage('Homepage media is live.'); }
     catch (error) { setMessage(error instanceof Error ? error.message : 'Homepage video settings could not be saved.'); }
     finally { setBusy(false); }
   }
@@ -526,7 +530,7 @@ export function AdminPage() {
   const setShowcase = (next: typeof showcase) => { if (!marketing) return; setMarketing({ ...marketing, videos: { showcase: next } }); setDirty(true); };
   const checkoutState = providerStatus.checkout;
 
-  return <div className="min-h-screen bg-bg lg:flex">
+  return <div className="cinematic-page min-h-screen bg-bg lg:flex">
     <aside className="border-b border-border bg-[#100c20] p-4 lg:sticky lg:top-0 lg:h-screen lg:w-56 lg:border-b-0 lg:border-r">
       <Link href="/"><Wordmark /></Link>
       <nav className="chat-scroll mt-5 flex gap-1 overflow-x-auto lg:mt-8 lg:flex-col lg:overflow-visible" aria-label="Admin sections">
@@ -589,6 +593,10 @@ export function AdminPage() {
         const patchItems = (ids: string[], patch: Partial<(typeof items)[number]>) => setShowcase(showcase.map((item) => ids.includes(item.id) ? { ...item, ...patch } : item));
         const chip = (active: boolean) => `shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition ${active ? 'bg-white text-[#1b1030]' : 'bg-white/[.06] text-text-muted hover:text-white'}`;
         return <section className="mt-6 space-y-4">
+          <div className="rounded-2xl border border-violet/20 bg-[linear-gradient(135deg,rgba(139,92,246,.10),rgba(34,211,238,.05),rgba(236,72,153,.07))] p-4">
+            <p className="text-sm font-semibold text-white">Landing page media</p>
+            <p className="mt-1 text-xs leading-5 text-text-muted">Everything here powers the homepage gallery. Each feature's first item also floats around the hero as that feature's card (Website, Product video, Interior, Talking scene, Architecture); phones and tablets hide those cards. Use “Show on the hero” to choose which item a card shows, then Save. Uploaded videos loop silently with no play button.</p>
+          </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-text-muted"><span className="font-semibold text-text-primary">{items.length}</span> of {LANDING_VIDEO_LIMIT} items{unassigned.length > 0 && <span className="ml-2 font-semibold text-amber-200">· {unassigned.length} need a feature</span>}</p>
             <div className="flex flex-wrap gap-2">
@@ -628,9 +636,11 @@ export function AdminPage() {
             <button type="button" onClick={() => setGallerySelected([])} aria-label="Clear selection" className="grid h-8 w-8 place-items-center rounded-full text-text-muted hover:bg-white/10"><X size={14} /></button>
           </div>}
 
-          {visible.length === 0 ? <Empty>{items.length ? 'Nothing matches these filters.' : 'Upload images and videos to build the homepage gallery.'}</Empty> : <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
+          {visible.length === 0 ? <Empty>{items.length ? 'Nothing matches these filters.' : 'Upload images and videos to build the cinematic hero and homepage gallery.'}</Empty> : <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
             {visible.map((item) => {
               const selected = gallerySelected.includes(item.id);
+              // The first published item of a feature is that feature's floating card on the landing hero.
+              const onHero = Boolean(item.feature && HERO_FEATURES.includes(item.feature) && items.find((entry) => entry.feature === item.feature && entry.url)?.id === item.id);
               return <article key={item.id} className={`overflow-hidden rounded-2xl border bg-panel transition ${selected ? 'border-violet ring-2 ring-violet/40' : item.feature ? 'border-border' : 'border-amber-300/40'}`}>
                 <div className="relative aspect-[3/4] bg-black">
                   {kindOf(item) === 'image'
@@ -639,7 +649,15 @@ export function AdminPage() {
                   <button type="button" aria-pressed={selected} aria-label={selected ? 'Deselect' : 'Select'} onClick={() => setGallerySelected(selected ? gallerySelected.filter((id) => id !== item.id) : [...gallerySelected, item.id])} className={`absolute left-2 top-2 grid h-7 w-7 place-items-center rounded-full border-2 transition ${selected ? 'border-violet bg-violet text-white' : 'border-white/70 bg-black/40 text-transparent hover:text-white/70'}`}><CheckCircle2 size={14} /></button>
                   <button type="button" disabled={busy} aria-label="Delete" onClick={() => { setShowcase(showcase.filter((entry) => entry.id !== item.id)); setGallerySelected(gallerySelected.filter((id) => id !== item.id)); }} className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-black/60 text-white/80 transition hover:bg-pink/80 hover:text-white"><Trash2 size={12} /></button>
                 </div>
-                <div className="p-2">
+                <div className="space-y-2 p-2">
+                  {item.feature && HERO_FEATURES.includes(item.feature) && (
+                    <>
+                      <button type="button" disabled={busy || onHero} onClick={() => setShowcase([item, ...showcase.filter((entry) => entry.id !== item.id)])} className="min-h-11 w-full rounded-lg border border-violet/25 bg-violet/10 px-2 text-xs font-semibold text-white transition hover:bg-violet/20 disabled:opacity-60">
+                        {onHero ? 'On the hero' : 'Show on the hero'}
+                      </button>
+                      {onHero && <p className="text-center text-[10px] text-mint">{SHOWCASE_FEATURE_LABELS[item.feature as ShowcaseFeature]} card{kindOf(item) === 'video' && resolveVideoEmbed(item.url ?? '').kind === 'file' ? ' · loops silently' : ''}</p>}
+                    </>
+                  )}
                   <select aria-label="Feature" value={item.feature ?? ''} onChange={(event) => patchItems([item.id], { feature: (event.target.value || null) as ShowcaseFeature | null })} className={`h-9 w-full rounded-lg border bg-bg px-2 text-xs ${item.feature ? 'border-border text-text-primary' : 'border-amber-300/50 text-amber-200'}`}>
                     <option value="">Choose a feature…</option>
                     {SHOWCASE_FEATURES.map((feature) => <option key={feature} value={feature}>{SHOWCASE_FEATURE_LABELS[feature]}</option>)}

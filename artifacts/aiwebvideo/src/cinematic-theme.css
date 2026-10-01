@@ -1,0 +1,273 @@
+/*
+ * AiWebVideo space theme. Presentation only: it never changes what anything does.
+ * Layers (back to front): space photo -> star streaks -> dark veil -> page content.
+ */
+
+body {
+  overflow-x: clip;
+  background: #04030a;
+}
+
+.cinematic-site {
+  position: relative;
+  min-height: 100vh;
+  isolation: isolate;
+  overflow-x: clip;
+}
+
+/* ------------------------------------------------------------------ backdrop */
+.space-backdrop {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  background: #04030a;
+}
+
+.space-backdrop-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 100%;
+  transform-origin: 50% 84%;
+  /* a slow push toward the horizon: the picture itself drifts forward */
+  animation: space-dolly 48s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+.space-backdrop-photo {
+  background-image: url("/space-bg.webp");
+  background-size: cover;
+  background-position: 50% 100%;
+  background-repeat: no-repeat;
+}
+
+@media (max-width: 900px) {
+  .space-backdrop-photo { background-image: url("/space-bg-small.webp"); }
+}
+
+.space-backdrop-warp {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  mix-blend-mode: screen;
+}
+
+/* keeps text readable: darker at the top and edges, the horizon glow stays bright */
+.space-backdrop-veil {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 85% 70% at 50% 62%, transparent 38%, rgba(2, 1, 8, .55) 100%),
+    linear-gradient(180deg, rgba(4, 3, 10, .52) 0%, rgba(4, 3, 10, .08) 34%, rgba(4, 3, 10, 0) 70%, rgba(4, 3, 10, .38) 100%);
+}
+
+/* every page except the landing page: calmer, so content stays easy to read */
+.space-backdrop-quiet .space-backdrop-image { opacity: .8; animation-duration: 80s; }
+.space-backdrop-quiet .space-backdrop-warp { opacity: .7; }
+.space-backdrop-quiet .space-backdrop-veil {
+  background:
+    radial-gradient(ellipse 90% 80% at 50% 70%, rgba(4, 3, 10, .12), rgba(2, 1, 8, .62) 100%),
+    linear-gradient(180deg, rgba(4, 3, 10, .50), rgba(4, 3, 10, .22));
+}
+
+/* Pages whose root is a solid dark colour let the space show through, softly, so the whole product feels like one
+   place. Form controls and buttons keep their own solid colours so nothing becomes hard to read. */
+.cinematic-site .bg-bg:not(input):not(select):not(textarea):not(button):not(option) {
+  background-color: rgba(7, 5, 18, .62);
+}
+
+@keyframes space-dolly {
+  from { transform: scale(1); }
+  to { transform: scale(1.1); }
+}
+
+/* ---------------------------------------------------------------------- hero */
+.cinematic-hero { position: relative; }
+
+.cinematic-kicker {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .10), 0 10px 38px -22px rgba(139, 92, 246, .8);
+  backdrop-filter: blur(10px);
+}
+
+.cinematic-title {
+  text-shadow: 0 6px 46px rgba(139, 92, 246, .35);
+}
+
+/* a soft dark pool behind the headline keeps it readable over the bright planet and nebula */
+.cinematic-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 38% 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 52% 62% at 50% 38%, rgba(3, 2, 10, .62), rgba(3, 2, 10, .18) 62%, transparent 80%);
+}
+
+.cinematic-title-gradient {
+  background: linear-gradient(100deg, #e879f9 0%, #c084fc 26%, #7dd3fc 62%, #22d3ee 96%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 6px 22px rgba(3, 2, 10, .75)) drop-shadow(0 0 26px rgba(168, 85, 247, .35));
+}
+
+/* a thin ring around the headline, turning very slowly */
+.hero-title-ring {
+  position: absolute;
+  left: 50%;
+  top: 52%;
+  width: min(86vw, 1100px);
+  aspect-ratio: 5 / 1;
+  transform: translate(-50%, -50%) rotate(-7deg);
+  border-radius: 50%;
+  /* a thin ring: the gradient fills the box, and the mask keeps only a 2px edge of it */
+  padding: 2px;
+  background: conic-gradient(from 0deg, transparent 0 52%, rgba(168, 85, 247, .95) 72%, rgba(96, 165, 250, .9) 88%, transparent 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  filter: drop-shadow(0 0 12px rgba(139, 92, 246, .8));
+  pointer-events: none;
+  animation: hero-ring-turn 24s linear infinite;
+}
+
+@keyframes hero-ring-turn {
+  from { transform: translate(-50%, -50%) rotate(-7deg); }
+  to { transform: translate(-50%, -50%) rotate(353deg); }
+}
+
+/* ------------------------------------------------------------- the composer */
+.hero-creator-shell { isolation: isolate; }
+
+:is(.hero-creator-shell, .cinematic-page) .creator-composer {
+  background: linear-gradient(180deg, rgba(14, 11, 36, .78), rgba(8, 6, 22, .86)) !important;
+  border-color: rgba(168, 139, 255, .38) !important;
+  backdrop-filter: blur(22px) saturate(1.2);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .10),
+    0 0 0 1px rgba(96, 165, 250, .10),
+    0 0 60px -10px rgba(124, 58, 237, .55),
+    0 40px 100px -40px rgba(37, 99, 235, .7) !important;
+}
+
+:is(.hero-creator-shell, .cinematic-page) .creator-composer [role="tab"] {
+  border: 1px solid transparent;
+  color: rgba(237, 233, 254, .62);
+}
+
+:is(.hero-creator-shell, .cinematic-page) .creator-composer [role="tab"][aria-selected="true"] {
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, .20) !important;
+  background: linear-gradient(115deg, #7c3aed, #4f46e5 55%, #3b82f6) !important;
+  box-shadow: 0 10px 30px -14px rgba(99, 102, 241, .95), inset 0 1px 0 rgba(255, 255, 255, .28) !important;
+}
+
+:is(.hero-creator-shell, .cinematic-page) .creator-composer [role="tab"]:not([aria-selected="true"]):hover {
+  background: rgba(255, 255, 255, .07) !important;
+  color: rgba(255, 255, 255, .95) !important;
+}
+
+:is(.hero-creator-shell, .cinematic-page) .creator-field,
+:is(.hero-creator-shell, .cinematic-page) .creator-composer input[type="url"],
+:is(.hero-creator-shell, .cinematic-page) .creator-composer input[type="text"] {
+  background-color: rgba(3, 2, 12, .70) !important;
+}
+
+/* -------------------------------------------------- floating media (decorative) */
+.hero-media-orbit { perspective: 1400px; display: none; }
+@media (min-width: 1280px) { .hero-media-orbit { display: block; } }
+
+.hero-orbit-card {
+  position: absolute;
+  width: clamp(190px, 17.5vw, 330px);
+  overflow: hidden;
+  border: 1px solid rgba(167, 139, 250, .5);
+  border-radius: 20px;
+  background: rgba(9, 6, 24, .6);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .14),
+    0 30px 70px -28px rgba(76, 29, 149, .95),
+    0 0 44px rgba(79, 70, 229, .28);
+  backdrop-filter: blur(14px);
+  will-change: transform;
+}
+
+.hero-orbit-media { aspect-ratio: 16 / 11; overflow: hidden; background: #05030c; }
+.hero-orbit-media img, .hero-orbit-media video { transform: scale(1.03); }
+
+/* the label sits on the picture, like the mockup: icon tile, title, one line */
+.hero-orbit-caption {
+  position: absolute;
+  inset: auto 0 0 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 26px 12px 11px;
+  background: linear-gradient(180deg, transparent, rgba(6, 4, 16, .86) 62%);
+}
+.hero-orbit-caption-icon {
+  display: grid; place-items: center; flex: none;
+  width: 30px; height: 30px; border-radius: 9px;
+  color: #c4b5fd; background: rgba(124, 58, 237, .28); border: 1px solid rgba(196, 181, 253, .3);
+}
+.hero-orbit-caption-title { display: block; font-size: 13px; font-weight: 800; line-height: 1.15; color: #fff; letter-spacing: -.01em; }
+.hero-orbit-caption-sub { display: block; margin-top: 2px; font-size: 10.5px; line-height: 1.25; color: rgba(255, 255, 255, .66); }
+
+.hero-orbit-card-a { left: 3.2vw; top: 17%; transform: rotate(-7deg); animation: orbit-float-a 8s ease-in-out infinite; }
+.hero-orbit-card-b { right: 3vw; top: 17%; transform: rotate(6deg); animation: orbit-float-b 9s ease-in-out infinite; }
+.hero-orbit-card-c { left: -1.2vw; bottom: 11%; transform: rotate(5deg); animation: orbit-float-b 10s ease-in-out infinite; }
+.hero-orbit-card-d { right: -.8vw; top: 46%; width: clamp(170px, 15vw, 280px); transform: rotate(7deg); animation: orbit-float-a 11s ease-in-out infinite; }
+.hero-orbit-card-e { right: 1.5vw; bottom: 8%; transform: rotate(-5deg); animation: orbit-float-b 9.5s ease-in-out infinite; }
+
+@keyframes orbit-float-a { 0%, 100% { translate: 0 0; } 50% { translate: 0 -14px; } }
+@keyframes orbit-float-b { 0%, 100% { translate: 0 0; } 50% { translate: 0 12px; } }
+
+/* ------------------------------------------------------- the other pages */
+.cinematic-site main > section:not(.cinematic-hero) {
+  background-color: rgba(7, 5, 17, .42);
+  backdrop-filter: blur(3px);
+}
+
+.cinematic-site main [class*="bg-panel"] {
+  backdrop-filter: blur(18px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05), 0 20px 60px -34px rgba(76, 29, 149, .7);
+}
+
+.cinematic-site .hero-mesh {
+  background-image:
+    radial-gradient(circle at 50% 4%, rgba(139, 92, 246, .22), transparent 38%),
+    radial-gradient(circle at 12% 35%, rgba(56, 189, 248, .08), transparent 26%),
+    radial-gradient(circle at 88% 34%, rgba(236, 72, 153, .08), transparent 28%) !important;
+  background-size: 100% 100% !important;
+}
+
+.cinematic-nav-pill { position: relative; overflow: hidden; }
+.cinematic-nav-pill::after {
+  content: "";
+  position: absolute;
+  inset: -80% auto -80% -40%;
+  width: 25%;
+  transform: rotate(14deg);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .30), transparent);
+  transition: transform .7s ease;
+}
+.cinematic-nav-pill:hover::after { transform: translateX(600%) rotate(14deg); }
+
+@media (max-width: 639px) {
+  .cinematic-title { line-height: .92; letter-spacing: -.055em; }
+  .hero-creator-shell { margin-top: 1.5rem; }
+  :is(.hero-creator-shell, .cinematic-page) .creator-composer { border-radius: 22px !important; }
+  .hero-title-ring { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .space-backdrop-image,
+  .hero-title-ring,
+  .hero-orbit-card-a, .hero-orbit-card-b, .hero-orbit-card-c, .hero-orbit-card-d, .hero-orbit-card-e {
+    animation: none !important;
+  }
+}

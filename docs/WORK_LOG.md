@@ -75,6 +75,17 @@
 - Bug: signed-in people were sent to the sign-in window when they tapped a gallery example or a feature card on the landing page. Those listeners are registered once and called the FIRST render's handler (created before the sign-in check finished). They now call the latest handler through a ref. Reproduced and verified fixed in a real browser.
 - Hardening: a malformed saved-cards reply can no longer crash checkout.
 
+## 2026-10-01 — Complete and verify the cinematic redesign on main
+- Request: Implement the approved space/rocket-speed landing direction, admin-managed looping background media without playback/type icons, Pricing navigation, cohesive page styling and new logo.
+- Found: `22768b4` already implemented the cinematic hero, orbital logo/favicon, minimal navigation and gallery-backed orbit; `8ef2e80` subsequently fixed purchase/auth behavior. Both are preserved.
+- Changed: Keep the orbit visible on laptop/tablet/phone screens with responsive artwork placement. Fix sticky navigation by removing global child positioning/z-index and preserving mobile body overflow clipping. Keep mobile Log in and Pricing reachable. Apply the shared cinematic surface and creator treatment to profile/workspace/admin/Studio/editor shells.
+- Admin: Use in background moves an item to the front of the existing persisted gallery; first five fill the orbit, first two appear on phones. Save publishes the returned gallery to the shared cache, so navigation Home shows the saved order immediately. Clarify uploaded-file looping versus embed posters.
+- Motion: Decorative video honors reduced motion and pauses when the browser tab is hidden. No video or media-type icons in the hero.
+- Verified: Frozen-lockfile install, full production build/type checks, 307 automated tests, existing Chromium interaction checks and cinematic Chromium checks with local API fixtures. See docs/TESTING.md. Screenshots reviewed on mobile/desktop; no user media or live production data modified.
+- Compatibility: No migrations, new project dependencies or environment variables; existing provider, pricing, auth, billing, generation and progress behavior preserved.
+- Remaining: Live Hostinger deployment and real production integration checks are separate. No claim of production deployment.
+- Continue: Deploy main using README-DEPLOY.md; manage the background in Admin → Homepage → Upload / Use in background → Save.
+
 ## 2026-10-03 (night) — Real-browser audit
 - Walked the running app in a real Chromium (stub API) and checked what was asked for: landing composer (rotating URL tile, 7 modes + swipe arrow, separate toolbar controls, cost pill, HD/4K, format icons, narration shake, model picker, "+" menu with/without Recent files, style picker, bulb, Generate above examples, auto-growing text box, gallery tiles without text), pricing (order, prices, no extra blocks), profile (tabs, usage bar), every admin tab (no page errors, Role pill, filters, gallery manager), sign-in-first purchases, signed-in gallery tap, drag cursor.
 - Hardening found by the audit: the profile page no longer crashes if the usage reply's `byMode` is not a list.
@@ -84,3 +95,11 @@
 
 ## 2026-10-03 (late) — The prompt follows the person across features
 - The creation box had two separate texts (website/photos/product video/interior/architecture vs AI video/scenario), so moving between those groups lost it. It is now ONE text shared by every feature, also kept for the browser session (`lib/promptDraft.ts`, 12 h) so it survives the landing page → workspace navigation and the sign-in step, and cleared when a production is submitted. Verified in a real browser: workspace tab switches, landing page signed in (goes to the workspace) and landing page signed out (sign in, then the workspace) all keep the text; an edit made in one feature shows in the others.
+
+## 2026-10-03 (night) — Space landing page and site-wide space theme
+- Started from the earlier cinematic commits (re-applied) and rebuilt the landing page to the supplied mockup: the supplied earthrise photo is the backdrop (web-sized: `public/space-bg.webp` 248 KB, `space-bg-small.webp` for phones), star streaks fly outward from the horizon on a canvas (`lib/warpField.ts`, pure maths + tests) while the picture slowly pushes in, so the page feels like moving forward. Still for reduced motion, paused on hidden tabs, never takes a click. Quieter on every other page; solid page roots become translucent so the space shows through, form controls stay solid.
+- Hero: "Turn Anything / Into a Video", a thin turning ring, the creator as centrepiece with the seven features inside it (blue-violet active tab), Generate at the end of the settings row on wide screens (stacked below on small ones). The examples strip is not shown inside the landing hero (the gallery below offers the same examples); it still shows in the workspace.
+- Floating media (`HeroMediaOrbit`): one labelled card per feature (Website, Product video, Interior, Talking scene, Architecture) from the admin Homepage gallery (first published item of each feature; Admin > Homepage > "Show on the hero" chooses which). Videos loop silently with no controls, no play button or media icon; decorative only (aria-hidden, no pointer events); hidden below 1280px.
+- Navbar: logo, Pricing (icon), credits, Admin (admins only), Workspace, user menu; signed out: Pricing, Log in, Start creating. New orbital logo/favicon.
+- Not done: an admin upload to REPLACE the background photo itself (it is the supplied image); the mockup's "0/500" counter.
+- Checks: 319 tests; Playwright `check:browser` now also runs `browser-checks/space-landing.cjs` (replaces the stale cinematic.cjs).

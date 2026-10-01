@@ -802,3 +802,10 @@ picture {
 /* The "+" button matches the other toolbar controls (34px, 44px touch size on phones). */
 .composer-plus { width: 34px; height: 34px; }
 @media (max-width: 639px) { .composer-plus { width: 44px; height: 44px; } }
+
+/* Generate sits at the end of the settings row on wide screens (a command bar); small screens keep it below. */
+.generation-submit-slot { display: none; }
+@media (min-width: 1024px) {
+  .generation-toolbar { flex-wrap: wrap; }
+  .generation-submit-slot { display: block; margin-left: auto; min-width: 210px; }
+}

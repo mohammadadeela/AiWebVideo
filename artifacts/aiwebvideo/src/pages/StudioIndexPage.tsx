@@ -172,7 +172,7 @@ export function StudioIndexPage() {
   );
 
   return (
-    <main className="min-h-screen bg-bg pb-16 text-text-primary">
+    <main className="cinematic-page min-h-screen bg-bg pb-16 text-text-primary">
       <input
         ref={uploadRef}
         type="file"

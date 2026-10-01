@@ -929,6 +929,22 @@ export function WebsiteBriefForm({
               ? "Create architecture"
               : "Create talking scene";
 
+  // The Generate button. On wide screens it sits at the end of the settings row (like a command bar); on small
+  // screens it keeps its own full-width row below.
+  const submitButton = (extraClass: string) => (
+    <button
+      type="button"
+      onClick={submit}
+      disabled={submitDisabled}
+      className={`premium-button creator-primary-button flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-signature px-5 text-sm font-bold text-white shadow-violet transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60 ${extraClass}`}
+    >
+      <Sparkles size={15} aria-hidden="true" />
+      <span>{landingWebsitePreview && activeMode === "website" ? "Continue to video" : createLabel}</span>
+      {showCreditPricing && <span className="rounded-full border border-white/15 bg-black/15 px-2 py-1 text-[9px] font-semibold text-white/90">{exactCredits} credits</span>}
+      <ArrowRight size={15} />
+    </button>
+  );
+
   return (
     <div
       ref={composerRootRef}
@@ -1453,6 +1469,7 @@ export function WebsiteBriefForm({
             />
           )}
           </div>
+          <div className="generation-submit-slot">{submitButton("w-full")}</div>
         </div>
 
         {selectedModel.audioModes.includes("voice_music") && settings.audioMode === "voice_music" && (
@@ -1544,30 +1561,21 @@ export function WebsiteBriefForm({
 
         {error && <p role="alert" className="mt-3 rounded-xl border border-pink/20 bg-pink/5 px-3 py-2 text-xs text-pink">{error}</p>}
 
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className={`mt-3 flex flex-col gap-2 sm:flex-row sm:items-center ${compactLayout ? "lg:hidden" : ""}`}>
           {!compactLayout && (
             <div className="flex-1 text-[9px] text-text-dim">
               {isProductMode && !files.length && !chosenProductImages.length && !productLink.trim() ? "Paste a product link or upload a product photo." : activeMode === "interior" && !files.length ? "Add space references before generating." : `Your setup: ${isVideoMode ? `${durationSeconds}s · ` : ""}${formatSummary} · ${selectedModel.supportedQualities.length === 1 ? selectedModel.quality : (settings.outputQuality === "4k" ? "4K" : "1080p")}`}
             </div>
           )}
-          <button
-            type="button"
-            onClick={submit}
-            disabled={submitDisabled}
-            className="premium-button creator-primary-button flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-signature px-5 text-sm font-bold text-white shadow-violet transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45 sm:flex-none sm:min-w-[260px]"
-          >
-            <span>{landingWebsitePreview && activeMode === "website" ? "Continue to video" : createLabel}</span>
-            {showCreditPricing && <span className="rounded-full border border-white/15 bg-black/15 px-2 py-1 text-[9px] font-semibold text-white/90">{exactCredits} credits</span>}
-            <ArrowRight size={15} />
-          </button>
+          {submitButton("sm:flex-none sm:min-w-[260px] lg:hidden")}
         </div>
 
-        <SampleStrip
+        {!landingWebsitePreview && <SampleStrip
           feature={activeMode}
           selectedId={selectedSample?.id ?? null}
           onSelect={(sample) => { setSelectedSample(sample); setError(null); }}
           selectable={activeMode !== "website"}
-        />
+        />}
 
         {previews.length > 0 && (
           <div className="mt-4">

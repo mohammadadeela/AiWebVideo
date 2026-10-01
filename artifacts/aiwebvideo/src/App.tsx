@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react';
-import { Redirect, Route, Switch, Router as WouterRouter } from 'wouter';
+import { Redirect, Route, Switch, Router as WouterRouter, useLocation } from 'wouter';
+import { SpaceBackdrop } from '@/components/landing/SpaceBackdrop';
 import { AppErrorBoundary } from '@/components/system/AppErrorBoundary';
 import { useReturnToOpener } from '@/hooks/use-return-to-opener';
 
@@ -105,14 +106,23 @@ function Router() {
   );
 }
 
+/** Full strength on the landing page, calmer everywhere else so content stays easy to read. */
+function Backdrop() {
+  const [location] = useLocation();
+  return <SpaceBackdrop quiet={location !== '/'} />;
+}
+
 function App() {
   useReturnToOpener();
 
   return (
     <AppErrorBoundary>
-      <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
-        <Suspense fallback={<PageLoader />}><Router /></Suspense>
-      </WouterRouter>
+      <div className="cinematic-site">
+        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
+          <Backdrop />
+          <Suspense fallback={<PageLoader />}><Router /></Suspense>
+        </WouterRouter>
+      </div>
     </AppErrorBoundary>
   );
 }

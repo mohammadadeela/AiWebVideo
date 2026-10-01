@@ -26,6 +26,16 @@ export function sampleStill(sample: Sample): string | null {
 export type GalleryItem = MarketingVideo & { url: string; kind: "image" | "video" };
 
 let cache: Promise<GalleryItem[]> | null = null;
+const GALLERY_UPDATED_EVENT = "aiwebvideo:gallery-updated";
+
+/** Publish the saved response immediately, including for a return to Home in this tab. */
+export function publishGallery(settings: { videos: { showcase: MarketingVideo[] } }) {
+  cache = Promise.resolve(settings.videos.showcase
+    .filter((item): item is MarketingVideo & { url: string } => Boolean(item.url))
+    .map((item) => ({ ...item, kind: item.kind ?? "video" }) as GalleryItem));
+  window.dispatchEvent(new Event(GALLERY_UPDATED_EVENT));
+}
+
 function loadGallery() {
   cache ??= fetchMarketingSettings()
     .then((settings) => settings.videos.showcase
@@ -40,8 +50,16 @@ function useGalleryLoad() {
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     let cancelled = false;
-    void loadGallery().then((all) => { if (!cancelled) { setItems(all); setLoaded(true); } });
-    return () => { cancelled = true; };
+    let revision = 0;
+    const refresh = () => {
+      const current = ++revision;
+      void loadGallery().then((all) => {
+        if (!cancelled && current === revision) { setItems(all); setLoaded(true); }
+      });
+    };
+    refresh();
+    window.addEventListener(GALLERY_UPDATED_EVENT, refresh);
+    return () => { cancelled = true; window.removeEventListener(GALLERY_UPDATED_EVENT, refresh); };
   }, []);
   return { items, loaded };
 }
