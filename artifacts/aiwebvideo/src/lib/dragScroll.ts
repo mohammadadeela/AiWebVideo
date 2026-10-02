@@ -1,6 +1,5 @@
 /**
- * Mouse drag-to-scroll for every horizontal slider (".chat-scroll" rows and anything marked
- * data-drag-scroll).
+ * Mouse drag-to-scroll for the chat's sliders (rows marked data-drag-scroll).
  *
  * Why this exists: sliders are made of buttons, and the global stylesheet gives every button the
  * "click" hand cursor, so a row that could be scrolled never looked draggable, and with a mouse it
@@ -12,7 +11,9 @@
  * - A drag never counts as a click on whatever is under the pointer when it is released.
  * - Touch and pen are untouched: they keep their native swipe.
  */
-const SLIDER = ".chat-scroll, [data-drag-scroll]";
+// Opt-in only: the chat's feature tabs and its examples strip. Ideas, filters, galleries and admin rows keep the
+// normal cursor and normal behaviour.
+const SLIDER = "[data-drag-scroll]";
 const DRAG_THRESHOLD = 5;
 // Things the pointer must be allowed to use normally instead of starting a drag.
 const INTERACTIVE = "input, textarea, select, [contenteditable=''], [contenteditable='true'], video[controls], [data-no-drag]";

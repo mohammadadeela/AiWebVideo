@@ -43,7 +43,7 @@ export function SampleStrip({ feature, selectedId, onSelect, selectable }: {
           {selectable && hasSelection ? "Tap again to remove" : `${all.length} example${all.length === 1 ? "" : "s"}`}
         </p>
       </div>
-      <ScrollRow className="gap-2.5 pb-1.5" nudge={false}>
+      <ScrollRow className="gap-2.5 pb-1.5" nudge={false} drag>
         {items.map((sample) => {
           const active = sample.id === selectedId;
           const dimmed = selectable && hasSelection && !active;

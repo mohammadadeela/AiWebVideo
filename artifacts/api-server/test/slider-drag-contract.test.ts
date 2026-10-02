@@ -14,7 +14,7 @@ test('sliders can be dragged with a mouse and show grab / grabbing instead of th
   const lib = await fe('lib/dragScroll.ts');
   assert.match(lib, /pointerType !== "mouse"/);          // touch keeps its native swipe
   assert.match(lib, /swallowClick/);                     // a drag is never a click
-  assert.match(lib, /\.chat-scroll, \[data-drag-scroll\]/);
+  assert.match(lib, /const SLIDER = "\[data-drag-scroll\]";/);   // opt-in: only the chat's feature slider and examples strip
 });
 
 test('website idea chips show short text and send their direction behind a marker the server strips', async () => {

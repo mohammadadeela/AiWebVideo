@@ -16,6 +16,7 @@ export function ScrollRow({
   activeKey,
   nudge = true,
   gutter = 44,
+  drag = false,
 }: {
   children: ReactNode;
   className?: string;
@@ -24,6 +25,8 @@ export function ScrollRow({
   activeKey?: string | number | null;
   nudge?: boolean;
   gutter?: number;
+  /** Let a mouse drag this row (with a grab cursor). Off unless asked for: only the chat's feature slider uses it. */
+  drag?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [edges, setEdges] = useState({ left: false, right: false });
@@ -97,6 +100,7 @@ export function ScrollRow({
         ref={ref}
         role={role}
         aria-label={ariaLabel}
+        data-drag-scroll={drag ? "" : undefined}
         className={`chat-scroll flex overflow-x-auto overscroll-x-contain scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${className}`}
         style={edges.left || edges.right ? { WebkitMaskImage: mask, maskImage: mask } : undefined}
       >

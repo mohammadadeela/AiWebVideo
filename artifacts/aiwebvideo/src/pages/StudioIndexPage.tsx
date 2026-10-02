@@ -87,8 +87,9 @@ export function StudioIndexPage() {
       .then(([, studio, history]) => {
         if (cancelled) return;
         setSignedIn(true);
-        setProjects(studio.projects);
-        setJobs(history.jobs.filter((job) => job.status === 'done').slice(0, 12));
+        // A malformed reply must never blank the whole page.
+        setProjects(Array.isArray(studio?.projects) ? studio.projects : []);
+        setJobs((Array.isArray(history?.jobs) ? history.jobs : []).filter((job) => job.status === 'done').slice(0, 12));
       })
       .catch(() => { if (!cancelled) setSignedIn(false); })
       .finally(() => { if (!cancelled) setLoading(false); });

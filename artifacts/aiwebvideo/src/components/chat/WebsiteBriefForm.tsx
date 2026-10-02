@@ -46,6 +46,8 @@ import { trackStudioEvent } from "@/lib/studio-api";
 import { withHiddenDirection } from "@/lib/hiddenDirection";
 import { clearPromptDraft, loadPromptDraft, savePromptDraft } from "@/lib/promptDraft";
 import { useAutoGrow } from "@/lib/useAutoGrow";
+import { looksLikeLink, withScheme } from "@/lib/linkStatus";
+import { LinkStatus } from "./LinkStatus";
 import { ScrollRow } from "@/components/ui/scroll-row";
 import { NumberStepper } from "@/components/ui/number-stepper";
 import { ToggleRow } from "@/components/ui/toggle-row";
@@ -430,6 +432,8 @@ export function WebsiteBriefForm({
   const [languageShake, setLanguageShake] = useState(false);
   const languageShakeTimer = useRef<number | null>(null);
   const lastReadLinkRef = useRef("");
+  const productReadId = useRef(0);
+  const siteReadId = useRef(0);
   const [compactPanel, setCompactPanel] = useState<"style" | "ideas" | "model" | null>(null);
   const [openSettingMenu, setOpenSettingMenu] = useState<"duration" | "aspect" | "quality" | "audio" | "language" | null>(null);
   const [customDurationInput, setCustomDurationInput] = useState(String(DEFAULT_SETTINGS.durationSeconds));
@@ -644,19 +648,24 @@ export function WebsiteBriefForm({
   }
 
   async function loadProductLink(link = productLink) {
-    const value = link.trim();
-    if (!value || readingProduct) return null;
+    const typed = link.trim();
+    if (!typed) return null;
+    const value = looksLikeLink(typed) ? withScheme(typed) : typed;
     if (lastReadLinkRef.current === value && productData) return productData;
+    // A newer link replaces an older one that is still being read; the older answer is then ignored.
+    const readId = ++productReadId.current;
     setReadingProduct(true);
     setError(null);
     try {
       const data = await extractProductReference(value);
+      if (readId !== productReadId.current) return null;
       lastReadLinkRef.current = value;
       setProductData(data);
       setChosenProductImages(data.images.slice(0, 1));
       if (!brief.trim() && data.description) setBrief(data.description.slice(0, 1200));
       return data;
     } catch (error) {
+      if (readId !== productReadId.current) return null;
       lastReadLinkRef.current = "";
       setProductData(null);
       setChosenProductImages([]);
@@ -665,13 +674,14 @@ export function WebsiteBriefForm({
         : "We couldn't read photos from that link. Upload a photo of the product instead.");
       return null;
     } finally {
-      setReadingProduct(false);
+      if (readId === productReadId.current) setReadingProduct(false);
     }
   }
 
   async function resolveSite(link = mapLink) {
     const value = link.trim();
-    if (!value || resolvingSite) return null;
+    if (!value) return null;
+    const readId = ++siteReadId.current;
     setResolvingSite(true);
     setError(null);
     try {
@@ -681,16 +691,36 @@ export function WebsiteBriefForm({
         return plain;
       }
       const resolved = await resolveArchitectureLocation(value);
+      if (readId !== siteReadId.current) return null;
       setSite(resolved);
       return resolved;
     } catch {
+      if (readId !== siteReadId.current) return null;
       setSite(null);
       setError("Couldn't identify this location. Paste a Google Maps link or type the address.");
       return null;
     } finally {
-      setResolvingSite(false);
+      if (readId === siteReadId.current) setResolvingSite(false);
     }
   }
+
+  // Links are read AS SOON AS they look valid (a short pause after typing, immediately on paste): nobody has to press
+  // anything, and Generate simply waits until the reading is done.
+  useEffect(() => {
+    if (activeMode !== "photo" && activeMode !== "product-video") return;
+    const typed = productLink.trim();
+    if (!looksLikeLink(typed) || withScheme(typed) === lastReadLinkRef.current) return;
+    const timer = window.setTimeout(() => { void loadProductLink(typed); }, 700);
+    return () => window.clearTimeout(timer);
+  }, [productLink, activeMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (activeMode !== "architecture") return;
+    const typed = mapLink.trim();
+    if (!/^https?:\/\//i.test(typed) || site) return;
+    const timer = window.setTimeout(() => { void resolveSite(typed); }, 500);
+    return () => window.clearTimeout(timer);
+  }, [mapLink, activeMode, site]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function toggleIdeas() {
     setCompactPanel((current) => {
@@ -908,7 +938,9 @@ export function WebsiteBriefForm({
   const hasBrief = Boolean(selectedSample) && activeMode !== "website";
   // Studio modes stay clickable once there is a brief: a click that is missing something explains exactly
   // what (link, photo, location, size) instead of leaving a silently disabled button.
-  const submitDisabled = disabled || (
+  // While a pasted link is being read the button waits; it never asks the person to click anything to continue.
+  const linkBusy = readingProduct || resolvingSite;
+  const submitDisabled = disabled || linkBusy || (
     activeMode === "website"
       ? !url.trim() || !brief.trim()
       : isProductMode || isInteriorMode
@@ -938,9 +970,10 @@ export function WebsiteBriefForm({
       disabled={submitDisabled}
       className={`premium-button creator-primary-button flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-signature px-5 text-sm font-bold text-white shadow-violet transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60 ${extraClass}`}
     >
-      <Sparkles size={15} aria-hidden="true" />
-      <span>{landingWebsitePreview && activeMode === "website" ? "Continue to video" : createLabel}</span>
-      {showCreditPricing && <span className="rounded-full border border-white/15 bg-black/15 px-2 py-1 text-[9px] font-semibold text-white/90">{exactCredits} credits</span>}
+      {/* an <i>, not a <span>: the button's sizing rule treats the SECOND span as the credits badge */}
+      {linkBusy ? <i className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/80 border-t-transparent" aria-hidden="true" /> : <Sparkles size={15} aria-hidden="true" />}
+      <span>{linkBusy ? "Reading your link…" : landingWebsitePreview && activeMode === "website" ? "Continue to video" : createLabel}</span>
+      {showCreditPricing && !linkBusy && <span className="rounded-full border border-white/15 bg-black/15 px-2 py-1 text-[9px] font-semibold text-white/90">{exactCredits} credits</span>}
       <ArrowRight size={15} />
     </button>
   );
@@ -999,7 +1032,8 @@ export function WebsiteBriefForm({
       )}
 
       <div className={`relative border-b border-white/[.08] ${compactLayout ? "p-2" : "p-2.5 sm:p-3"}`}>
-        <ScrollRow className="gap-1 pb-0.5" role="tablist" ariaLabel="Creation mode" activeKey={activeMode}>
+        {/* Phones show all seven features at once as a grid (no hidden swipe); wider screens keep the slider. */}
+        <ScrollRow drag className="gap-1 pb-0.5 max-sm:grid max-sm:grid-cols-4 max-sm:gap-1.5 max-sm:overflow-visible" role="tablist" ariaLabel="Creation mode" activeKey={activeMode}>
           {CREATION_MODES.map(({ id, label, short, icon: Icon }) => (
             <button
               key={id}
@@ -1007,13 +1041,13 @@ export function WebsiteBriefForm({
               role="tab"
               aria-selected={activeMode === id}
               onClick={() => applyIntent(id, true)}
-              className={`flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl px-3 text-[10px] font-semibold transition sm:px-4 sm:text-[11px] ${
+              className={`flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl px-3 text-[10px] font-semibold transition max-sm:min-h-[60px] max-sm:flex-col max-sm:gap-1 max-sm:px-1 max-sm:text-[10.5px] sm:px-4 sm:text-[11px] ${
                 activeMode === id
                   ? "bg-mint text-[#10231f] shadow-[0_10px_26px_-18px_rgba(114,255,222,.9)]"
                   : "text-text-muted hover:bg-mint/[.08] hover:text-white"
               }`}
             >
-              <Icon size={14} />
+              <Icon size={14} className="max-sm:h-[19px] max-sm:w-[19px]" />
               <span className="hidden md:inline">{label}</span>
               <span className="md:hidden">{short}</span>
             </button>
@@ -1031,7 +1065,11 @@ export function WebsiteBriefForm({
                 <input
                   type="url"
                   value={productLink}
-                  onChange={(event) => setProductLink(event.target.value)}
+                  onChange={(event) => {
+                    setProductLink(event.target.value);
+                    // Photos read from the previous link must never be used with a different one.
+                    if (withScheme(event.target.value) !== lastReadLinkRef.current) { setProductData(null); setChosenProductImages([]); }
+                  }}
                   onBlur={() => { if (productLink.trim()) void loadProductLink(); }}
                   onPaste={(event) => {
                     const pasted = event.clipboardData.getData("text").trim();
@@ -1049,9 +1087,9 @@ export function WebsiteBriefForm({
                   aria-label="Product link (optional)"
                   className="min-w-0 flex-1 bg-transparent py-2.5 text-base text-white outline-none placeholder:text-white/35 sm:text-xs"
                 />
-                {readingProduct && <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-violet border-t-transparent" aria-label="Reading the link" />}
               </div>
             </div>
+            <LinkStatus active={readingProduct} skeleton messages={["Reading the product page…", "Still working: some shops load slowly…", "Trying a deeper read of this page. Almost there…"]} />
             <p className="mt-2 text-[11px] leading-4 text-white/45">
               {productData
                 ? "Choose the photos to use below. You don't need to upload anything else."
@@ -1106,9 +1144,9 @@ export function WebsiteBriefForm({
                     aria-label="Google Maps link or address"
                     className="min-w-0 flex-1 bg-transparent py-2.5 text-base text-white outline-none placeholder:text-white/35 sm:text-xs"
                   />
-                  {resolvingSite && <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-violet border-t-transparent" aria-label="Finding the location" />}
                 </div>
               </div>
+              <LinkStatus active={resolvingSite} messages={["Finding the exact place on the map…", "Still working on the location…", "This map link is slow to open. Almost there…"]} />
               {site && <p className="mt-2 flex items-center gap-1.5 text-[12px] text-mint"><Check size={13} /> {site.label || `${site.latitude}, ${site.longitude}`}</p>}
               {site?.precision === "view" && (
                 <p className="mt-1.5 text-[11px] leading-4 text-amber-200">
@@ -1561,13 +1599,14 @@ export function WebsiteBriefForm({
 
         {error && <p role="alert" className="mt-3 rounded-xl border border-pink/20 bg-pink/5 px-3 py-2 text-xs text-pink">{error}</p>}
 
-        <div className={`mt-3 flex flex-col gap-2 sm:flex-row sm:items-center ${compactLayout ? "lg:hidden" : ""}`}>
+        {/* "mt-4" matters: creator-cta-position.css sizes the Generate button only inside a row with that class. */}
+        <div className={`mt-4 flex flex-col gap-2 sm:flex-row sm:items-center ${compactLayout ? "generation-row-inline" : ""}`}>
           {!compactLayout && (
             <div className="flex-1 text-[9px] text-text-dim">
               {isProductMode && !files.length && !chosenProductImages.length && !productLink.trim() ? "Paste a product link or upload a product photo." : activeMode === "interior" && !files.length ? "Add space references before generating." : `Your setup: ${isVideoMode ? `${durationSeconds}s · ` : ""}${formatSummary} · ${selectedModel.supportedQualities.length === 1 ? selectedModel.quality : (settings.outputQuality === "4k" ? "4K" : "1080p")}`}
             </div>
           )}
-          {submitButton("sm:flex-none sm:min-w-[260px] lg:hidden")}
+          {submitButton("sm:flex-none sm:min-w-[260px]")}
         </div>
 
         {!landingWebsitePreview && <SampleStrip

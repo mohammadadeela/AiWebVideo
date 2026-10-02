@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { AppError } from '../src/lib/errors.js';
-import { parseProductPage, upgradeImageUrl } from '../src/lib/product-html.js';
+import { imageKey, parseProductPage, productSectionOf, upgradeImageUrl } from '../src/lib/product-html.js';
 import { parseShopifyProduct, readProductReference, shopifyProductUrl, type ProductReadDeps } from '../src/lib/product-reference-service.js';
 
 const allow = async (url: string) => (/^https:\/\/(cdn|img)\./.test(url) ? url : null);
@@ -45,7 +45,8 @@ test('a JavaScript-only shop is read through a real browser, merging what was pa
     render: async () => ({ url: 'https://spa.test/item/42', html: productHtml(), images: ['https://img.spa.test/hero.jpg'] }),
   }));
   assert.equal(result.source, 'rendered');
-  assert.deepEqual(result.images, ['https://cdn.shop.test/mug-front.jpg', 'https://img.spa.test/hero.jpg']);
+  // what the browser actually painted leads (it is the most precise view of the gallery)
+  assert.deepEqual(result.images, ['https://img.spa.test/hero.jpg', 'https://cdn.shop.test/mug-front.jpg']);
 });
 
 test('a shop that blocks robots gets a clear message that says what to do instead', async () => {
@@ -101,4 +102,49 @@ test('the parser finds photos Amazon, picture tags and embedded page data hide',
   assert.ok(parsed.images.includes('https://cdn.t/p-1200.webp'));
   assert.ok(parsed.images.includes('https://cdn.t/g1.jpg'));
   assert.ok(!parsed.images.some((image) => image.includes('sprite')));
+});
+
+const shopPage = `<html><head>
+<meta property="og:image" content="https://cdn.shop.test/p/mug-front_1200x.jpg">
+<script type="application/ld+json">{"@graph":[
+ {"@type":"Organization","name":"Shop","logo":"https://cdn.shop.test/brand/logo-white.png","image":"https://cdn.shop.test/brand/store-front.jpg"},
+ {"@type":"Product","name":"Clay Mug","image":["https://cdn.shop.test/p/mug-front_1200x.jpg","https://cdn.shop.test/p/mug-side_1200x.jpg"],"offers":{"price":"24","priceCurrency":"USD"}},
+ {"@type":"ItemList","itemListElement":[{"@type":"Product","name":"Other Bowl","image":"https://cdn.shop.test/p/bowl_1200x.jpg"}]}
+]}</script></head><body>
+<header><img src="https://cdn.shop.test/brand/logo-white.png" width="300" height="80"></header>
+<div class="product-gallery"><img src="https://cdn.shop.test/p/mug-front_600x.jpg" width="600" height="600"><img src="https://cdn.shop.test/p/mug-back_600x.jpg" width="600" height="600"><img src="https://cdn.shop.test/p/mug-top_600x.jpg" width="600" height="600"></div>
+<h1>Clay Mug</h1><p>Hand thrown.</p>
+<section class="related-products"><h2>You may also like</h2>
+ <img src="https://cdn.shop.test/p/plate_600x.jpg" width="400" height="400"><img src="https://cdn.shop.test/p/cup_600x.jpg" width="400" height="400"></section>
+<footer><img src="https://cdn.shop.test/brand/payments.jpg" width="500" height="200"></footer></body></html>`;
+
+test('a product page offers the product\'s own photos, not related products, other products\' data, logos or the footer', () => {
+  const parsed = parseProductPage(shopPage, 'https://shop.test/mug');
+  const names = parsed.images.map((image) => image.split('/').pop()!.replace(/_\d+x\.jpg$/, ''));
+  assert.deepEqual(names.sort(), ['mug-back', 'mug-front', 'mug-side', 'mug-top']);
+  for (const wrong of ['bowl', 'plate', 'cup', 'logo-white', 'store-front', 'payments']) assert.ok(!parsed.images.some((image) => image.includes(wrong)), `${wrong} must not be offered`);
+  assert.equal(parsed.title, 'Clay Mug');
+});
+
+test('one photo served at several sizes is offered once', () => {
+  const parsed = parseProductPage(shopPage, 'https://shop.test/mug');
+  assert.equal(parsed.images.filter((image) => image.includes('mug-front')).length, 1);
+  assert.ok(parsed.images.length <= 8);
+  assert.equal(imageKey('https://cdn.shop.test/p/mug-front_600x.jpg'), imageKey('https://cdn.shop.test/p/mug-front_1200x.jpg'));
+  assert.notEqual(imageKey('https://cdn.shop.test/p/mug-front_600x.jpg'), imageKey('https://cdn.shop.test/p/mug-back_600x.jpg'));
+});
+
+test('the product section ends at the related-products block, but a class name near the top never cuts the gallery off', () => {
+  const html = '<body class="template-product related-theme"><div class="gallery"><img src="a.jpg"></div><h1>Name</h1><p>text</p><div class="you-may-also-like"><img src="b.jpg"></div></body>';
+  const section = productSectionOf(html);
+  assert.ok(section.includes('a.jpg'));
+  assert.ok(!section.includes('b.jpg'));
+  assert.equal(productSectionOf('<h1>x</h1><p>only product</p>'), '<h1>x</h1><p>only product</p>');
+});
+
+test('a page whose declared photos are few is completed by its own gallery only', () => {
+  const html = `<html><head><meta property="og:image" content="https://cdn.s.test/a-hero.jpg"></head><body><div class="product-media"><img src="https://cdn.s.test/a-2.jpg" width="500" height="500"><img src="https://cdn.s.test/a-3.jpg" width="500" height="500"></div><h1>A</h1><div class="recommended"><img src="https://cdn.s.test/zzz.jpg" width="500" height="500"></div></body></html>`;
+  const images = parseProductPage(html, 'https://s.test/a').images;
+  assert.ok(images.includes('https://cdn.s.test/a-hero.jpg') && images.includes('https://cdn.s.test/a-2.jpg') && images.includes('https://cdn.s.test/a-3.jpg'));
+  assert.ok(!images.some((image) => image.includes('zzz')));
 });

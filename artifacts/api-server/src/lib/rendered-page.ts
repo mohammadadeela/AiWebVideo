@@ -45,14 +45,34 @@ export async function renderPage(rawUrl: string): Promise<RenderedPage | null> {
       await page.evaluate(() => window.scrollBy(0, 700)).catch(() => {});
       await page.waitForTimeout(700);
       const html = await page.content();
-      const images = await page.evaluate(() =>
-        Array.from(document.images)
-          .map((img) => ({ src: img.currentSrc || img.src, w: img.naturalWidth, h: img.naturalHeight }))
-          .filter((img) => img.src && img.w >= 300 && img.h >= 300)
-          .sort((a, b) => b.w * b.h - a.w * a.h)
-          .slice(0, 12)
-          .map((img) => img.src),
-      ).catch(() => [] as string[]);
+      // Only the product's own pictures: the gallery nearest the title, never "related products", header, footer or
+      // navigation. Everything after the first "other products" block that follows the title is ignored.
+      const images = await page.evaluate(() => {
+        const RELATED = /related|recommend|upsell|cross-?sell|you-?may-?also|also-?like|similar|recently-?viewed|more-?from|people-?also|customers-?also|bestsell|trending|featured-?products|suggested/i;
+        const HEADING = /^(related products|related items|you may also like|you might also like|customers also|similar|recently viewed|more from|frequently bought|recommended)/i;
+        const FOLLOWING = Node.DOCUMENT_POSITION_FOLLOWING;
+        const h1 = document.querySelector('h1');
+        const marker = Array.from(document.querySelectorAll('section, div, ul, aside, h2, h3, footer'))
+          .filter((el) => {
+            if (h1 && (el.contains(h1) || !(h1.compareDocumentPosition(el) & FOLLOWING))) return false;
+            const label = `${el.getAttribute('class') || ''} ${el.id} ${el.getAttribute('aria-label') || ''}`;
+            return el.tagName === 'FOOTER' || RELATED.test(label) || (/^H[23]$/.test(el.tagName) && HEADING.test((el.textContent || '').trim()));
+          })[0];
+        const usable = Array.from(document.images).filter((img) => {
+          const src = img.currentSrc || img.src;
+          if (!src || img.naturalWidth < 300 || img.naturalHeight < 300) return false;
+          if (img.closest('header, nav, footer')) return false;
+          if (marker && (marker.contains(img) || (marker.compareDocumentPosition(img) & FOLLOWING))) return false;
+          return true;
+        });
+        // the smallest block around the title that holds at least two of those pictures is the product gallery
+        let gallery: Element | null = h1;
+        while (gallery && gallery !== document.body && usable.filter((img) => gallery!.contains(img)).length < 2) gallery = gallery.parentElement;
+        const inGallery = gallery && gallery !== document.body ? usable.filter((img) => gallery!.contains(img)) : [];
+        const area = (img: HTMLImageElement) => img.naturalWidth * img.naturalHeight;
+        const ordered = [...inGallery.sort((a, b) => area(b) - area(a)), ...usable.filter((img) => !inGallery.includes(img)).sort((a, b) => area(b) - area(a))];
+        return ordered.slice(0, 10).map((img) => img.currentSrc || img.src);
+      }).catch(() => [] as string[]);
       return { url: page.url(), html, images };
     } finally {
       await browser.close().catch(() => {});

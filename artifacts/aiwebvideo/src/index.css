@@ -809,3 +809,38 @@ picture {
   .generation-toolbar { flex-wrap: wrap; }
   .generation-submit-slot { display: block; margin-left: auto; min-width: 210px; }
 }
+
+/* Wide screens: Generate lives in the toolbar row, so the stacked row below is hidden. The selector is as specific as
+   creator-cta-position.css (which forces that row to display) and loads later, so this wins. */
+@media (min-width: 1024px) {
+  .creator-composer > .relative > .mt-4.generation-row-inline:has(> .creator-primary-button) { display: none !important; }
+}
+
+/* The toolbar copy of the button keeps the same size as the original Generate button. */
+.generation-submit-slot .creator-primary-button {
+  min-height: 52px;
+  border-radius: 16px;
+  padding-inline: 20px;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 700;
+}
+
+/* "We're working on it" for links being read: a moving bar and shimmering photo slots. */
+.link-status-bar { position: relative; }
+.link-status-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 38%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, transparent, #a78bfa, #60a5fa, transparent);
+  animation: link-status-slide 1.3s ease-in-out infinite;
+}
+@keyframes link-status-slide { 0% { transform: translateX(-110%); } 100% { transform: translateX(310%); } }
+.link-status-shimmer { animation: link-status-pulse 1.3s ease-in-out infinite; }
+@keyframes link-status-pulse { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .link-status-bar::after { animation: none; width: 100%; opacity: .5; }
+  .link-status-shimmer { animation: none; }
+}

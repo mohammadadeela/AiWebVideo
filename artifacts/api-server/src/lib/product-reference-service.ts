@@ -1,6 +1,6 @@
 import { AppError } from './errors.js';
 import { readPublicUrl } from './external-reference.js';
-import { parseProductPage, upgradeImageUrl, type ProductFacts } from './product-html.js';
+import { imageKey, parseProductPage, upgradeImageUrl, type ProductFacts } from './product-html.js';
 import { renderPage, type RenderedPage } from './rendered-page.js';
 import { validateUrl } from './ssrf.js';
 
@@ -111,7 +111,8 @@ export async function readProductReference(rawUrl: string, deps: ProductReadDeps
   const rendered = await deps.render(finalUrl);
   if (rendered) {
     const parsed = parseProductPage(rendered.html, rendered.url);
-    const merged = [...parsed.images, ...rendered.images.map(upgradeImageUrl)].filter((value, index, all) => all.indexOf(value) === index);
+    // The browser's view of the gallery is the most precise, so it leads; one photo at several sizes counts once.
+    const merged = [...rendered.images.map(upgradeImageUrl), ...parsed.images].filter((value, index, all) => all.findIndex((other) => imageKey(other) === imageKey(value)) === index);
     const result = await finish({
       title: parsed.title || staticParsed?.title || '',
       description: parsed.description || staticParsed?.description || '',

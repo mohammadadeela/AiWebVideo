@@ -205,35 +205,81 @@ function productFacts(product: Record<string, unknown> | undefined, html: string
   return Object.fromEntries(Object.entries(facts).filter(([, value]) => value)) as ProductFacts;
 }
 
-export function parseProductPage(html: string, baseUrl: string): ParsedProductPage {
-  const nodes = productNodes(html);
-  const product = nodes.find((node) => typesOf(node).includes('product')) ?? nodes[0];
-  const raw = [
-    ...nodes.flatMap((node) => imageValues(node.image)),
-    meta(html, 'og:image:secure_url'),
-    meta(html, 'og:image'),
-    meta(html, 'twitter:image'),
-    meta(html, 'twitter:image:src'),
-    ...(html.match(/<link\b[^>]*>/gi) ?? []).filter((tag) => /image_src/i.test(attr(tag, 'rel'))).map((tag) => attr(tag, 'href')),
-    ...amazonDynamicImages(html),
-    ...embeddedStateImages(html),
-    ...sourceImages(html),
-    ...pageImages(html),
-  ];
-  const images: string[] = [];
-  for (const value of raw) {
+/**
+ * Where the product's own part of the page ends. Everything after a "related products" / "you may also like" block
+ * or the footer belongs to OTHER products and must never be offered as this product's photos. The search starts a
+ * little after the product title, so a class name near the top of the page cannot cut the real gallery off.
+ */
+const RELATED_ATTR = /(?:class|id|data-[\w-]+|aria-label)\s*=\s*["'][^"']*(?:related|recommend|upsell|cross-?sell|you-?may-?also|also-?like|also-?bought|similar|recently-?viewed|more-?from|people-?also|customers-?also|bestsell|trending|featured-?products|product-?recs?|suggested)[^"']*["']/i;
+const RELATED_HEADING = />\s*(?:related products|related items|you may also like|you might also like|customers also (?:viewed|bought)|similar (?:items|products)|recently viewed|more from|frequently bought|people also (?:viewed|bought)|recommended for you)\b/i;
+
+export function productSectionOf(html: string): string {
+  const titleAt = html.search(/<h1\b/i);
+  const titleEnd = titleAt >= 0 ? html.indexOf('</h1>', titleAt) : -1;
+  const floor = titleEnd >= 0 ? titleEnd + 5 : titleAt >= 0 ? titleAt + 20 : Math.min(2500, Math.floor(html.length * 0.15));
+  const tail = html.slice(floor);
+  const cuts = [tail.search(RELATED_ATTR), tail.search(RELATED_HEADING), tail.search(/<footer\b/i)].filter((index) => index >= 0);
+  return cuts.length ? html.slice(0, floor + Math.min(...cuts)) : html;
+}
+
+/** One photo served at several sizes counts once. */
+export function imageKey(url: string): string {
+  try {
+    const parsed = new URL(upgradeImageUrl(url));
+    const path = parsed.pathname
+      .replace(/[-_.](?:\d{2,4}x\d{0,4}|\d{0,4}x\d{2,4}|thumb(?:nail)?|small|medium|large|grande|master|zoom|preview)(?=\.[a-z]+$|[-_.])/gi, '')
+      .replace(/\.(?:jpe?g|png|webp|avif)$/i, '');
+    return `${parsed.hostname}${path}`.toLowerCase();
+  } catch { return url; }
+}
+
+function absolutize(values: Array<string | undefined>, baseUrl: string): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const value of values) {
     if (!value) continue;
     try {
       const url = new URL(decode(value), baseUrl);
       if (!['https:', 'http:'].includes(url.protocol)) continue;
       const href = upgradeImageUrl(url.toString());
-      if (!images.includes(href)) images.push(href);
+      const key = imageKey(href);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(href);
     } catch { /* skip malformed URLs */ }
   }
+  return out;
+}
+
+export function parseProductPage(html: string, baseUrl: string): ParsedProductPage {
+  const nodes = productNodes(html);
+  const productNodesOnly = nodes.filter((node) => typesOf(node).includes('product'));
+  const product = productNodesOnly[0] ?? nodes[0];
+
+  // Tier 1: what the page itself declares for THIS product (its main structured data and its social image).
+  // Other products' structured data (lists, recommendations) and organisation logos are never used.
+  const own = product ? imageValues(product.image) : [];
+  const tier1 = absolutize([
+    ...own,
+    meta(html, 'og:image:secure_url'),
+    meta(html, 'og:image'),
+    meta(html, 'twitter:image'),
+    meta(html, 'twitter:image:src'),
+    ...(html.match(/<link\b[^>]*>/gi) ?? []).filter((tag) => /image_src/i.test(attr(tag, 'rel'))).map((tag) => attr(tag, 'href')),
+  ], baseUrl);
+
+  // Tier 2: the gallery, taken ONLY from the product's own part of the page (before any related-products block).
+  const section = productSectionOf(html);
+  const tier2 = absolutize([...amazonDynamicImages(section), ...embeddedStateImages(section), ...sourceImages(section), ...pageImages(section)], baseUrl);
+
+  // A page that declares several photos is trusted as it is; otherwise the gallery completes it.
+  const merged = tier1.length >= 3 ? tier1 : [...tier1, ...tier2];
+  const seen = new Set<string>();
+  const images = merged.filter((href) => { const key = imageKey(href); if (seen.has(key)) return false; seen.add(key); return true; });
   return {
     title: String(product?.name || meta(html, 'og:title') || html.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1] || '').trim().slice(0, 180),
     description: String(product?.description || meta(html, 'og:description') || meta(html, 'description') || '').trim().slice(0, 500),
-    images: images.slice(0, 12),
+    images: images.slice(0, 8),
     facts: productFacts(product, html),
   };
 }
