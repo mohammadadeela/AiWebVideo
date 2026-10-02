@@ -11,7 +11,7 @@
     "test": "node ./test.mjs",
     "smoke:render": "node ./smoke.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "check:browser": "node ./browser-checks/run.cjs && node ./browser-checks/space-landing.cjs"
+    "check:browser": "node ./browser-checks/run.cjs && node ./browser-checks/space-landing.cjs && node ./browser-checks/phone-resilience.cjs"
   },
   "dependencies": {
     "@google/genai": "^2.15.0",

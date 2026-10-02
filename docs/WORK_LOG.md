@@ -111,3 +111,13 @@
 - Links feel alive: product and map links are read automatically (700 ms / 500 ms after the last keystroke, immediately on paste), with a "we're working" card (moving bar, shimmering photo slots, reassurance after 3 s and 9 s). Generate shows "Reading your link…" and waits. Stale answers are ignored; editing a link clears photos read from the old one. Links without https:// are accepted.
 - Drag cursor: now opt-in (`data-drag-scroll`) and only on the chat's feature tabs and the examples strip; Ideas and every other row use the normal cursor.
 - Phones: the seven features show as a 4-column icon grid on phones (no hidden swipe). All public and signed-in pages measured at 390 px: no horizontal overflow. Studio overview tolerates an odd projects reply.
+
+## 2026-10-05 — Phones and in-app browsers (Google app, Instagram, ...)
+Report: after the site was opened in the Google app and revisited, phone users could not sign up/in, saw no register button, the site looked crashed, and could reach the workspace without an account. Found and fixed, each reproduced in a real browser first and shown to fail on the previous build:
+- A browser that throws when code merely READS localStorage/sessionStorage crashed pages (SecurityError; the workspace showed the crash screen). `lib/safeStorage.ts` (first import in main.tsx) swaps a blocked storage for an in-memory one.
+- Sign-in used to be "assumed" after the server answered ok: a browser that silently drops the login cookie was sent to the workspace as if signed in while every request was anonymous. The session is now verified with a follow-up request (`verifyServerSession`, and in the watcher); if the cookie did not stick the person is told why and is not let in.
+- The session check waited for Firebase to start; when its own storage is restricted it never answered, leaving grey placeholders in the navbar (no Log in/Sign up) and an endless spinner in the workspace. It now stops waiting after 3.5 s, always answers within 7 s, and the navbar/workspace show buttons and an explanation meanwhile.
+- Phones had only "Log in" (Start creating is hidden on small screens): added a visible Sign up, and Sign in / Create account tabs in the window.
+- In-app browsers (Google, Instagram, Facebook, LINE, TikTok, WeChat, Android/iOS WebViews) are detected: a notice explains what will not work and offers "Copy link to open in a browser"; Google/GitHub pop-up failures fall back to a redirect where the provider allows it.
+- Pages restored from the browser's back/forward cache (and coming back online) now re-check the session.
+- Tests: `phone-auth-resilience.test.ts`; Playwright `browser-checks/phone-resilience.cjs` (wired into `check:browser`).

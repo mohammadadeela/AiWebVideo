@@ -51,6 +51,8 @@ function statusLabel(status: string, progress: number) {
 export function DashboardClient() {
   const [, navigate] = useLocation();
   const [authChecked, setAuthChecked] = useState(false);
+  const [authSlow, setAuthSlow] = useState(false);
+  useEffect(() => { const timer = window.setTimeout(() => setAuthSlow(true), 4000); return () => window.clearTimeout(timer); }, []);
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [me, setMe] = useState<Me | null>(null);
   const [jobs, setJobs] = useState<UserJobSummary[]>([]);
@@ -305,8 +307,24 @@ export function DashboardClient() {
 
   if (!authChecked)
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-violet border-t-transparent" />
+        {authSlow && (
+          <div role="status" className="max-w-xs text-sm text-text-muted">
+            <p>Still checking your account…</p>
+            <p className="mt-1 text-xs text-text-dim">This is taking longer than usual. If you opened the link inside another app, try opening it in Safari or Chrome.</p>
+            <div className="mt-4 flex justify-center gap-2">
+              <Button variant="secondary" onClick={() => window.location.reload()}>Reload</Button>
+              <Button onClick={() => setShowAuthModal(true)}>Sign in</Button>
+            </div>
+          </div>
+        )}
+        {showAuthModal && (
+          <AuthModal
+            onClose={() => setShowAuthModal(false)}
+            onSignedIn={() => { setShowAuthModal(false); void refresh(); }}
+          />
+        )}
       </div>
     );
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/app-button';
@@ -8,6 +8,7 @@ import {
   signInWithGithub,
   isFirebaseConfigured,
   watchAuthState,
+  verifyServerSession,
 } from '@/lib/firebase/client';
 import {
   ApiError, exchangeFirebaseToken, localLogin,
@@ -15,11 +16,19 @@ import {
   requestPasswordResetCode, resetPasswordWithCode, claimJob,
 } from '@/lib/api-client';
 import { getActiveJobId } from '@/lib/guestSession';
+import { detectInAppBrowser } from '@/lib/inAppBrowser';
 
 type ProviderResult = { user?: { getIdToken?: () => Promise<string> } };
 type SignInMethod = 'google' | 'github' | 'email';
 
 const LAST_SIGN_IN_METHOD_KEY = 'aiwebvideo:last-sign-in-method';
+
+/** The server accepted the sign-in but this browser did not keep the login cookie, so the person is NOT signed in. */
+class SessionBlockedError extends Error {
+  constructor() { super('SESSION_BLOCKED'); this.name = 'SessionBlockedError'; }
+}
+const isSessionBlocked = (error: unknown) => (error as { name?: string } | null)?.name === 'SessionBlockedError';
+const SESSION_BLOCKED_MESSAGE = 'Your details were right, but this browser would not keep you signed in (it blocked the login cookie). This happens inside some in-app browsers. Open this page in Safari or Chrome and sign in there.';
 
 function isSignInMethod(value: string | null): value is SignInMethod {
   return value === 'google' || value === 'github' || value === 'email';
@@ -87,8 +96,10 @@ function firebaseErrorMessage(err: unknown): string {
   return `We could not complete sign-in${code ? ` (${code.replace('auth/', '')})` : ''}. Please try again or use email instead.`;
 }
 
-export function AuthModal({ onClose, onSignedIn }: { onClose: () => void; onSignedIn: () => void | Promise<void> }) {
-  const [mode, setMode] = useState<'signin' | 'signup' | 'verify' | 'forgot' | 'reset'>('signin');
+export function AuthModal({ onClose, onSignedIn, initialMode = 'signin' }: { onClose: () => void; onSignedIn: () => void | Promise<void>; initialMode?: 'signin' | 'signup' }) {
+  const [mode, setMode] = useState<'signin' | 'signup' | 'verify' | 'forgot' | 'reset'>(initialMode);
+  const inApp = useMemo(() => detectInAppBrowser(), []);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -132,6 +143,9 @@ export function AuthModal({ onClose, onSignedIn }: { onClose: () => void; onSign
     // handoff/onSignedIn can never run twice.
     if (finishSignInRef.current) return finishSignInRef.current;
     const operation = (async () => {
+      // "Signed in" must be TRUE, not assumed: a browser that drops the login cookie would otherwise show the
+      // workspace while every request is anonymous.
+      if (!(await verifyServerSession())) throw new SessionBlockedError();
       const pendingJobId = getActiveJobId();
       if (pendingJobId) {
         try { await claimJob(pendingJobId); } catch { /* non-fatal -- dashboard still resumes via ?job= */ }
@@ -196,7 +210,7 @@ export function AuthModal({ onClose, onSignedIn }: { onClose: () => void; onSign
         } catch (err) {
           if (!isCurrent()) return;
           console.error('[auth] provider sign-in failed:', err);
-          setError(firebaseErrorMessage(err));
+          setError(isSessionBlocked(err) ? SESSION_BLOCKED_MESSAGE : firebaseErrorMessage(err));
           setLoading(false);
         }
       },
@@ -259,7 +273,9 @@ export function AuthModal({ onClose, onSignedIn }: { onClose: () => void; onSign
         await finishSignIn();
       }
     } catch (err) {
-      if (err instanceof ApiError && err.code === 'ACCOUNT_EXISTS') {
+      if (isSessionBlocked(err)) {
+        setError(SESSION_BLOCKED_MESSAGE);
+      } else if (err instanceof ApiError && err.code === 'ACCOUNT_EXISTS') {
         setError('An account already uses this email. Choose Sign in instead.');
       } else if (err instanceof ApiError && err.code === 'INVALID_CREDENTIALS') {
         setError('That email or password is incorrect. Please check both and try again.');
@@ -285,7 +301,9 @@ export function AuthModal({ onClose, onSignedIn }: { onClose: () => void; onSign
       rememberSignInMethod('email');
       await finishSignIn();
     } catch (err) {
-      if (err instanceof ApiError && err.code === 'CODE_EXPIRED') {
+      if (isSessionBlocked(err)) {
+        setError(SESSION_BLOCKED_MESSAGE);
+      } else if (err instanceof ApiError && err.code === 'CODE_EXPIRED') {
         setError('That code expired. Send a new one below.');
       } else if (err instanceof ApiError && err.code === 'CODE_INVALID') {
         setError('That code is incorrect. Please check your email and try again.');
@@ -404,6 +422,43 @@ export function AuthModal({ onClose, onSignedIn }: { onClose: () => void; onSign
             ✕
           </button>
         </div>
+
+        {inApp && (
+          <div role="note" className="mb-4 rounded-xl border border-amber-300/30 bg-amber-300/[.08] p-3 text-[12px] leading-5 text-amber-100">
+            <p className="font-semibold text-amber-50">You're inside {inApp.name}.</p>
+            <p className="mt-1">
+              {inApp.providerSignInBlocked
+                ? 'Google and GitHub usually refuse to sign you in from here. Use your email below, or open this page in Safari or Chrome.'
+                : 'Sign-in windows can be unreliable here. If Google or GitHub does not work, use your email below or open this page in Safari or Chrome.'}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                try { void navigator.clipboard?.writeText(window.location.href).then(() => setLinkCopied(true)); } catch { /* clipboard blocked */ }
+              }}
+              className="mt-2 min-h-9 rounded-lg border border-amber-300/40 px-3 text-[11px] font-semibold text-amber-50 hover:bg-amber-300/10"
+            >
+              {linkCopied ? 'Link copied — paste it in Safari or Chrome' : 'Copy link to open in a browser'}
+            </button>
+          </div>
+        )}
+
+        {(mode === 'signin' || mode === 'signup') && (
+          <div role="tablist" aria-label="Sign in or create an account" className="mb-4 grid grid-cols-2 gap-1 rounded-xl bg-white/[.05] p-1">
+            {([['signin', 'Sign in'], ['signup', 'Create account']] as const).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                role="tab"
+                aria-selected={mode === value}
+                onClick={() => { setMode(value); setError(null); setNotice(null); setCode(''); setConfirmPassword(''); }}
+                className={`min-h-11 rounded-lg px-2 text-sm font-semibold transition ${mode === value ? 'bg-signature text-white shadow' : 'text-text-muted hover:text-white'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
 
         <h2 className="mb-1 font-display text-lg font-bold text-text-primary">
           {mode === 'signin' ? 'Sign in to unlock'

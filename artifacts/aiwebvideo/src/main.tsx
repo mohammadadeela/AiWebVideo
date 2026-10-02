@@ -1,3 +1,4 @@
+import './lib/safeStorage';   // first: a blocked localStorage must never be able to crash the page
 import { createRoot } from 'react-dom/client';
 
 import App from './App';

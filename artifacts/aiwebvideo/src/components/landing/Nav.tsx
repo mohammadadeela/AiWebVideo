@@ -20,6 +20,12 @@ export function Nav() {
   const [authChecked, setAuthChecked] = useState(false);
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+  // If the sign-in check is slow (restricted in-app browsers), show the buttons anyway instead of grey placeholders
+  // with no way in.
+  const [waited, setWaited] = useState(false);
+  useEffect(() => { const timer = window.setTimeout(() => setWaited(true), 2500); return () => window.clearTimeout(timer); }, []);
+  const openAuth = (mode: 'signin' | 'signup') => { setAuthMode(mode); setShowAuthModal(true); };
   const [scrolled, setScrolled] = useState(false);
   const [me, setMe] = useState<Me | null>(null);
   const [, navigate] = useLocation();
@@ -62,12 +68,12 @@ export function Nav() {
               <span className="hidden text-[11px] font-semibold sm:inline">Pricing</span>
             </Link>
 
-            {!authChecked ? (
+            {!authChecked && !waited ? (
               <div className="flex items-center gap-2" aria-label="Checking account">
                 <span className="hidden h-10 w-24 animate-pulse rounded-xl bg-white/[.045] sm:block" />
                 <span className="h-10 w-10 animate-pulse rounded-xl bg-white/[.065]" />
               </div>
-            ) : isSignedIn ? (
+            ) : authChecked && isSignedIn ? (
               <>
                 <Link
                   href="/pricing"
@@ -94,9 +100,15 @@ export function Nav() {
               </>
             ) : (
               <>
-                <Button className="min-h-11 shrink-0 whitespace-nowrap" variant="ghost" size="sm" onClick={() => setShowAuthModal(true)}>
+                <Button className="min-h-11 shrink-0 whitespace-nowrap" variant="ghost" size="sm" onClick={() => openAuth('signin')}>
                   Log in
                 </Button>
+                {/* Phones: a clear way to REGISTER (the "Start creating" button below is hidden on small screens). */}
+                <span className="sm:hidden">
+                  <Button className="min-h-11 shrink-0 whitespace-nowrap px-3 text-xs" variant="primary" size="sm" onClick={() => openAuth('signup')}>
+                    Sign up
+                  </Button>
+                </span>
                 <span className="hidden sm:inline-flex">
                   <Button variant="primary" size="sm" className="px-3 text-xs" asChild>
                     <a href="/#generate">Start creating</a>
@@ -110,6 +122,8 @@ export function Nav() {
 
       {showAuthModal && (
         <AuthModal
+          key={authMode}
+          initialMode={authMode}
           onClose={() => setShowAuthModal(false)}
           onSignedIn={() => {
             setShowAuthModal(false);

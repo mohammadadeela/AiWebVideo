@@ -1,11 +1,13 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { forgetAccountOnSignOut, reconcileAccount } from '../accountScope';
+import { detectInAppBrowser } from '../inAppBrowser';
 import {
   getAuth,
   GoogleAuthProvider,
   GithubAuthProvider,
   FacebookAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
@@ -31,6 +33,10 @@ let cachedApp: FirebaseApp | null = null;
 let cachedAuth: Auth | null = null;
 let serverSyncedUid: string | null = null;
 let serverSyncPromise: Promise<boolean> | null = null;
+let cookieBlocked = false;
+
+/** True when the server accepted a sign-in but the browser refused to keep the login cookie. */
+export function sessionCookieBlocked(): boolean { return cookieBlocked; }
 
 function getFirebaseAuth(): Auth {
   if (!cachedApp) cachedApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
@@ -38,12 +44,27 @@ function getFirebaseAuth(): Auth {
   return cachedAuth;
 }
 
+// Reasons a sign-in pop-up cannot open (typical inside in-app browsers). A full-page redirect usually still works.
+const POPUP_UNAVAILABLE = new Set(['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment', 'auth/web-storage-unsupported']);
+
 async function providerPopup(provider: GoogleAuthProvider | GithubAuthProvider | FacebookAuthProvider) {
   const auth = getFirebaseAuth();
   // Make provider state explicitly durable. This matters when the OAuth popup
   // completes while AiWebVideo is backgrounded or the user changes tabs.
-  await setPersistence(auth, browserLocalPersistence);
-  return signInWithPopup(auth, provider);
+  try { await setPersistence(auth, browserLocalPersistence); } catch { /* restricted storage: Firebase uses what it can */ }
+  try {
+    return await signInWithPopup(auth, provider);
+  } catch (error) {
+    const code = (error as { code?: string } | null)?.code ?? '';
+    // Providers refuse to sign people in from inside most embedded browsers, so a redirect would only fail later.
+    if (POPUP_UNAVAILABLE.has(code) && !detectInAppBrowser()?.providerSignInBlocked) {
+      try {
+        await signInWithRedirect(auth, provider);   // leaves the page; the result is picked up when it returns
+        return await new Promise<never>(() => {});
+      } catch { /* redirect not possible either: report the original problem */ }
+    }
+    throw error;
+  }
 }
 
 export async function signInWithGoogle() {
@@ -90,8 +111,14 @@ export async function clearFirebaseIdentity() {
   serverSyncedUid = null;
 }
 
+/** Asks the server whether this browser really is signed in right now (the login cookie came back with the request). */
+export async function verifyServerSession(): Promise<boolean> {
+  return (await serverSession())?.active === true;
+}
+
 async function serverSession(): Promise<{ active: boolean; email: string | null } | null> {
-  const legacyToken = localStorage.getItem('aiwebvideo_token');
+  let legacyToken: string | null = null;
+  try { legacyToken = localStorage.getItem('aiwebvideo_token'); } catch { /* storage blocked */ }
   try {
     const response = await fetch('/api/auth/me', {
       credentials: 'same-origin',
@@ -155,8 +182,19 @@ export function watchAuthState(callback: (user: User | null) => void) {
   let revision = 0;
   let firebaseReady = !isFirebaseConfigured;
   let lastVerified = false;
+  let answered = false;
+  const deliver = (user: User | null) => { answered = true; callback(user); };
 
   const refreshServerSession = async () => {
+    try {
+      await refreshServerSessionUnsafe();
+    } catch {
+      // Whatever went wrong, the page must learn an answer instead of waiting forever.
+      if (!answered && !stopped) deliver(null);
+    }
+  };
+
+  const refreshServerSessionUnsafe = async () => {
     const currentRevision = ++revision;
     if (!firebaseReady) return;
     let session = await serverSession();
@@ -165,35 +203,50 @@ export function watchAuthState(callback: (user: User | null) => void) {
     // If Firebase completed provider auth while the popup promise was delayed,
     // establish the server cookie here instead of depending on AuthModal still
     // being mounted/focused. Never creates a second provider login request.
-    const currentFirebaseUser = isFirebaseConfigured ? getFirebaseAuth().currentUser : null;
+    let currentFirebaseUser: User | null = null;
+    try { currentFirebaseUser = isFirebaseConfigured ? getFirebaseAuth().currentUser : null; } catch { /* Firebase unavailable here: the server session is enough */ }
     const providerEmail = currentFirebaseUser?.email?.toLowerCase() ?? null;
     const sessionBelongsToAnotherAccount = Boolean(session?.active && providerEmail && session.email && session.email !== providerEmail);
     if (currentFirebaseUser && (session?.active === false || sessionBelongsToAnotherAccount)) {
       serverSyncedUid = null;
       const synced = await ensureFirebaseServerSession(currentFirebaseUser);
-      session = { active: synced, email: synced ? providerEmail : null };
-      if (stopped || currentRevision !== revision || getFirebaseAuth().currentUser?.uid !== currentFirebaseUser.uid) return;
+      // The server answering "ok" is not enough: some browsers silently drop the login cookie. Only a follow-up
+      // request that the cookie actually authenticates proves the person is signed in.
+      const confirmed = synced ? await serverSession() : null;
+      const cookieStuck = confirmed?.active === true;
+      if (synced && !cookieStuck) { cookieBlocked = true; serverSyncedUid = null; }
+      session = { active: cookieStuck, email: cookieStuck ? providerEmail : null };
+      if (stopped || currentRevision !== revision) return;
     }
 
     // A Firebase identity alone is not a usable AiWebVideo session. Wait for
     // the server cookie before showing Workspace or starting paid work.
     if (session === null) {
-      if (!lastVerified) callback(null);
+      if (!lastVerified) deliver(null);
       return;
     }
     lastVerified = session.active;
     // A different account replacing the previous one on this browser starts clean.
     if (session.active) reconcileAccount(session.email);
-    callback(session.active ? { uid: 'server-session', email: session.email } as User : null);
+    deliver(session.active ? { uid: 'server-session', email: session.email } as User : null);
   };
 
-  const unsubscribe = isFirebaseConfigured
-    ? onAuthStateChanged(getFirebaseAuth(), (user) => {
+  let unsubscribe: () => void = () => {};
+  try {
+    if (isFirebaseConfigured) {
+      unsubscribe = onAuthStateChanged(getFirebaseAuth(), (user) => {
         firebaseReady = true;
         if (!user) serverSyncedUid = null;
         void refreshServerSession();
-      })
-    : () => {};
+      });
+    }
+  } catch {
+    firebaseReady = true;   // Firebase could not start here; the server session does not depend on it
+  }
+  // Firebase can be slow or stuck inside restricted browsers (its own storage is limited there). The login cookie does
+  // not depend on it, so after a moment ask the server directly, and never leave the page without an answer.
+  const readyTimer = window.setTimeout(() => { if (!firebaseReady && !stopped) { firebaseReady = true; void refreshServerSession(); } }, 3500);
+  const answerTimer = window.setTimeout(() => { if (!answered && !stopped) deliver(null); }, 7000);
 
   const onLocalChange = () => {
     void refreshServerSession();
@@ -205,14 +258,24 @@ export function watchAuthState(callback: (user: User | null) => void) {
     if (document.visibilityState === 'visible') onResume();
   };
 
+  // A page restored from the browser's back/forward cache (typical when returning to an app tab) shows OLD state until
+  // told to look again; coming back online is the same.
+  const onPageShow = (event: PageTransitionEvent) => { if (event.persisted) onResume(); };
+
   window.addEventListener('aiwebvideo-auth-changed', onLocalChange);
   window.addEventListener('focus', onResume);
+  window.addEventListener('online', onResume);
+  window.addEventListener('pageshow', onPageShow);
   document.addEventListener('visibilitychange', onVisibilityChange);
   void refreshServerSession();
 
   return () => {
     stopped = true;
     revision++;
+    window.clearTimeout(readyTimer);
+    window.clearTimeout(answerTimer);
+    window.removeEventListener('online', onResume);
+    window.removeEventListener('pageshow', onPageShow);
     unsubscribe();
     window.removeEventListener('aiwebvideo-auth-changed', onLocalChange);
     window.removeEventListener('focus', onResume);
