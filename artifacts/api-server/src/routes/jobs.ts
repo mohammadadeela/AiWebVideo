@@ -169,6 +169,8 @@ type CaptureMeta = {
   productInsights?: ProductInsights | null;
   /** What the AI worked out about the site and the project scope for an architecture job. */
   siteInsights?: SiteInsights | null;
+  /** The customer's CAD drawing as read by cad-drawing.ts: the exact figures (as the brief the AI gets) and a short summary. */
+  drawing?: { fileName: string; units: string; brief: string; summary: Record<string, number | string | null> } | null;
   generatedReferenceUrls?: string[];
 };
 
@@ -187,6 +189,7 @@ function directedBriefFor(meta: CaptureMeta | null, userBrief: string | null | u
     productFacts: meta?.productFacts ?? null,
     productInsights: meta?.productInsights ?? null,
     siteInsights: meta?.siteInsights ?? null,
+    drawingBrief: meta?.drawing?.brief ?? null,
   }) || null;
 }
 

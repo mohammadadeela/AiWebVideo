@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import * as Popover from "@radix-ui/react-popover";
-import { ChevronRight, File as FileGeneric, FileImage, FileText, FileVideo, ImagePlus, Palette, Plus, X } from "lucide-react";
+import { ChevronRight, File as FileGeneric, FileImage, FileText, FileVideo, ImagePlus, Palette, Plus, Ruler, X } from "lucide-react";
 import { clearRecentFiles, fileKey, forgetRecentFile, listRecentFiles, type RecentFile } from "@/lib/recentFiles";
 
 function fileIcon(type: string): ReactNode {
@@ -42,7 +42,7 @@ function Thumb({ item }: { item: RecentFile }) {
  * The composer's "+" button, like the ones in Claude and ChatGPT. One place for everything you can add:
  * new photos, a style, and files you have used before (kept on this device only).
  */
-export function ComposerPlusMenu({ disabled, addLabel, attachedCount, attachedKeys, maxFiles, onPickFiles, onUseRecent, styleValue, onStyle, recentOwner }: {
+export function ComposerPlusMenu({ disabled, addLabel, attachedCount, attachedKeys, maxFiles, onPickFiles, onUseRecent, styleValue, onStyle, recentOwner, onPickDrawing, drawingAttached }: {
   disabled?: boolean;
   addLabel: string;
   attachedCount: number;
@@ -56,6 +56,9 @@ export function ComposerPlusMenu({ disabled, addLabel, attachedCount, attachedKe
   onStyle?: () => void;
   /** The signed-in account whose recent files are offered. Signed out (null): the Recent files section is not shown at all. */
   recentOwner: string | null;
+  /** Interior Design and Architecture only: adds a row for an engineer's CAD drawing (.dxf). Omit to hide it. */
+  onPickDrawing?: () => void;
+  drawingAttached?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [recent, setRecent] = useState<RecentFile[]>([]);
@@ -111,6 +114,14 @@ export function ComposerPlusMenu({ disabled, addLabel, attachedCount, attachedKe
               <span className="flex-1">{addLabel}</span>
               {full && <span className="text-[11px] font-normal text-white/40">{maxFiles} max</span>}
             </button>
+
+            {onPickDrawing && (
+              <button type="button" onClick={() => { setOpen(false); onPickDrawing(); }} className={item}>
+                <Ruler size={18} className="text-white/70" />
+                <span className="flex-1">{drawingAttached ? "Replace CAD drawing" : "Add CAD drawing"}</span>
+                <span className="text-[11px] font-normal text-white/40">DXF</span>
+              </button>
+            )}
 
             {onStyle && (
               <button type="button" onClick={() => { setOpen(false); onStyle(); }} className={item}>

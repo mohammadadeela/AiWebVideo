@@ -53,6 +53,7 @@ import {
   saveLocalJobWorkflow,
 } from "@/lib/jobWorkflowDraft";
 import { clearPhotoDraft, loadPhotoDraft, savePhotoDraft } from "@/lib/photoDraft";
+import { isDrawingFile } from "@/lib/drawingFile";
 import {
   WebsiteBriefForm,
   type CreationIntent,
@@ -529,7 +530,8 @@ export function ChatWidget({
           await performStudioSubmit({
             ...handoff.request,
             modelId: handoff.request.modelId ?? "cinema-2",
-            files,
+            files: files.filter((file) => !isDrawingFile(file)),
+            drawing: files.find((file) => isDrawingFile(file)),
           });
         }
       } catch (error) {
@@ -1333,9 +1335,10 @@ export function ChatWidget({
   /** Saves the creator request (and its photos) so it can resume after signing in, even across a reload. */
   async function saveStudioHandoff(request: StudioGenerationRequest) {
     let attachmentDraftKey: string | undefined;
-    if (request.files.length) {
+    const savedFiles = request.drawing ? [...request.files, request.drawing] : request.files;
+    if (savedFiles.length) {
       attachmentDraftKey = `public-studio-${Date.now()}`;
-      await savePhotoDraft(attachmentDraftKey, buildDraftItems(request.files));
+      await savePhotoDraft(attachmentDraftKey, buildDraftItems(savedFiles));
     }
     savePublicCreatorHandoff({
       kind: "studio",
@@ -1354,6 +1357,7 @@ export function ChatWidget({
         studioDirection: request.studioDirection,
         templateId: request.templateId,
         productFacts: request.productFacts,
+        drawingUnits: request.drawingUnits,
       },
       attachmentDraftKey,
     });
@@ -1807,6 +1811,8 @@ Promotion direction: ${visibleBrief(brief)}` : photosOnly ? photosLabel : normal
         studioDirection: request.studioDirection,
         templateId: request.templateId,
         productFacts: request.productFacts,
+        drawing: request.drawing,
+        drawingUnits: request.drawingUnits,
       });
       selectJobId(upload.jobId);
       onJobCreated?.(upload.jobId);

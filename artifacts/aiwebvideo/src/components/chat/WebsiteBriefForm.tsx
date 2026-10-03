@@ -55,6 +55,8 @@ import { ToggleRow } from "@/components/ui/toggle-row";
 import { SampleStrip } from "./SampleStrip";
 import { USE_SAMPLE_EVENT, clearPendingSample, peekPendingSample, rememberPendingSample, useSamples, type Sample, type UseSampleDetail } from "@/lib/showcase";
 import { ComposerPlusMenu } from "./ComposerPlusMenu";
+import { DrawingCard, useDrawingAttachment } from "./DrawingCard";
+import { isDrawingFile } from "@/lib/drawingFile";
 import { FormatIcon } from "./FormatIcon";
 import { ModelPicker } from "./ModelPicker";
 import { QualityGlyph } from "./QualityGlyph";
@@ -100,6 +102,9 @@ export interface StudioGenerationRequest {
   templateId?: string;
   /** What the product page says, to brief the AI accurately. */
   productFacts?: { title?: string; description?: string; facts?: Record<string, string> };
+  /** An engineer's CAD drawing (.dxf) for Interior Design / Architecture, and the units the customer confirmed for it. */
+  drawing?: File;
+  drawingUnits?: string;
 }
 
 const TEMPLATE_PROMPTS: Partial<Record<CreationIntent, string>> = {
@@ -428,6 +433,11 @@ export function WebsiteBriefForm({
   const [selectedIdea, setSelectedIdea] = useState<CreativeIdea | null>(null);
   const [interiorOutput, setInteriorOutput] = useState<"images" | "video">("images");
   const [files, setFiles] = useState<File[]>([]);
+  // An engineer's CAD drawing (Interior Design and Architecture): read on the server and checked by the customer first.
+  const drawingAttachment = useDrawingAttachment();
+  const drawingInputRef = useRef<HTMLInputElement | null>(null);
+  const cadMode = activeMode === "interior" || activeMode === "architecture";
+  useEffect(() => { if (!cadMode) drawingAttachment.remove(); }, [cadMode, drawingAttachment.remove]);
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const dragDepthRef = useRef(0);
@@ -536,6 +546,7 @@ export function WebsiteBriefForm({
     previousOwnerRef.current = recentFilesOwner;
     if (previous && previous !== recentFilesOwner) {
       setFiles([]);
+      drawingAttachment.remove();
       setSelectedSample(null);
       setProductData(null);
       setChosenProductImages([]);
@@ -593,6 +604,11 @@ export function WebsiteBriefForm({
     const accepted: File[] = [];
     let nextError: string | null = null;
     for (const file of Array.from(list)) {
+      if (isDrawingFile(file)) {
+        if (cadMode) drawingAttachment.attach(file);
+        else nextError = "CAD drawings (.dxf) can be used with Interior Design and Architecture.";
+        continue;
+      }
       if (!ACCEPTED_IMAGES.includes(file.type)) {
         nextError = "Use JPEG, PNG, or WEBP reference images.";
         continue;
@@ -865,8 +881,12 @@ export function WebsiteBriefForm({
       productReference = data;
       productImages = data.images.slice(0, 1);
     }
-    if (isInterior && activeMode === "interior" && files.length === 0) {
-      setError("Attach at least one photo of the space, a plan, a sketch or an elevation.");
+    if (isInterior && activeMode === "interior" && files.length === 0 && !drawingAttachment.drawing) {
+      setError("Attach at least one photo of the space, a plan, a sketch, an elevation or a CAD drawing.");
+      return;
+    }
+    if (cadMode && drawingAttachment.drawing && drawingAttachment.blockReason) {
+      setError(drawingAttachment.blockReason);
       return;
     }
     if (isProduct && files.length === 0 && productImages.length === 0) {
@@ -898,6 +918,9 @@ export function WebsiteBriefForm({
       productUrl,
       productImageUrls: productImages,
       studioDirection: selectedIdea ? selectedIdea.masterPrompt : undefined,
+      drawing: cadMode ? drawingAttachment.drawing?.file : undefined,
+      // exactly the units the customer was shown, so what they checked is what the server uses
+      drawingUnits: cadMode ? drawingAttachment.drawing?.preview?.units.choice : undefined,
       templateId: selectedSample?.id,
       productFacts: isProduct && productReference ? { title: productReference.title, description: productReference.description, facts: productReference.facts } : undefined,
       architecture: activeMode === "architecture" ? {
@@ -999,6 +1022,17 @@ export function WebsiteBriefForm({
       onDrop={onDrop}
     >
       <div className="pointer-events-none absolute inset-x-16 -top-24 h-44 rounded-full bg-violet/20 blur-3xl" />
+      <input
+        ref={drawingInputRef}
+        type="file"
+        accept=".dxf,.dwg"
+        className="hidden"
+        aria-label="Add CAD drawing"
+        onChange={(event) => {
+          addFiles(event.currentTarget.files);
+          event.currentTarget.value = "";
+        }}
+      />
       <input
         ref={inputRef}
         type="file"
@@ -1298,6 +1332,8 @@ export function WebsiteBriefForm({
               attachedKeys={attachedKeys}
               maxFiles={10}
               onPickFiles={() => { setOpenSettingMenu(null); inputRef.current?.click(); }}
+              onPickDrawing={cadMode ? () => { setOpenSettingMenu(null); drawingInputRef.current?.click(); } : undefined}
+              drawingAttached={Boolean(drawingAttachment.drawing)}
               onUseRecent={(file) => addFiles([file])}
               recentOwner={recentFilesOwner}
               styleValue={activeMode === "website" ? (selectedWebsiteRecipe ? WEBSITE_RECIPES.find((recipe) => recipe.mode === selectedWebsiteRecipe)?.label : "Auto") : undefined}
@@ -1640,6 +1676,12 @@ export function WebsiteBriefForm({
           onSelect={(sample) => { setSelectedSample(sample); setError(null); }}
           selectable={activeMode !== "website"}
         />}
+
+        {cadMode && drawingAttachment.drawing && (
+          <div className="mt-4 -mx-3 sm:-mx-4">
+            <DrawingCard state={drawingAttachment.drawing} onRemove={drawingAttachment.remove} onUnits={drawingAttachment.chooseUnits} />
+          </div>
+        )}
 
         {previews.length > 0 && (
           <div className="mt-4">

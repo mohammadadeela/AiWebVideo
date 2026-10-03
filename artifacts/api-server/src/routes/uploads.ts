@@ -8,6 +8,8 @@ import { AppError, sendError } from '../lib/errors.js';
 import { saveImageFile } from '../lib/capture.js';
 import { MAX_VIDEO_SECONDS, MIN_VIDEO_SECONDS, videoCreditCost } from '../lib/credits.js';
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_PHOTOS, normalizeUploadToJpeg, sanitizeUploadTitle, uploadPhotoLabel } from '../lib/uploads.js';
+import { DrawingError, MAX_DRAWING_BYTES, drawingBrief, isUnitChoice, readDrawing, type ReadResult, type UnitChoice } from '../lib/cad-drawing.js';
+import { renderDrawingJpeg } from '../lib/cad-render.js';
 import { generationModelForMode } from '../lib/generation-models.js';
 import { readPublicUrl } from '../lib/external-reference.js';
 import { coordinatesFromMapsUrl, isGoogleMapsUrl } from '../lib/maps-url.js';
@@ -20,6 +22,13 @@ import { z } from 'zod';
 const router = Router();
 
 const fileFilter: NonNullable<Parameters<typeof multer>[0]>['fileFilter'] = (_req, file, cb) => {
+  // An engineer's drawing travels in its own field and is recognised by its extension (browsers report DXF/DWG
+  // with many different MIME types). What is inside is checked by the reader, not trusted from the name.
+  if (file.fieldname === 'drawing') {
+    if (/\.(dxf|dwg)$/i.test(file.originalname)) cb(null, true);
+    else cb(new AppError('Upload the drawing as a .dxf file (AutoCAD: Save As → DXF).', 400, 'UNSUPPORTED_FILE_TYPE'));
+    return;
+  }
   // HEIC/HEIF intentionally excluded: normalizeUploadToJpeg() shells out to
   // ffmpeg, and the ffmpeg build this app runs on does not include HEIC
   // decoding (no libheif).
@@ -27,19 +36,87 @@ const fileFilter: NonNullable<Parameters<typeof multer>[0]>['fileFilter'] = (_re
   else cb(new AppError(`Unsupported file type: ${file.mimetype}. Please upload JPEG, PNG, or WEBP photos (not HEIC — convert iPhone photos to JPEG first, or use "Most Compatible" format in your camera settings).`, 400, 'UNSUPPORTED_FILE_TYPE'));
 };
 
+// The multipart limit has to allow the largest thing in the request (a drawing); photos are held to their own
+// 10MB limit right after parsing (see splitUploadFiles).
 const userUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: MAX_UPLOAD_BYTES, files: MAX_UPLOAD_PHOTOS },
+  limits: { fileSize: MAX_DRAWING_BYTES, files: MAX_UPLOAD_PHOTOS + 1 },
   fileFilter,
 });
 
 // Administrators are trusted operators and may attach any number of photos in
-// one batch. The per-file type and 10MB safety checks still apply.
-const adminUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_UPLOAD_BYTES }, fileFilter });
+// one batch. The per-file type and size safety checks still apply.
+const adminUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_DRAWING_BYTES }, fileFilter });
+
 const uploadImages: RequestHandler = (req, res, next) => {
-  const middleware = req.user?.isAdmin ? adminUpload.array('images') : userUpload.array('images', MAX_UPLOAD_PHOTOS);
-  middleware(req, res, next);
+  const middleware = req.user?.isAdmin
+    ? adminUpload.fields([{ name: 'images' }, { name: 'drawing', maxCount: 1 }])
+    : userUpload.fields([{ name: 'images', maxCount: MAX_UPLOAD_PHOTOS }, { name: 'drawing', maxCount: 1 }]);
+  middleware(req, res, (error?: unknown) => {
+    if (error) { next(error); return; }
+    // From here on `req.files` is the photo list, exactly as before; the drawing (if any) is `req.drawingFile`.
+    const grouped = (req.files ?? {}) as Record<string, Express.Multer.File[]>;
+    const images = grouped.images ?? [];
+    const tooBig = images.find((file) => file.size > MAX_UPLOAD_BYTES);
+    if (tooBig) { sendError(res, new AppError(`"${tooBig.originalname}" is larger than ${MAX_UPLOAD_BYTES / 1024 / 1024} MB. Use a smaller photo.`, 413, 'FILE_TOO_LARGE')); return; }
+    req.files = images;
+    (req as unknown as { drawingFile?: Express.Multer.File }).drawingFile = grouped.drawing?.[0];
+    next();
+  });
 };
+
+// Reading a drawing is real work, so it has its own, stricter allowance than photo uploads.
+const PREVIEW_LIMIT = 12;
+const previewAttempts = new Map<string, { count: number; resetAt: number }>();
+function allowPreview(ip: string) {
+  const now = Date.now();
+  const current = previewAttempts.get(ip);
+  if (!current || current.resetAt <= now) { previewAttempts.set(ip, { count: 1, resetAt: now + 10 * 60_000 }); return true; }
+  if (current.count >= PREVIEW_LIMIT) return false;
+  current.count += 1;
+  if (previewAttempts.size > 2000) for (const [key, value] of previewAttempts) if (value.resetAt <= now) previewAttempts.delete(key);
+  return true;
+}
+const previewUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_DRAWING_BYTES, files: 1 }, fileFilter }).single('drawing');
+
+/** A drawing problem is something the customer can fix, so it is shown to them as written. */
+function drawingFailure(error: unknown): never {
+  if (error instanceof DrawingError) throw new AppError(error.message, 422, error.code);
+  throw error;
+}
+
+function unitsFromBody(value: unknown): UnitChoice | undefined {
+  return isUnitChoice(value) ? value : undefined;
+}
+
+/**
+ * POST /api/uploads/drawing-preview — reads a CAD drawing and answers with what was found (sizes, units, rooms,
+ * dimensions, warnings) and a to-scale picture, so the customer can check it BEFORE anything is generated or charged.
+ */
+router.post('/drawing-preview', (req, res, next) => previewUpload(req, res, (error?: unknown) => (error ? sendError(res, error) : next())), (req, res) => {
+  try {
+    if (!allowPreview(req.ip ?? req.socket.remoteAddress ?? 'unknown')) throw new AppError('Too many drawings read in a short time. Please wait a few minutes.', 429, 'RATE_LIMITED');
+    const file = req.file;
+    if (!file) throw new AppError('Choose a drawing (.dxf) to read.', 400, 'NO_FILES');
+    let read: ReadResult;
+    try { read = readDrawing(file.buffer, file.originalname, { units: unitsFromBody(req.body?.units) }); } catch (error) { drawingFailure(error); }
+    const { facts, svg } = read;
+    res.json({
+      fileName: facts.fileName,
+      units: facts.units,
+      extents: facts.extents,
+      outerBoundary: facts.outerBoundary,
+      rooms: facts.rooms.slice(0, 12),
+      roomCount: facts.rooms.length,
+      dimensionCount: facts.dimensions.length,
+      dimensionCheck: facts.dimensionCheck,
+      layers: facts.layers.slice(0, 8),
+      warnings: facts.warnings,
+      // A picture of the plan to look at (an image, so it cannot run anything). Left out when it would be huge.
+      previewSvg: svg.length <= 1_500_000 ? svg : null,
+    });
+  } catch (error) { sendError(res, error); }
+});
 
 const UPLOAD_WINDOW_MS = 10 * 60 * 1000;
 const UPLOAD_LIMIT = 5;
@@ -81,6 +158,7 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
     }
 
     const files = (req.files as Express.Multer.File[] | undefined) ?? [];
+    const drawingFile = (req as unknown as { drawingFile?: Express.Multer.File }).drawingFile;
     const productUrl = typeof req.body?.productUrl === 'string' ? req.body.productUrl.slice(0, 2048) : null;
     let productImageUrls: string[] = [];
     if (req.body?.productImageUrls) {
@@ -153,8 +231,8 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
       if ((studioKind === 'interior' || studioKind === 'architecture') && !['photos', 'custom'].includes(studioMode)) {
         throw new AppError('Interior and Architecture modes use image generation or custom video mode.', 400, 'INVALID_STUDIO_MODE');
       }
-      if (studioKind === 'interior' && !files.length) {
-        throw new AppError('Upload at least one interior photo, plan, sketch, elevation, or reference image.', 400, 'INTERIOR_REFERENCE_REQUIRED');
+      if (studioKind === 'interior' && !files.length && !drawingFile) {
+        throw new AppError('Upload at least one interior photo, plan, sketch, elevation, drawing, or reference image.', 400, 'INTERIOR_REFERENCE_REQUIRED');
       }
       if (studioKind === 'architecture') {
         // A reference (site screenshot, plan, building to place) improves accuracy but is not required: without one
@@ -211,6 +289,26 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
       throw new AppError('Sign in to generate a starting image from your idea.', 401, 'AUTH_REQUIRED');
     }
 
+    // An engineer's drawing (Interior Design and Architecture): read it BEFORE a job exists, so a problem with the file never
+    // leaves half a production behind. The figures come from the file's own geometry; the customer must have confirmed the
+    // units whenever the file did not state them clearly, so a wrong scale can never go through silently.
+    let drawing: ReadResult | null = null;
+    let drawingJpeg: Buffer | null = null;
+    if (drawingFile) {
+      if (studioKind !== 'interior' && studioKind !== 'architecture') {
+        throw new AppError('Drawings can be used with Interior Design and Architecture.', 400, 'DRAWING_NOT_SUPPORTED_HERE');
+      }
+      const chosenUnits = unitsFromBody(req.body?.drawingUnits);
+      try { drawing = readDrawing(drawingFile.buffer, drawingFile.originalname, { units: chosenUnits }); } catch (error) { drawingFailure(error); }
+      if (drawing.facts.units.needsConfirmation) {
+        throw new AppError('Confirm the units of your drawing (millimetres, centimetres, metres, inches or feet) before generating, so every size is exact.', 422, 'DRAWING_UNITS_UNCONFIRMED');
+      }
+      drawingJpeg = await renderDrawingJpeg(drawing.svg);
+      if (!drawingJpeg && !files.length && !(studioKind === 'architecture' && (architecture?.location || architecture?.mapUrl))) {
+        throw new AppError('Your drawing was read, but its picture could not be prepared right now. Add a photo of the space or try again in a moment.', 503, 'DRAWING_RENDER_UNAVAILABLE');
+      }
+    }
+
     const title = sanitizeUploadTitle(typeof req.body?.title === 'string' ? req.body.title : (ideaPrompt ? ideaPrompt.slice(0, 80) : null));
     const userId = req.user?.id ?? null;
     const aspectRatio = (['16:9', '9:16', '1:1'] as const).includes(req.body?.aspectRatio) ? req.body.aspectRatio as '16:9' | '9:16' | '1:1' : '16:9';
@@ -259,6 +357,19 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
       const filename = index === 0 ? 'screenshot-full.jpg' : `page-${index}.jpg`;
       const screenshotUrl = await saveImageFile(job.id, filename, jpeg);
       pages.push({ url: `upload://${job.id}/${index}`, title: uploadPhotoLabel(index, file.originalname), screenshotUrl });
+    }
+
+    if (drawing && drawingJpeg) {
+      try {
+        const jpeg = await normalizeUploadToJpeg(drawingJpeg);
+        const pageIndex = pages.length;
+        const filename = pageIndex === 0 ? 'screenshot-full.jpg' : `page-${pageIndex}.jpg`;
+        const screenshotUrl = await saveImageFile(job.id, filename, jpeg);
+        pages.push({ url: `drawing://${job.id}`, title: 'DRAWING — exact to-scale plan from the customer\'s CAD file (its geometry and proportions are authoritative)', screenshotUrl });
+        await addJobMessage(job.id, 'user', `Added drawing ${drawing.facts.fileName}`, 'upload');
+      } catch (err) {
+        console.warn(`[uploads] job=${job.id} drawing picture skipped: ${(err as Error).message}`);
+      }
     }
 
     let downloadedProductImages = 0;
@@ -355,6 +466,20 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
         productFacts,
         productImageUrls: productImageUrls.length,
         architecture,
+        drawing: drawing
+          ? {
+              fileName: drawing.facts.fileName,
+              units: drawing.facts.units.name,
+              brief: drawingBrief(drawing.facts),
+              summary: {
+                widthM: drawing.facts.extents?.widthM ?? null,
+                depthM: drawing.facts.extents?.depthM ?? null,
+                areaM2: drawing.facts.outerBoundary?.areaM2 ?? null,
+                rooms: drawing.facts.rooms.length,
+                dimensions: drawing.facts.dimensions.length,
+              },
+            }
+          : null,
         studioDirection: studioKind && studioDirection ? studioDirection : null,
         templateId: usedTemplateId,
         ideaPrompt: studioKind ? ideaPrompt : null,

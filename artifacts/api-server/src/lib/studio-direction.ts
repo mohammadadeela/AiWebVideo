@@ -271,6 +271,8 @@ export function composeStudioBrief(input: {
   productFacts?: ProductFactsInput | null;
   productInsights?: ProductInsights | null;
   siteInsights?: SiteInsights | null;
+  /** Figures read exactly from the customer's CAD drawing (see cad-drawing.ts). Interior and architecture only. */
+  drawingBrief?: string | null;
 }): string {
   const userBrief = (input.userBrief ?? '').trim();
   if (userBrief.includes(DIRECTION_MARKER) || userBrief.includes(LEGACY_FRONTEND_MARKER)) return userBrief;
@@ -285,6 +287,7 @@ export function composeStudioBrief(input: {
     const site = siteInsightsBlock(input.siteInsights);
     sections.push(site || `PROJECT SCOPE: ${inferProjectScope(userBrief)} — this is ${SCOPE_LABELS[inferProjectScope(userBrief)]}.`);
   }
+  if ((input.studioKind === 'architecture' || input.studioKind === 'interior') && input.drawingBrief?.trim()) sections.push(input.drawingBrief.trim());
   if (input.studioKind === 'product') {
     const product = productInsightsBlock(input.productInsights, input.productFacts);
     if (product) sections.push(product);

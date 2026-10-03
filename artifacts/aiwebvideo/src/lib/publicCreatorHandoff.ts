@@ -37,6 +37,8 @@ export interface StudioCreatorHandoff {
     studioDirection?: string;
     templateId?: string;
     productFacts?: { title?: string; description?: string; facts?: Record<string, string> };
+    /** The units the customer confirmed for the drawing that travels with the attachments. */
+    drawingUnits?: string;
   };
   attachmentDraftKey?: string;
 }

@@ -83,10 +83,17 @@ export async function uploadStudioMedia(opts: {
   templateId?: string;
   /** What the product page says (title, description, price...), to brief the AI accurately. */
   productFacts?: { title?: string; description?: string; facts?: Record<string, string> };
+  /** An engineer's CAD drawing (.dxf) for Interior Design and Architecture, and the units the customer confirmed for it. */
+  drawing?: File;
+  drawingUnits?: string;
 }) {
   const token = await getIdToken();
   const form = new FormData();
   for (const file of opts.files ?? []) form.append('images', file);
+  if (opts.drawing) {
+    form.append('drawing', opts.drawing);
+    if (opts.drawingUnits) form.append('drawingUnits', opts.drawingUnits);
+  }
   if (opts.title) form.append('title', opts.title);
   if (opts.ideaPrompt) form.append('ideaPrompt', opts.ideaPrompt);
   form.append('studioKind', opts.studioKind);
@@ -115,6 +122,41 @@ export async function uploadStudioMedia(opts: {
     throw new ApiError(data.error || 'Something went wrong starting your production.', res.status, data.code);
   }
   return data as { jobId: string; status: string };
+}
+
+export type DrawingUnitChoice = 'mm' | 'cm' | 'm' | 'in' | 'ft';
+
+/** What the server read from a CAD drawing (see lib/cad-drawing.ts on the server). All sizes are in metres. */
+export interface DrawingPreview {
+  fileName: string;
+  units: { choice: DrawingUnitChoice; name: string; source: 'file' | 'customer' | 'guessed'; needsConfirmation: boolean; note?: string };
+  extents: { widthM: number; depthM: number; heightM: number | null } | null;
+  outerBoundary: { widthM: number; depthM: number; areaM2: number; rectangular: boolean } | null;
+  rooms: Array<{ label: string; areaM2: number; widthM: number; depthM: number; rectangular: boolean }>;
+  roomCount: number;
+  dimensionCount: number;
+  dimensionCheck: { measured: number; compared: number; mismatched: number };
+  layers: Array<{ name: string; entities: number }>;
+  warnings: string[];
+  /** A picture of the plan (an SVG image) to look at, or null when it would be too large. */
+  previewSvg: string | null;
+}
+
+/** Reads a drawing on the server and returns what was found, before anything is generated or charged. */
+export async function previewDrawing(file: File, units?: DrawingUnitChoice): Promise<DrawingPreview> {
+  const form = new FormData();
+  form.append('drawing', file);
+  if (units) form.append('units', units);
+  const res = await fetch('/api/uploads/drawing-preview', {
+    method: 'POST',
+    signal: AbortSignal.timeout(90_000),
+    credentials: 'same-origin',
+    cache: 'no-store',
+    body: form,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new ApiError(data.error || 'Your drawing could not be read.', res.status, data.code);
+  return data as DrawingPreview;
 }
 
 export async function uploadPrivatePages(jobId: string, files: File[]) {
