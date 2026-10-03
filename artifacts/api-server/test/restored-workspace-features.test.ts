@@ -21,7 +21,7 @@ test('product link and architecture engineer controls stay available', async () 
   assert.match(await readFile(path.resolve(process.cwd(), '../aiwebvideo/src/lib/creationFeatures.ts'), 'utf8'), /id: "architecture", label: "Architecture"/);
   assert.match(creator, /Paste a link to the product page/);
   assert.match(creator, /void loadProductLink\(/);
-  assert.match(creator, /Google Maps link or address/);
+  assert.match(creator, /Google Maps link, address or coordinates/);
   assert.match(creator, /label="Plot width" unit="m"/);
   assert.match(creator, /label="Plot depth" unit="m"/);
   assert.match(creator, /Estimate the plot size/);

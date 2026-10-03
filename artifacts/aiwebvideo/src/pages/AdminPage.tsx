@@ -17,6 +17,7 @@ import { watchAuthState } from '@/lib/firebase/client';
 import { useSeo } from '@/lib/useSeo';
 import { publishGallery } from '@/lib/showcase';
 import { LandingExamplesManager } from '@/components/admin/LandingExamplesManager';
+import { LinkChecker } from '@/components/admin/LinkChecker';
 import { resolveVideoEmbed } from '@/lib/videoEmbed';
 
 type Tab = 'overview' | 'reports' | 'landing' | 'users' | 'jobs' | 'providers' | 'audit';
@@ -762,6 +763,7 @@ export function AdminPage() {
         {!jobs.length && <Empty>No productions match.</Empty>}
       </section>}
 
+      {tab === 'providers' && <div className="mt-6"><LinkChecker /></div>}
       {tab === 'providers' && settings && <div className="mt-6 grid gap-5 xl:grid-cols-2">
         <section className="space-y-4">
           <div className="rounded-2xl border border-border bg-panel p-5">

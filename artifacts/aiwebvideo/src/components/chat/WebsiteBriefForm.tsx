@@ -60,6 +60,7 @@ import { ModelPicker } from "./ModelPicker";
 import { QualityGlyph } from "./QualityGlyph";
 import { fileKey, rememberFiles } from "@/lib/recentFiles";
 import { ApiError, extractProductReference, resolveArchitectureLocation, type ProductReference } from "@/lib/api-client";
+import { looksLikeCoordinates, mapPreviewUrl } from "@/lib/mapPreview";
 import type { AudioMode, JobMode } from "./types";
 
 import type { CreationIntent } from "@/lib/creationFeatures";
@@ -405,7 +406,7 @@ export function WebsiteBriefForm({
   const [chosenProductImages, setChosenProductImages] = useState<string[]>([]);
   const [readingProduct, setReadingProduct] = useState(false);
   const [mapLink, setMapLink] = useState("");
-  const [site, setSite] = useState<{ latitude?: number; longitude?: number; label: string | null; resolvedUrl: string; precision?: "pin" | "view" | "none" } | null>(null);
+  const [site, setSite] = useState<{ latitude?: number; longitude?: number; label: string | null; resolvedUrl: string; precision?: "pin" | "view" | "none"; imageryAvailable?: boolean } | null>(null);
   const [resolvingSite, setResolvingSite] = useState(false);
   const [plotWidth, setPlotWidth] = useState("");
   const [plotDepth, setPlotDepth] = useState("");
@@ -672,19 +673,20 @@ export function WebsiteBriefForm({
     setResolvingSite(true);
     setError(null);
     try {
-      if (!/^https?:\/\//i.test(value)) {
-        const plain = { label: value, resolvedUrl: "" };
-        setSite(plain);
-        return plain;
-      }
       const resolved = await resolveArchitectureLocation(value);
       if (readId !== siteReadId.current) return null;
       setSite(resolved);
       return resolved;
     } catch {
       if (readId !== siteReadId.current) return null;
+      // An address that the server could not turn into a point is still kept as text.
+      if (!/^https?:\/\//i.test(value) && !looksLikeCoordinates(value)) {
+        const plain = { label: value, resolvedUrl: "" };
+        setSite(plain);
+        return plain;
+      }
       setSite(null);
-      setError("Couldn't identify this location. Paste a Google Maps link or type the address.");
+      setError("Couldn't identify this location. Paste a Google Maps link, type the address, or type coordinates like 31.5321, 35.0912.");
       return null;
     } finally {
       if (readId === siteReadId.current) setResolvingSite(false);
@@ -1134,21 +1136,36 @@ export function WebsiteBriefForm({
                     onBlur={() => { if (mapLink.trim() && !site) void resolveSite(); }}
                     onPaste={(event) => {
                       const pasted = event.clipboardData.getData("text").trim();
-                      if (!/^https?:\/\//i.test(pasted)) return;
+                      if (!/^https?:\/\//i.test(pasted) && !looksLikeCoordinates(pasted)) return;
                       event.preventDefault();
                       setMapLink(pasted);
                       setSite(null);
                       void resolveSite(pasted);
                     }}
                     onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void resolveSite(); } }}
-                    placeholder="Google Maps link or address"
-                    aria-label="Google Maps link or address"
+                    placeholder="Google Maps link, address or coordinates"
+                    aria-label="Google Maps link, address or coordinates"
                     className="min-w-0 flex-1 bg-transparent py-2.5 text-base text-white outline-none placeholder:text-white/35 sm:text-xs"
                   />
                 </div>
               </div>
               <LinkStatus active={resolvingSite} messages={["Finding the exact place on the map…", "Still working on the location…", "This map link is slow to open. Almost there…"]} />
               {site && <p className="mt-2 flex items-center gap-1.5 text-[12px] text-mint"><Check size={13} /> {site.label || `${site.latitude}, ${site.longitude}`}</p>}
+              {site && typeof site.latitude === "number" && typeof site.longitude === "number" && (
+                <div className="mt-2.5 overflow-hidden rounded-xl border border-white/[.10] bg-[#0b0818]" data-testid="site-preview">
+                  <iframe title="The exact spot on the map" src={mapPreviewUrl(site.latitude, site.longitude)} loading="lazy" referrerPolicy="no-referrer" className="h-44 w-full border-0" />
+                  <div className="space-y-1 px-3 py-2 text-[11px] leading-4 text-white/60">
+                    <p><span className="font-semibold text-white">Is this the right spot?</span> The design is placed exactly here: <span className="font-mono text-white/80">{site.latitude.toFixed(6)}, {site.longitude.toFixed(6)}</span></p>
+                    <p>{site.imageryAvailable ? "Satellite and street views of this spot are used for the design." : "For a design that matches your plot exactly, add a screenshot of it (satellite view) below."}</p>
+                    <p><a href={`https://www.google.com/maps?q=${site.latitude.toFixed(6)},${site.longitude.toFixed(6)}`} target="_blank" rel="noreferrer" className="font-semibold text-mint hover:underline">Open this spot in Google Maps</a></p>
+                  </div>
+                </div>
+              )}
+              {site && site.precision !== "pin" && site.precision !== "view" && typeof site.latitude !== "number" && (
+                <p className="mt-1.5 text-[11px] leading-4 text-amber-200">
+                  We couldn&apos;t find exact coordinates for this address. For the exact place, paste the Google Maps share link or type coordinates like 31.5321, 35.0912.
+                </p>
+              )}
               {site?.precision === "view" && (
                 <p className="mt-1.5 text-[11px] leading-4 text-amber-200">
                   This link shows the map view, not an exact pin, so the spot may be a little off. For the exact place, open it in Google Maps, tap Share and paste that link.

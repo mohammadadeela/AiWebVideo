@@ -1,6 +1,6 @@
 import { AppError } from './errors.js';
 import { readPublicUrl } from './external-reference.js';
-import { imageKey, parseProductPage, upgradeImageUrl, type ProductFacts } from './product-html.js';
+import { imageKey, looksLikeBotWall, parseProductPage, upgradeImageUrl, type ProductFacts } from './product-html.js';
 import { renderPage, type RenderedPage } from './rendered-page.js';
 import { validateUrl } from './ssrf.js';
 
@@ -77,7 +77,7 @@ function reasonFor(error: unknown): 'blocked' | 'failed' {
  * Finds the product's name, facts and photos. Tries the cheapest way first and only escalates when a step finds
  * no photos: plain page, then the shop's public JSON, then a real browser. Throws one clear error if all fail.
  */
-export async function readProductReference(rawUrl: string, deps: ProductReadDeps = defaultDeps): Promise<ProductReadResult> {
+export async function readProductReference(rawUrl: string, deps: ProductReadDeps = defaultDeps, trace: string[] = []): Promise<ProductReadResult> {
   let blocked = false;
   const finish = async (found: Omit<ProductReadResult, 'images'> & { images: string[] }): Promise<ProductReadResult | null> => {
     const checked = (await Promise.all(found.images.map((image) => deps.allowImage(image)))).filter((value): value is string => Boolean(value));
@@ -90,14 +90,24 @@ export async function readProductReference(rawUrl: string, deps: ProductReadDeps
   try {
     const page = await deps.readHtml(rawUrl);
     finalUrl = page.url;
+    if (looksLikeBotWall(page.html)) {
+      blocked = true;
+      trace.push('plain page: the shop answered with a "prove you are human" page');
+      throw new AppError('This shop blocks automatic reading.', 422, 'PRODUCT_BLOCKED');
+    }
     staticParsed = parseProductPage(page.html, page.url);
+    trace.push(`plain page: ${staticParsed.images.length} candidate photo(s), title "${staticParsed.title.slice(0, 60)}"`);
     const result = await finish({ title: staticParsed.title, description: staticParsed.description, url: page.url, images: staticParsed.images, facts: staticParsed.facts, source: 'page' });
     if (result) return result;
-  } catch (error) { blocked = reasonFor(error) === 'blocked'; }
+  } catch (error) {
+    blocked = blocked || reasonFor(error) === 'blocked';
+    if (!trace.some((line) => line.startsWith('plain page'))) trace.push(`plain page: ${error instanceof AppError ? error.code : 'failed'} (${error instanceof Error ? error.message.slice(0, 80) : 'error'})`);
+  }
 
   // 2. The shop's public product data (works even when the page itself hides behind scripts).
   const shopUrl = shopifyProductUrl(finalUrl);
   if (shopUrl) {
+    trace.push('shop data: trying the public product data');
     try {
       const shop = parseShopifyProduct(await deps.readJson(shopUrl), finalUrl);
       if (shop) {
@@ -109,8 +119,13 @@ export async function readProductReference(rawUrl: string, deps: ProductReadDeps
 
   // 3. A real browser: what a visitor sees after the page's own scripts ran.
   const rendered = await deps.render(finalUrl);
-  if (rendered) {
+  if (!rendered) trace.push('browser: not available or busy (JavaScript-only shops cannot be read)');
+  if (rendered && looksLikeBotWall(rendered.html)) {
+    blocked = true;
+    trace.push('browser: the shop showed a "prove you are human" page');
+  } else if (rendered) {
     const parsed = parseProductPage(rendered.html, rendered.url);
+    trace.push(`browser: ${rendered.images.length} painted photo(s), ${parsed.images.length} from the page`);
     // The browser's view of the gallery is the most precise, so it leads; one photo at several sizes counts once.
     const merged = [...rendered.images.map(upgradeImageUrl), ...parsed.images].filter((value, index, all) => all.findIndex((other) => imageKey(other) === imageKey(value)) === index);
     const result = await finish({

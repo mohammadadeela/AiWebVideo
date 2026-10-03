@@ -50,5 +50,7 @@ test('the form warns when a link only carries the map view, and the route report
   assert.match(form, /site\?\.precision === "view"/);
   assert.match(form, /not an exact pin/);
   const route = await readFile(path.resolve(process.cwd(), 'src/routes/architecture.ts'), 'utf8');
-  assert.match(route, /precision: position\?\.precision \?\? 'none'/);
+  assert.match(route, /resolveMapsInput\(link, defaultMapsDeps\)/);                         // the route delegates to the tested resolver
+  assert.match(route, /res\.json\(\{ \.\.\.result, scale: 'unknown', imageryAvailable: siteImageryEnabled\(\) \}\)/);   // and reports the precision and the real imagery status
+  assert.doesNotMatch(route, /imageryAvailable: false/);                                   // it was hard-coded to false before
 });

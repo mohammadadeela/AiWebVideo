@@ -347,7 +347,7 @@ export async function uploadMarketingAsset(file: File) {
 }
 
 export function resolveArchitectureLocation(link: string) {
-  return request<{ latitude?: number; longitude?: number; label: string | null; resolvedUrl: string; scale: 'unknown'; imageryAvailable: false; precision?: 'pin' | 'view' | 'none' }>('/api/architecture/location', {
+  return request<{ latitude?: number; longitude?: number; label: string | null; resolvedUrl: string; scale: 'unknown'; imageryAvailable: boolean; precision?: 'pin' | 'view' | 'none' }>('/api/architecture/location', {
     method: 'POST',
     body: JSON.stringify({ link }),
   });
@@ -618,4 +618,18 @@ export async function exchangeFirebaseToken(idToken: string) {
   if (!res.ok) throw new ApiError(data.error || 'Provider sign-in failed.', res.status, data.code);
   finishBrowserSession();
   return data as { user: { email: string; plan: string; creditsBalance: number } };
+}
+
+/** Admin only: what the server makes of a product link or a map link, step by step. */
+export interface LinkCheckResult {
+  kind: 'product' | 'map';
+  ok: boolean;
+  ms: number;
+  error?: string;
+  code?: string | null;
+  trace: string[];
+  result?: Record<string, unknown> & { images?: string[]; latitude?: number; longitude?: number; precision?: string; label?: string | null; title?: string; source?: string; imagery?: string; resolvedUrl?: string };
+}
+export function checkAdminLink(kind: 'product' | 'map', link: string) {
+  return request<LinkCheckResult>('/api/admin/link-check', { method: 'POST', body: JSON.stringify({ kind, link }), signal: AbortSignal.timeout(60_000) });
 }

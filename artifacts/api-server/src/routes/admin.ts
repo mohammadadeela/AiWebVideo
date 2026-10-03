@@ -9,6 +9,10 @@ import multer from 'multer';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { ASSETS_DIR } from '../lib/capture.js';
+import { resolveMapsInput } from '../lib/maps-resolve.js';
+import { defaultMapsDeps } from '../lib/maps-resolve-deps.js';
+import { readProductReference } from '../lib/product-reference-service.js';
+import { siteImageryEnabled } from '../lib/site-imagery.js';
 import { clearMarketingSettingsCache, getMarketingSettings, MAX_LANDING_EXAMPLES, MAX_MARKETING_VIDEOS, SHOWCASE_FEATURES } from '../lib/marketing.js';
 import { GEMINI_COST_CATALOG } from '../lib/costs.js';
 import { CREDIT_COSTS, MAX_VIDEO_SECONDS, MIN_VIDEO_SECONDS, videoCreditQuote } from '../lib/credits.js';
@@ -434,6 +438,33 @@ router.put('/marketing', async (req, res) => {
     clearMarketingSettingsCache();
     await audit(req.user!.id, 'marketing.updated', 'system', 'landing', body);
     res.json(body);
+  } catch (error) { sendError(res, error); }
+});
+
+/**
+ * Link checker: paste a product link or a map link and see exactly what the server makes of it (every step, the photos
+ * or the point it found, and why it stopped). This is how a link that does not work is diagnosed with real data.
+ */
+router.post('/link-check', async (req, res) => {
+  try {
+    const { kind, link } = z.object({ kind: z.enum(['product', 'map']), link: z.string().trim().min(3).max(2048) }).parse(req.body);
+    const trace: string[] = [];
+    const started = Date.now();
+    if (kind === 'map') {
+      try {
+        const found = await resolveMapsInput(link, defaultMapsDeps, trace);
+        res.json({ kind, ok: found.precision !== 'none', ms: Date.now() - started, result: { ...found, trace: undefined, imagery: siteImageryEnabled() ? 'on: satellite and street views are added for the design' : 'off: the design relies on the point and the AI\'s knowledge of the place; a customer screenshot makes it exact' }, trace });
+      } catch (error) {
+        res.json({ kind, ok: false, ms: Date.now() - started, error: error instanceof Error ? error.message : 'Failed', code: (error as { code?: string })?.code ?? null, trace });
+      }
+      return;
+    }
+    try {
+      const product = await readProductReference(link, undefined, trace);
+      res.json({ kind, ok: true, ms: Date.now() - started, result: { title: product.title, source: product.source, url: product.url, description: product.description.slice(0, 200), facts: product.facts, images: product.images }, trace });
+    } catch (error) {
+      res.json({ kind, ok: false, ms: Date.now() - started, error: error instanceof Error ? error.message : 'Failed', code: (error as { code?: string })?.code ?? null, trace });
+    }
   } catch (error) { sendError(res, error); }
 });
 

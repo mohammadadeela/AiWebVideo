@@ -148,3 +148,65 @@ test('a page whose declared photos are few is completed by its own gallery only'
   assert.ok(images.includes('https://cdn.s.test/a-hero.jpg') && images.includes('https://cdn.s.test/a-2.jpg') && images.includes('https://cdn.s.test/a-3.jpg'));
   assert.ok(!images.some((image) => image.includes('zzz')));
 });
+
+// ---- real-shop shapes: WooCommerce, lazy loading, and bot-protection pages -------------------------------------------
+
+const wooPage = `<html><head><title>Ceramic Mug – Kiln Shop</title><meta property="og:title" content="Ceramic Mug"></head><body>
+  <h1>Ceramic Mug</h1>
+  <div class="woocommerce-product-gallery">
+    <div class="woocommerce-product-gallery__image"><a href="https://cdn.shop.test/uploads/mug-full.jpg"><img class="wp-post-image" width="600" height="600" src="https://cdn.shop.test/uploads/mug-600x600.jpg" data-large_image="https://cdn.shop.test/uploads/mug-full.jpg" alt="Ceramic Mug"></a></div>
+    <div class="woocommerce-product-gallery__image"><img width="600" height="600" src="https://cdn.shop.test/uploads/mug-side-600x600.jpg" data-large_image="https://cdn.shop.test/uploads/mug-side-full.jpg" alt="side"></div>
+  </div></body></html>`;
+
+test('a WooCommerce gallery gives the BIG photos (data-large_image), not the 600px thumbnails', () => {
+  const parsed = parseProductPage(wooPage, 'https://shop.test/product/mug');
+  assert.ok(parsed.images.includes('https://cdn.shop.test/uploads/mug-full.jpg'), parsed.images.join(','));
+  assert.ok(parsed.images.includes('https://cdn.shop.test/uploads/mug-side-full.jpg'));
+  assert.ok(!parsed.images.some((url) => /600x600/.test(url)), 'no thumbnail when the big photo is known');
+});
+
+test('lazy-loaded photos are found even when src is only a 1-pixel placeholder', () => {
+  const html = `<html><head><title>Lamp</title></head><body><h1>Lamp</h1>
+    <img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" data-lazy-src="https://cdn.shop.test/lamp-1.jpg" width="500" height="500" class="product-image">
+    <img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" data-full-url="https://cdn.shop.test/lamp-2.jpg" width="500" height="500" class="product-image"></body></html>`;
+  const parsed = parseProductPage(html, 'https://shop.test/lamp');
+  assert.deepEqual([...parsed.images].sort(), ['https://cdn.shop.test/lamp-1.jpg', 'https://cdn.shop.test/lamp-2.jpg']);
+});
+
+const robotCheck = '<html><head><title>Robot Check</title></head><body><img src="https://img.shop.test/captcha.jpg" width="300" height="100"><img src="https://img.shop.test/logo-large.png" width="400" height="200"><p>Enter the characters you see below</p></body></html>';
+const cloudflare = '<html><head><title>Just a moment...</title></head><body><div class="cf-browser-verification"></div><img src="https://img.shop.test/cf-banner.png" width="500" height="300"></body></html>';
+
+test('a bot-protection page is reported as BLOCKED, never offered as product photos', async () => {
+  for (const html of [robotCheck, cloudflare]) {
+    const trace: string[] = [];
+    await assert.rejects(
+      () => readProductReference('https://shop.test/p/1', deps({ readHtml: async (url) => ({ url, html }) }), trace),
+      (error: unknown) => error instanceof AppError && error.code === 'PRODUCT_BLOCKED',
+    );
+    assert.ok(trace.some((line) => /prove you are human/.test(line)), trace.join(' | '));
+  }
+});
+
+test('a bot wall shown by the real browser is blocked too', async () => {
+  const trace: string[] = [];
+  await assert.rejects(
+    () => readProductReference('https://shop.test/p/1', deps({ readHtml: async (url) => ({ url, html: shellHtml }), render: async (url) => ({ url, html: robotCheck, images: ['https://img.shop.test/captcha.jpg'] }) }), trace),
+    (error: unknown) => error instanceof AppError && error.code === 'PRODUCT_BLOCKED',
+  );
+  assert.ok(trace.some((line) => /^browser: the shop showed/.test(line)));
+});
+
+test('a real product page that merely embeds a captcha script is NOT mistaken for a bot wall', async () => {
+  const withRecaptcha = productHtml('<script src="https://www.google.com/recaptcha/api.js"></script><div class="g-recaptcha-response"></div>' + 'x'.repeat(45_000));
+  const result = await readProductReference('https://shop.test/mug', deps({ readHtml: async (url) => ({ url, html: withRecaptcha }) }));
+  assert.equal(result.title, 'Clay Mug');
+});
+
+test('the reader records every step it takes, so a link that fails can be diagnosed', async () => {
+  const trace: string[] = [];
+  await readProductReference('https://shop.test/mug', deps(), trace);
+  assert.ok(trace.some((line) => /^plain page: \d+ candidate photo/.test(line)));
+  const failing: string[] = [];
+  await assert.rejects(() => readProductReference('https://shop.test/x', deps({ readHtml: async (url) => ({ url, html: shellHtml }) }), failing));
+  assert.ok(failing.some((line) => /^browser: not available/.test(line)), failing.join(' | '));
+});

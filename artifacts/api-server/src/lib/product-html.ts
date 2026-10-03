@@ -84,12 +84,21 @@ function largestFromSrcset(srcset: string) {
 }
 
 /** <img> fallback for shops with no structured data or social image. Ranked by "looks like the product photo". */
+/**
+ * Where shops keep the BIG photo while "src" holds a thumbnail or a 1-pixel placeholder, in the order to trust them:
+ * WooCommerce (data-large_image), zoom plugins, and the common lazy-loading plugins.
+ */
+const LAZY_IMAGE_ATTRS = [
+  'data-zoom-image', 'data-large-image', 'data-large_image', 'data-full-url', 'data-full', 'data-zoom',
+  'data-original', 'data-original-src', 'data-lazy-src', 'data-lazy', 'data-image', 'data-src',
+];
+
 function pageImages(html: string): string[] {
   const scored: Array<{ url: string; score: number }> = [];
   const tags = html.match(/<img\b[^>]*>/gi) ?? [];
   tags.forEach((tag, index) => {
-    const raw = attr(tag, 'data-zoom-image') || attr(tag, 'data-large-image') || attr(tag, 'data-original')
-      || largestFromSrcset(attr(tag, 'srcset') || attr(tag, 'data-srcset')) || attr(tag, 'data-src') || attr(tag, 'src');
+    const raw = LAZY_IMAGE_ATTRS.map((name) => attr(tag, name)).find(Boolean)
+      || largestFromSrcset(attr(tag, 'srcset') || attr(tag, 'data-srcset') || attr(tag, 'data-lazy-srcset')) || attr(tag, 'src');
     if (!raw || raw.startsWith('data:') || /\.(svg|gif)(\?|$)/i.test(raw)) return;
     const identity = `${raw} ${attr(tag, 'alt')} ${attr(tag, 'class')} ${attr(tag, 'id')}`;
     if (JUNK.test(identity)) return;
@@ -282,4 +291,17 @@ export function parseProductPage(html: string, baseUrl: string): ParsedProductPa
     images: images.slice(0, 8),
     facts: productFacts(product, html),
   };
+}
+
+
+/**
+ * Some shops (and every big marketplace) answer a server with a "prove you are human" page and a normal 200 status.
+ * Its logo and icons must never be offered as the product's photos. The title is the strongest sign; the other
+ * markers only count on a short page, because plenty of real shops embed a captcha script in a contact form.
+ */
+export function looksLikeBotWall(html: string): boolean {
+  const title = (html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? '').replace(/\s+/g, ' ').trim();
+  if (/robot check|just a moment|attention required|access denied|are you (?:a )?(?:robot|human)|security check|verify (?:you are|that you(?:'|’)re) (?:a )?human|pardon our interruption|request blocked|checking your browser|captcha|bot verification|one more step|you have been blocked|forbidden/i.test(title)) return true;
+  if (html.length > 40_000) return false;
+  return /cf-browser-verification|challenge-platform|cf-challenge|px-captcha|g-recaptcha-response|hcaptcha|enable javascript and cookies to continue|verify you are human|type the characters you see|unusual traffic|automated access/i.test(html);
 }
