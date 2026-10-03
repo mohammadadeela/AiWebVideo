@@ -111,6 +111,7 @@ function App() {
   return (
     <AppErrorBoundary>
       <div className="cinematic-site">
+        <div className="page-backdrop" aria-hidden="true" />
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
           <Suspense fallback={<PageLoader />}><Router /></Suspense>
         </WouterRouter>

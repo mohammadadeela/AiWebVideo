@@ -28,6 +28,24 @@ const gallery = FEATURES.map((feature, i) => ({ id: "m" + i, url: "/clip.mp4", k
 const examples = ["website", "product-video", "interior", "photo", "architecture"].map((feature, i) => ({ id: "landing-" + i, url: `/landing-example-${i}.svg`, kind: "image", posterUrl: null, feature, caption: null, eyebrow: null, overlayText: null }));
 const settings = (withExamples) => ({ heading: "", description: "", videos: { showcase: gallery, examples: withExamples ? examples : [] } });
 
+
+// A "block" is a rounded, bordered or shadowed box (a card, panel, table or footer). It must never be see-through.
+const FIND_TRANSLUCENT_BLOCKS = () => {
+  const alpha = (c) => { const m = c.match(/(?:rgba?|oklab|oklch|color)\(([^)]+)\)/); if (!m) return 1; const t = m[1]; const sl = t.split("/"); if (sl.length > 1) return parseFloat(sl[1]); const p = t.split(","); return p.length === 4 ? parseFloat(p[3]) : 1; };
+  const out = [];
+  for (const el of document.querySelectorAll("main *, aside *, footer, footer *, article")) {
+    if (el.closest(".creator-composer, .hero-creator-shell, .cinematic-hero, .space-backdrop, .page-backdrop, [role=dialog], header")) continue;
+    const r = el.getBoundingClientRect(); if (r.width < 150 || r.height < 52) continue;
+    const cs = getComputedStyle(el);
+    if ((parseFloat(cs.borderTopLeftRadius) || 0) < 12) continue;
+    const border = parseFloat(cs.borderTopWidth) > 0 && alpha(cs.borderTopColor) > 0;
+    const shadow = cs.boxShadow && cs.boxShadow !== "none";
+    if (!border && !shadow) continue;
+    if (alpha(cs.backgroundColor) < 1) out.push(String(el.className).slice(0, 90));
+  }
+  return out;
+};
+
 async function open(browser, viewport, route = "/", { withExamples = true } = {}) {
   const page = await browser.newPage({ viewport });
   await page.route("**/api/**", (route) => {
@@ -107,6 +125,13 @@ async function open(browser, viewport, route = "/", { withExamples = true } = {}
     assert.equal(hero.leftovers, false, "no badge, subtitle or placeholder text");
     console.log("ok  landing: headline, box (no tabs) standing on the planet, 4 floating admin photos (animated, scattered, covering nothing)");
 
+    // the gallery's photos start right under the hero (no big heading first)
+    const gallery = await page.evaluate(() => { const heroBottom = document.querySelector(".cinematic-hero").getBoundingClientRect().bottom; const tile = document.querySelector("#campaign-films button[aria-label]"); const h2 = document.querySelector("#campaign-films h2"); return { gap: tile.getBoundingClientRect().top - heroBottom, headingVisible: h2 ? h2.getBoundingClientRect().height > 2 : false }; });
+    assert.ok(gallery.gap < 110, `the first photos begin right under the hero (${Math.round(gallery.gap)}px below it)`);
+    assert.equal(gallery.headingVisible, false, "no large heading above the photos");
+    assert.deepEqual(await page.evaluate(FIND_TRANSLUCENT_BLOCKS), [], "no block on the landing page shows the background through it");
+    console.log("ok  gallery: the photos start immediately under the hero; no block on the page is see-through");
+
     // the floating photos cannot be clicked: a click on one lands on what is behind it and nothing happens
     const spot = await page.evaluate(() => { const r = document.querySelector(".hero-floater").getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
     const under = await page.evaluate(({ x, y }) => { const el = document.elementFromPoint(x, y); return { inCard: !!el.closest(".hero-floater, .hero-floaters"), tag: el.tagName }; }, spot);
@@ -139,17 +164,19 @@ async function open(browser, viewport, route = "/", { withExamples = true } = {}
       const solid = await other.page.evaluate(() => {
         const alphaOf = (color) => { const m = color.match(/(?:rgba?|oklab|oklch|color)\(([^)]+)\)/); if (!m) return 1; const slash = m[1].split("/"); if (slash.length > 1) return parseFloat(slash[1]); const parts = m[1].split(","); return parts.length === 4 ? parseFloat(parts[3]) : 1; };
         const faint = Array.from(document.querySelectorAll('[class*="bg-white/[.0"]')).filter((el) => /(^|\s)bg-white\/\[(?:\.)0\d+\]/.test(el.getAttribute('class') || '') && !el.closest('.creator-composer, [role=dialog]')).filter((el) => alphaOf(getComputedStyle(el).backgroundColor) < 1).length;
-        return { seeThrough: faint, backdrops: document.querySelectorAll(".space-backdrop, .space-backdrop-photo").length, bodyAlpha: alphaOf(getComputedStyle(document.body).backgroundColor), bodyImage: getComputedStyle(document.body).backgroundImage.includes("radial-gradient"), fixedLayers: Array.from(document.querySelectorAll("body *")).filter((el) => getComputedStyle(el).position === "fixed" && el.getBoundingClientRect().width >= innerWidth - 2 && el.getBoundingClientRect().height >= innerHeight - 2 && !el.closest("[role=dialog]")).length, labels: Array.from(document.querySelectorAll("main *")).filter((el) => getComputedStyle(el).textTransform === "uppercase" && getComputedStyle(el).fontFamily.includes("mono") && el.children.length === 0 && el.textContent.trim().length > 2).map((el) => el.textContent.trim()) };
+        return { seeThrough: faint, pageBackdrop: (() => { const el = document.querySelector(".page-backdrop"); const cs = el && getComputedStyle(el); return !!el && cs.position === "fixed" && /space-bg/.test(cs.backgroundImage); })(), backdrops: document.querySelectorAll(".space-backdrop, .space-backdrop-photo").length, bodyAlpha: alphaOf(getComputedStyle(document.body).backgroundColor), bodyImage: getComputedStyle(document.body).backgroundImage.includes("radial-gradient"), fixedLayers: Array.from(document.querySelectorAll("body *")).filter((el) => getComputedStyle(el).position === "fixed" && el.getBoundingClientRect().width >= innerWidth - 2 && el.getBoundingClientRect().height >= innerHeight - 2 && !el.closest("[role=dialog]") && !el.classList.contains("page-backdrop")).length, labels: Array.from(document.querySelectorAll("main *")).filter((el) => getComputedStyle(el).textTransform === "uppercase" && getComputedStyle(el).fontFamily.includes("mono") && el.children.length === 0 && el.textContent.trim().length > 2).map((el) => el.textContent.trim()) };
       });
       assert.equal(solid.seeThrough, 0, `${route}: every card and chip fill is opaque`);
-      assert.equal(solid.backdrops, 0, `${route} shows no space picture`);
+      const translucent = await other.page.evaluate(FIND_TRANSLUCENT_BLOCKS);
+      assert.deepEqual(translucent, [], `${route}: no block shows the background through it`);
+      assert.equal(solid.backdrops, 0, `${route} has no hero picture (that is only on the first screen of the home page)`);
       assert.equal(solid.bodyAlpha, 1, `${route} has an opaque page colour`);
-      assert.ok(solid.bodyImage, `${route} has the shared glow background`);
+      assert.ok(solid.pageBackdrop, `${route} sits on the space picture (the page background)`);
       assert.equal(solid.fixedLayers, 0, `${route} has no full-screen layer behind its content`);
       assert.deepEqual(solid.labels, [], `${route} has no uppercase mono label`);
       await other.page.close();
     }
-    console.log("ok  other pages (pricing, features, FAQ): shared background, solid panels, no space picture, no uppercase mono labels");
+    console.log("ok  other pages (pricing, features, FAQ): on the space picture, solid blocks, no uppercase mono labels");
 
     // ---- phone
     const phone = await open(browser, { width: 390, height: 844 });

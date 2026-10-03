@@ -4,53 +4,121 @@
  */
 
 /* ------------------------------------------------------------- the page background */
-/* One background for every page: deep blue-violet glows in the corners and at the bottom, and a sparse, still
-   starfield. Panels, cards and tables sit on top of it and stay solid. The landing page's first screen has its own
-   space picture on top of this. */
-:root { --site-base: #06040f; }
+/* Every page sits on the space picture, brighter than before; only a light veil keeps the text readable. Blocks (cards,
+   panels, tables, the footer) are SOLID on top of it. The landing page's first screen has its own animated version. */
+:root { --site-base: #0a0716; }
 
 body {
   overflow-x: clip;
   background-color: var(--site-base);
-  background-image:
-    radial-gradient(1200px 640px at 8% -8%, rgba(109, 40, 217, .34), transparent 64%),
-    radial-gradient(1000px 600px at 95% 2%, rgba(37, 99, 235, .22), transparent 62%),
-    radial-gradient(1100px 760px at 50% 108%, rgba(147, 51, 234, .22), transparent 64%),
-    radial-gradient(720px 520px at 100% 58%, rgba(219, 39, 119, .08), transparent 66%);
-  background-repeat: no-repeat;
 }
 
-body::before {
-  content: "";
+.page-backdrop {
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  opacity: .5;
-  background-image: url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%22380%22%20height=%22380%22%20viewBox=%220%200%20380%20380%22%3E%3Ccircle%20cx=%22239%22%20cy=%22294%22%20r=%220.8%22%20fill=%22%237dd3fc%22%20fill-opacity=%220.8%22/%3E%3Ccircle%20cx=%22308%22%20cy=%22105%22%20r=%220.6%22%20fill=%22%237dd3fc%22%20fill-opacity=%220.8%22/%3E%3Ccircle%20cx=%22103%22%20cy=%2256%22%20r=%220.8%22%20fill=%22%23ffffff%22%20fill-opacity=%220.65%22/%3E%3Ccircle%20cx=%2254%22%20cy=%22283%22%20r=%221.2%22%20fill=%22%237dd3fc%22%20fill-opacity=%220.35%22/%3E%3Ccircle%20cx=%22210%22%20cy=%22239%22%20r=%221.2%22%20fill=%22%237dd3fc%22%20fill-opacity=%220.5%22/%3E%3Ccircle%20cx=%2215%22%20cy=%22278%22%20r=%220.5%22%20fill=%22%23ffffff%22%20fill-opacity=%220.35%22/%3E%3Ccircle%20cx=%22105%22%20cy=%22131%22%20r=%221.0%22%20fill=%22%23c4b5fd%22%20fill-opacity=%220.35%22/%3E%3Ccircle%20cx=%22175%22%20cy=%22233%22%20r=%221.0%22%20fill=%22%237dd3fc%22%20fill-opacity=%220.5%22/%3E%3Ccircle%20cx=%22127%22%20cy=%22335%22%20r=%220.7%22%20fill=%22%23ffffff%22%20fill-opacity=%220.8%22/%3E%3Ccircle%20cx=%22347%22%20cy=%2251%22%20r=%220.8%22%20fill=%22%23c4b5fd%22%20fill-opacity=%220.65%22/%3E%3Ccircle%20cx=%22290%22%20cy=%2250%22%20r=%221.2%22%20fill=%22%23ffffff%22%20fill-opacity=%220.65%22/%3E%3Ccircle%20cx=%22125%22%20cy=%22270%22%20r=%220.7%22%20fill=%22%23ffffff%22%20fill-opacity=%220.35%22/%3E%3Ccircle%20cx=%22296%22%20cy=%2263%22%20r=%220.8%22%20fill=%22%23ffffff%22%20fill-opacity=%220.35%22/%3E%3Ccircle%20cx=%22205%22%20cy=%2242%22%20r=%220.5%22%20fill=%22%23ffffff%22%20fill-opacity=%220.35%22/%3E%3Ccircle%20cx=%22115%22%20cy=%2234%22%20r=%220.8%22%20fill=%22%23c4b5fd%22%20fill-opacity=%220.8%22/%3E%3Ccircle%20cx=%22222%22%20cy=%2245%22%20r=%221.0%22%20fill=%22%23ffffff%22%20fill-opacity=%220.5%22/%3E%3Ccircle%20cx=%22180%22%20cy=%2252%22%20r=%220.7%22%20fill=%22%23ffffff%22%20fill-opacity=%220.65%22/%3E%3Ccircle%20cx=%22217%22%20cy=%2268%22%20r=%220.6%22%20fill=%22%23ffffff%22%20fill-opacity=%220.5%22/%3E%3Ccircle%20cx=%2213%22%20cy=%2238%22%20r=%220.8%22%20fill=%22%23ffffff%22%20fill-opacity=%220.8%22/%3E%3Ccircle%20cx=%22357%22%20cy=%22294%22%20r=%220.6%22%20fill=%22%237dd3fc%22%20fill-opacity=%220.8%22/%3E%3Ccircle%20cx=%22105%22%20cy=%2275%22%20r=%220.8%22%20fill=%22%23ffffff%22%20fill-opacity=%220.8%22/%3E%3Ccircle%20cx=%22210%22%20cy=%22223%22%20r=%220.6%22%20fill=%22%23ffffff%22%20fill-opacity=%220.35%22/%3E%3Ccircle%20cx=%22311%22%20cy=%22163%22%20r=%220.5%22%20fill=%22%23ffffff%22%20fill-opacity=%220.5%22/%3E%3Ccircle%20cx=%22209%22%20cy=%22316%22%20r=%221.2%22%20fill=%22%23ffffff%22%20fill-opacity=%220.35%22/%3E%3Ccircle%20cx=%2282%22%20cy=%22117%22%20r=%220.8%22%20fill=%22%23ffffff%22%20fill-opacity=%220.65%22/%3E%3Ccircle%20cx=%22320%22%20cy=%22176%22%20r=%220.7%22%20fill=%22%23ffffff%22%20fill-opacity=%220.8%22/%3E%3C/svg%3E");
-  background-size: 380px 380px;
+  background: var(--site-base) url("/space-bg.webp") center / cover no-repeat;
 }
+.page-backdrop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 95% 75% at 50% 42%, transparent 55%, rgba(5, 3, 12, .34) 100%),
+    linear-gradient(180deg, rgba(8, 5, 20, .50) 0%, rgba(8, 5, 20, .24) 36%, rgba(8, 5, 20, .52) 100%);
+}
+@media (max-width: 900px) { .page-backdrop { background-image: url("/space-bg-small.webp"); } }
 
-/* Cards and chips never show the background through them: each faint white fill becomes the solid colour it was
-   already producing on this page (hover and focus styles are untouched). */
-.cinematic-site [class*=" bg-white/[.018]"], .cinematic-site [class^="bg-white/[.018]"] { background-color: #0a0913; }
-.cinematic-site [class*=" bg-white/[.02]"], .cinematic-site [class^="bg-white/[.02]"] { background-color: #0b0914; }
-.cinematic-site [class*=" bg-white/[.025]"], .cinematic-site [class^="bg-white/[.025]"] { background-color: #0c0a15; }
-.cinematic-site [class*=" bg-white/[.03]"], .cinematic-site [class^="bg-white/[.03]"] { background-color: #0d0c16; }
-.cinematic-site [class*=" bg-white/[.035]"], .cinematic-site [class^="bg-white/[.035]"] { background-color: #0f0d17; }
-.cinematic-site [class*=" bg-white/[.04]"], .cinematic-site [class^="bg-white/[.04]"] { background-color: #100e19; }
-.cinematic-site [class*=" bg-white/[.045]"], .cinematic-site [class^="bg-white/[.045]"] { background-color: #110f1a; }
-.cinematic-site [class*=" bg-white/[.05]"], .cinematic-site [class^="bg-white/[.05]"] { background-color: #12111b; }
-.cinematic-site [class*=" bg-white/[.055]"], .cinematic-site [class^="bg-white/[.055]"] { background-color: #14121c; }
-.cinematic-site [class*=" bg-white/[.06]"], .cinematic-site [class^="bg-white/[.06]"] { background-color: #15131d; }
-.cinematic-site [class*=" bg-white/[.065]"], .cinematic-site [class^="bg-white/[.065]"] { background-color: #16141f; }
-.cinematic-site [class*=" bg-white/[.07]"], .cinematic-site [class^="bg-white/[.07]"] { background-color: #171620; }
-.cinematic-site [class*=" bg-white/[.08]"], .cinematic-site [class^="bg-white/[.08]"] { background-color: #1a1822; }
-.cinematic-site [class*=" bg-white/[.085]"], .cinematic-site [class^="bg-white/[.085]"] { background-color: #1b1923; }
-.cinematic-site [class*=" bg-white/[.09]"], .cinematic-site [class^="bg-white/[.09]"] { background-color: #1c1b25; }
+/* Blocks are never see-through. Every translucent fill (white, violet, mint, pink, gold, panel, black) becomes the solid
+   colour it was already producing on this page. Overlays and scrims (absolute / fixed) and hover effects are left alone. */
+.cinematic-site [class*=" bg-black/10"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-black/10"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #0a0816; }
+.cinematic-site [class*=" bg-black/15"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-black/15"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #090815; }
+.cinematic-site [class*=" bg-black/20"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-black/20"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #090714; }
+.cinematic-site [class*=" bg-black/25"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-black/25"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #080713; }
+.cinematic-site [class*=" bg-black/30"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-black/30"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #080612; }
+.cinematic-site [class*=" bg-black/35"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-black/35"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #070610; }
+.cinematic-site [class*=" bg-black/40"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-black/40"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #07050f; }
+.cinematic-site [class*=" bg-gold/[.06]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-gold/[.06]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #19141a; }
+.cinematic-site [class*=" bg-gold/[.08]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-gold/[.08]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #1e181a; }
+.cinematic-site [class*=" bg-mint/[.04]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-mint/[.04]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #0d1120; }
+.cinematic-site [class*=" bg-mint/5"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-mint/5"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #0d1322; }
+.cinematic-site [class*=" bg-mint/[.055]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-mint/[.055]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #0d1422; }
+.cinematic-site [class*=" bg-mint/[.06]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-mint/[.06]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #0d1523; }
+.cinematic-site [class*=" bg-mint/[.07]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-mint/[.07]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #0e1825; }
+.cinematic-site [class*=" bg-mint/[.08]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-mint/[.08]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #0e1a27; }
+.cinematic-site [class*=" bg-mint/[.09]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-mint/[.09]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #0f1c28; }
+.cinematic-site [class*=" bg-mint/10"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-mint/10"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #0f1e2a; }
+.cinematic-site [class*=" bg-mint/[.10]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-mint/[.10]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #0f1e2a; }
+.cinematic-site [class*=" bg-mint/15"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-mint/15"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #112833; }
+.cinematic-site [class*=" bg-panel/60"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-panel/60"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #16132d; }
+.cinematic-site [class*=" bg-panel/70"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-panel/70"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #181531; }
+.cinematic-site [class*=" bg-panel/80"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-panel/80"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #1a1734; }
+.cinematic-site [class*=" bg-pink/[.04]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-pink/[.04]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #140c1e; }
+.cinematic-site [class*=" bg-pink/5"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-pink/5"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #160c1f; }
+.cinematic-site [class*=" bg-pink/[.05]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-pink/[.05]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #160c1f; }
+.cinematic-site [class*=" bg-pink/[.06]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-pink/[.06]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #180d21; }
+.cinematic-site [class*=" bg-pink/[.07]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-pink/[.07]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #1b0d22; }
+.cinematic-site [class*=" bg-pink/[.08]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-pink/[.08]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #1d0e23; }
+.cinematic-site [class*=" bg-pink/[.09]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-pink/[.09]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #1f0f25; }
+.cinematic-site [class*=" bg-pink/10"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-pink/10"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #220f26; }
+.cinematic-site [class*=" bg-violet/[.035]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-violet/[.035]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #0f0c21; }
+.cinematic-site [class*=" bg-violet/[.045]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-violet/[.045]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #110d23; }
+.cinematic-site [class*=" bg-violet/[.05]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-violet/[.05]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #110d24; }
+.cinematic-site [class*=" bg-violet/[.055]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-violet/[.055]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #120e25; }
+.cinematic-site [class*=" bg-violet/[.06]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-violet/[.06]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #130e26; }
+.cinematic-site [class*=" bg-violet/[.07]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-violet/[.07]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #140f28; }
+.cinematic-site [class*=" bg-violet/[.08]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-violet/[.08]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #15102b; }
+.cinematic-site [class*=" bg-violet/[.09]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-violet/[.09]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #17102d; }
+.cinematic-site [class*=" bg-violet/10"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-violet/10"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #18112f; }
+.cinematic-site [class*=" bg-violet/[.10]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-violet/[.10]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #18112f; }
+.cinematic-site [class*=" bg-violet/[.12]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-violet/[.12]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #1a1334; }
+.cinematic-site [class*=" bg-violet/12"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-violet/12"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #1a1334; }
+.cinematic-site [class*=" bg-violet/[.14]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-violet/[.14]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #1d1538; }
+.cinematic-site [class*=" bg-violet/15"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-violet/15"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #1e153a; }
+.cinematic-site [class*=" bg-violet/[.16]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-violet/[.16]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #1f163c; }
+.cinematic-site [class*=" bg-violet/20"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-violet/20"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #251a45; }
+.cinematic-site [class*=" bg-violet/25"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-violet/25"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #2b1e50; }
+.cinematic-site [class*=" bg-white/0"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-white/0"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #0b0919; }
+.cinematic-site [class*=" bg-white/[.018]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-white/[.018]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #0f0d1d; }
+.cinematic-site [class*=" bg-white/[.02]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-white/[.02]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #100e1e; }
+.cinematic-site [class*=" bg-white/[.025]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-white/[.025]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #110f1f; }
+.cinematic-site [class*=" bg-white/[.03]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-white/[.03]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #121020; }
+.cinematic-site [class*=" bg-white/[.035]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-white/[.035]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #141221; }
+.cinematic-site [class*=" bg-white/[.04]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-white/[.04]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #151322; }
+.cinematic-site [class*=" bg-white/[.045]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-white/[.045]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #161423; }
+.cinematic-site [class*=" bg-white/[.05]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-white/[.05]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #171524; }
+.cinematic-site [class*=" bg-white/5"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-white/5"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #171524; }
+.cinematic-site [class*=" bg-white/[.055]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-white/[.055]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #181726; }
+.cinematic-site [class*=" bg-white/[.06]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-white/[.06]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #1a1827; }
+.cinematic-site [class*=" bg-white/[.065]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-white/[.065]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #1b1928; }
+.cinematic-site [class*=" bg-white/[.07]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-white/[.07]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #1c1a29; }
+.cinematic-site [class*=" bg-white/[.08]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-white/[.08]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #1f1d2b; }
+.cinematic-site [class*=" bg-white/[.085]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-white/[.085]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #201e2d; }
+.cinematic-site [class*=" bg-white/[.09]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-white/[.09]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #211f2e; }
+.cinematic-site [class*=" bg-white/10"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-white/10"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #232230; }
+.cinematic-site [class*=" bg-white/[.10]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-white/[.10]"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #232230; }
+.cinematic-site [class*=" bg-white/15"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer), .cinematic-site [class^="bg-white/15"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer) { background-color: #302e3c; }
+
+/* blocks filled with a gradient get a solid colour underneath it (decorative absolute glows are skipped) */
+.cinematic-site :is([class*=" bg-gradient-to"], [class^="bg-gradient-to"], [class*="bg-signature-soft"], [class*=" bg-[linear-gradient"], [class*=" bg-[radial-gradient"]):not(.absolute):not(.fixed):not(.pointer-events-none):not(.hero-mesh) { background-color: #0d0a1f; }
+
+/* the workspace's chat area is one solid panel (it also holds the conversation): rounded and softly edged, not a hard rectangle */
+.cinematic-page .chat-widget-shell > .bg-bg { border-radius: 26px; border: 1px solid rgba(167, 139, 250, .16); }
 
 /* page roots (workspace, profile, admin) let the background show; what is ON them stays solid */
 .cinematic-page.bg-bg { background-color: transparent; }
+
+/* text that sits straight on the picture gets a soft dark halo so it stays readable; inside the dark blocks it is invisible */
+.cinematic-site main :is(h1, h2, h3, p, li, summary, label):not(.cinematic-title) { text-shadow: 0 1px 10px rgba(6, 4, 16, .65); }
+/* gradient-filled text is transparent, so a halo would show THROUGH its letters and grey them: never on those */
+.cinematic-site .cinematic-title-gradient,
+.cinematic-site [class*="bg-clip-text"],
+.cinematic-site .bg-signature-text { text-shadow: none; }
+
+/* section bands carry no tint of their own (the picture shows between blocks); the footer is a solid block */
+.cinematic-site main > section[class*="bg-black/"] { background-color: transparent; }
+.cinematic-site footer { background-color: #0a0817; }
 
 /* the old grid pattern in page headers is gone: a soft glow only */
 .hero-mesh {
@@ -169,7 +237,7 @@ body::before {
   z-index: 1;
   height: 56px;
   pointer-events: none;
-  background: linear-gradient(180deg, transparent, var(--site-base));
+  background: linear-gradient(180deg, transparent, rgba(8, 5, 20, .5));
 }
 
 /* ------------------------------------------------------------- the composer */

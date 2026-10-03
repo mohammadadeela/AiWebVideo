@@ -5,16 +5,29 @@ import path from 'node:path';
 
 const fe = (file: string) => readFile(path.resolve(process.cwd(), '../aiwebvideo/src', file), 'utf8');
 
-test('every page has one designed background: deep glows, a sparse still starfield, no grid; panels stay solid on top', async () => {
+test('every page sits on the space picture (bright, only a light veil); blocks are solid on top of it', async () => {
   const css = await fe('cinematic-theme.css');
-  assert.match(css, /:root \{ --site-base: #06040f; \}/);
-  assert.match(css, /body \{[^}]*background-color: var\(--site-base\);[^}]*radial-gradient\([^}]*radial-gradient\([^}]*radial-gradient\(/s);
-  assert.match(css, /body::before \{[^}]*position: fixed;[^}]*pointer-events: none;[^}]*data:image\/svg\+xml/s);
+  assert.match(css, /:root \{ --site-base: #0a0716; \}/);
+  assert.match(css, /\.page-backdrop \{[^}]*position: fixed;[^}]*z-index: -1;[^}]*pointer-events: none;[^}]*url\("\/space-bg\.webp"\)/s);
+  assert.match(css, /@media \(max-width: 900px\) \{ \.page-backdrop \{ background-image: url\("\/space-bg-small\.webp"\); \} \}/);   // a lighter file on phones
+  // the veil stays light (it was too dark before): the strongest stop is no darker than .52
+  const veil = css.match(/\.page-backdrop::after \{[^}]*\}/s)![0];
+  const alphas = [...veil.matchAll(/rgba\(8, 5, 20, \.(\d+)\)/g)].map((m) => Number(`0.${m[1]}`));
+  assert.ok(alphas.length >= 3 && Math.max(...alphas) <= 0.52, `veil strengths ${alphas.join(', ')}`);
   assert.match(css, /\.cinematic-page\.bg-bg \{ background-color: transparent; \}/);
-  assert.match(css, /\.hero-mesh \{\s*background-image: radial-gradient\(ellipse/);                       // the old 62px grid pattern is replaced by a soft glow
+  assert.match(css, /\.hero-mesh \{\s*background-image: radial-gradient\(ellipse/);                       // the old 62px grid pattern stays gone
   assert.doesNotMatch(css, /62px/);
-  // the landing picture fades into this background instead of ending in a hard edge
-  assert.match(css, /\.cinematic-hero::after \{[^}]*linear-gradient\(180deg, transparent, var\(--site-base\)\)/s);
+  assert.doesNotMatch(css, /body::before/);                                                                  // the dark glow-and-stars background is gone
+  assert.match(css, /\.cinematic-site main > section\[class\*="bg-black\/"\] \{ background-color: transparent; \}/);   // section bands carry no tint
+  assert.match(css, /\.cinematic-site footer \{ background-color: #0a0817; \}/);                            // the footer is a solid block
+  assert.match(await fe('App.tsx'), /<div className="cinematic-site">\s*<div className="page-backdrop" aria-hidden="true" \/>/);
+  // secondary text is lighter so it reads on the bright picture
+  const base = await fe('index.css');
+  assert.match(base, /--color-text-muted: #c3bce0;/);
+  assert.match(base, /--color-text-dim: #a8a1cc;/);
+  // gradient-filled text must not get the readability halo (it would show through the letters)
+  assert.match(css, /\.cinematic-site \.cinematic-title-gradient,[\s\S]*?text-shadow: none;/);
+  assert.match(css, /h1, h2, h3, p, li, summary, label\):not\(\.cinematic-title\) \{ text-shadow:/);
 });
 
 test('the landing page is lean: no buzzword strip, no fake interface, no "quality system", no uppercase labels', async () => {
@@ -51,7 +64,7 @@ test('the pricing blocks keep their text exactly; only the page around them was 
   for (const gone of ['Production pricing', 'Choose your balance', 'See the quote first', 'Failure handling', 'Credits without the guesswork']) assert.ok(!page.includes(gone), `"${gone}" must stay removed`);
 });
 
-test('every faint white fill used anywhere in the app has a solid rule, so no card shows the background through it', async () => {
+test('every translucent fill used on a block anywhere in the app has a solid rule, so no block shows the background through it', async () => {
   const root = path.resolve(process.cwd(), '../aiwebvideo/src');
   async function tsx(dir: string): Promise<string[]> {
     const out: string[] = [];
@@ -62,13 +75,27 @@ test('every faint white fill used anywhere in the app has a solid rule, so no ca
     }
     return out;
   }
+  const limit: Record<string, number> = { white: 0.16, violet: 0.25, mint: 0.15, pink: 0.1, gold: 0.08, panel: 0.85, black: 0.4 };
   const used = new Set<string>();
   for (const file of await tsx(root)) {
-    for (const match of (await readFile(file, 'utf8')).matchAll(/(?<![:\w-])bg-white\/\[(\.\d+)\]/g)) if (Number(match[1]) < 0.1) used.add(match[1]);
+    for (const match of (await readFile(file, 'utf8')).matchAll(/(?<![:\w-])bg-(violet|mint|pink|gold|panel|black|white)\/(\[\.\d+\]|\d+)/g)) {
+      const alpha = match[2].startsWith('[') ? Number(match[2].slice(1, -1)) : Number(match[2]) / 100;
+      if (alpha <= limit[match[1]]) used.add(`${match[1]}/${match[2]}`);
+    }
   }
-  assert.ok(used.size >= 8, 'sanity: the faint fills are found');
+  assert.ok(used.size >= 40, `sanity: the translucent fills are found (${used.size})`);
   const css = await fe('cinematic-theme.css');
-  for (const opacity of used) {
-    assert.ok(css.includes(`[class*=" bg-white/[${opacity}]"]`) && css.includes(`[class^="bg-white/[${opacity}]"]`), `bg-white/[${opacity}] needs a solid rule in cinematic-theme.css`);
+  for (const token of used) {
+    assert.ok(css.includes(`[class*=" bg-${token}"]:not(.absolute):not(.fixed):not(:hover):not(section):not(footer)`) && css.includes(`[class^="bg-${token}"]:not(.absolute)`), `bg-${token} needs a solid rule in cinematic-theme.css`);
   }
+  // gradient-filled blocks get a solid colour underneath; decorative absolute glows and the hero mesh are skipped
+  assert.match(css, /\[class\*=" bg-gradient-to"\][\s\S]*?\):not\(\.absolute\):not\(\.fixed\):not\(\.pointer-events-none\):not\(\.hero-mesh\) \{ background-color: #0d0a1f; \}/);
+});
+
+test('the gallery starts right under the hero: no big heading above the photos, the first eight load immediately', async () => {
+  const gallery = await fe('components/landing/VideoShowcase.tsx');
+  assert.match(gallery, /<h2 className="sr-only">See what it creates<\/h2>/);                // kept for screen readers and search only
+  assert.doesNotMatch(gallery, /text-\[clamp\(2rem,8vw,3\.2rem\)\]/);                       // the large visible heading is gone
+  assert.match(gallery, /pb-10 pt-4 sm:px-5 sm:pb-14 sm:pt-5/);                                // a thin top edge
+  assert.match(gallery, /<Media sample=\{sample\} eager=\{index < 8\} \/>/);
 });
