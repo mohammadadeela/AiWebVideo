@@ -11,10 +11,9 @@ import {
   Loader2,
   Music2,
   Redo2,
-  Sparkles,
   TextCursorInput,
   Upload,
-  WandSparkles,
+  Pencil,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchMe, fetchUserJobs, type UserJobSummary } from '@/lib/api-client';
@@ -66,7 +65,7 @@ const EDITOR_FEATURES = [
   [TextCursorInput, 'Text & overlays'],
   [Music2, 'Audio controls'],
   [Captions, 'Captions'],
-  [WandSparkles, 'AI Edit'],
+  [Pencil, 'AI Edit'],
   [Redo2, 'Undo / redo'],
 ] as const;
 
@@ -275,7 +274,7 @@ export function StudioIndexPage() {
           <div className="mb-4"><h2 className="text-lg font-semibold text-white">Need new media first?</h2><p className="mt-1 text-xs text-text-muted">Generate it with AiWebVideo, then open the result here for editing.</p></div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              ['AI Video','Generate a cinematic video','/?create=video#generate',WandSparkles],
+              ['AI Video','Generate a cinematic video','/?create=video#generate',Film],
               ['Product Images','Generate four product directions','/?create=photo#generate',ImageIcon],
               ['Product Video','Generate commercial product motion','/?create=product-video#generate',Film],
               ['Website Video','Turn a real URL into a branded video','/?create=website#generate',Bot],
@@ -284,7 +283,7 @@ export function StudioIndexPage() {
         </section>
 
         <section className="rounded-2xl border border-violet/20 bg-violet/[.045] p-4 sm:p-5">
-          <div className="flex items-start gap-3"><span className="grid size-9 shrink-0 place-items-center rounded-xl bg-violet/15 text-violet"><Sparkles size={16} /></span><div><h2 className="text-sm font-semibold text-white">AI Edit is inside every editor project</h2><p className="mt-1 text-xs leading-5 text-text-muted">Example: “put this photo on the left at 13 seconds for 4 seconds”, “make it smaller”, “add this text”, or use paid generative image operations when needed. Manual timeline edits do not consume AI credits.</p></div></div>
+          <div className="flex items-start gap-3"><span className="grid size-9 shrink-0 place-items-center rounded-xl bg-violet/15 text-violet"><Pencil size={16} /></span><div><h2 className="text-sm font-semibold text-white">AI Edit is inside every editor project</h2><p className="mt-1 text-xs leading-5 text-text-muted">Example: “put this photo on the left at 13 seconds for 4 seconds”, “make it smaller”, “add this text”, or use paid generative image operations when needed. Manual timeline edits do not consume AI credits.</p></div></div>
         </section>
       </div>
     </main>

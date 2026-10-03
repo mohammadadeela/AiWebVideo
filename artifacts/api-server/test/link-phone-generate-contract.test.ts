@@ -33,7 +33,7 @@ test('links are read automatically, show a working state, ignore stale answers, 
   assert.match(form, /Reading your link…/);
   assert.match(form, /<LinkStatus active=\{readingProduct\} skeleton/);
   assert.match(form, /<LinkStatus active=\{resolvingSite\}/);
-  assert.match(form, /\{linkBusy \? <i className=/);                       // an <i>: a <span> would be styled as the credits badge
+  assert.match(form, /\{linkBusy && <i className=/);                      // an <i>: a <span> would be styled as the credits badge
   assert.match(form, /Photos read from the previous link must never be used with a different one/);
 });
 

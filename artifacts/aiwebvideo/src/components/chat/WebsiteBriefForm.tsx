@@ -11,7 +11,6 @@ import {
   GraduationCap,
   Megaphone,
   ShoppingCart,
-  Wand2,
   type LucideIcon,
   Globe2,
   Image as ImageIcon,
@@ -26,11 +25,11 @@ import {
   Music,
   PackageOpen,
   Paperclip,
-  Sparkles,
   Video,
   Volume2,
   VolumeX,
   X,
+  SlidersHorizontal,
 } from "lucide-react";
 import * as Popover from "@radix-ui/react-popover";
 import { normalizeWebsiteUrl } from "@/lib/websiteUrl";
@@ -962,7 +961,7 @@ export function WebsiteBriefForm({
       className={`premium-button creator-primary-button flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-signature px-5 text-sm font-bold text-white shadow-violet transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60 ${extraClass}`}
     >
       {/* an <i>, not a <span>: the button's sizing rule treats the SECOND span as the credits badge */}
-      {linkBusy ? <i className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/80 border-t-transparent" aria-hidden="true" /> : <Sparkles size={15} aria-hidden="true" />}
+      {linkBusy && <i className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/80 border-t-transparent" aria-hidden="true" />}
       <span>{linkBusy ? "Reading your link…" : landingWebsitePreview && activeMode === "website" ? "Continue to video" : createLabel}</span>
       {showCreditPricing && !linkBusy && <span className="rounded-full border border-white/15 bg-black/15 px-2 py-1 text-[9px] font-semibold text-white/90">{exactCredits} credits</span>}
       <ArrowRight size={15} />
@@ -1289,7 +1288,6 @@ export function WebsiteBriefForm({
               aria-expanded={compactPanel === "ideas"}
               className={controlClass(compactPanel === "ideas")}
             >
-              <Sparkles size={13} className="text-violet" />
               Ideas
               {selectedIdea && <span className="rounded-full bg-mint/10 px-1.5 py-0.5 text-[8px] text-mint">Added</span>}
               <ChevronDown size={12} className={`transition-transform ${compactPanel === "ideas" ? "rotate-180" : ""}`} />
@@ -1547,7 +1545,7 @@ export function WebsiteBriefForm({
               <p className="text-[11px] text-white/40">How should the video feel?</p>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {[{ mode: null, label: "Auto", helper: "We pick the best fit", icon: Wand2, tint: "from-white/25 to-white/10" }, ...WEBSITE_RECIPES].map((recipe) => {
+              {[{ mode: null, label: "Auto", helper: "We pick the best fit", icon: SlidersHorizontal, tint: "from-white/25 to-white/10" }, ...WEBSITE_RECIPES].map((recipe) => {
                 const active = (selectedWebsiteRecipe ?? null) === recipe.mode;
                 const Icon = recipe.icon;
                 return (

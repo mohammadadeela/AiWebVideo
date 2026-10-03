@@ -24,13 +24,12 @@ import {
   Save,
   Scissors,
   Send,
-  Sparkles,
   TextCursorInput,
   Trash2,
   Undo2,
   Upload,
-  WandSparkles,
   X,
+  Pencil,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ApiError, fetchMe, fetchUserJobs, type UserJobSummary } from '@/lib/api-client';
@@ -667,7 +666,7 @@ export function StudioWorkspacePage() {
 
         <div className="mx-1 h-5 w-px bg-white/10" />
         <Link href="/dashboard" className="hidden items-center gap-1.5 rounded-lg px-2.5 py-2 text-[11px] text-text-muted transition hover:bg-white/5 hover:text-white md:flex"><ArrowLeft size={13} />Workspace</Link>
-        <Link href="/?create=video#generate" className="hidden items-center gap-1.5 rounded-lg px-2.5 py-2 text-[11px] text-text-muted transition hover:bg-white/5 hover:text-white md:flex"><Sparkles size={13} />Generate</Link>
+        <Link href="/?create=video#generate" className="hidden items-center gap-1.5 rounded-lg px-2.5 py-2 text-[11px] text-text-muted transition hover:bg-white/5 hover:text-white md:flex">Generate</Link>
 
         <div className="min-w-0 flex-1 text-center">
           <div className="truncate text-xs font-semibold text-white">{project?.title ?? 'AI Video & Image Editor'}</div>
@@ -680,7 +679,7 @@ export function StudioWorkspacePage() {
           <span className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-[9px] ${saveLabel === 'error' ? 'text-pink' : saveLabel === 'saving' ? 'text-amber-200' : 'text-text-dim'}`}><Save size={11} />{saveLabel === 'saving' ? 'Saving…' : saveLabel === 'error' ? 'Save issue' : 'Saved'}</span>
         </div>
 
-        <button type="button" onClick={() => { setRightTab('ai'); setRightOpen(true); }} disabled={!project} className="hidden h-9 items-center gap-1.5 rounded-xl border border-violet/25 bg-violet/[.09] px-3 text-[10px] font-semibold text-violet transition hover:bg-violet/[.15] disabled:opacity-30 lg:flex"><WandSparkles size={13} />AI Edit</button>
+        <button type="button" onClick={() => { setRightTab('ai'); setRightOpen(true); }} disabled={!project} className="hidden h-9 items-center gap-1.5 rounded-xl border border-violet/25 bg-violet/[.09] px-3 text-[10px] font-semibold text-violet transition hover:bg-violet/[.15] disabled:opacity-30 lg:flex">AI Edit</button>
         <span className="hidden rounded-full border border-white/[.08] bg-white/[.035] px-2.5 py-1.5 text-[9px] font-semibold text-white/70 lg:inline">{account?.creditsBalance ?? 0} credits</span>
         <button type="button" onClick={() => setExportOpen((value) => !value)} disabled={!project} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-white px-3 text-[10px] font-bold text-black transition hover:bg-white/90 disabled:opacity-35"><Download size={13} />Export</button>
         <button type="button" onClick={() => setLeftOpen((value) => !value)} className="grid h-9 w-9 place-items-center rounded-lg text-text-muted hover:bg-white/5 hover:text-white lg:hidden" title="Menu"><Menu size={17} /></button>
@@ -830,7 +829,7 @@ export function StudioWorkspacePage() {
 
         <aside className={`${rightOpen ? 'flex' : 'hidden'} absolute inset-y-14 right-0 z-40 w-[92vw] max-w-[380px] flex-col border-l border-white/[.08] bg-[#0d0a14] shadow-2xl xl:relative xl:inset-auto xl:z-auto xl:flex xl:w-[340px] xl:shadow-none 2xl:w-[370px]`}>
           <div className="flex h-12 shrink-0 items-center gap-1 border-b border-white/[.08] p-2">
-            <button onClick={() => setRightTab('ai')} disabled={!project} className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[10px] font-semibold disabled:opacity-25 ${rightTab === 'ai' ? 'bg-violet/12 text-violet' : 'text-text-muted hover:bg-white/5 hover:text-white'}`}><WandSparkles size={13} />AI Edit</button>
+            <button onClick={() => setRightTab('ai')} disabled={!project} className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[10px] font-semibold disabled:opacity-25 ${rightTab === 'ai' ? 'bg-violet/12 text-violet' : 'text-text-muted hover:bg-white/5 hover:text-white'}`}>AI Edit</button>
             <button onClick={() => setRightTab('inspector')} disabled={!project} className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[10px] font-semibold disabled:opacity-25 ${rightTab === 'inspector' ? 'bg-violet/12 text-violet' : 'text-text-muted hover:bg-white/5 hover:text-white'}`}><Layers3 size={13} />Adjust</button>
             <button onClick={() => setRightOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg text-text-muted hover:bg-white/5 xl:hidden"><X size={14} /></button>
           </div>
@@ -892,7 +891,7 @@ export function StudioWorkspacePage() {
       <div className="flex h-12 shrink-0 items-center justify-around border-t border-white/[.08] bg-[#0c0913] px-2 lg:hidden">
         <button onClick={() => { setLeftTab('projects'); setLeftOpen(true); }} className="flex min-w-16 flex-col items-center gap-1 text-[8px] text-text-muted"><FolderOpen size={15} />Projects</button>
         <button onClick={() => { setLeftTab('media'); setLeftOpen(true); }} disabled={!project} className="flex min-w-16 flex-col items-center gap-1 text-[8px] text-text-muted disabled:opacity-30"><ImageIcon size={15} />Media</button>
-        <button onClick={() => { setRightTab('ai'); setRightOpen(true); }} disabled={!project} className="flex min-w-16 flex-col items-center gap-1 text-[8px] text-violet disabled:opacity-30"><WandSparkles size={15} />AI Edit</button>
+        <button onClick={() => { setRightTab('ai'); setRightOpen(true); }} disabled={!project} className="flex min-w-16 flex-col items-center gap-1 text-[8px] text-violet disabled:opacity-30"><Pencil size={15} />AI Edit</button>
         <button onClick={() => { setRightTab('inspector'); setRightOpen(true); }} disabled={!project} className="flex min-w-16 flex-col items-center gap-1 text-[8px] text-text-muted disabled:opacity-30"><Layers3 size={15} />Adjust</button>
         <Link href="/dashboard" className="flex min-w-16 flex-col items-center gap-1 text-[8px] text-text-muted"><Home size={15} />Workspace</Link>
       </div>

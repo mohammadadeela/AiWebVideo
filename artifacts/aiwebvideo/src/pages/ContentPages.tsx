@@ -13,7 +13,6 @@ import {
   PackageOpen,
   Paperclip,
   SlidersHorizontal,
-  Sparkles,
   Volume2,
 } from "lucide-react";
 import { Nav } from "@/components/landing/Nav";
@@ -453,7 +452,7 @@ export function HowItWorksPage() {
               <div className="mt-6 space-y-3">
                 {[
                   [Activity, "Live progress", "See which production stage is currently running."],
-                  [Sparkles, "Project context", "Prompts, source material, references, and prior results stay with the conversation."],
+                  [Layers3, "Project context", "Prompts, source material, references, and prior results stay with the conversation."],
                   [Download, "Final delivery", "When generation finishes, review and download the result or continue creating from the same project."],
                 ].map(([Icon, title, body]) => {
                   const ItemIcon = Icon as typeof Activity;

@@ -1,4 +1,4 @@
-import { ArrowRight, CheckCircle2, Film, Globe2, House, Image as ImageIcon, Layers3, Link2, Megaphone, MessageCircleMore, PackageOpen, ScanSearch, Sparkles } from "lucide-react";
+import { ArrowRight, CheckCircle2, Film, Globe2, House, Image as ImageIcon, Layers3, Link2, Megaphone, MessageCircleMore, PackageOpen, ScanSearch, } from "lucide-react";
 import { Link } from "wouter";
 import { Nav } from "@/components/landing/Nav";
 import { Footer } from "@/components/landing/Footer";
@@ -422,7 +422,7 @@ function SearchLandingPage({ page }: { page: SeoLanding }) {
           <div className="relative mx-auto max-w-6xl px-5 py-16 sm:py-24">
             <div className="mx-auto max-w-4xl text-center">
               <div className="inline-flex items-center gap-2 rounded-full border border-mint/20 bg-mint/[.06] px-3 py-2 font-utility text-[9px] uppercase tracking-[.18em] text-mint">
-                <Sparkles size={12} /> {page.eyebrow}
+                {page.eyebrow}
               </div>
               <h1 className="mt-6 font-display text-4xl font-bold leading-[1.02] tracking-[-.05em] text-white sm:text-6xl lg:text-7xl">
                 {page.title}

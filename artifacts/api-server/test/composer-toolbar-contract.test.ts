@@ -71,9 +71,9 @@ test('recent files exist only for signed-in people and belong to one account', a
   assert.match(widget, /recentFilesOwner=\{isSignedIn \? accountEmail : null\}/);
 });
 
-test('Ideas and the model button look as they originally did: a violet sparkle with an "Added" badge, and a mint icon tile; no extra cost pill', async () => {
+test('Ideas shows its text with an "Added" badge (no sparkle), and the model button keeps its mint icon tile; no extra cost pill', async () => {
   const form = await fe('components/chat/WebsiteBriefForm.tsx');
-  assert.match(form, /<Sparkles size=\{13\} className="text-violet" \/>\s*Ideas/);
+  assert.match(form, /className=\{controlClass\(compactPanel === "ideas"\)\}\s*>\s*Ideas\s*\{selectedIdea && /);   // just the word, no icon in front of it
   assert.match(form, /<span className="rounded-full bg-mint\/10 px-1\.5 py-0\.5 text-\[8px\] text-mint">Added<\/span>/);
   assert.match(form, /<span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-mint\/\[\.08\] text-mint">\s*\{modelFamily === "video" \? <Video size=\{13\} \/> : modelFamily === "interior" \? <House size=\{13\} \/> : <ImageIcon size=\{13\} \/>\}/);
   assert.doesNotMatch(form, /IdeasIcon|ModelRatePill/);

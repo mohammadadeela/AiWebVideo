@@ -4,8 +4,9 @@ import {
   ArrowLeft, Bot, Captions, Check, ChevronDown, CircleStop, Copy, Crop, Download,
   Film, Image as ImageIcon, Layers3, Loader2, Maximize2, Menu, Mic2, Minus,
   Move, Music2, Pause, Play, Plus, Redo2, RotateCw, Save, Scissors, Send,
-  Settings2, SlidersHorizontal, Sparkles, Square, TextCursorInput, Trash2,
-  Undo2, Upload, Volume2, WandSparkles, X, ZoomIn, ZoomOut,
+  Settings2, SlidersHorizontal,  Square, TextCursorInput, Trash2,
+  Undo2, Upload, Volume2,  X, ZoomIn, ZoomOut,
+  Pencil,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSeo } from '@/lib/useSeo';
@@ -633,7 +634,7 @@ export function StudioEditorPage() {
         {activeTool === 'audio' && <><button type="button" onClick={() => fileInputRef.current?.click()} className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-violet/35 p-3 text-xs text-violet"><Upload size={14} />Upload audio</button><div className="space-y-2">{assets.filter((asset) => asset.mime_type.startsWith('audio/')).map((asset) => <button key={asset.id} type="button" onClick={() => addAsset(asset)} className="flex w-full items-center gap-2 rounded-xl border border-white/10 bg-white/[.035] p-3 text-left text-xs text-white/85"><Music2 size={15} className="text-violet" /><span className="truncate">{asset.name}</span><Plus className="ml-auto" size={13} /></button>)}</div></>}
         {activeTool === 'captions' && <div className="space-y-3"><button type="button" onClick={() => addText(true)} className="w-full rounded-xl border border-white/10 bg-white/[.04] p-4 text-left"><div className="font-semibold text-white">Add manual caption</div><div className="mt-1 text-xs leading-5 text-text-muted">Precise timing and real text rendering. AI transcription is hidden until its provider is enabled.</div></button></div>}
         {activeTool === 'canvas' && <div className="space-y-4"><div><div className="mb-2 text-xs font-medium text-white">Aspect ratio</div><div className="grid grid-cols-3 gap-2">{(['9:16','16:9','1:1'] as const).map((ratio) => <button key={ratio} type="button" onClick={() => updateState((current) => { current.canvas.aspectRatio = ratio; if (ratio === '9:16') { current.canvas.width = 1080; current.canvas.height = 1920; } else if (ratio === '16:9') { current.canvas.width = 1920; current.canvas.height = 1080; } else { current.canvas.width = 1080; current.canvas.height = 1080; } return current; }, 'Changed canvas ratio')} className={`rounded-lg border px-2 py-2 text-xs ${state.canvas.aspectRatio === ratio ? 'border-violet bg-violet/15 text-white' : 'border-white/10 text-text-muted'}`}>{ratio}</button>)}</div></div><label className="block text-xs text-text-muted">Background<input type="color" value={state.canvas.background} onChange={(event) => updateState((current) => { current.canvas.background = event.currentTarget.value; return current; }, 'Changed canvas color')} className="mt-2 h-10 w-full rounded-lg border border-white/10 bg-transparent" /></label></div>}
-        {activeTool === 'ai' && <div className="rounded-xl border border-violet/20 bg-violet/[.06] p-4"><Sparkles size={18} className="text-violet" /><h3 className="mt-3 font-semibold text-white">AI Edit</h3><p className="mt-1 text-xs leading-5 text-text-muted">Tell Studio exactly what to change. Free transforms stay local; generative edits show their credit cost before provider work starts.</p><button type="button" onClick={() => setMobileSheet('ai')} className="mt-3 rounded-lg bg-violet px-3 py-2 text-xs font-semibold text-white">Open AI Edit</button></div>}
+        {activeTool === 'ai' && <div className="rounded-xl border border-violet/20 bg-violet/[.06] p-4"><Pencil size={18} className="text-violet" /><h3 className="mt-3 font-semibold text-white">AI Edit</h3><p className="mt-1 text-xs leading-5 text-text-muted">Tell Studio exactly what to change. Free transforms stay local; generative edits show their credit cost before provider work starts.</p><button type="button" onClick={() => setMobileSheet('ai')} className="mt-3 rounded-lg bg-violet px-3 py-2 text-xs font-semibold text-white">Open AI Edit</button></div>}
       </div>
     </div>
   );
@@ -652,7 +653,7 @@ export function StudioEditorPage() {
 
   const aiPanel = (
     <div className="flex h-full min-h-0 flex-col bg-[#0b0811]">
-      <div className="flex items-center justify-between border-b border-white/10 px-4 py-3"><div className="flex items-center gap-2"><span className="grid size-8 place-items-center rounded-lg bg-violet/15 text-violet"><WandSparkles size={16} /></span><div><div className="text-sm font-semibold text-white">AI Edit</div><div className="text-[10px] text-text-muted">Understands your real project</div></div></div><button type="button" className="lg:hidden" onClick={() => setMobileSheet(null)}><X size={18} /></button></div>
+      <div className="flex items-center justify-between border-b border-white/10 px-4 py-3"><div className="flex items-center gap-2"><span className="grid size-8 place-items-center rounded-lg bg-violet/15 text-violet"><Pencil size={16} /></span><div><div className="text-sm font-semibold text-white">AI Edit</div><div className="text-[10px] text-text-muted">Understands your real project</div></div></div><button type="button" className="lg:hidden" onClick={() => setMobileSheet(null)}><X size={18} /></button></div>
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
         {!chat.length && <div className="rounded-xl border border-white/10 bg-white/[.025] p-4 text-xs leading-5 text-text-muted"><div className="font-medium text-white">Try an exact edit</div><p className="mt-2">“Put this picture on the video at 13 seconds on the left and keep it for 4 seconds.”</p><p className="mt-2">Then: “A little smaller.” or “Move it slightly higher.”</p></div>}
         {chat.map((message) => <div key={message.id} className={`rounded-2xl px-3.5 py-2.5 text-xs leading-5 ${message.role === 'user' ? 'ml-6 bg-violet/15 text-white' : 'mr-6 border border-white/10 bg-white/[.035] text-white/85'}`}>{message.text}</div>)}
@@ -682,7 +683,7 @@ export function StudioEditorPage() {
           <div className="mr-1 hidden items-center gap-1 text-[10px] text-text-muted sm:flex">{saveState === 'saving' ? <Loader2 size={11} className="animate-spin" /> : saveState === 'saved' ? <Check size={11} /> : <Save size={11} />}{saveState === 'saving' ? 'Saving' : saveState === 'saved' ? 'Saved' : saveState === 'offline' ? 'Offline copy' : 'Unsaved'}</div>
           <MiniButton label="Undo" onClick={() => void doHistory('undo')} disabled={dirty}><Undo2 size={15} /></MiniButton>
           <MiniButton label="Redo" onClick={() => void doHistory('redo')} disabled={dirty}><Redo2 size={15} /></MiniButton>
-          <button type="button" onClick={() => setMobileSheet('ai')} className="hidden min-h-9 items-center gap-1.5 rounded-lg border border-violet/30 bg-violet/[.08] px-3 text-xs font-medium text-violet sm:flex lg:hidden"><Sparkles size={14} />AI Edit</button>
+          <button type="button" onClick={() => setMobileSheet('ai')} className="hidden min-h-9 items-center gap-1.5 rounded-lg border border-violet/30 bg-violet/[.08] px-3 text-xs font-medium text-violet sm:flex lg:hidden">AI Edit</button>
           <button type="button" onClick={() => setExportOpen(true)} className="flex min-h-9 items-center gap-1.5 rounded-lg bg-white px-3 text-xs font-semibold text-black transition hover:bg-white/90"><Download size={14} /><span className="hidden sm:inline">Export</span></button>
         </div>
       </header>
@@ -747,7 +748,7 @@ export function StudioEditorPage() {
 
       <nav className="z-30 flex h-14 shrink-0 items-center justify-around border-t border-white/10 bg-[#0a0710] px-1 pb-[env(safe-area-inset-bottom)] lg:hidden">
         {([
-          ['media', ImageIcon, 'Edit'], ['ai', Sparkles, 'AI Edit'], ['text', TextCursorInput, 'Text'], ['audio', Music2, 'Audio'], ['captions', Captions, 'Captions'], ['canvas', Maximize2, 'Canvas'],
+          ['media', ImageIcon, 'Edit'], ['ai', Pencil, 'AI Edit'], ['text', TextCursorInput, 'Text'], ['audio', Music2, 'Audio'], ['captions', Captions, 'Captions'], ['canvas', Maximize2, 'Canvas'],
         ] as const).map(([tool, Icon, label]) => <button key={tool} type="button" onClick={() => { setActiveTool(tool); setMobileSheet(tool === 'ai' ? 'ai' : tool); }} className={`flex min-w-[52px] flex-col items-center gap-1 rounded-lg py-1 text-[9px] ${activeTool === tool ? 'text-violet' : 'text-text-muted'}`}><Icon size={16} />{label}</button>)}
         {selectedLayer && <button type="button" onClick={() => setMobileSheet('inspector')} className="flex min-w-[52px] flex-col items-center gap-1 rounded-lg py-1 text-[9px] text-text-muted"><SlidersHorizontal size={16} />Adjust</button>}
       </nav>

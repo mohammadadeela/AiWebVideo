@@ -145,7 +145,7 @@ export const FORMAT_OPTIONS = [
     frameRate: 24 as const,
   },
   {
-    label: "✦ Cinema · 4K · Native 24fps",
+    label: "Cinema · 4K · Native 24fps",
     aspectRatio: "16:9" as const,
     outputQuality: "4k" as const,
     frameRate: 24 as const,
