@@ -38,7 +38,7 @@ router.get('/marketing', async (_req, res) => {
   } catch {
     res.setHeader('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
     res.removeHeader('Pragma');
-    res.json({ heading: 'Made with AiWebVideo', description: 'See short examples created by people using the studio.', videos: { showcase: [] } });
+    res.json({ heading: 'Made with AiWebVideo', description: 'See short examples created by people using the studio.', videos: { showcase: [], examples: [] } });
   }
 });
 

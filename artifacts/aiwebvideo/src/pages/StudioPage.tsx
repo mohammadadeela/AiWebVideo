@@ -48,9 +48,6 @@ export function StudioPage({ kind }: { kind: StudioKind }) {
                 <span className="flex h-10 w-10 items-center justify-center rounded-2xl border border-mint/20 bg-mint/10">
                   <Icon size={19} />
                 </span>
-                <p className="font-utility text-[10px] uppercase tracking-[.2em]">
-                  {config.eyebrow}
-                </p>
               </div>
               <h1 className="mt-4 font-display text-[28px] font-bold leading-[1.02] tracking-[-.04em] text-white sm:text-5xl">
                 {config.heading}

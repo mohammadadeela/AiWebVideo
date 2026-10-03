@@ -66,17 +66,17 @@ export function Nav() {
       <header className={`sticky top-0 z-50 border-b transition-all duration-300 ${scrolled ? "border-white/[.09] bg-[#070511]/78 shadow-[0_18px_55px_-36px_rgba(79,70,229,.9)] backdrop-blur-2xl" : "border-transparent bg-[#080512]/28 backdrop-blur-xl"}`}>
         <nav className="mx-auto flex max-w-[1500px] items-center justify-between px-3 py-2.5 sm:px-5 sm:py-3 lg:px-8" aria-label="Main navigation">
           <Link href="/" className="rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet" aria-label="AiWebVideo home">
-            <Wordmark />
+            <Wordmark className="max-[359px]:[&>span:last-child]:hidden" />
           </Link>
 
           <FeaturePills onPick={pickFeature} />
 
-          <div className="flex items-center gap-1.5 sm:gap-2.5">
+          <div className="flex items-center gap-1.5 max-[419px]:gap-0.5 sm:gap-2.5">
             <FeatureDropdown onPick={pickFeature} />
             <Link
               href="/pricing"
               aria-label="Pricing"
-              className="cinematic-nav-pill group inline-flex h-11 items-center gap-2 rounded-xl border border-white/[.10] bg-white/[.045] px-2.5 text-white/80 shadow-[inset_0_1px_0_rgba(255,255,255,.06)] backdrop-blur-xl transition hover:-translate-y-0.5 hover:border-violet/40 hover:bg-violet/[.10] hover:text-white sm:px-3"
+              className="cinematic-nav-pill group inline-flex h-11 items-center gap-2 rounded-xl max-[479px]:hidden border border-white/[.10] bg-white/[.045] px-2.5 text-white/80 shadow-[inset_0_1px_0_rgba(255,255,255,.06)] backdrop-blur-xl transition hover:-translate-y-0.5 hover:border-violet/40 hover:bg-violet/[.10] hover:text-white sm:px-3"
             >
               <span className="grid h-6 w-6 place-items-center rounded-lg bg-[linear-gradient(135deg,rgba(52,217,196,.16),rgba(139,92,246,.22),rgba(236,72,153,.16))] text-mint">
                 <BadgeDollarSign size={14} />
@@ -116,12 +116,12 @@ export function Nav() {
               </>
             ) : (
               <>
-                <Button className="min-h-11 shrink-0 whitespace-nowrap" variant="ghost" size="sm" onClick={() => openAuth('signin')}>
+                <Button className="min-h-11 shrink-0 whitespace-nowrap max-[419px]:px-1.5" variant="ghost" size="sm" onClick={() => openAuth('signin')}>
                   Log in
                 </Button>
                 {/* Phones: a clear way to REGISTER (the "Start creating" button below is hidden on small screens). */}
                 <span className="sm:hidden">
-                  <Button className="min-h-11 shrink-0 whitespace-nowrap px-3 text-xs" variant="primary" size="sm" onClick={() => openAuth('signup')}>
+                  <Button className="min-h-11 shrink-0 whitespace-nowrap px-3 text-xs max-[419px]:px-2" variant="primary" size="sm" onClick={() => openAuth('signup')}>
                     Sign up
                   </Button>
                 </span>

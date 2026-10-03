@@ -3,9 +3,59 @@
  * Layers (back to front): space photo -> star streaks -> dark veil -> page content.
  */
 
+/* ------------------------------------------------------------- the page background */
+/* One background for every page: deep blue-violet glows in the corners and at the bottom, and a sparse, still
+   starfield. Panels, cards and tables sit on top of it and stay solid. The landing page's first screen has its own
+   space picture on top of this. */
+:root { --site-base: #06040f; }
+
 body {
   overflow-x: clip;
-  background: #04030a;
+  background-color: var(--site-base);
+  background-image:
+    radial-gradient(1200px 640px at 8% -8%, rgba(109, 40, 217, .34), transparent 64%),
+    radial-gradient(1000px 600px at 95% 2%, rgba(37, 99, 235, .22), transparent 62%),
+    radial-gradient(1100px 760px at 50% 108%, rgba(147, 51, 234, .22), transparent 64%),
+    radial-gradient(720px 520px at 100% 58%, rgba(219, 39, 119, .08), transparent 66%);
+  background-repeat: no-repeat;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: .5;
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%22380%22%20height=%22380%22%20viewBox=%220%200%20380%20380%22%3E%3Ccircle%20cx=%22239%22%20cy=%22294%22%20r=%220.8%22%20fill=%22%237dd3fc%22%20fill-opacity=%220.8%22/%3E%3Ccircle%20cx=%22308%22%20cy=%22105%22%20r=%220.6%22%20fill=%22%237dd3fc%22%20fill-opacity=%220.8%22/%3E%3Ccircle%20cx=%22103%22%20cy=%2256%22%20r=%220.8%22%20fill=%22%23ffffff%22%20fill-opacity=%220.65%22/%3E%3Ccircle%20cx=%2254%22%20cy=%22283%22%20r=%221.2%22%20fill=%22%237dd3fc%22%20fill-opacity=%220.35%22/%3E%3Ccircle%20cx=%22210%22%20cy=%22239%22%20r=%221.2%22%20fill=%22%237dd3fc%22%20fill-opacity=%220.5%22/%3E%3Ccircle%20cx=%2215%22%20cy=%22278%22%20r=%220.5%22%20fill=%22%23ffffff%22%20fill-opacity=%220.35%22/%3E%3Ccircle%20cx=%22105%22%20cy=%22131%22%20r=%221.0%22%20fill=%22%23c4b5fd%22%20fill-opacity=%220.35%22/%3E%3Ccircle%20cx=%22175%22%20cy=%22233%22%20r=%221.0%22%20fill=%22%237dd3fc%22%20fill-opacity=%220.5%22/%3E%3Ccircle%20cx=%22127%22%20cy=%22335%22%20r=%220.7%22%20fill=%22%23ffffff%22%20fill-opacity=%220.8%22/%3E%3Ccircle%20cx=%22347%22%20cy=%2251%22%20r=%220.8%22%20fill=%22%23c4b5fd%22%20fill-opacity=%220.65%22/%3E%3Ccircle%20cx=%22290%22%20cy=%2250%22%20r=%221.2%22%20fill=%22%23ffffff%22%20fill-opacity=%220.65%22/%3E%3Ccircle%20cx=%22125%22%20cy=%22270%22%20r=%220.7%22%20fill=%22%23ffffff%22%20fill-opacity=%220.35%22/%3E%3Ccircle%20cx=%22296%22%20cy=%2263%22%20r=%220.8%22%20fill=%22%23ffffff%22%20fill-opacity=%220.35%22/%3E%3Ccircle%20cx=%22205%22%20cy=%2242%22%20r=%220.5%22%20fill=%22%23ffffff%22%20fill-opacity=%220.35%22/%3E%3Ccircle%20cx=%22115%22%20cy=%2234%22%20r=%220.8%22%20fill=%22%23c4b5fd%22%20fill-opacity=%220.8%22/%3E%3Ccircle%20cx=%22222%22%20cy=%2245%22%20r=%221.0%22%20fill=%22%23ffffff%22%20fill-opacity=%220.5%22/%3E%3Ccircle%20cx=%22180%22%20cy=%2252%22%20r=%220.7%22%20fill=%22%23ffffff%22%20fill-opacity=%220.65%22/%3E%3Ccircle%20cx=%22217%22%20cy=%2268%22%20r=%220.6%22%20fill=%22%23ffffff%22%20fill-opacity=%220.5%22/%3E%3Ccircle%20cx=%2213%22%20cy=%2238%22%20r=%220.8%22%20fill=%22%23ffffff%22%20fill-opacity=%220.8%22/%3E%3Ccircle%20cx=%22357%22%20cy=%22294%22%20r=%220.6%22%20fill=%22%237dd3fc%22%20fill-opacity=%220.8%22/%3E%3Ccircle%20cx=%22105%22%20cy=%2275%22%20r=%220.8%22%20fill=%22%23ffffff%22%20fill-opacity=%220.8%22/%3E%3Ccircle%20cx=%22210%22%20cy=%22223%22%20r=%220.6%22%20fill=%22%23ffffff%22%20fill-opacity=%220.35%22/%3E%3Ccircle%20cx=%22311%22%20cy=%22163%22%20r=%220.5%22%20fill=%22%23ffffff%22%20fill-opacity=%220.5%22/%3E%3Ccircle%20cx=%22209%22%20cy=%22316%22%20r=%221.2%22%20fill=%22%23ffffff%22%20fill-opacity=%220.35%22/%3E%3Ccircle%20cx=%2282%22%20cy=%22117%22%20r=%220.8%22%20fill=%22%23ffffff%22%20fill-opacity=%220.65%22/%3E%3Ccircle%20cx=%22320%22%20cy=%22176%22%20r=%220.7%22%20fill=%22%23ffffff%22%20fill-opacity=%220.8%22/%3E%3C/svg%3E");
+  background-size: 380px 380px;
+}
+
+/* Cards and chips never show the background through them: each faint white fill becomes the solid colour it was
+   already producing on this page (hover and focus styles are untouched). */
+.cinematic-site [class*=" bg-white/[.018]"], .cinematic-site [class^="bg-white/[.018]"] { background-color: #0a0913; }
+.cinematic-site [class*=" bg-white/[.02]"], .cinematic-site [class^="bg-white/[.02]"] { background-color: #0b0914; }
+.cinematic-site [class*=" bg-white/[.025]"], .cinematic-site [class^="bg-white/[.025]"] { background-color: #0c0a15; }
+.cinematic-site [class*=" bg-white/[.03]"], .cinematic-site [class^="bg-white/[.03]"] { background-color: #0d0c16; }
+.cinematic-site [class*=" bg-white/[.035]"], .cinematic-site [class^="bg-white/[.035]"] { background-color: #0f0d17; }
+.cinematic-site [class*=" bg-white/[.04]"], .cinematic-site [class^="bg-white/[.04]"] { background-color: #100e19; }
+.cinematic-site [class*=" bg-white/[.045]"], .cinematic-site [class^="bg-white/[.045]"] { background-color: #110f1a; }
+.cinematic-site [class*=" bg-white/[.05]"], .cinematic-site [class^="bg-white/[.05]"] { background-color: #12111b; }
+.cinematic-site [class*=" bg-white/[.055]"], .cinematic-site [class^="bg-white/[.055]"] { background-color: #14121c; }
+.cinematic-site [class*=" bg-white/[.06]"], .cinematic-site [class^="bg-white/[.06]"] { background-color: #15131d; }
+.cinematic-site [class*=" bg-white/[.065]"], .cinematic-site [class^="bg-white/[.065]"] { background-color: #16141f; }
+.cinematic-site [class*=" bg-white/[.07]"], .cinematic-site [class^="bg-white/[.07]"] { background-color: #171620; }
+.cinematic-site [class*=" bg-white/[.08]"], .cinematic-site [class^="bg-white/[.08]"] { background-color: #1a1822; }
+.cinematic-site [class*=" bg-white/[.085]"], .cinematic-site [class^="bg-white/[.085]"] { background-color: #1b1923; }
+.cinematic-site [class*=" bg-white/[.09]"], .cinematic-site [class^="bg-white/[.09]"] { background-color: #1c1b25; }
+
+/* page roots (workspace, profile, admin) let the background show; what is ON them stays solid */
+.cinematic-page.bg-bg { background-color: transparent; }
+
+/* the old grid pattern in page headers is gone: a soft glow only */
+.hero-mesh {
+  background-image: radial-gradient(ellipse 60% 70% at 50% 0%, rgba(139, 92, 246, .16), transparent 70%) !important;
+  background-size: 100% 100% !important;
 }
 
 .cinematic-site {
@@ -103,25 +153,18 @@ body {
   background: radial-gradient(ellipse 55% 70% at 50% 30%, rgba(3, 2, 10, .6), rgba(3, 2, 10, .16) 62%, transparent 82%);
 }
 
-/* The layout: on wide screens three columns, the middle one holds everything that matters (headline, creator,
-   examples) and the floating cards live ONLY in the side columns, so they can never cover anything. */
-.hero-grid { position: relative; z-index: 2; display: block; }
-.hero-side { display: none; }
-@media (min-width: 1366px) {
-  .hero-grid {
-    display: grid;
-    grid-template-columns: minmax(150px, 1fr) minmax(0, 1060px) minmax(150px, 1fr);
-    column-gap: 24px;
-  }
-  .hero-side {
-    position: relative;
-    z-index: 10;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    gap: 14px;
-    padding-block: 6px;
-  }
+/* Everything in the hero sits in one centred column above the picture. */
+.hero-grid { position: relative; z-index: 2; }
+
+/* Where the space picture ends the page below begins: a short fade so there is no hard edge. */
+.cinematic-hero::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  z-index: 1;
+  height: 72px;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent, var(--site-base));
 }
 
 /* ------------------------------------------------------------- the composer */
@@ -167,80 +210,14 @@ body {
   background-color: rgba(3, 2, 12, .70) !important;
 }
 
-/* -------------------------------------------------- floating media (decorative) */
-.hero-orbit-card {
-  position: relative;
-  width: min(100%, 232px);
-  overflow: hidden;
-  border: 1px solid rgba(167, 139, 250, .5);
-  border-radius: 20px;
-  background: rgba(9, 6, 24, .6);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, .14),
-    0 26px 60px -28px rgba(76, 29, 149, .95),
-    0 0 40px rgba(79, 70, 229, .26);
-  backdrop-filter: blur(12px);
-  will-change: transform;
-}
-
-.hero-orbit-media { position: relative; aspect-ratio: 16 / 10; overflow: hidden; background: #05030c; }
-.hero-orbit-media img, .hero-orbit-media video { transform: scale(1.03); }
-
-/* the label sits on the picture: icon tile, title, one line */
-.hero-orbit-caption {
-  position: absolute;
-  inset: auto 0 0 0;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 22px 11px 9px;
-  background: linear-gradient(180deg, transparent, rgba(6, 4, 16, .88) 62%);
-}
-.hero-orbit-caption-icon {
-  display: grid; place-items: center; flex: none;
-  width: 28px; height: 28px; border-radius: 9px;
-  color: #c4b5fd; background: rgba(124, 58, 237, .3); border: 1px solid rgba(196, 181, 253, .3);
-}
-.hero-orbit-caption-title { display: block; font-size: 12.5px; font-weight: 800; line-height: 1.15; color: #fff; letter-spacing: -.01em; }
-.hero-orbit-caption-sub { display: block; margin-top: 2px; font-size: 10px; line-height: 1.25; color: rgba(255, 255, 255, .68); }
-
-/* "Your campaign belongs here." until an admin uploads media for that feature */
-.hero-orbit-placeholder {
-  position: absolute; inset: 0; display: grid; place-items: center;
-  background: radial-gradient(circle at 50% 38%, rgba(124, 58, 237, .38), transparent 62%), linear-gradient(160deg, #150b33, #07040f);
-}
-.hero-orbit-placeholder-screen {
-  display: grid; place-items: center; width: 76%; height: 62%; margin-bottom: 14px;
-  border: 2px solid rgba(217, 70, 239, .78); border-radius: 14px;
-  background: linear-gradient(145deg, rgba(88, 28, 135, .55), rgba(15, 10, 40, .92));
-  box-shadow: 0 0 22px rgba(168, 85, 247, .65), inset 0 0 18px rgba(139, 92, 246, .35);
-  transform: perspective(520px) rotateY(-14deg) rotateX(4deg);
-}
-.hero-orbit-placeholder-screen span { padding: 0 10px; text-align: center; font-size: 9.5px; font-weight: 800; line-height: 1.25; color: #fff; text-shadow: 0 1px 6px rgba(0, 0, 0, .6); }
-
-/* tilted and staggered, gently floating */
-.hero-orbit-card-left-0  { align-self: flex-start; transform: rotate(-5deg); animation: orbit-float-a 8s ease-in-out infinite; }
-.hero-orbit-card-left-1  { align-self: flex-end;   transform: rotate(4deg);  animation: orbit-float-b 9s ease-in-out infinite; }
-.hero-orbit-card-left-2  { align-self: flex-start; transform: rotate(-3deg); animation: orbit-float-a 10s ease-in-out infinite; }
-.hero-orbit-card-left-3  { align-self: flex-end;   transform: rotate(5deg);  animation: orbit-float-b 8.5s ease-in-out infinite; }
-.hero-orbit-card-right-0 { align-self: flex-end;   transform: rotate(5deg);  animation: orbit-float-b 9s ease-in-out infinite; }
-.hero-orbit-card-right-1 { align-self: flex-start; transform: rotate(-4deg); animation: orbit-float-a 10s ease-in-out infinite; }
-.hero-orbit-card-right-2 { align-self: flex-end;   transform: rotate(4deg);  animation: orbit-float-b 8s ease-in-out infinite; }
-
-@keyframes orbit-float-a { 0%, 100% { translate: 0 0; } 50% { translate: 0 -10px; } }
-@keyframes orbit-float-b { 0%, 100% { translate: 0 0; } 50% { translate: 0 9px; } }
-
-/* shorter screens: fewer cards per side, so the column never grows taller than the middle */
-@media (min-width: 1366px) and (max-height: 860px) { .hero-side .hero-orbit-card:nth-child(4) { display: none; } }
-@media (min-width: 1366px) and (max-height: 700px) { .hero-side .hero-orbit-card:nth-child(3) { display: none; } }
-
-/* ---------------------------------------------------- the examples row under the creator */
+/* ---------------------------------------------------- the examples under the creator */
 .hero-examples {
   display: flex;
-  gap: 10px;
-  margin-top: 14px;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 16px;
   overflow-x: auto;
-  padding: 4px 2px 6px;
+  padding: 4px 2px 8px;
   scroll-snap-type: x proximity;
   scrollbar-width: none;
 }
@@ -248,32 +225,36 @@ body {
 
 .hero-example-tile {
   position: relative;
-  flex: 0 0 auto;
-  height: clamp(96px, 15vh, 168px);
-  aspect-ratio: 1 / 1;
+  flex: 0 0 150px;
+  aspect-ratio: 4 / 3;
   scroll-snap-align: start;
   overflow: hidden;
-  border: 1px solid rgba(167, 139, 250, .4);
-  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 18px;
   background: #08051a;
-  box-shadow: 0 18px 44px -26px rgba(76, 29, 149, .95);
-  transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+  box-shadow: 0 18px 40px -22px rgba(0, 0, 0, .9), 0 0 0 1px rgba(124, 58, 237, .12);
+  transition: transform .22s ease, border-color .22s ease, box-shadow .22s ease;
+}
+/* a soft shade at the bottom edge gives every tile the same finish, whatever the picture */
+.hero-example-tile::after {
+  content: "";
+  position: absolute;
+  inset: 55% 0 0 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent, rgba(5, 3, 15, .5));
 }
 .hero-example-tile:hover, .hero-example-tile:focus-visible {
-  transform: translateY(-3px);
-  border-color: rgba(196, 181, 253, .85);
-  box-shadow: 0 22px 50px -22px rgba(124, 58, 237, 1);
+  transform: translateY(-4px);
+  border-color: rgba(196, 181, 253, .9);
+  box-shadow: 0 24px 46px -20px rgba(124, 58, 237, .95), 0 0 0 1px rgba(196, 181, 253, .35);
 }
+.hero-example-tile:focus-visible { outline: 2px solid #c4b5fd; outline-offset: 3px; }
 
-/* tablets and up: the tiles share the row equally. How many show depends on the width. */
+/* tablets and up: the tiles share the row, never wider than a comfortable size */
 @media (min-width: 768px) {
   .hero-examples { overflow: visible; }
-  .hero-example-tile { flex: 1 1 0; min-width: 0; aspect-ratio: auto; }
-  .hero-example-tile:nth-child(n + 6) { display: none; }
+  .hero-example-tile { flex: 1 1 0; min-width: 0; max-width: 214px; }
 }
-@media (min-width: 1024px) { .hero-example-tile:nth-child(6) { display: block; } }
-@media (min-width: 1280px) { .hero-example-tile:nth-child(7) { display: block; } }
-@media (min-width: 1700px) { .hero-example-tile:nth-child(8) { display: block; } }
 
 /* ------------------------------------------------------- the other pages */
 /* Nothing outside the hero is see-through: pages, sections and cards keep their own solid colours. */
@@ -297,8 +278,7 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .space-backdrop-image,
-  .hero-orbit-card {
+  .space-backdrop-image {
     animation: none !important;
   }
 }

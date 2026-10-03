@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import * as Popover from "@radix-ui/react-popover";
-import { Check, ChevronDown, LayoutGrid } from "lucide-react";
+import { BadgeDollarSign, Check, ChevronDown } from "lucide-react";
+import { Link } from "wouter";
 import { CREATION_FEATURES, featureById, type CreationIntent } from "@/lib/creationFeatures";
 import { OPEN_FEATURE_MENU_EVENT, useCreationMode } from "@/lib/creationMode";
 
@@ -48,11 +49,12 @@ export function FeatureDropdown({ onPick }: { onPick: (intent: CreationIntent) =
         <button
           type="button"
           aria-label={`Features. Open: ${current.label}`}
-          className="cinematic-nav-pill inline-flex h-11 shrink-0 items-center gap-2 rounded-xl border border-white/[.10] bg-white/[.045] px-2.5 text-white/85 transition hover:bg-white/[.08] sm:px-3 xl:hidden"
+          className="cinematic-nav-pill inline-flex h-11 shrink-0 items-center gap-2 rounded-xl border border-white/[.10] bg-white/[.045] px-2 text-white/85 transition hover:bg-white/[.08] min-[420px]:px-2.5 sm:px-3 xl:hidden"
         >
-          <LayoutGrid size={16} className="text-violet" aria-hidden="true" />
-          <span className="hidden text-[11px] font-semibold sm:inline">Features</span>
-          <ChevronDown size={13} className={`hidden text-white/50 transition sm:block ${open ? "rotate-180" : ""}`} aria-hidden="true" />
+          {/* shows what is open, so the button is also the "which feature am I on" label */}
+          <current.icon size={16} className="text-violet" aria-hidden="true" />
+          <span className="text-[11px] font-semibold">{current.short}</span>
+          <ChevronDown size={13} className={`text-white/50 transition max-[419px]:hidden ${open ? "rotate-180" : ""}`} aria-hidden="true" />
         </button>
       </Popover.Trigger>
       <Popover.Portal>
@@ -85,7 +87,10 @@ export function FeatureDropdown({ onPick }: { onPick: (intent: CreationIntent) =
               </button>
             ))}
           </div>
-          <p className="px-2 pb-1 pt-2.5 text-[11px] leading-4 text-white/45">Open any feature to look around. You'll sign in or create a free account when you press Generate.</p>
+          <div className="flex items-center justify-between gap-3 px-2 pb-1 pt-2.5">
+            <p className="text-[11px] leading-4 text-white/45">Sign in or create a free account when you press Generate.</p>
+            <Link href="/pricing" onClick={() => setOpen(false)} className="inline-flex shrink-0 items-center gap-1.5 text-[11px] font-semibold text-white/80 hover:text-white min-[480px]:hidden"><BadgeDollarSign size={13} aria-hidden="true" />Pricing</Link>
+          </div>
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>

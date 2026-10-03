@@ -111,8 +111,7 @@ export function StudioToolCards({ className = '', detailed = false }: { classNam
             </span>
 
             <span className="relative mt-5">
-              <span className="font-utility text-[10px] font-bold uppercase tracking-[.16em] text-mint">0{index + 1} · {meta.kicker}</span>
-              <span className="mt-2 block font-display text-xl font-bold leading-tight text-white">{config.navLabel}</span>
+              <span className="block font-display text-xl font-bold leading-tight text-white">{config.navLabel}</span>
               <span className="mt-2 block text-[11px] font-semibold text-violet-200">Best for: {meta.bestFor}</span>
               <span className="mt-2.5 block text-[12px] leading-relaxed text-text-muted">{detailed ? config.subheading : meta.description}</span>
             </span>

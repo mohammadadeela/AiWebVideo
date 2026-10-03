@@ -9,7 +9,7 @@ import multer from 'multer';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { ASSETS_DIR } from '../lib/capture.js';
-import { clearMarketingSettingsCache, getMarketingSettings, MAX_MARKETING_VIDEOS, SHOWCASE_FEATURES } from '../lib/marketing.js';
+import { clearMarketingSettingsCache, getMarketingSettings, MAX_LANDING_EXAMPLES, MAX_MARKETING_VIDEOS, SHOWCASE_FEATURES } from '../lib/marketing.js';
 import { GEMINI_COST_CATALOG } from '../lib/costs.js';
 import { CREDIT_COSTS, MAX_VIDEO_SECONDS, MIN_VIDEO_SECONDS, videoCreditQuote } from '../lib/credits.js';
 import { getPayPalReadiness, PRODUCTS } from './paypal.js';
@@ -418,12 +418,17 @@ router.put('/marketing', async (req, res) => {
     const body = z.object({
       heading: z.string().trim().min(1).max(100),
       description: z.string().trim().min(1).max(300),
-      videos: z.object({ showcase: z.array(video).max(MAX_MARKETING_VIDEOS) }),
+      videos: z.object({ showcase: z.array(video).max(MAX_MARKETING_VIDEOS), examples: z.array(video).max(MAX_LANDING_EXAMPLES).default([]) }),
     }).parse(req.body);
     // Every sample that has media must be filed under a feature so it appears under that feature's chat.
-    const unassigned = body.videos.showcase.filter((item) => item.url && !item.feature).length;
+    const unassigned = [...body.videos.showcase, ...body.videos.examples].filter((item) => item.url && !item.feature).length;
     if (unassigned > 0) {
       throw new AppError(`Assign ${unassigned} item${unassigned === 1 ? '' : 's'} to a feature before saving.`, 400, 'FEATURE_REQUIRED');
+    }
+    // A landing example is looked up by id when someone taps it, so an id may never exist in both lists.
+    const galleryIds = new Set(body.videos.showcase.map((item) => item.id));
+    if (body.videos.examples.some((item) => galleryIds.has(item.id))) {
+      throw new AppError('A landing example cannot reuse a gallery item. Upload it for the landing page.', 400, 'EXAMPLE_REUSES_GALLERY');
     }
     await query(`INSERT INTO system_settings(key,value,updated_by) VALUES ('marketing',$1,$2) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value,updated_by=EXCLUDED.updated_by,updated_at=NOW()`, [JSON.stringify(body), req.user!.id]);
     clearMarketingSettingsCache();

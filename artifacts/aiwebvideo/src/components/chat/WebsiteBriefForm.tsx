@@ -350,10 +350,7 @@ function MasterIdeas({
                 : "border-white/[.09] bg-black/15 hover:border-violet/35 hover:bg-violet/[.055]"
             }`}
           >
-            <span className="flex items-center justify-between gap-2">
-              <span className="truncate rounded-full border border-violet/20 bg-violet/[.07] px-2 py-0.5 font-utility text-[7px] uppercase tracking-[.1em] text-violet">
-                {idea.category}
-              </span>
+            <span className="flex items-center justify-end gap-2">
               {selected ? <Check size={12} className="shrink-0 text-mint" /> : <ArrowRight size={11} className="shrink-0 text-white/25 transition group-hover:text-violet" />}
             </span>
             <span className="mt-2 block min-h-8 text-[10px] font-semibold leading-4 text-white sm:text-[11px]">
@@ -1021,8 +1018,10 @@ export function WebsiteBriefForm({
         </div>
       )}
 
+      {/* On the landing page the features live in the navbar, so the box starts straight at its fields. */}
+      {!landingWebsitePreview && (
       <div className={`relative border-b border-white/[.08] ${compactLayout ? "p-2" : "p-2.5 sm:p-3"}`}>
-        {/* The feature tabs sit at the top of the box, exactly as before (the navbar offers the same features). */}
+        {/* The workspace keeps the feature tabs here. */}
         <ScrollRow drag className="gap-1 pb-0.5 max-sm:grid max-sm:grid-cols-4 max-sm:gap-1.5 max-sm:overflow-visible" role="tablist" ariaLabel="Creation mode" activeKey={activeMode}>
           {CREATION_MODES.map(({ id, label, short, icon: Icon }) => (
             <button
@@ -1044,6 +1043,7 @@ export function WebsiteBriefForm({
           ))}
         </ScrollRow>
       </div>
+      )}
 
       <div className={`relative ${compactLayout ? "p-3 sm:p-4" : "p-4 sm:p-5"}`}>
         {landingWebsitePreview && selectedSample && (
@@ -1233,7 +1233,6 @@ export function WebsiteBriefForm({
           <label className="block">
             <span className="mb-1.5 flex items-center justify-between gap-3 text-[11px] font-semibold text-white">
               <span>{activeMode === "website" ? "What should the video highlight?" : activeMode === "video" ? "Describe your video" : activeMode === "photo" ? "Describe the product photos" : activeMode === "product-video" ? "Describe the product video" : activeMode === "interior" ? "Describe the space, measurements and design" : activeMode === "architecture" ? "Describe the building and site placement" : "Describe the talking scene"}</span>
-              <span className="text-[9px] font-normal text-text-dim">Required</span>
             </span>
             <textarea
               ref={activeMode === "website" ? websiteBriefRef : studioPromptRef}

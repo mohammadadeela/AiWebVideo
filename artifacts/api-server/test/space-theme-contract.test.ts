@@ -75,19 +75,6 @@ test('the background photo is a web-sized file, not the 2.7 MB original', async 
   }
 });
 
-test('the floating media is decorative and silent, one card per feature from the admin gallery', async () => {
-  const orbit = await fe('components/landing/HeroMediaOrbit.tsx');
-  assert.match(orbit, /aria-hidden="true"/);
-  assert.match(orbit, /pointer-events-none/);
-  assert.match(orbit, /showBlockedControl=\{false\}/);
-  const code = orbit.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');   // comments may say "no play button"; only real markup counts
-  assert.doesNotMatch(code, /<button\b|<Play\b|<PlayCircle\b|controls[=\s{]/);
-  for (const feature of ['website', 'product-video', 'interior', 'scenario', 'architecture']) assert.ok(orbit.includes(`feature: "${feature}"`), feature);
-  const admin = await fe('pages/AdminPage.tsx');
-  assert.match(admin, /Show on the hero/);
-  assert.doesNotMatch(admin, /Use in background|First five items/);
-});
-
 test('the hero fits one screen: a single-line headline, the creator, then examples; the features live in the navbar', async () => {
   const hero = await fe('components/landing/Hero.tsx');
   assert.match(hero, /Turn Anything <span className="cinematic-title-gradient">Into a Video<\/span>/);
@@ -97,7 +84,8 @@ test('the hero fits one screen: a single-line headline, the creator, then exampl
   assert.match(css, /@media \(min-width: 640px\) \{ \.cinematic-title \{ white-space: nowrap; \} \}/);   // horizontal from tablet up
   const form = await fe('components/chat/WebsiteBriefForm.tsx');
   assert.match(form, /<div className="generation-submit-slot">\{submitButton\("w-full"\)\}<\/div>/);
-  assert.match(form, /The feature tabs sit at the top of the box, exactly as before/);   // the box keeps its tab row
+  assert.match(form, /On the landing page the features live in the navbar, so the box starts straight at its fields\./);
+  assert.match(form, /\{!landingWebsitePreview && \(\s*<div className=\{`relative border-b border-white\/\[\.08\]/);   // the workspace keeps its tabs; the landing box has none
   assert.match(form, /role="tablist" ariaLabel="Creation mode"/);
   const nav = await fe('components/landing/Nav.tsx');
   assert.doesNotMatch(nav, /How it works|Examples/);

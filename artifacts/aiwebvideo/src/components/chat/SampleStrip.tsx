@@ -36,12 +36,8 @@ export function SampleStrip({ feature, selectedId, onSelect, selectable }: {
   return (
     <div className="mt-4">
       <div className="mb-2 flex items-baseline justify-between gap-3">
-        <p className="text-[11px] font-medium text-white/50">
-          {selectable ? "Start from an example, then add your own photos" : "Examples"}
-        </p>
-        <p className="shrink-0 text-[11px] text-white/35">
-          {selectable && hasSelection ? "Tap again to remove" : `${all.length} example${all.length === 1 ? "" : "s"}`}
-        </p>
+        <p className="text-[11px] font-medium text-white/50">Examples</p>
+        {selectable && hasSelection && <p className="shrink-0 text-[11px] text-white/35">Tap again to remove</p>}
       </div>
       <ScrollRow className="gap-2.5 pb-1.5" nudge={false} drag>
         {items.map((sample) => {

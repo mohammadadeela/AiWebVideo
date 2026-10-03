@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BadgePercent, CircleDollarSign, RefreshCcw, WalletCards } from "lucide-react";
+import { BadgePercent } from "lucide-react";
 import { Nav } from "@/components/landing/Nav";
 import { Footer } from "@/components/landing/Footer";
 import { PricingTable } from "@/components/landing/PricingTable";
@@ -53,10 +53,7 @@ export function PricingPage() {
         <section className="relative overflow-hidden border-b border-white/[.06]">
           <div className="hero-mesh pointer-events-none absolute inset-0" />
           <div className="relative mx-auto max-w-7xl px-4 py-12 text-center sm:px-5 sm:py-20">
-            <p className="font-utility text-[10px] uppercase tracking-[.22em] text-mint">
-              Production pricing
-            </p>
-            <h1 className="mx-auto mt-5 max-w-4xl font-display text-[32px] font-bold leading-tight tracking-[-.05em] text-white sm:text-6xl">
+            <h1 className="mx-auto max-w-4xl font-display text-[32px] font-bold leading-tight tracking-[-.05em] text-white sm:text-6xl">
               Simple credits. See the price before you generate.
             </h1>
 
@@ -89,31 +86,6 @@ export function PricingPage() {
                 Video costs {videoRate.min}–{videoRate.max} credits per second depending on the model and quality,
                 and a set of 4 images costs {imageRate.min}–{imageRate.max} credits. The exact price is shown before you generate.
               </p>
-              <div className="mx-auto mt-8 grid max-w-3xl gap-px overflow-hidden rounded-2xl border border-border bg-border text-left sm:grid-cols-3">
-                {[
-                  {
-                    Icon: WalletCards,
-                    title: "Choose your balance",
-                    body: "Use a monthly plan or a one-time production option.",
-                  },
-                  {
-                    Icon: CircleDollarSign,
-                    title: "See the quote first",
-                    body: "Duration, quality and audio determine the production credit estimate.",
-                  },
-                  {
-                    Icon: RefreshCcw,
-                    title: "Failure handling",
-                    body: "The existing generation flow restores reserved credits when a paid render fails.",
-                  },
-                ].map(({ Icon, title, body }) => (
-                  <div key={title} className="bg-panel/90 p-5">
-                    <Icon size={17} className="text-violet" aria-hidden="true" />
-                    <p className="mt-3 text-xs font-semibold text-text-primary">{title}</p>
-                    <p className="mt-1 text-[11px] leading-5 text-text-muted">{body}</p>
-                  </div>
-                ))}
-              </div>
             </div>
           </div>
         </section>
@@ -122,17 +94,7 @@ export function PricingPage() {
           <div className="mx-auto max-w-5xl px-4 py-12 sm:px-5 sm:py-16">
             <div className="grid gap-10 md:grid-cols-[.75fr_1.25fr]">
               <div>
-                <p className="font-utility text-[10px] uppercase tracking-[.18em] text-mint">
-                  Billing questions
-                </p>
-                <h2 className="mt-3 font-display text-2xl font-semibold tracking-[-.03em] text-text-primary">
-                  Credits without the guesswork.
-                </h2>
-                <p className="mt-3 text-sm leading-6 text-text-muted">
-                  AiWebVideo checks the production requirement before the final
-                  render starts, so insufficient balance becomes a clear next
-                  action instead of a mysterious generation failure.
-                </p>
+                <h2 className="font-display text-2xl font-semibold tracking-[-.03em] text-text-primary">Billing questions</h2>
               </div>
               <div className="divide-y divide-border border-y border-border">
                 {[

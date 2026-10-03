@@ -318,7 +318,12 @@ export interface MarketingVideo {
 export interface MarketingSettings {
   heading: string;
   description: string;
-  videos: { showcase: MarketingVideo[] };
+  videos: {
+    /** The home page gallery. */
+    showcase: MarketingVideo[];
+    /** The few examples right under the chat box. Uploaded by an admin for that place; never taken from the gallery. */
+    examples?: MarketingVideo[];
+  };
 }
 
 // Public — powers the homepage, no auth required.

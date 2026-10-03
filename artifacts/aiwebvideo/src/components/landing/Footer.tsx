@@ -10,13 +10,9 @@ export function Footer() {
           <div className="mb-14 grid grid-cols-2 gap-10 sm:grid-cols-3 lg:grid-cols-[1.6fr_1fr_1fr_1fr_1fr]">
             <div className="col-span-2 sm:col-span-1">
               <Wordmark />
-              <p className="mt-4 max-w-[260px] text-xs leading-6 text-text-dim">
-                AI-directed marketing production from websites, ideas and real
-                product references—all inside one creative workspace.
-              </p>
             </div>
             <div>
-              <p className="mb-4 font-utility text-[9px] uppercase tracking-[.18em] text-text-dim">
+              <p className="mb-4 text-xs font-semibold text-white">
                 Create
               </p>
               <ul className="space-y-3 text-xs text-text-muted">
@@ -65,7 +61,7 @@ export function Footer() {
               </ul>
             </div>
             <div>
-              <p className="mb-4 font-utility text-[9px] uppercase tracking-[.18em] text-text-dim">Features</p>
+              <p className="mb-4 text-xs font-semibold text-white">Features</p>
               <ul className="space-y-3 text-xs text-text-muted">
                 <li><Link href="/website-video-generator" className="transition-colors hover:text-white">Website video</Link></li>
                 <li><Link href="/ai-video-generator" className="transition-colors hover:text-white">AI video generator</Link></li>
@@ -78,7 +74,7 @@ export function Footer() {
               </ul>
             </div>
             <div>
-              <p className="mb-4 font-utility text-[9px] uppercase tracking-[.18em] text-text-dim">
+              <p className="mb-4 text-xs font-semibold text-white">
                 Learn
               </p>
               <ul className="space-y-3 text-xs text-text-muted">
@@ -125,7 +121,7 @@ export function Footer() {
               </ul>
             </div>
             <div>
-              <p className="mb-4 font-utility text-[9px] uppercase tracking-[.18em] text-text-dim">
+              <p className="mb-4 text-xs font-semibold text-white">
                 Company
               </p>
               <ul className="space-y-3 text-xs text-text-muted">
@@ -170,13 +166,7 @@ export function Footer() {
             </div>
           </div>
           <div className="flex flex-col items-start justify-between gap-4 border-t border-white/[.06] pt-6 sm:flex-row sm:items-center">
-            <p className="text-[10px] text-text-dim">
-              © {new Date().getFullYear()} AiWebVideo. AI-directed from brief to
-              final master.
-            </p>
-            <p className="font-utility text-[8px] uppercase tracking-[.18em] text-text-dim">
-              Built for original AI production
-            </p>
+            <p className="text-xs text-text-dim">© {new Date().getFullYear()} AiWebVideo</p>
           </div>
         </div>
       </footer>

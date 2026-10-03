@@ -27,9 +27,18 @@ export interface MarketingSettings {
   heading: string;
   description: string;
   videos: {
+    /** The gallery on the home page (many items, filed under features). */
     showcase: MarketingVideo[];
+    /**
+     * The few photos/videos shown right under the chat box on the home page: uploaded by an admin FOR that place,
+     * never picked from the gallery. Each is filed under a feature so "make one like this" knows what to open.
+     */
+    examples: MarketingVideo[];
   };
 }
+
+/** How many landing examples an admin can upload (the row under the chat box). */
+export const MAX_LANDING_EXAMPLES = 6;
 
 // Room for roughly 40 examples per feature (7 features). The chat and landing page load them progressively.
 export const MAX_MARKETING_VIDEOS = 280;
@@ -37,22 +46,27 @@ const emptyVideo = (id: string): MarketingVideo => ({ id, url: null, posterUrl: 
 const defaults: MarketingSettings = {
   heading: 'Made with AiWebVideo',
   description: 'See short examples created by people using the studio, then start with your own website.',
-  videos: { showcase: [emptyVideo('example-1'), emptyVideo('example-2'), emptyVideo('example-3')] },
+  videos: { showcase: [emptyVideo('example-1'), emptyVideo('example-2'), emptyVideo('example-3')], examples: [] },
 };
 
 let cache: { value: MarketingSettings; expires: number } | null = null;
 
-export async function getMarketingSettings(): Promise<MarketingSettings> {
-  if (cache && cache.expires > Date.now()) return cache.value;
-  const { rows } = await query<{ value: Partial<MarketingSettings> }>(
-    `SELECT value FROM system_settings WHERE key='marketing' LIMIT 1`,
-  ).catch(() => ({ rows: [] as Array<{ value: Partial<MarketingSettings> }> }));
-  const raw = rows[0]?.value ?? {};
-  const legacy = raw.videos as unknown as { feature?: Partial<MarketingVideo>; howTo?: Partial<MarketingVideo>; showcase?: Partial<MarketingVideo>[] } | undefined;
+/** Turns whatever is stored (possibly an older shape) into a complete, safe settings object. */
+export function normalizeMarketingSettings(rawInput: unknown): MarketingSettings {
+  const raw = (rawInput && typeof rawInput === 'object' ? rawInput : {}) as Partial<MarketingSettings>;
+  const legacy = raw.videos as unknown as { feature?: Partial<MarketingVideo>; howTo?: Partial<MarketingVideo>; showcase?: Partial<MarketingVideo>[]; examples?: Partial<MarketingVideo>[] } | undefined;
   const supplied = legacy?.showcase?.length
     ? legacy.showcase
     : [legacy?.feature, legacy?.howTo].filter(Boolean) as Partial<MarketingVideo>[];
-  const value: MarketingSettings = {
+  const examples = (Array.isArray(legacy?.examples) ? legacy!.examples! : [])
+    .filter((item) => item && typeof item === 'object')
+    .slice(0, MAX_LANDING_EXAMPLES)
+    .map((item, index) => ({
+      ...emptyVideo(`landing-${index + 1}`),
+      ...item,
+      id: String(item?.id ?? `landing-${index + 1}`),
+    }));
+  return {
     heading: typeof raw.heading === 'string' ? raw.heading : defaults.heading,
     description: typeof raw.description === 'string' ? raw.description : defaults.description,
     videos: {
@@ -63,8 +77,17 @@ export async function getMarketingSettings(): Promise<MarketingSettings> {
           ...(item ?? {}),
           id: String(item?.id ?? `example-${index + 1}`),
         })),
+      examples,
     },
   };
+}
+
+export async function getMarketingSettings(): Promise<MarketingSettings> {
+  if (cache && cache.expires > Date.now()) return cache.value;
+  const { rows } = await query<{ value: Partial<MarketingSettings> }>(
+    `SELECT value FROM system_settings WHERE key='marketing' LIMIT 1`,
+  ).catch(() => ({ rows: [] as Array<{ value: Partial<MarketingSettings> }> }));
+  const value = normalizeMarketingSettings(rows[0]?.value ?? {});
   cache = { value, expires: Date.now() + 5_000 };
   return value;
 }
@@ -73,10 +96,10 @@ export function clearMarketingSettingsCache() { cache = null; }
 
 export { defaults as marketingDefaults };
 
-/** Finds a showcase item by id (only items that have media and a feature can be used as samples). */
+/** Finds a sample by id in the gallery OR the landing examples (only items that have media and a feature can be samples). */
 export async function findShowcaseSample(id: string): Promise<MarketingVideo | null> {
   const settings = await getMarketingSettings();
-  return settings.videos.showcase.find((item) => item.id === id && item.url && item.feature) ?? null;
+  return [...settings.videos.showcase, ...settings.videos.examples].find((item) => item.id === id && item.url && item.feature) ?? null;
 }
 
 /** A still image of the sample: the image itself, a video's poster, or a frame pulled from the video. */

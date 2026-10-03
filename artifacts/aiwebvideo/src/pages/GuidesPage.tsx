@@ -1,4 +1,4 @@
-import { ArrowRight, BookOpen, CheckCircle2 } from "lucide-react";
+import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { Link } from "wouter";
 import { Nav } from "@/components/landing/Nav";
 import { Footer } from "@/components/landing/Footer";
@@ -124,8 +124,7 @@ function GuidePage({ guide }: { guide: Guide }) {
         <section className="relative overflow-hidden border-b border-white/[.06]">
           <div className="hero-mesh pointer-events-none absolute inset-0" />
           <div className="relative mx-auto max-w-4xl px-5 py-16 text-center sm:py-24">
-            <div className="inline-flex items-center gap-2 rounded-full border border-violet/20 bg-violet/[.06] px-3 py-2 font-utility text-[9px] uppercase tracking-[.18em] text-violet"><BookOpen size={12} /> Practical guide</div>
-            <h1 className="mt-6 font-display text-4xl font-bold leading-tight tracking-[-.045em] text-white sm:text-6xl">{guide.title}</h1>
+            <h1 className="font-display text-4xl font-bold leading-tight tracking-[-.045em] text-white sm:text-6xl">{guide.title}</h1>
             <p className="mx-auto mt-6 max-w-3xl text-sm leading-7 text-text-muted sm:text-base sm:leading-8">{guide.intro}</p>
           </div>
         </section>

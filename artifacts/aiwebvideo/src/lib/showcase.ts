@@ -25,54 +25,72 @@ export function sampleStill(sample: Sample): string | null {
 /** Anything published on the homepage, including older videos that have not been filed under a feature yet. */
 export type GalleryItem = MarketingVideo & { url: string; kind: "image" | "video" };
 
-let cache: Promise<GalleryItem[]> | null = null;
+interface LoadedMedia { gallery: GalleryItem[]; examples: GalleryItem[] }
+
+let cache: Promise<LoadedMedia> | null = null;
 const GALLERY_UPDATED_EVENT = "aiwebvideo:gallery-updated";
 
+const withMedia = (list: MarketingVideo[] | undefined) => (list ?? [])
+  .filter((item): item is MarketingVideo & { url: string } => Boolean(item.url))
+  .map((item) => ({ ...item, kind: item.kind ?? "video" }) as GalleryItem);
+
+const toLoaded = (settings: { videos: { showcase: MarketingVideo[]; examples?: MarketingVideo[] } }): LoadedMedia => ({
+  gallery: withMedia(settings.videos.showcase),
+  examples: withMedia(settings.videos.examples),
+});
+
 /** Publish the saved response immediately, including for a return to Home in this tab. */
-export function publishGallery(settings: { videos: { showcase: MarketingVideo[] } }) {
-  cache = Promise.resolve(settings.videos.showcase
-    .filter((item): item is MarketingVideo & { url: string } => Boolean(item.url))
-    .map((item) => ({ ...item, kind: item.kind ?? "video" }) as GalleryItem));
+export function publishGallery(settings: { videos: { showcase: MarketingVideo[]; examples?: MarketingVideo[] } }) {
+  cache = Promise.resolve(toLoaded(settings));
   window.dispatchEvent(new Event(GALLERY_UPDATED_EVENT));
 }
 
-function loadGallery() {
+function loadMedia() {
   cache ??= fetchMarketingSettings()
-    .then((settings) => settings.videos.showcase
-      .filter((item): item is MarketingVideo & { url: string } => Boolean(item.url))
-      .map((item) => ({ ...item, kind: item.kind ?? "video" }) as GalleryItem))
-    .catch(() => { cache = null; return [] as GalleryItem[]; });
+    .then(toLoaded)
+    .catch(() => { cache = null; return { gallery: [], examples: [] } as LoadedMedia; });
   return cache;
 }
 
-function useGalleryLoad() {
-  const [items, setItems] = useState<GalleryItem[]>([]);
+function useMediaLoad() {
+  const [media, setMedia] = useState<LoadedMedia>({ gallery: [], examples: [] });
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     let cancelled = false;
     let revision = 0;
     const refresh = () => {
       const current = ++revision;
-      void loadGallery().then((all) => {
-        if (!cancelled && current === revision) { setItems(all); setLoaded(true); }
+      void loadMedia().then((all) => {
+        if (!cancelled && current === revision) { setMedia(all); setLoaded(true); }
       });
     };
     refresh();
     window.addEventListener(GALLERY_UPDATED_EVENT, refresh);
     return () => { cancelled = true; window.removeEventListener(GALLERY_UPDATED_EVENT, refresh); };
   }, []);
-  return { items, loaded };
+  return { media, loaded };
 }
 
 /** Every homepage item, for the landing gallery. */
 export function useGalleryItems() {
-  return useGalleryLoad();
+  const { media, loaded } = useMediaLoad();
+  return { items: media.gallery, loaded };
+}
+
+/**
+ * The examples right under the chat box. These are uploaded by an admin for that spot and are NEVER taken from the
+ * gallery: with none uploaded, nothing is shown.
+ */
+export function useLandingExamples() {
+  const { media, loaded } = useMediaLoad();
+  return { examples: media.examples, loaded };
 }
 
 /** Only items filed under a feature: what the chat offers as "make one like this". */
 export function useSamples() {
-  const { items, loaded } = useGalleryLoad();
-  return { samples: items.filter(isSample) as Sample[], loaded };
+  const { media, loaded } = useMediaLoad();
+  const all = [...media.gallery, ...media.examples].filter(isSample) as Sample[];
+  return { samples: all.filter((item, index) => all.findIndex((other) => other.id === item.id) === index), loaded };
 }
 
 /** Tap on an item that is not filed under a feature: just take the visitor to the generator. */

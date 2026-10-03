@@ -421,9 +421,6 @@ function SearchLandingPage({ page }: { page: SeoLanding }) {
           <div className="pointer-events-none absolute left-1/2 top-[-180px] h-[520px] w-[760px] -translate-x-1/2 rounded-full bg-violet/[.12] blur-[150px]" />
           <div className="relative mx-auto max-w-6xl px-5 py-16 sm:py-24">
             <div className="mx-auto max-w-4xl text-center">
-              <div className="inline-flex items-center gap-2 rounded-full border border-mint/20 bg-mint/[.06] px-3 py-2 font-utility text-[9px] uppercase tracking-[.18em] text-mint">
-                {page.eyebrow}
-              </div>
               <h1 className="mt-6 font-display text-4xl font-bold leading-[1.02] tracking-[-.05em] text-white sm:text-6xl lg:text-7xl">
                 {page.title}
               </h1>
@@ -448,7 +445,6 @@ function SearchLandingPage({ page }: { page: SeoLanding }) {
         <section className="border-b border-white/[.06] bg-black/10">
           <div className="mx-auto grid max-w-6xl gap-8 px-5 py-16 lg:grid-cols-[.9fr_1.1fr] lg:items-center lg:py-20">
             <div>
-              <p className="font-utility text-[9px] uppercase tracking-[.18em] text-violet">Why it works</p>
               <h2 className="mt-3 font-display text-3xl font-bold tracking-[-.035em] text-white sm:text-4xl">{page.problemTitle}</h2>
               <p className="mt-5 text-sm leading-7 text-text-muted sm:text-base">{page.problemBody}</p>
             </div>
@@ -469,7 +465,6 @@ function SearchLandingPage({ page }: { page: SeoLanding }) {
         <section className="border-b border-white/[.06]">
           <div className="mx-auto max-w-5xl px-5 py-16 lg:py-20">
             <div className="text-center">
-              <p className="font-utility text-[9px] uppercase tracking-[.18em] text-mint">How it works</p>
               <h2 className="mt-3 font-display text-3xl font-bold tracking-[-.035em] text-white sm:text-4xl">From source to finished campaign</h2>
             </div>
             <div className="mt-10 space-y-3">
@@ -505,7 +500,6 @@ function SearchLandingPage({ page }: { page: SeoLanding }) {
 
         <section className="border-b border-white/[.06]">
           <div className="mx-auto max-w-4xl px-5 py-16 lg:py-20">
-            <p className="font-utility text-[9px] uppercase tracking-[.18em] text-violet">FAQ</p>
             <h2 className="mt-3 font-display text-3xl font-bold tracking-[-.035em] text-white">Questions people ask before generating</h2>
             <div className="mt-8 divide-y divide-white/[.08] border-y border-white/[.08]">
               {page.faq.map(([question, answer]) => (
@@ -611,7 +605,6 @@ export function ExamplesPage() {
       <main>
         <section className="border-b border-white/[.06]">
           <div className="mx-auto max-w-5xl px-5 py-16 text-center sm:py-20">
-            <p className="font-utility text-[10px] uppercase tracking-[.22em] text-mint">Examples & use cases</p>
             <h1 className="mt-5 font-display text-4xl font-bold tracking-[-.045em] text-white sm:text-6xl">See what you can create from a website, product, idea, or space</h1>
             <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-text-muted sm:text-base">Watch campaign films when available and explore distinct starting points for each creation mode. Use-case descriptions explain possible workflows; they are not claimed customer results.</p>
           </div>

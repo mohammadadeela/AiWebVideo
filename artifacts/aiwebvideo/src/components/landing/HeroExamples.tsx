@@ -1,16 +1,13 @@
-import { useMemo } from "react";
-import { pickVariety } from "@/lib/heroMedia";
-import { isSample, scrollToGenerator, startFromSample, useGalleryItems, type GalleryItem } from "@/lib/showcase";
+import { isSample, scrollToGenerator, startFromSample, useLandingExamples, type GalleryItem } from "@/lib/showcase";
 import { resolveVideoEmbed } from "@/lib/videoEmbed";
 import { AutoplayVideo } from "./AutoplayVideo";
 
 /**
- * A row of examples right under the creator, visible on the first screen. Tap one to make one like it (it opens that
- * feature with the example attached; an account is only needed when Generate is pressed). Tiles carry no text, no
- * play button and no media icon. How many show depends on the width: the rest are a scroll away in the gallery below.
+ * The examples right under the creator. They are the photos and videos an admin uploaded FOR this spot (Admin >
+ * Homepage > Landing examples); nothing is borrowed from the gallery, so with none uploaded nothing is shown.
+ * Tap one to make one like it: its feature opens in the box with the example attached, and an account is only
+ * needed when Generate is pressed. Tiles carry no text, no play button and no media icon.
  */
-const MAX_TILES = 8;
-
 function Tile({ item, eager }: { item: GalleryItem; eager: boolean }) {
   if (item.kind === "image") return <img src={item.url} alt="" loading={eager ? "eager" : "lazy"} decoding="async" draggable={false} className="h-full w-full object-cover" />;
   const embed = resolveVideoEmbed(item.url);
@@ -19,20 +16,19 @@ function Tile({ item, eager }: { item: GalleryItem; eager: boolean }) {
 }
 
 export function HeroExamples() {
-  const { items, loaded } = useGalleryItems();
-  const tiles = useMemo(() => pickVariety(items, MAX_TILES), [items]);
-  if (loaded && !tiles.length) return null;
+  const { examples } = useLandingExamples();
+  if (!examples.length) return null;
 
   return (
-    <div className="hero-examples chat-scroll" role="list" aria-label="Examples: tap one to make one like it">
-      {tiles.map((item, index) => (
+    <div className="hero-examples chat-scroll" role="list" aria-label="Examples: tap one to make one like it" data-count={examples.length}>
+      {examples.map((item, index) => (
         <button
           key={item.id}
           type="button"
           role="listitem"
-          aria-label={isSample(item) ? "Make one like this" : "Create your own"}
+          aria-label="Make one like this"
           onClick={() => (isSample(item) ? startFromSample(item) : scrollToGenerator())}
-          className={`hero-example-tile hero-example-tile-${index}`}
+          className="hero-example-tile"
         >
           <Tile item={item} eager={index < 4} />
         </button>

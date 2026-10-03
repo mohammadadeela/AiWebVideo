@@ -16,14 +16,13 @@ import {
 import { watchAuthState } from '@/lib/firebase/client';
 import { useSeo } from '@/lib/useSeo';
 import { publishGallery } from '@/lib/showcase';
+import { LandingExamplesManager } from '@/components/admin/LandingExamplesManager';
 import { resolveVideoEmbed } from '@/lib/videoEmbed';
 
 type Tab = 'overview' | 'reports' | 'landing' | 'users' | 'jobs' | 'providers' | 'audit';
 type Row = Record<string, unknown>;
 type MetricCard = [label: string, value: string, icon: ComponentType<LucideProps>, hint: string];
 const LANDING_VIDEO_LIMIT = 280;
-/** Features that have a floating card on the landing hero (same list as HeroMediaOrbit). */
-const HERO_FEATURES: string[] = ['website', 'product-video', 'interior', 'scenario', 'architecture', 'photo', 'video'];
 const tabs: Array<{ id: Tab; label: string; icon: typeof LayoutDashboard }> = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'reports', label: 'Reports', icon: BarChart3 },
@@ -422,7 +421,7 @@ export function AdminPage() {
       if (added.length) {
         // Empty placeholder slots are dropped so they never hide real items.
         const kept = marketing.videos.showcase.filter((item) => item.url);
-        setMarketing({ ...marketing, videos: { showcase: [...kept, ...added] } });
+        setMarketing({ ...marketing, videos: { ...marketing.videos, showcase: [...kept, ...added] } });
         setDirty(true);
       }
       setBusy(false);
@@ -448,7 +447,7 @@ export function AdminPage() {
           if (result.optimized) {
             converted += 1;
             current = current.map((item) => item.id === targets[index].id ? { ...item, url: result.url, posterUrl: result.posterUrl ?? item.posterUrl } : item);
-            setMarketing({ ...marketing, videos: { showcase: current } });
+            setMarketing({ ...marketing, videos: { ...marketing.videos, showcase: current } });
             setDirty(true);
           }
         } catch { failed += 1; }
@@ -527,7 +526,7 @@ export function AdminPage() {
   const auditFiltersActive = Boolean(auditSearch || auditSearchBy !== 'all' || auditCategory !== 'all' || auditCreated !== 'all' || auditSort !== 'newest');
   const dateOptions: Array<[string, string]> = [['all', 'Any time'], ['today', 'Today'], ['7d', 'Last 7 days'], ['30d', 'Last 30 days'], ['year', 'This year']];
   const showcase = marketing?.videos.showcase ?? [];
-  const setShowcase = (next: typeof showcase) => { if (!marketing) return; setMarketing({ ...marketing, videos: { showcase: next } }); setDirty(true); };
+  const setShowcase = (next: typeof showcase) => { if (!marketing) return; setMarketing({ ...marketing, videos: { ...marketing.videos, showcase: next } }); setDirty(true); };
   const checkoutState = providerStatus.checkout;
 
   return <div className="cinematic-page min-h-screen bg-bg lg:flex">
@@ -543,7 +542,7 @@ export function AdminPage() {
       <header className="flex items-center justify-between gap-3">
         <h1 className="font-display text-2xl font-bold text-text-primary">{currentTab?.label}</h1>
         <div className="flex gap-2">
-          {tab === 'landing' && <Button disabled={busy || !dirty || showcase.some((item) => item.url && !item.feature)} title={showcase.some((item) => item.url && !item.feature) ? 'Choose a feature for every item first' : undefined} onClick={() => void saveLanding()}><Save size={15} /> {dirty ? 'Save' : 'Saved'}</Button>}
+          {tab === 'landing' && <Button disabled={busy || !dirty || [...showcase, ...(marketing?.videos.examples ?? [])].some((item) => item.url && !item.feature)} title={[...showcase, ...(marketing?.videos.examples ?? [])].some((item) => item.url && !item.feature) ? 'Choose a feature for every item first' : undefined} onClick={() => void saveLanding()}><Save size={15} /> {dirty ? 'Save' : 'Saved'}</Button>}
           {tab === 'providers' && <Button disabled={busy} onClick={() => void saveSettings()}><Save size={15} /> Save</Button>}
           <Button variant="secondary" disabled={busy} onClick={() => void refresh()} aria-label="Refresh"><RefreshCw size={15} className={busy ? 'animate-spin' : ''} /></Button>
         </div>
@@ -593,9 +592,16 @@ export function AdminPage() {
         const patchItems = (ids: string[], patch: Partial<(typeof items)[number]>) => setShowcase(showcase.map((item) => ids.includes(item.id) ? { ...item, ...patch } : item));
         const chip = (active: boolean) => `shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition ${active ? 'bg-white text-[#1b1030]' : 'bg-white/[.06] text-text-muted hover:text-white'}`;
         return <section className="mt-6 space-y-4">
-          <div className="rounded-2xl border border-violet/20 bg-[linear-gradient(135deg,rgba(139,92,246,.10),rgba(34,211,238,.05),rgba(236,72,153,.07))] p-4">
-            <p className="text-sm font-semibold text-white">Landing page media</p>
-            <p className="mt-1 text-xs leading-5 text-text-muted">Everything here powers the homepage gallery. Each feature's first item also floats beside the chat box as that feature's card on wide screens (a feature with nothing uploaded shows a placeholder), and one item per feature appears in the example row right under the chat box, which visitors tap to make one like it. Use “Show on the hero” to choose which item a feature's card shows, then Save. Uploaded videos loop silently with no play button.</p>
+          <LandingExamplesManager
+            examples={marketing.videos.examples ?? []}
+            onChange={(next) => { setMarketing({ ...marketing, videos: { ...marketing.videos, examples: next } }); setDirty(true); }}
+            busy={busy}
+            setBusy={setBusy}
+            setMessage={setMessage}
+          />
+          <div className="rounded-2xl border border-white/10 bg-white/[.03] p-4">
+            <p className="text-sm font-semibold text-white">Gallery</p>
+            <p className="mt-0.5 text-xs text-text-muted">Shown further down the home page, filed by feature. Videos loop silently with no play button.</p>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-text-muted"><span className="font-semibold text-text-primary">{items.length}</span> of {LANDING_VIDEO_LIMIT} items{unassigned.length > 0 && <span className="ml-2 font-semibold text-amber-200">· {unassigned.length} need a feature</span>}</p>
@@ -639,8 +645,6 @@ export function AdminPage() {
           {visible.length === 0 ? <Empty>{items.length ? 'Nothing matches these filters.' : 'Upload images and videos to build the cinematic hero and homepage gallery.'}</Empty> : <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
             {visible.map((item) => {
               const selected = gallerySelected.includes(item.id);
-              // The first published item of a feature is that feature's floating card on the landing hero.
-              const onHero = Boolean(item.feature && HERO_FEATURES.includes(item.feature) && items.find((entry) => entry.feature === item.feature && entry.url)?.id === item.id);
               return <article key={item.id} className={`overflow-hidden rounded-2xl border bg-panel transition ${selected ? 'border-violet ring-2 ring-violet/40' : item.feature ? 'border-border' : 'border-amber-300/40'}`}>
                 <div className="relative aspect-[3/4] bg-black">
                   {kindOf(item) === 'image'
@@ -650,14 +654,6 @@ export function AdminPage() {
                   <button type="button" disabled={busy} aria-label="Delete" onClick={() => { setShowcase(showcase.filter((entry) => entry.id !== item.id)); setGallerySelected(gallerySelected.filter((id) => id !== item.id)); }} className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-black/60 text-white/80 transition hover:bg-pink/80 hover:text-white"><Trash2 size={12} /></button>
                 </div>
                 <div className="space-y-2 p-2">
-                  {item.feature && HERO_FEATURES.includes(item.feature) && (
-                    <>
-                      <button type="button" disabled={busy || onHero} onClick={() => setShowcase([item, ...showcase.filter((entry) => entry.id !== item.id)])} className="min-h-11 w-full rounded-lg border border-violet/25 bg-violet/10 px-2 text-xs font-semibold text-white transition hover:bg-violet/20 disabled:opacity-60">
-                        {onHero ? 'On the hero' : 'Show on the hero'}
-                      </button>
-                      {onHero && <p className="text-center text-[10px] text-mint">{SHOWCASE_FEATURE_LABELS[item.feature as ShowcaseFeature]} card{kindOf(item) === 'video' && resolveVideoEmbed(item.url ?? '').kind === 'file' ? ' · loops silently' : ''}</p>}
-                    </>
-                  )}
                   <select aria-label="Feature" value={item.feature ?? ''} onChange={(event) => patchItems([item.id], { feature: (event.target.value || null) as ShowcaseFeature | null })} className={`h-9 w-full rounded-lg border bg-bg px-2 text-xs ${item.feature ? 'border-border text-text-primary' : 'border-amber-300/50 text-amber-200'}`}>
                     <option value="">Choose a feature…</option>
                     {SHOWCASE_FEATURES.map((feature) => <option key={feature} value={feature}>{SHOWCASE_FEATURE_LABELS[feature]}</option>)}

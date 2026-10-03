@@ -45,9 +45,6 @@ function Shell({
         <section className="relative overflow-hidden border-b border-white/[.06]">
           <div className="hero-mesh pointer-events-none absolute inset-0" />
           <div className="relative mx-auto max-w-5xl px-4 py-12 sm:px-5 sm:py-16 text-center sm:py-20">
-            <p className="font-utility text-[10px] uppercase tracking-[.22em] text-mint">
-              {eyebrow}
-            </p>
             <h1 className="mt-5 font-display text-4xl font-bold tracking-[-.045em] text-white sm:text-6xl">
               {title}
             </h1>
@@ -184,9 +181,6 @@ export function FeaturesPage() {
         </div>
         <div className="mx-auto mb-16 max-w-7xl rounded-[30px] border border-violet/30 bg-signature-soft p-6 sm:flex sm:items-center sm:justify-between sm:gap-6">
           <div>
-            <p className="font-utility text-[10px] uppercase tracking-[.16em] text-violet">
-              One creator, multiple capabilities
-            </p>
             <h2 className="mt-2 font-display text-xl font-semibold text-white">
               Website video, AI video, product media, talking scenes and interior design
             </h2>
@@ -334,9 +328,7 @@ export function HowItWorksPage() {
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-5 sm:py-16">
           <div className="grid gap-10 lg:grid-cols-[.78fr_1.22fr] lg:items-start">
             <div className="lg:sticky lg:top-28">
-              <p className="font-utility text-[10px] uppercase tracking-[.2em] text-mint">The shared workflow</p>
               <h2 className="mt-4 max-w-xl font-display text-2xl font-bold tracking-[-.04em] text-white sm:text-4xl">The same simple path, whichever feature you choose.</h2>
-              <p className="mt-4 max-w-lg text-sm leading-7 text-text-muted">You do not need to learn a different editor for every feature. Only the source changes; the project still continues in the same creator and Workspace.</p>
             </div>
             <div className="relative">
               <div className="absolute bottom-8 left-5 top-8 hidden w-px bg-gradient-to-b from-mint via-violet to-pink opacity-50 sm:block" aria-hidden="true" />
@@ -357,7 +349,6 @@ export function HowItWorksPage() {
       <section className="border-b border-white/[.06] bg-black/10">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-5 sm:py-16">
           <div className="max-w-3xl">
-            <p className="font-utility text-[10px] uppercase tracking-[.2em] text-violet">Every creation mode</p>
             <h2 className="mt-4 font-display text-2xl font-bold tracking-[-.04em] text-white sm:text-4xl">What you give AI, what it does, and what you get.</h2>
           </div>
           <div className="mt-8 grid gap-4 lg:grid-cols-2">
@@ -367,14 +358,13 @@ export function HowItWorksPage() {
                 <div className="relative flex items-start gap-4">
                   <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/[.09] bg-black/20 ${accent}`}><Icon size={19} /></span>
                   <div className="min-w-0">
-                    <p className={`font-utility text-[9px] uppercase tracking-[.16em] ${accent}`}>{eyebrow}</p>
                     <h3 className="mt-1 font-display text-xl font-semibold text-white">{title}</h3>
                   </div>
                 </div>
                 <div className={`relative mt-5 grid gap-3 ${index === 0 ? "md:grid-cols-3" : ""}`}>
                   {[["You provide", input], ["AiWebVideo does", process], ["You receive", result]].map(([label, body]) => (
                     <div key={label} className="rounded-2xl border border-white/[.07] bg-white/[.025] p-4">
-                      <p className="font-utility text-[9px] uppercase tracking-[.14em] text-text-dim">{label}</p>
+                      <p className="text-xs font-semibold text-white">{label}</p>
                       <p className="mt-2 text-xs leading-6 text-text-muted">{body}</p>
                     </div>
                   ))}
@@ -392,9 +382,7 @@ export function HowItWorksPage() {
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-5 sm:py-16">
           <div className="grid gap-10 lg:grid-cols-[.78fr_1.22fr] lg:items-start">
             <div>
-              <p className="font-utility text-[10px] uppercase tracking-[.2em] text-mint">Website Video styles</p>
               <h2 className="mt-4 font-display text-2xl font-bold tracking-[-.04em] text-white sm:text-4xl">Choose the video style that matches the goal of the website campaign.</h2>
-              <p className="mt-4 max-w-lg text-sm leading-7 text-text-muted">The style control changes the creative direction; it does not send you into a different tool.</p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               {websiteStyles.map(([title, body], index) => (
@@ -414,9 +402,7 @@ export function HowItWorksPage() {
       <section className="border-b border-white/[.06] bg-black/10">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-5 sm:py-16">
           <div className="max-w-3xl">
-            <p className="font-utility text-[10px] uppercase tracking-[.2em] text-gold">Smart settings</p>
             <h2 className="mt-4 font-display text-2xl font-bold tracking-[-.04em] text-white sm:text-4xl">Defaults first. Controls only when you need them.</h2>
-            <p className="mt-4 text-sm leading-7 text-text-muted">The main form stays simple. Open Smart settings when the delivery format matters.</p>
           </div>
           <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             {smartControls.map(({ icon: Icon, title, body }) => (
@@ -447,7 +433,6 @@ export function HowItWorksPage() {
               </div>
             </div>
             <div>
-              <p className="font-utility text-[10px] uppercase tracking-[.2em] text-pink">Workspace</p>
               <h2 className="mt-4 font-display text-2xl font-bold tracking-[-.04em] text-white sm:text-4xl">You can leave the page without losing the project.</h2>
               <div className="mt-6 space-y-3">
                 {[
@@ -619,7 +604,6 @@ export function FaqPage() {
         <div className="mx-auto max-w-5xl px-4 py-12 sm:px-5 sm:py-16">
           <div className="grid gap-10 md:grid-cols-[220px_1fr]">
             <nav aria-label="FAQ categories" className="md:sticky md:top-24 md:self-start">
-              <p className="mb-3 font-utility text-[9px] uppercase tracking-[.18em] text-text-dim">Categories</p>
               <div className="flex gap-1 overflow-x-auto md:flex-col">
                 {faqGroups.map((group) => (
                   <a

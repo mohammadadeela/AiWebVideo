@@ -3,11 +3,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { CREATION_FEATURES, featureById, isCreationIntent } from '../../aiwebvideo/src/lib/creationFeatures.js';
-import { HERO_FEATURE_ORDER, pickVariety } from '../../aiwebvideo/src/lib/heroMedia.js';
 
 const fe = (file: string) => readFile(path.resolve(process.cwd(), '../aiwebvideo/src', file), 'utf8');
-type Item = { id: string; feature: string | null; url: string | null };
-const item = (id: string, feature: string | null, url: string | null = `/${id}.jpg`): Item => ({ id, feature, url });
 
 test('there are exactly seven features, each with a name, a one-line description and an icon', () => {
   assert.deepEqual(CREATION_FEATURES.map((feature) => feature.id), ['website', 'video', 'photo', 'product-video', 'scenario', 'interior', 'architecture']);
@@ -19,25 +16,6 @@ test('there are exactly seven features, each with a name, a one-line description
   assert.equal(featureById('interior').label, 'Interior Design');
   assert.equal(isCreationIntent('photo'), true);
   assert.equal(isCreationIntent('nonsense'), false);
-});
-
-test('the example row shows a varied set: one of each feature before any feature repeats', () => {
-  const items = [
-    item('w1', 'website'), item('w2', 'website'), item('w3', 'website'),
-    item('p1', 'photo'), item('p2', 'photo'),
-    item('i1', 'interior'), item('a1', 'architecture'), item('s1', 'scenario'), item('pv1', 'product-video'), item('v1', 'video'),
-  ];
-  const first7 = pickVariety(items, 7).map((entry) => entry.feature);
-  assert.deepEqual([...first7].sort(), [...HERO_FEATURE_ORDER].sort(), 'seven tiles = seven different features');
-  const first10 = pickVariety(items, 10);
-  assert.equal(first10.length, 10);
-  assert.equal(new Set(first10.map((entry) => entry.id)).size, 10, 'no tile twice');
-});
-
-test('older uploads with no feature still appear, and items without a file never do', () => {
-  const picked = pickVariety([item('a', null), item('b', 'photo'), item('c', 'website', null), item('d', 'interior')], 8);
-  assert.deepEqual(picked.map((entry) => entry.id).sort(), ['a', 'b', 'd']);
-  assert.deepEqual(pickVariety([], 8), []);
 });
 
 test('opening a feature never needs an account; signing in happens at Generate', async () => {
@@ -55,22 +33,36 @@ test('the navbar menu switches the chat box on the home page and takes you there
   assert.match(nav, /navigate\(`\/\?create=\$\{intent\}#generate`\)/);
   const menu = await fe('components/landing/FeatureMenu.tsx');
   assert.match(menu, /aria-label="Choose a feature"/);
-  assert.match(menu, /You'll sign in or create a free account when you press Generate/);
+  assert.match(menu, /Sign in or create a free account when you press Generate\./);
   assert.match(menu, /OPEN_FEATURE_MENU_EVENT/);
   const form = await fe('components/chat/WebsiteBriefForm.tsx');
   assert.match(form, /useEffect\(\(\) => \{ publishCreationMode\(activeMode\); \}, \[activeMode\]\);/);
 });
 
-test('floating cards: seven, in their own side columns, placeholders when empty, decorative only', async () => {
-  const orbit = await fe('components/landing/HeroMediaOrbit.tsx');
-  for (const feature of ['website', 'interior', 'architecture', 'photo', 'product-video', 'scenario', 'video']) assert.ok(orbit.includes(`feature: "${feature}"`), feature);
-  assert.match(orbit, /Your campaign belongs here\./);
-  assert.match(orbit, /aria-hidden="true"/);
-  assert.match(orbit, /pointer-events-none/);
-  const code = orbit.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-  assert.doesNotMatch(code, /<button\b|<Play\b|controls[=\s{]/);
+
+test('the examples under the chat box are only what an admin uploaded for them; nothing is borrowed from the gallery; no floating cards', async () => {
+  const examples = await fe('components/landing/HeroExamples.tsx');
+  assert.match(examples, /useLandingExamples\(\)/);
+  assert.doesNotMatch(examples, /useGalleryItems|useSamples|pickVariety/);
+  assert.match(examples, /if \(!examples\.length\) return null;/);                      // nothing uploaded, nothing shown
+  const code = examples.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  assert.doesNotMatch(code, /<Play\b|controls[=\s{]/);
+  assert.match(examples, /aria-label="Make one like this"/);
   const hero = await fe('components/landing/Hero.tsx');
-  assert.match(hero, /<HeroSideCards side="left" \/>[\s\S]*<HeroExamples \/>[\s\S]*<HeroSideCards side="right" \/>/);
-  const css = await fe('cinematic-theme.css');
-  assert.match(css, /grid-template-columns: minmax\(150px, 1fr\) minmax\(0, 1060px\) minmax\(150px, 1fr\);/);
+  assert.doesNotMatch(hero, /HeroSideCards|HeroMediaOrbit/);
+  const store = await fe('lib/showcase.ts');
+  assert.match(store, /export function useLandingExamples\(\)/);
+  assert.match(store, /\[\.\.\.media\.gallery, \.\.\.media\.examples\]\.filter\(isSample\)/);       // a tapped example still resolves later (workspace restore)
+});
+
+test('the admin uploads the landing examples in their own section, and the gallery can never wipe them', async () => {
+  const manager = await fe('components/admin/LandingExamplesManager.tsx');
+  assert.match(manager, /MAX_LANDING_EXAMPLES = 6/);
+  assert.match(manager, /Landing examples/);
+  assert.match(manager, /uploadMarketingAsset\(accepted\[index\]\)/);
+  assert.match(manager, /aria-label="Feature"/);                                           // a feature is required for each
+  const admin = await fe('pages/AdminPage.tsx');
+  assert.match(admin, /<LandingExamplesManager/);
+  assert.equal((admin.match(/videos: \{ showcase:/g) ?? []).length, 0, 'every gallery change must keep the examples (spread marketing.videos)');
+  assert.doesNotMatch(admin, /Show on the hero|HERO_FEATURES/);
 });
