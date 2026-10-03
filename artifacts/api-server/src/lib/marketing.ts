@@ -30,15 +30,16 @@ export interface MarketingSettings {
     /** The gallery on the home page (many items, filed under features). */
     showcase: MarketingVideo[];
     /**
-     * The few photos/videos shown right under the chat box on the home page: uploaded by an admin FOR that place,
-     * never picked from the gallery. Each is filed under a feature so "make one like this" knows what to open.
+     * The few photos/videos that float around the chat box on the home page: uploaded and chosen by an admin FOR that
+     * place, never picked from the gallery. They are decorative (visitors cannot click them); the feature chosen for
+     * each one only decides the label on its card.
      */
     examples: MarketingVideo[];
   };
 }
 
-/** How many landing examples an admin can upload (the row under the chat box). */
-export const MAX_LANDING_EXAMPLES = 6;
+/** How many photos an admin can float around the chat box: a few, never many. */
+export const MAX_LANDING_EXAMPLES = 4;
 
 // Room for roughly 40 examples per feature (7 features). The chat and landing page load them progressively.
 export const MAX_MARKETING_VIDEOS = 280;
@@ -96,10 +97,10 @@ export function clearMarketingSettingsCache() { cache = null; }
 
 export { defaults as marketingDefaults };
 
-/** Finds a sample by id in the gallery OR the landing examples (only items that have media and a feature can be samples). */
+/** Finds a gallery item by id (only items that have media and a feature can be used as samples). The floating landing photos are decoration and are never samples. */
 export async function findShowcaseSample(id: string): Promise<MarketingVideo | null> {
   const settings = await getMarketingSettings();
-  return [...settings.videos.showcase, ...settings.videos.examples].find((item) => item.id === id && item.url && item.feature) ?? null;
+  return settings.videos.showcase.find((item) => item.id === id && item.url && item.feature) ?? null;
 }
 
 /** A still image of the sample: the image itself, a video's poster, or a frame pulled from the video. */

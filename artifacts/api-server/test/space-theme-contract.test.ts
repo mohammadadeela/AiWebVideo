@@ -75,11 +75,13 @@ test('the background photo is a web-sized file, not the 2.7 MB original', async 
   }
 });
 
-test('the hero fits one screen: a single-line headline, the creator, then examples; the features live in the navbar', async () => {
+test('the hero: a single-line headline and the creator standing on the planet; the features live in the navbar', async () => {
   const hero = await fe('components/landing/Hero.tsx');
+  const css0 = await fe('cinematic-theme.css');
   assert.match(hero, /Turn Anything <span className="cinematic-title-gradient">Into a Video<\/span>/);
   assert.doesNotMatch(hero, /Powered by advanced AI|Transform websites, products, ideas/);   // both lines were removed on request
-  assert.ok(hero.indexOf('<h1') < hero.indexOf('<ChatWidget') && hero.indexOf('<ChatWidget') < hero.indexOf('<HeroExamples'), 'headline, then the box, then the examples');
+  assert.ok(hero.indexOf('<h1') < hero.indexOf('<ChatWidget'), 'the headline, then the box');
+  assert.match(css0, /\.hero-grid \{[^}]*padding-bottom: clamp\(72px, 7vw, 132px\);/);          // room under the box for the planet
   const css = await fe('cinematic-theme.css');
   assert.match(css, /@media \(min-width: 640px\) \{ \.cinematic-title \{ white-space: nowrap; \} \}/);   // horizontal from tablet up
   const form = await fe('components/chat/WebsiteBriefForm.tsx');

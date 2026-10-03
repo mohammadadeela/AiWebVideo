@@ -51,56 +51,71 @@ async function open(browser, viewport, route = "/", { withExamples = true } = {}
     const { page, errors } = await open(browser, { width: 1672, height: 941 });
     const hero = await page.evaluate(() => {
       const box = document.querySelector(".creator-composer").getBoundingClientRect();
+      const heroEl = document.querySelector(".cinematic-hero");
       const bd = document.querySelector(".space-backdrop").getBoundingClientRect();
-      const row = document.querySelector(".hero-examples");
-      const tiles = Array.from(document.querySelectorAll(".hero-example-tile"));
+      const title = document.querySelector("h1").getBoundingClientRect();
+      const cards = Array.from(document.querySelectorAll(".hero-floater"));
+      const rects = cards.map((c) => c.getBoundingClientRect());
+      const hits = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
       const slot = document.querySelector(".generation-submit-slot button"); const bar = document.querySelector(".generation-toolbar");
-      const a = slot.getBoundingClientRect(), b = bar.getBoundingClientRect();
+      const a2 = slot.getBoundingClientRect(), b2 = bar.getBoundingClientRect();
       const h1 = document.querySelector("h1");
+      const wrap = document.querySelector(".hero-floaters");
       return {
-        floating: document.querySelectorAll(".hero-orbit-card, .hero-side").length,
+        cards: cards.length,
+        titles: cards.map((c) => c.querySelector(".hero-floater-title").textContent),
+        sources: cards.map((c) => (c.querySelector("img") || c.querySelector("video") || {}).src || ""),
+        interactive: wrap.querySelectorAll("button, a, input, select, [onclick], video[controls]").length,
+        pointer: getComputedStyle(wrap).pointerEvents, ariaHidden: wrap.getAttribute("aria-hidden"),
+        animated: cards.every((c) => /floater-drift/.test(getComputedStyle(c).animationName)),
+        tilts: new Set(cards.map((c) => getComputedStyle(c).rotate)).size,
+        widths: new Set(cards.map((c) => Math.round(c.getBoundingClientRect().width / 10))).size,
+        coversBox: rects.filter((r) => hits(r, box)).length, coversTitle: rects.filter((r) => hits(r, title)).length,
+        offscreen: rects.filter((r) => r.left < 0 || r.right > innerWidth).length,
         tabsInBox: document.querySelectorAll(".creator-composer [role=tab]").length,
         pills: Array.from(document.querySelectorAll("header [role=group][aria-label=Features] button")).map((n) => n.textContent.trim()),
-        tiles: tiles.length, tileSources: tiles.map((t) => (t.querySelector("img") || t.querySelector("video") || {}).src || ""),
-        tileVideos: tiles.filter((t) => t.querySelector("video")).length,
-        tileText: tiles.map((t) => t.innerText.trim()).join(""),
-        rowBottom: row.getBoundingClientRect().bottom, viewport: innerHeight,
-        order: [h1.getBoundingClientRect().top, box.top, row.getBoundingClientRect().top],
-        boxTop: box.top,
+        tileRow: document.querySelectorAll(".hero-examples, .hero-example-tile").length,
+        boxTop: box.top, boxBottom: box.bottom, heroBottom: heroEl.getBoundingClientRect().bottom + scrollY,
         backdrops: document.querySelectorAll(".space-backdrop").length, backdropInHero: !!document.querySelector(".cinematic-hero > .space-backdrop"),
-        backdropBottom: bd.bottom + scrollY, heroBottom: document.querySelector(".cinematic-hero").getBoundingClientRect().bottom + scrollY,
-        roadUnderBox: bd.bottom - box.bottom,
-        sameRow: Math.abs(a.y + a.height / 2 - (b.y + b.height / 2)) < 40, reachable: slot.contains(document.elementFromPoint(a.x + a.width / 2, a.y + a.height / 2)),
+        backdropBottom: bd.bottom + scrollY, planetUnderBox: bd.bottom - box.bottom,
+        sameRow: Math.abs(a2.y + a2.height / 2 - (b2.y + b2.height / 2)) < 40, reachable: slot.contains(document.elementFromPoint(a2.x + a2.width / 2, a2.y + a2.height / 2)),
         nav: document.querySelector("header").innerText,
         h1: h1.innerText.replace(/\s+/g, " "), h1Lines: Math.round(h1.getBoundingClientRect().height / parseFloat(getComputedStyle(h1).lineHeight)),
         leftovers: /Powered by advanced AI|Transform websites|Your campaign belongs here/i.test(document.body.innerText),
+        viewport: innerHeight,
       };
     });
-    assert.equal(hero.floating, 0, "no floating cards: the first screen is the headline, the box and the examples");
     assert.deepEqual(hero.pills, ["Website", "AI Video", "Photos", "Product", "Talking", "Interior", "Architect"], "the features are in the navbar");
     assert.equal(hero.tabsInBox, 0, "no feature tabs inside the landing box");
-    assert.equal(hero.tiles, 5, "exactly the examples the admin uploaded");
-    assert.ok(hero.tileSources.every((src) => /landing-example-\d\.svg/.test(src)), "from the admin's own landing examples, never from the gallery: " + hero.tileSources.join(","));
-    assert.equal(hero.tileVideos, 0); assert.equal(hero.tileText, "", "tiles carry no text");
-    assert.ok(hero.order[0] < hero.order[1] && hero.order[1] < hero.order[2], "headline, then box, then examples");
-    assert.ok(hero.rowBottom <= hero.viewport, `everything fits the first screen (examples end at ${Math.round(hero.rowBottom)} of ${hero.viewport})`);
+    assert.equal(hero.tileRow, 0, "no tile row under the box any more");
+    assert.equal(hero.cards, 4, "a few photos, never many: 5 uploaded, 4 shown");
+    assert.ok(hero.sources.every((src) => /landing-example-\d\.svg/.test(src)), "only the admin's own landing photos, never the gallery: " + hero.sources.join(","));
+    assert.deepEqual(hero.titles, ["Website Video", "Product Video", "Interior Design", "Product Photos"], "each card is labelled from the feature the admin chose");
+    assert.equal(hero.interactive, 0, "no buttons, links or controls inside them");
+    assert.equal(hero.pointer, "none", "clicks pass straight through them"); assert.equal(hero.ariaHidden, "true");
+    assert.ok(hero.animated, "they drift (animated)");
+    assert.ok(hero.tilts >= 3 && hero.widths >= 2, "scattered: different tilts and sizes");
+    assert.equal(hero.coversBox, 0, "no photo covers the chat box"); assert.equal(hero.coversTitle, 0, "none covers the headline"); assert.equal(hero.offscreen, 0, "all fully on screen");
     assert.ok(hero.boxTop < 200, `the chat box stays up near the headline (top at ${Math.round(hero.boxTop)}px)`);
     assert.equal(hero.backdrops, 1); assert.ok(hero.backdropInHero, "the space picture lives inside the hero only");
     assert.ok(Math.abs(hero.backdropBottom - hero.heroBottom) < 2, "and ends exactly where the hero ends");
-    assert.ok(hero.roadUnderBox > 60 && hero.roadUnderBox < 320, `the glowing road sits just under the box (${Math.round(hero.roadUnderBox)}px of picture below it)`);
+    assert.ok(hero.planetUnderBox > 70 && hero.planetUnderBox < 200, `the box stands on top of the planet: ${Math.round(hero.planetUnderBox)}px of picture under it`);
+    assert.ok(hero.heroBottom <= hero.viewport, `the whole first screen (box and planet) fits at ${hero.viewport}px (ends at ${Math.round(hero.heroBottom)})`);
     assert.ok(hero.sameRow && hero.reachable, "Generate sits in the settings row and is clickable");
     assert.match(hero.nav, /Pricing/); assert.match(hero.nav, /Log in/); assert.match(hero.nav, /Start creating/);
     assert.equal(hero.h1, "Turn Anything Into a Video"); assert.equal(hero.h1Lines, 1, "the headline is one horizontal line");
     assert.equal(hero.leftovers, false, "no badge, subtitle or placeholder text");
-    console.log("ok  landing: headline, box (no tabs), the admin's 5 examples; all on the first screen; the road under the box; no floating cards");
+    console.log("ok  landing: headline, box (no tabs) standing on the planet, 4 floating admin photos (animated, scattered, covering nothing)");
 
-    // tapping an example opens its feature with the example attached, without signing in
-    await page.locator(".hero-example-tile").nth(2).click();
-    await page.waitForTimeout(900);
-    assert.equal(await page.locator("button[aria-label='Remove the attached example']").count(), 1, "the example is attached");
-    assert.equal(await page.locator("header [role=group][aria-label=Features] button[aria-pressed=true]").innerText(), "Interior", "its feature opened");
-    assert.equal(await page.getByText("Sign in to unlock").count(), 0, "no sign-in just for looking");
-    console.log("ok  tapping an example opens its feature with the example attached (no sign-in)");
+    // the floating photos cannot be clicked: a click on one lands on what is behind it and nothing happens
+    const spot = await page.evaluate(() => { const r = document.querySelector(".hero-floater").getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
+    const under = await page.evaluate(({ x, y }) => { const el = document.elementFromPoint(x, y); return { inCard: !!el.closest(".hero-floater, .hero-floaters"), tag: el.tagName }; }, spot);
+    assert.equal(under.inCard, false, "a click on a floating photo reaches the page behind it, never the photo");
+    await page.mouse.click(spot.x, spot.y);
+    await page.waitForTimeout(500);
+    assert.equal(await page.locator("button[aria-label='Remove the attached example']").count(), 0, "clicking changed nothing");
+    assert.equal(await page.getByText("Sign in to unlock").count(), 0);
+    console.log("ok  clicking a floating photo does nothing (it is decoration)");
 
     const frames = [];
     for (let i = 0; i < 2; i += 1) {
@@ -114,9 +129,8 @@ async function open(browser, viewport, route = "/", { withExamples = true } = {}
 
     // ---- nothing uploaded: nothing shown (the gallery is never borrowed)
     const empty = await open(browser, { width: 1672, height: 941 }, "/", { withExamples: false });
-    assert.equal(await empty.page.locator(".hero-examples").count(), 0, "no uploaded examples, no row");
-    assert.equal(await empty.page.locator(".hero-example-tile").count(), 0);
-    console.log("ok  with no uploaded examples the row is simply absent (nothing is taken from the gallery)");
+    assert.equal(await empty.page.locator(".hero-floaters, .hero-floater").count(), 0, "no uploaded photos, nothing floating");
+    console.log("ok  with no uploaded photos nothing floats (nothing is taken from the gallery)");
     await empty.page.close();
 
     // ---- every other page: solid panels on the shared background, no space picture
@@ -145,16 +159,16 @@ async function open(browser, viewport, route = "/", { withExamples = true } = {}
       trigger: (document.querySelector("header button[aria-label^='Features']") || {}).innerText || "",
       tabsInBox: document.querySelectorAll(".creator-composer [role=tab]").length,
       generate: Array.from(document.querySelectorAll("button")).filter((b) => /Continue to video/.test(b.textContent) && b.offsetParent).length,
-      examplesTop: document.querySelector(".hero-examples").getBoundingClientRect().top, viewport: innerHeight,
-      swipe: (() => { const row = document.querySelector(".hero-examples"); return row.scrollWidth > row.clientWidth; })(),
+      floaters: getComputedStyle(document.querySelector(".hero-floaters")).display,
+      boxBottom: document.querySelector(".creator-composer").getBoundingClientRect().bottom, viewport: innerHeight,
     }));
     assert.equal(mobile.overflow, 0, "no horizontal overflow on a phone");
     assert.equal(mobile.floating, 0);
     assert.match(mobile.trigger, /Website/, "the navbar button names the open feature");
     assert.equal(mobile.tabsInBox, 0);
     assert.equal(mobile.generate, 1, "exactly one visible Generate button");
-    assert.ok(mobile.examplesTop < mobile.viewport, "the examples start on the first phone screen");
-    assert.ok(mobile.swipe, "and the row swipes sideways");
+    assert.equal(mobile.floaters, "none", "the floating photos stay off phones");
+    assert.ok(mobile.boxBottom <= mobile.viewport, "the whole box is on the first phone screen");
     // every navbar item (not just the big blocks) stays on the screen and none overlap, at the widths phones really have
     for (const width of [320, 360, 390, 430, 480]) {
       const narrow = await open(browser, { width, height: 700 });
@@ -168,7 +182,7 @@ async function open(browser, viewport, route = "/", { withExamples = true } = {}
       await narrow.page.close();
     }
     console.log("ok  navbar: every item fits and none overlap at 320, 360, 390, 430 and 480 px");
-    console.log("ok  phone: no overflow, the navbar button names the open feature, one Generate button, examples peek in and swipe");
+    console.log("ok  phone: no overflow, the navbar button names the open feature, one Generate button, the whole box on the first screen, no floating photos");
     console.log("\nall space landing checks passed");
   } finally {
     await browser.close();

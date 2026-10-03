@@ -425,7 +425,7 @@ router.put('/marketing', async (req, res) => {
     if (unassigned > 0) {
       throw new AppError(`Assign ${unassigned} item${unassigned === 1 ? '' : 's'} to a feature before saving.`, 400, 'FEATURE_REQUIRED');
     }
-    // A landing example is looked up by id when someone taps it, so an id may never exist in both lists.
+    // The two lists stay separate: a floating landing photo may never reuse a gallery item's id.
     const galleryIds = new Set(body.videos.showcase.map((item) => item.id));
     if (body.videos.examples.some((item) => galleryIds.has(item.id))) {
       throw new AppError('A landing example cannot reuse a gallery item. Upload it for the landing page.', 400, 'EXAMPLE_REUSES_GALLERY');

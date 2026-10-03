@@ -3,13 +3,14 @@ import { ArrowLeft, ArrowRight, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/app-button";
 import { SHOWCASE_FEATURE_LABELS, uploadMarketingAsset, type MarketingVideo, type ShowcaseFeature } from "@/lib/api-client";
 
-/** How many photos or videos can sit in the row under the chat box (matches the server). */
-export const MAX_LANDING_EXAMPLES = 6;
+/** How many photos or videos can float around the chat box (matches the server): a few, never many. */
+export const MAX_LANDING_EXAMPLES = 4;
 const FEATURES = Object.keys(SHOWCASE_FEATURE_LABELS) as ShowcaseFeature[];
 
 /**
- * The few photos/videos shown right under the chat box on the home page. They are uploaded HERE, for that place,
- * and are never taken from the gallery. Each one is filed under a feature, which is what opens when a visitor taps it.
+ * The few photos/videos that float around the chat box on the home page. They are uploaded and chosen HERE, for that
+ * place, and are never taken from the gallery. They are decoration: visitors cannot click them. The feature picked
+ * for each one only decides the label shown on its card.
  */
 export function LandingExamplesManager({
   examples, onChange, busy, setBusy, setMessage,
@@ -56,8 +57,8 @@ export function LandingExamplesManager({
     <div className="rounded-2xl border border-violet/25 bg-[#120e26] p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-white">Landing examples</p>
-          <p className="mt-0.5 text-xs text-text-muted">The photos under the chat box on the home page. Only what you upload here is shown there.</p>
+          <p className="text-sm font-semibold text-white">Landing photos</p>
+          <p className="mt-0.5 text-xs text-text-muted">The photos that float around the chat box on the home page. Choose up to {MAX_LANDING_EXAMPLES}. Visitors cannot click them.</p>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs tabular-nums text-text-muted">{items.length} of {MAX_LANDING_EXAMPLES}</span>
@@ -67,7 +68,7 @@ export function LandingExamplesManager({
       </div>
 
       {items.length > 0 && (
-        <ul className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6" aria-label="Landing examples">
+        <ul className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6" aria-label="Landing photos">
           {items.map((item, index) => (
             <li key={item.id} className="overflow-hidden rounded-xl border border-white/10 bg-[#0b0919]">
               <div className="aspect-[4/3] bg-black">
@@ -82,7 +83,7 @@ export function LandingExamplesManager({
                   onChange={(event) => onChange(items.map((entry) => entry.id === item.id ? { ...entry, feature: (event.target.value || null) as ShowcaseFeature | null } : entry))}
                   className={`min-h-9 w-full rounded-lg border bg-[#100c20] px-2 text-xs text-white ${item.feature ? "border-white/10" : "border-amber-300/60"}`}
                 >
-                  <option value="">Choose a feature</option>
+                  <option value="">Choose a label</option>
                   {FEATURES.map((feature) => <option key={feature} value={feature}>{SHOWCASE_FEATURE_LABELS[feature]}</option>)}
                 </select>
                 <div className="flex items-center justify-between">

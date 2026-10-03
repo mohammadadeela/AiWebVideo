@@ -154,7 +154,12 @@ body::before {
 }
 
 /* Everything in the hero sits in one centred column above the picture. */
-.hero-grid { position: relative; z-index: 2; }
+.hero-grid {
+  position: relative;
+  z-index: 2;
+  /* the planet shows right under the box: its glowing horizon starts a little below the box's bottom edge */
+  padding-bottom: clamp(72px, 7vw, 132px);
+}
 
 /* Where the space picture ends the page below begins: a short fade so there is no hard edge. */
 .cinematic-hero::after {
@@ -162,7 +167,7 @@ body::before {
   position: absolute;
   inset: auto 0 0 0;
   z-index: 1;
-  height: 72px;
+  height: 56px;
   pointer-events: none;
   background: linear-gradient(180deg, transparent, var(--site-base));
 }
@@ -210,51 +215,69 @@ body::before {
   background-color: rgba(3, 2, 12, .70) !important;
 }
 
-/* ---------------------------------------------------- the examples under the creator */
-.hero-examples {
-  display: flex;
-  justify-content: center;
-  gap: 12px;
-  margin-top: 16px;
-  overflow-x: auto;
-  padding: 4px 2px 8px;
-  scroll-snap-type: x proximity;
-  scrollbar-width: none;
-}
-.hero-examples::-webkit-scrollbar { display: none; }
+/* ------------------------------------------------ floating photos around the box (decoration) */
+.hero-floaters { position: absolute; inset: 0; z-index: 1; display: none; pointer-events: none; }
+@media (min-width: 1366px) { .hero-floaters { display: block; } }
 
-.hero-example-tile {
-  position: relative;
-  flex: 0 0 150px;
-  aspect-ratio: 4 / 3;
-  scroll-snap-align: start;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, .16);
-  border-radius: 18px;
-  background: #08051a;
-  box-shadow: 0 18px 40px -22px rgba(0, 0, 0, .9), 0 0 0 1px rgba(124, 58, 237, .12);
-  transition: transform .22s ease, border-color .22s ease, box-shadow .22s ease;
-}
-/* a soft shade at the bottom edge gives every tile the same finish, whatever the picture */
-.hero-example-tile::after {
-  content: "";
+.hero-floater {
   position: absolute;
-  inset: 55% 0 0 0;
-  pointer-events: none;
-  background: linear-gradient(180deg, transparent, rgba(5, 3, 15, .5));
+  /* as wide as the room beside the box allows (after this card's own gap), never wider than 250px */
+  width: clamp(128px, calc((100% - 1052px) / 2 - var(--gap, 16px) - 14px), 250px);
+  overflow: hidden;
+  border: 1px solid rgba(167, 139, 250, .5);
+  border-radius: 20px;
+  background: rgba(9, 6, 24, .6);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .14),
+    0 26px 60px -28px rgba(76, 29, 149, .95),
+    0 0 40px rgba(79, 70, 229, .26);
+  backdrop-filter: blur(12px);
+  will-change: transform, translate;
+  /* fades in on load, then drifts forever */
+  animation: floater-in .9s cubic-bezier(.2, .8, .2, 1) both, var(--drift) var(--drift-time) ease-in-out infinite;
 }
-.hero-example-tile:hover, .hero-example-tile:focus-visible {
-  transform: translateY(-4px);
-  border-color: rgba(196, 181, 253, .9);
-  box-shadow: 0 24px 46px -20px rgba(124, 58, 237, .95), 0 0 0 1px rgba(196, 181, 253, .35);
-}
-.hero-example-tile:focus-visible { outline: 2px solid #c4b5fd; outline-offset: 3px; }
 
-/* tablets and up: the tiles share the row, never wider than a comfortable size */
-@media (min-width: 768px) {
-  .hero-examples { overflow: visible; }
-  .hero-example-tile { flex: 1 1 0; min-width: 0; max-width: 214px; }
+.hero-floater-media { position: relative; aspect-ratio: 16 / 10; overflow: hidden; background: #05030c; }
+.hero-floater-media img, .hero-floater-media video { transform: scale(1.03); }
+
+/* the label sits on the picture: an icon tile, the feature, one line */
+.hero-floater-caption {
+  position: absolute;
+  inset: auto 0 0 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 22px 11px 9px;
+  background: linear-gradient(180deg, transparent, rgba(6, 4, 16, .88) 62%);
 }
+.hero-floater-icon {
+  display: grid; place-items: center; flex: none;
+  width: 28px; height: 28px; border-radius: 9px;
+  color: #c4b5fd; background: rgba(124, 58, 237, .3); border: 1px solid rgba(196, 181, 253, .3);
+}
+.hero-floater-title { display: block; font-size: 12.5px; font-weight: 800; line-height: 1.15; color: #fff; letter-spacing: -.01em; }
+.hero-floater-sub { display: block; margin-top: 2px; font-size: 10px; line-height: 1.25; color: rgba(255, 255, 255, .68); }
+
+/* four scattered spots, anchored to the edges of the box at different distances, with different heights, tilts and drift
+   speeds, so they look like a loose cluster and never like a grid */
+.hero-floater-0 { --gap: 22px; --drift: floater-drift-a; --drift-time: 8s;   left: calc(50% + 526px + var(--gap));  top: 5%;  rotate: 6deg;  animation-delay: .1s, 0s; }
+.hero-floater-1 { --gap: 64px; --drift: floater-drift-b; --drift-time: 9.5s; right: calc(50% + 526px + var(--gap)); top: 15%; rotate: -5deg; animation-delay: .35s, 0s; }
+.hero-floater-2 { --gap: 26px; --drift: floater-drift-a; --drift-time: 10s;  right: calc(50% + 526px + var(--gap)); top: 55%; rotate: 4deg;  animation-delay: .6s, 0s; }
+.hero-floater-3 { --gap: 88px; --drift: floater-drift-b; --drift-time: 8.5s; left: calc(50% + 526px + var(--gap));  top: 50%; rotate: -4deg; animation-delay: .85s, 0s; }
+
+/* less room beside the box: the cards sit close to it, and their label shrinks with them */
+@media (max-width: 1599px) {
+  .hero-floaters .hero-floater { --gap: 16px; }
+  .hero-floater-sub { display: none; }
+}
+@media (max-width: 1439px) {
+  .hero-floater-caption { padding: 14px 8px 7px; }
+  .hero-floater-caption > span:last-child { display: none; }
+}
+
+@keyframes floater-in { from { opacity: 0; scale: .92; } to { opacity: 1; scale: 1; } }
+@keyframes floater-drift-a { 0%, 100% { translate: 0 0; } 50% { translate: 0 -12px; } }
+@keyframes floater-drift-b { 0%, 100% { translate: 0 0; } 50% { translate: 0 11px; } }
 
 /* ------------------------------------------------------- the other pages */
 /* Nothing outside the hero is see-through: pages, sections and cards keep their own solid colours. */
@@ -278,7 +301,8 @@ body::before {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .space-backdrop-image {
+  .space-backdrop-image,
+  .hero-floater {
     animation: none !important;
   }
 }

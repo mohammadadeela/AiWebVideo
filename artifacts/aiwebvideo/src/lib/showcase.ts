@@ -78,8 +78,8 @@ export function useGalleryItems() {
 }
 
 /**
- * The examples right under the chat box. These are uploaded by an admin for that spot and are NEVER taken from the
- * gallery: with none uploaded, nothing is shown.
+ * The photos that float around the chat box. They are uploaded and chosen by an admin for that spot and are NEVER
+ * taken from the gallery: with none uploaded, nothing is shown. They are decoration, never clickable samples.
  */
 export function useLandingExamples() {
   const { media, loaded } = useMediaLoad();
@@ -89,8 +89,7 @@ export function useLandingExamples() {
 /** Only items filed under a feature: what the chat offers as "make one like this". */
 export function useSamples() {
   const { media, loaded } = useMediaLoad();
-  const all = [...media.gallery, ...media.examples].filter(isSample) as Sample[];
-  return { samples: all.filter((item, index) => all.findIndex((other) => other.id === item.id) === index), loaded };
+  return { samples: media.gallery.filter(isSample) as Sample[], loaded };
 }
 
 /** Tap on an item that is not filed under a feature: just take the visitor to the generator. */

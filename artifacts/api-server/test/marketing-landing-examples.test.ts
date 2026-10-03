@@ -20,7 +20,7 @@ test('landing examples keep their media, feature and kind, get ids when missing,
   const many = Array.from({ length: 12 }, (_, i) => item(`e${i}`, i === 0 ? { feature: 'interior', kind: 'video', posterUrl: '/p.jpg' } : {}));
   const { videos } = normalizeMarketingSettings({ videos: { showcase: [item('g1')], examples: many } });
   assert.equal(videos.examples.length, MAX_LANDING_EXAMPLES);
-  assert.equal(MAX_LANDING_EXAMPLES, 6);
+  assert.equal(MAX_LANDING_EXAMPLES, 4);
   assert.deepEqual([videos.examples[0].feature, videos.examples[0].kind, videos.examples[0].posterUrl], ['interior', 'video', '/p.jpg']);
   const noId = normalizeMarketingSettings({ videos: { showcase: [], examples: [{ url: '/x.jpg', feature: 'photo' }, null, 5] } }).videos.examples;
   assert.deepEqual(noId.map((entry) => entry.id), ['landing-1']);
@@ -32,12 +32,12 @@ test('the gallery and the landing examples are separate lists: the examples neve
   assert.deepEqual(videos.showcase.map((entry) => entry.id), ['gallery-1', 'gallery-2']);
 });
 
-test('an admin can save, validate and look up landing examples, and a tapped example resolves to its feature', async () => {
+test('an admin can save and validate the floating landing photos, which are never samples', async () => {
   const admin = await src('routes/admin.ts');
   assert.match(admin, /examples: z\.array\(video\)\.max\(MAX_LANDING_EXAMPLES\)\.default\(\[\]\)/);
   assert.match(admin, /\[\.\.\.body\.videos\.showcase, \.\.\.body\.videos\.examples\]\.filter\(\(item\) => item\.url && !item\.feature\)/);   // a feature is required for each
   assert.match(admin, /EXAMPLE_REUSES_GALLERY/);
   const marketing = await src('lib/marketing.ts');
-  assert.match(marketing, /\[\.\.\.settings\.videos\.showcase, \.\.\.settings\.videos\.examples\]\.find\(/);                       // taps resolve in both lists
+  assert.match(marketing, /return settings\.videos\.showcase\.find\(\(item\) => item\.id === id && item\.url && item\.feature\) \?\? null;/);   // the floating photos are decoration: never a sample
   assert.match(await src('routes/index.ts'), /videos: \{ showcase: \[\], examples: \[\] \}/);
 });
