@@ -25,7 +25,7 @@ const server = http.createServer((req, res) => {
 const FEATURES = ["website", "product-video", "interior", "scenario", "architecture", "photo", "video"];
 const marketing = { heading: "", description: "", videos: { showcase: FEATURES.map((feature, i) => ({ id: "m" + i, url: "/clip.mp4", kind: "video", posterUrl: null, feature, caption: null, eyebrow: null, overlayText: null })) } };
 
-async function open(browser, viewport) {
+async function open(browser, viewport, route = "/") {
   const page = await browser.newPage({ viewport });
   await page.route("**/api/**", (route) => {
     const url = route.request().url();
@@ -34,7 +34,7 @@ async function open(browser, viewport) {
   });
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto(`http://localhost:${server.address().port}/`, { waitUntil: "domcontentloaded" });
+  await page.goto(`http://localhost:${server.address().port}${route}`, { waitUntil: "domcontentloaded" });
   await page.locator(".hero-orbit-card").first().waitFor({ timeout: 20000 }).catch(() => {});
   await page.waitForTimeout(1500);
   return { page, errors };
@@ -87,6 +87,12 @@ async function open(browser, viewport) {
         reachable: slot.contains(document.elementFromPoint(a.x + a.width / 2, a.y + a.height / 2)),
         pills: Array.from(document.querySelectorAll("header [role=group][aria-label=Features] button")).map((n) => n.textContent.trim()),
         tabsInBox: document.querySelectorAll(".creator-composer [role=tab]").length,
+        boxTop: document.querySelector(".creator-composer").getBoundingClientRect().top,
+        backdrops: document.querySelectorAll(".space-backdrop").length,
+        backdropInHero: !!document.querySelector(".cinematic-hero > .space-backdrop"),
+        backdropBottom: document.querySelector(".space-backdrop").getBoundingClientRect().bottom + scrollY,
+        heroBottom: document.querySelector(".cinematic-hero").getBoundingClientRect().bottom + scrollY,
+        roadUnderBox: (() => { const box = document.querySelector(".creator-composer").getBoundingClientRect(); const bd = document.querySelector(".space-backdrop").getBoundingClientRect(); return bd.bottom - box.bottom; })(),
         nav: document.querySelector("header").innerText,
         h1: h1.innerText.replace(/\s+/g, " "), h1Lines: Math.round(h1.getBoundingClientRect().height / parseFloat(getComputedStyle(h1).lineHeight)),
         examplesVisible: Array.from(document.querySelectorAll(".hero-example-tile")).filter((n) => n.offsetParent).length,
@@ -97,7 +103,11 @@ async function open(browser, viewport) {
     });
     assert.ok(layout.sameRow && layout.reachable, "Generate sits in the settings row and is clickable");
     assert.deepEqual(layout.pills, ["Website", "AI Video", "Photos", "Product", "Talking", "Interior", "Architect"], "the features are in the navbar");
-    assert.equal(layout.tabsInBox, 0, "no feature tabs inside the landing box");
+    assert.equal(layout.tabsInBox, 7, "the box keeps its tab row, exactly as before");
+    assert.ok(layout.boxTop < 240, `the chat box stays up near the headline (top at ${Math.round(layout.boxTop)}px), it is the background that moves`);
+    assert.equal(layout.backdrops, 1); assert.ok(layout.backdropInHero, "the space picture lives inside the hero only");
+    assert.ok(Math.abs(layout.backdropBottom - layout.heroBottom) < 2, "and ends exactly where the hero ends (solid below)");
+    assert.ok(layout.roadUnderBox > 60 && layout.roadUnderBox < 320, `the glowing road sits just under the box (${Math.round(layout.roadUnderBox)}px of picture below it)`);
     assert.match(layout.nav, /Pricing/); assert.match(layout.nav, /Log in/); assert.match(layout.nav, /Start creating/);
     assert.equal(layout.h1, "Turn Anything Into a Video"); assert.equal(layout.h1Lines, 1, "the headline is one horizontal line");
     assert.equal(layout.badge, false, "the badge and the subtitle are gone");
@@ -107,6 +117,20 @@ async function open(browser, viewport) {
     console.log("ok  layout: features in the navbar, one-line headline, box, then examples, all on the first screen, Generate inline");
     assert.deepEqual(errors, [], "no page errors");
     await page.close();
+
+    // ---- every other page is solid: no space picture, an opaque page background
+    for (const route of ["/pricing", "/features", "/faq"]) {
+      const other = await open(browser, { width: 1672, height: 941 }, route);
+      const solid = await other.page.evaluate(() => {
+        const alphaOf = (color) => { const m = color.match(/rgba?\(([^)]+)\)/); if (!m) return 1; const parts = m[1].split(",").map((x) => parseFloat(x)); return parts.length === 4 ? parts[3] : 1; };
+        return { backdrops: document.querySelectorAll(".space-backdrop, .space-backdrop-photo").length, bodyAlpha: alphaOf(getComputedStyle(document.body).backgroundColor), fixedLayers: Array.from(document.querySelectorAll("body *")).filter((el) => getComputedStyle(el).position === "fixed" && el.getBoundingClientRect().width >= innerWidth - 2 && el.getBoundingClientRect().height >= innerHeight - 2 && !el.closest("[role=dialog]")).length };
+      });
+      assert.equal(solid.backdrops, 0, `${route} shows no space picture`);
+      assert.equal(solid.bodyAlpha, 1, `${route} has an opaque page background`);
+      assert.equal(solid.fixedLayers, 0, `${route} has no full-screen layer behind its content`);
+      await other.page.close();
+    }
+    console.log("ok  other pages (pricing, features, FAQ): no space picture behind them, opaque backgrounds");
 
     // ---- phone
     const phone = await open(browser, { width: 390, height: 844 });

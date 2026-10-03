@@ -48,8 +48,8 @@ import { clearPromptDraft, loadPromptDraft, savePromptDraft } from "@/lib/prompt
 import { useAutoGrow } from "@/lib/useAutoGrow";
 import { looksLikeLink, withScheme } from "@/lib/linkStatus";
 import { LinkStatus } from "./LinkStatus";
-import { CREATION_FEATURES, featureById } from "@/lib/creationFeatures";
-import { CREATION_INTENT_EVENT, publishCreationMode, requestOpenFeatureMenu } from "@/lib/creationMode";
+import { CREATION_FEATURES } from "@/lib/creationFeatures";
+import { CREATION_INTENT_EVENT, publishCreationMode } from "@/lib/creationMode";
 import { ScrollRow } from "@/components/ui/scroll-row";
 import { NumberStepper } from "@/components/ui/number-stepper";
 import { ToggleRow } from "@/components/ui/toggle-row";
@@ -1023,69 +1023,41 @@ export function WebsiteBriefForm({
       )}
 
       <div className={`relative border-b border-white/[.08] ${compactLayout ? "p-2" : "p-2.5 sm:p-3"}`}>
-        {landingWebsitePreview ? (
-          // On the landing page the features live in the navbar. The box just says which one is open, lets the
-          // person change it, and shows when an example is attached.
-          <div className="flex items-center gap-2.5 px-1 py-0.5">
-            {(() => {
-              const feature = featureById(activeMode);
-              const FeatureIcon = feature.icon;
-              return (
-                <>
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-violet to-blue-500 text-white shadow-[0_8px_22px_-12px_rgba(99,102,241,.95)]">
-                    <FeatureIcon size={17} />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13px] font-bold leading-tight text-white">{feature.label}</p>
-                    <p className="truncate text-[11px] leading-tight text-white/50">{feature.description}</p>
-                  </div>
-                </>
-              );
-            })()}
-            {selectedSample && (
-              <button
-                type="button"
-                onClick={() => setSelectedSample(null)}
-                aria-label="Remove the attached example"
-                className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full border border-mint/40 bg-mint/10 px-3 text-[11px] font-semibold text-mint transition hover:bg-mint/20"
-              >
-                Example attached <X size={12} />
-              </button>
-            )}
+        {/* The feature tabs sit at the top of the box, exactly as before (the navbar offers the same features). */}
+        <ScrollRow drag className="gap-1 pb-0.5 max-sm:grid max-sm:grid-cols-4 max-sm:gap-1.5 max-sm:overflow-visible" role="tablist" ariaLabel="Creation mode" activeKey={activeMode}>
+          {CREATION_MODES.map(({ id, label, short, icon: Icon }) => (
             <button
+              key={id}
               type="button"
-              onClick={requestOpenFeatureMenu}
-              className="inline-flex min-h-9 shrink-0 items-center rounded-full border border-white/15 bg-white/[.06] px-3 text-[11px] font-semibold text-white transition hover:bg-white/10 xl:hidden"
+              role="tab"
+              aria-selected={activeMode === id}
+              onClick={() => applyIntent(id, true)}
+              className={`flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl px-3 text-[10px] font-semibold transition max-sm:min-h-[60px] max-sm:flex-col max-sm:gap-1 max-sm:px-1 max-sm:text-[10.5px] sm:px-4 sm:text-[11px] ${
+                activeMode === id
+                  ? "bg-mint text-[#10231f] shadow-[0_10px_26px_-18px_rgba(114,255,222,.9)]"
+                  : "text-text-muted hover:bg-mint/[.08] hover:text-white"
+              }`}
             >
-              Change
+              <Icon size={14} className="max-sm:h-[19px] max-sm:w-[19px]" />
+              <span className="hidden md:inline">{label}</span>
+              <span className="md:hidden">{short}</span>
             </button>
-          </div>
-        ) : (
-          // Phones show all seven features at once as a grid (no hidden swipe); wider screens keep the slider.
-          <ScrollRow drag className="gap-1 pb-0.5 max-sm:grid max-sm:grid-cols-4 max-sm:gap-1.5 max-sm:overflow-visible" role="tablist" ariaLabel="Creation mode" activeKey={activeMode}>
-            {CREATION_MODES.map(({ id, label, short, icon: Icon }) => (
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                aria-selected={activeMode === id}
-                onClick={() => applyIntent(id, true)}
-                className={`flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl px-3 text-[10px] font-semibold transition max-sm:min-h-[60px] max-sm:flex-col max-sm:gap-1 max-sm:px-1 max-sm:text-[10.5px] sm:px-4 sm:text-[11px] ${
-                  activeMode === id
-                    ? "bg-mint text-[#10231f] shadow-[0_10px_26px_-18px_rgba(114,255,222,.9)]"
-                    : "text-text-muted hover:bg-mint/[.08] hover:text-white"
-                }`}
-              >
-                <Icon size={14} className="max-sm:h-[19px] max-sm:w-[19px]" />
-                <span className="hidden md:inline">{label}</span>
-                <span className="md:hidden">{short}</span>
-              </button>
-            ))}
-          </ScrollRow>
-        )}
+          ))}
+        </ScrollRow>
       </div>
 
       <div className={`relative ${compactLayout ? "p-3 sm:p-4" : "p-4 sm:p-5"}`}>
+        {landingWebsitePreview && selectedSample && (
+          // The landing page hides the examples strip, so say clearly when an example from the row below is attached.
+          <button
+            type="button"
+            onClick={() => setSelectedSample(null)}
+            aria-label="Remove the attached example"
+            className="mb-3 inline-flex min-h-9 items-center gap-1.5 rounded-full border border-mint/40 bg-mint/10 px-3 text-[11px] font-semibold text-mint transition hover:bg-mint/20"
+          >
+            Example attached <X size={12} />
+          </button>
+        )}
         {isProductMode && (
           <div className="mb-3 rounded-2xl border border-white/[.08] bg-white/[.025] p-3.5">
             <p className="text-xs font-semibold text-white">Product link <span className="font-normal text-white/45">· optional</span></p>

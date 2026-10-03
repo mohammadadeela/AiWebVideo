@@ -16,11 +16,13 @@ body {
 }
 
 /* ------------------------------------------------------------------ backdrop */
+/* The picture fills the hero ONLY, anchored at the bottom: the glowing road sits just under the chat box. Every other
+   page and every section below the hero is solid. */
 .space-backdrop {
   pointer-events: none;
-  position: fixed;
+  position: absolute;
   inset: 0;
-  z-index: -1;
+  z-index: 0;
   overflow: hidden;
   background: #04030a;
 }
@@ -32,8 +34,8 @@ body {
   height: 100%;
   object-fit: cover;
   object-position: 50% 100%;
-  transform-origin: 50% 84%;
-  /* a slow push toward the horizon: the picture itself drifts forward */
+  transform-origin: 50% 88%;
+  /* a slow push toward the road: the picture itself drifts forward */
   animation: space-dolly 48s ease-in-out infinite alternate;
   will-change: transform;
 }
@@ -57,37 +59,22 @@ body {
   mix-blend-mode: screen;
 }
 
-/* keeps text readable: darker at the top and edges, the horizon glow stays bright */
+/* keeps the headline readable (darker at the top and edges); the road stays bright */
 .space-backdrop-veil {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 85% 70% at 50% 62%, transparent 38%, rgba(2, 1, 8, .55) 100%),
-    linear-gradient(180deg, rgba(4, 3, 10, .52) 0%, rgba(4, 3, 10, .08) 34%, rgba(4, 3, 10, 0) 70%, rgba(4, 3, 10, .38) 100%);
-}
-
-/* every page except the landing page: calmer, so content stays easy to read */
-.space-backdrop-quiet .space-backdrop-image { opacity: .8; animation-duration: 80s; }
-.space-backdrop-quiet .space-backdrop-warp { opacity: .7; }
-.space-backdrop-quiet .space-backdrop-veil {
-  background:
-    radial-gradient(ellipse 90% 80% at 50% 70%, rgba(4, 3, 10, .12), rgba(2, 1, 8, .62) 100%),
-    linear-gradient(180deg, rgba(4, 3, 10, .50), rgba(4, 3, 10, .22));
-}
-
-/* Pages whose root is a solid dark colour let the space show through, softly, so the whole product feels like one
-   place. Form controls and buttons keep their own solid colours so nothing becomes hard to read. */
-.cinematic-site .bg-bg:not(input):not(select):not(textarea):not(button):not(option) {
-  background-color: rgba(7, 5, 18, .62);
+    radial-gradient(ellipse 85% 75% at 50% 70%, transparent 40%, rgba(2, 1, 8, .5) 100%),
+    linear-gradient(180deg, rgba(4, 3, 10, .55) 0%, rgba(4, 3, 10, .1) 38%, rgba(4, 3, 10, 0) 75%);
 }
 
 @keyframes space-dolly {
   from { transform: scale(1); }
-  to { transform: scale(1.1); }
+  to { transform: scale(1.06); }
 }
 
 /* ---------------------------------------------------------------------- hero */
-.cinematic-hero { position: relative; }
+.cinematic-hero { position: relative; isolation: isolate; overflow: hidden; }
 
 /* ONE horizontal line from tablet size up; phones may wrap onto two lines so it stays large and readable */
 .cinematic-title {
@@ -111,13 +98,14 @@ body {
   content: "";
   position: absolute;
   inset: 0 0 55% 0;
+  z-index: 1;
   pointer-events: none;
   background: radial-gradient(ellipse 55% 70% at 50% 30%, rgba(3, 2, 10, .6), rgba(3, 2, 10, .16) 62%, transparent 82%);
 }
 
 /* The layout: on wide screens three columns, the middle one holds everything that matters (headline, creator,
    examples) and the floating cards live ONLY in the side columns, so they can never cover anything. */
-.hero-grid { display: block; }
+.hero-grid { position: relative; z-index: 2; display: block; }
 .hero-side { display: none; }
 @media (min-width: 1366px) {
   .hero-grid {
@@ -139,8 +127,14 @@ body {
 /* ------------------------------------------------------------- the composer */
 .hero-creator-shell { isolation: isolate; }
 
-:is(.hero-creator-shell, .cinematic-page) .creator-composer {
-  background: linear-gradient(180deg, rgba(14, 11, 36, .78), rgba(8, 6, 22, .86)) !important;
+/* In the hero the box is glass over the space picture; everywhere else it is a SOLID panel. */
+.cinematic-page .creator-composer {
+  background: linear-gradient(180deg, #100c2a, #0a0720) !important;
+  border-color: rgba(168, 139, 255, .32) !important;
+}
+
+.hero-creator-shell .creator-composer {
+  background: linear-gradient(180deg, rgba(14, 11, 36, .8), rgba(8, 6, 22, .88)) !important;
   border-color: rgba(168, 139, 255, .38) !important;
   backdrop-filter: blur(22px) saturate(1.2);
   box-shadow:
@@ -282,23 +276,7 @@ body {
 @media (min-width: 1700px) { .hero-example-tile:nth-child(8) { display: block; } }
 
 /* ------------------------------------------------------- the other pages */
-.cinematic-site main > section:not(.cinematic-hero) {
-  background-color: rgba(7, 5, 17, .42);
-  backdrop-filter: blur(3px);
-}
-
-.cinematic-site main [class*="bg-panel"] {
-  backdrop-filter: blur(18px);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05), 0 20px 60px -34px rgba(76, 29, 149, .7);
-}
-
-.cinematic-site .hero-mesh {
-  background-image:
-    radial-gradient(circle at 50% 4%, rgba(139, 92, 246, .22), transparent 38%),
-    radial-gradient(circle at 12% 35%, rgba(56, 189, 248, .08), transparent 26%),
-    radial-gradient(circle at 88% 34%, rgba(236, 72, 153, .08), transparent 28%) !important;
-  background-size: 100% 100% !important;
-}
+/* Nothing outside the hero is see-through: pages, sections and cards keep their own solid colours. */
 
 .cinematic-nav-pill { position: relative; overflow: hidden; }
 .cinematic-nav-pill::after {

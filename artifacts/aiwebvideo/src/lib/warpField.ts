@@ -78,7 +78,7 @@ export class WarpField {
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
-    private readonly options: { count: number; speed: number; reducedMotion: boolean; rand?: Random },
+    private readonly options: { count: number; speed: number; reducedMotion: boolean; rand?: Random; /** vertical position of the vanishing point (the road), 0 = top, 1 = bottom */ centerY?: number },
   ) {
     this.ctx = canvas.getContext('2d');
     this.stars = createField(options.count, options.rand ?? Math.random);
@@ -103,7 +103,7 @@ export class WarpField {
     const rand = this.options.rand ?? Math.random;
     this.stars = this.stars.map((current) => {
       const moved = seconds > 0 ? advanceStar(current, seconds, this.options.speed, rand) : { star: current, previousZ: current.z };
-      const segment = starSegment(moved.star, moved.previousZ, this.width, this.height);
+      const segment = starSegment(moved.star, moved.previousZ, this.width, this.height, 0.5, this.options.centerY ?? 0.84);
       if (segment.offscreen) return createStar(rand, 1);
       const [r, g, b] = STAR_COLORS[moved.star.hue];
       ctx.strokeStyle = `rgba(${r},${g},${b},${segment.alpha})`;

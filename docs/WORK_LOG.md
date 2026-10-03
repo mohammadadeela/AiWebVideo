@@ -128,3 +128,9 @@ Report: after the site was opened in the Google app and revisited, phone users c
 - Floating cards: seven (Website, Interior, Architecture, Product Photos | Product Video, Talking Scene, AI Video) in their OWN side columns from 1366 px up, so they cannot cover the headline, box or examples (checked by a test); a feature with no uploaded media shows the "Your campaign belongs here." placeholder; shorter screens show fewer.
 - Tapping an example opens its feature with the example attached ("Example attached" chip), without signing in.
 - Admin > Homepage text and the "Show on the hero" control cover all seven features.
+
+## 2026-10-06 (later) — Tab row back in the box; space only in the hero; everything else solid
+- The landing chat box looks exactly as before again: the seven feature tabs sit at the top of the box (the navbar keeps the same features and the two stay in step). The box is where it was (it is not pushed down).
+- The space picture now belongs to the hero only: it fills the hero and is anchored at the bottom, so the glowing road sits just under the chat box and the examples row stands on it. The star streaks radiate from that road. It is no longer a fixed full-screen layer, and the "quiet" version behind other pages was removed.
+- Nothing outside the hero is see-through: removed the translucent page/section/panel rules, the chat box is glass only in the hero and a solid panel elsewhere (workspace, profile, admin), and the home page's feature cards use an opaque fill.
+- Tests: contract tests for hero-only backdrop and the solid rules; Playwright landing check also asserts the box stays near the headline, the road sits under the box, and /pricing, /features and /faq have no space picture and an opaque background.

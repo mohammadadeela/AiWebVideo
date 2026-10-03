@@ -45,19 +45,27 @@ test('a star that leaves the screen is reborn far away, and nothing ever becomes
   assert.equal(createField(150, seeded()).length, 150);
 });
 
-test('the backdrop is wired in, calmer off the landing page, still for reduced motion, and never takes a click', async () => {
+test('the space backdrop belongs to the hero only, is still for reduced motion and never takes a click; nothing else is see-through', async () => {
   const app = await fe('App.tsx');
-  assert.match(app, /<SpaceBackdrop quiet=\{location !== '\/'\} \/>/);
+  assert.doesNotMatch(app, /SpaceBackdrop/);                                          // not in the app shell: other pages never show it
+  const hero = await fe('components/landing/Hero.tsx');
+  assert.match(hero, /<section id="generate" className="cinematic-hero relative scroll-mt-20">\s*<SpaceBackdrop \/>/);
   const backdrop = await fe('components/landing/SpaceBackdrop.tsx');
+  assert.doesNotMatch(backdrop, /quiet/);
   assert.match(backdrop, /prefers-reduced-motion: reduce/);
-  assert.match(backdrop, /document\.addEventListener\("visibilitychange"/);        // paused when the tab is hidden
-  assert.match(backdrop, /muted\s+loop\s+playsInline/);
+  assert.match(backdrop, /document\.addEventListener\("visibilitychange"/);          // paused when the tab is hidden
+  assert.match(backdrop, /muted loop playsInline/);
   const css = await fe('cinematic-theme.css');
-  assert.match(css, /\.space-backdrop \{[^}]*pointer-events: none;/);
-  assert.match(css, /\.space-backdrop-quiet \.space-backdrop-image/);
+  assert.match(css, /\.space-backdrop \{\s*pointer-events: none;\s*position: absolute;\s*inset: 0;/);
+  assert.doesNotMatch(css, /\.space-backdrop[^{]*\{[^}]*position: fixed/);
+  assert.match(css, /\.cinematic-hero \{ position: relative; isolation: isolate; overflow: hidden; \}/);
   assert.match(css, /prefers-reduced-motion: reduce\) \{\s*\.space-backdrop-image/);
-  assert.match(css, /\.hero-side \{ display: none; \}/);                          // the side cards are hidden below 1366px
-  assert.match(css, /@media \(min-width: 1366px\) \{\s*\.hero-grid \{\s*display: grid;/);
+  // everything outside the hero is solid: none of the see-through rules may come back
+  assert.doesNotMatch(css, /space-backdrop-quiet/);
+  assert.doesNotMatch(css, /\.bg-bg:not\(/);
+  assert.doesNotMatch(css, /main > section:not\(\.cinematic-hero\)/);
+  assert.doesNotMatch(css, /\[class\*="bg-panel"\]/);
+  assert.match(css, /\.cinematic-page \.creator-composer \{\s*background: linear-gradient\(180deg, #100c2a, #0a0720\) !important;/);   // solid outside the hero
 });
 
 test('the background photo is a web-sized file, not the 2.7 MB original', async () => {
@@ -89,7 +97,8 @@ test('the hero fits one screen: a single-line headline, the creator, then exampl
   assert.match(css, /@media \(min-width: 640px\) \{ \.cinematic-title \{ white-space: nowrap; \} \}/);   // horizontal from tablet up
   const form = await fe('components/chat/WebsiteBriefForm.tsx');
   assert.match(form, /<div className="generation-submit-slot">\{submitButton\("w-full"\)\}<\/div>/);
-  assert.match(form, /\{landingWebsitePreview \? \(/);                                   // no tab row inside the landing box
+  assert.match(form, /The feature tabs sit at the top of the box, exactly as before/);   // the box keeps its tab row
+  assert.match(form, /role="tablist" ariaLabel="Creation mode"/);
   const nav = await fe('components/landing/Nav.tsx');
   assert.doesNotMatch(nav, /How it works|Examples/);
   assert.match(nav, /<FeaturePills onPick=\{pickFeature\} \/>/);

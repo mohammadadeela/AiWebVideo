@@ -4,11 +4,12 @@ import { WarpField } from "@/lib/warpField";
 export interface BackdropMedia { url: string; kind: "image" | "video"; posterUrl?: string | null }
 
 /**
- * The site's space backdrop: a real space photograph with star streaks flying outward from the horizon, so the
- * visitor feels they are moving forward. It sits behind everything, never takes a click, and is quieter on every
- * page except the landing page so content stays easy to read. Reduced-motion visitors get the still picture.
+ * The space picture behind the landing page's first screen, with star streaks flying out of the glowing road so the
+ * visitor feels they are moving forward. It fills ITS PARENT (the hero), anchored at the bottom so the road sits just
+ * under the chat box, and it never takes a click. Nothing else on the site shows it: every other page and section is
+ * solid. Reduced-motion visitors get the still picture.
  */
-export function SpaceBackdrop({ quiet = false, media = null }: { quiet?: boolean; media?: BackdropMedia | null }) {
+export function SpaceBackdrop({ media = null }: { media?: BackdropMedia | null }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -16,7 +17,7 @@ export function SpaceBackdrop({ quiet = false, media = null }: { quiet?: boolean
     if (!canvas) return;
     const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
     const phone = window.matchMedia?.("(max-width: 639px)").matches ?? false;
-    const field = new WarpField(canvas, { count: phone ? 70 : quiet ? 90 : 150, speed: quiet ? 0.07 : 0.11, reducedMotion });
+    const field = new WarpField(canvas, { count: phone ? 70 : 150, speed: 0.11, reducedMotion, centerY: 0.8 });
     field.resize();
     field.start();
     const onResize = () => field.resize();
@@ -28,23 +29,12 @@ export function SpaceBackdrop({ quiet = false, media = null }: { quiet?: boolean
       window.removeEventListener("resize", onResize);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [quiet]);
+  }, []);
 
   return (
-    <div className={`space-backdrop ${quiet ? "space-backdrop-quiet" : ""}`} aria-hidden="true">
+    <div className="space-backdrop" aria-hidden="true">
       {media?.kind === "video" ? (
-        <video
-          className="space-backdrop-image"
-          src={media.url}
-          poster={media.posterUrl ?? undefined}
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="auto"
-          disablePictureInPicture
-          tabIndex={-1}
-        />
+        <video className="space-backdrop-image" src={media.url} poster={media.posterUrl ?? undefined} autoPlay muted loop playsInline preload="auto" disablePictureInPicture tabIndex={-1} />
       ) : (
         <div className="space-backdrop-image space-backdrop-photo" style={media ? { backgroundImage: `url("${media.url}")` } : undefined} />
       )}

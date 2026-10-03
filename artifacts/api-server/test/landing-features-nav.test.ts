@@ -59,7 +59,6 @@ test('the navbar menu switches the chat box on the home page and takes you there
   assert.match(menu, /OPEN_FEATURE_MENU_EVENT/);
   const form = await fe('components/chat/WebsiteBriefForm.tsx');
   assert.match(form, /useEffect\(\(\) => \{ publishCreationMode\(activeMode\); \}, \[activeMode\]\);/);
-  assert.match(form, /onClick=\{requestOpenFeatureMenu\}/);                                  // the box's own "Change" button
 });
 
 test('floating cards: seven, in their own side columns, placeholders when empty, decorative only', async () => {

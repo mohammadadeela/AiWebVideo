@@ -1,5 +1,6 @@
 import { ChatWidget } from "@/components/chat/ChatWidget";
 import { HeroExamples } from "./HeroExamples";
+import { SpaceBackdrop } from "./SpaceBackdrop";
 import { HeroSideCards } from "./HeroMediaOrbit";
 
 /**
@@ -9,7 +10,8 @@ import { HeroSideCards } from "./HeroMediaOrbit";
 export function Hero() {
   return (
     <section id="generate" className="cinematic-hero relative scroll-mt-20">
-      <div className="hero-grid mx-auto w-full max-w-[1900px] px-3 pb-8 pt-4 sm:px-6 lg:px-8">
+      <SpaceBackdrop />
+      <div className="hero-grid mx-auto w-full max-w-[1900px] px-3 pb-3 pt-4 sm:px-6 lg:px-8">
         <HeroSideCards side="left" />
 
         <div className="hero-center relative z-20 mx-auto w-full min-w-0 max-w-[1060px]">

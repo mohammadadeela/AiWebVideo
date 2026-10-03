@@ -185,7 +185,7 @@ export function HomePage() {
                   key={intent}
                   type="button"
                   onClick={() => openCreationIntent(intent)}
-                  className="group flex min-h-[220px] flex-col rounded-[26px] border border-white/[.08] bg-white/[.025] p-5 text-left transition duration-300 hover:-translate-y-1 hover:border-white/[.16] hover:bg-white/[.04]"
+                  className="group flex min-h-[220px] flex-col rounded-[26px] border border-white/[.08] bg-[#0b0919] p-5 text-left transition duration-300 hover:-translate-y-1 hover:border-white/[.16] hover:bg-white/[.04]"
                 >
                   <span className={`flex h-10 w-10 items-center justify-center rounded-xl border border-white/[.08] bg-black/20 ${accent}`}><Icon size={18} /></span>
                   <p className={`mt-auto pt-8 font-utility text-[8px] uppercase tracking-[.16em] ${accent}`}>{label}</p>
