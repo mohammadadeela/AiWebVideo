@@ -1,66 +1,61 @@
 import { useMemo } from "react";
-import { Box, Building2, Globe2, House, MessageCircle, type LucideIcon } from "lucide-react";
+import { Box, Building2, Film, Globe2, House, Image as ImageIcon, MessageCircle, type LucideIcon } from "lucide-react";
 import type { ShowcaseFeature } from "@/lib/api-client";
 import { useGalleryItems, type GalleryItem } from "@/lib/showcase";
 import { resolveVideoEmbed } from "@/lib/videoEmbed";
 import { AutoplayVideo } from "./AutoplayVideo";
 
 /**
- * Floating cards around the creator. They show what the admin uploaded for each feature (Admin > Homepage), so
- * there is nothing separate to manage: the first published item of a feature becomes that feature's card.
- * They are decorative: they never take a click, never show controls, and a video here is muted and loops
- * silently with no play button and no media icon.
+ * Floating cards in the margins either side of the creator. Each shows what the admin uploaded for that feature
+ * (Admin > Homepage); a feature with nothing uploaded yet shows the "Your campaign belongs here." placeholder, so
+ * the page is always full. They sit in their own columns, so they never cover the headline, the chat box or the
+ * examples. They are decorative: no clicks, no controls, no play button or media icon, and videos loop silently.
  */
-const SLOTS: Array<{ feature: ShowcaseFeature; slot: "a" | "b" | "c" | "d" | "e"; title: string; sub: string; Icon: LucideIcon }> = [
-  { feature: "website", slot: "a", title: "Website to Video", sub: "Turn any website into a stunning video", Icon: Globe2 },
-  { feature: "product-video", slot: "b", title: "Product Video", sub: "Showcase products with AI", Icon: Box },
-  { feature: "interior", slot: "c", title: "Interior Design", sub: "Visualize spaces with AI", Icon: House },
-  { feature: "scenario", slot: "d", title: "Talking Scene", sub: "Bring ideas to life with AI", Icon: MessageCircle },
-  { feature: "architecture", slot: "e", title: "Architecture", sub: "Turn designs into cinematic videos", Icon: Building2 },
+interface Slot { feature: ShowcaseFeature; side: "left" | "right"; title: string; sub: string; Icon: LucideIcon }
+
+const SLOTS: readonly Slot[] = [
+  { feature: "website", side: "left", title: "Website to Video", sub: "Turn any website into a stunning video", Icon: Globe2 },
+  { feature: "interior", side: "left", title: "Interior Design", sub: "Visualize spaces with AI", Icon: House },
+  { feature: "architecture", side: "left", title: "Architecture", sub: "Turn designs into cinematic videos", Icon: Building2 },
+  { feature: "photo", side: "left", title: "Product Photos", sub: "Studio images from one photo", Icon: ImageIcon },
+  { feature: "product-video", side: "right", title: "Product Video", sub: "Showcase products with AI", Icon: Box },
+  { feature: "scenario", side: "right", title: "Talking Scene", sub: "Bring ideas to life with AI", Icon: MessageCircle },
+  { feature: "video", side: "right", title: "AI Video", sub: "Cinematic clips from a prompt", Icon: Film },
 ];
 
-/** The first published item for each feature, in card order. A feature without media simply has no card. */
-export function pickOrbitItems(items: GalleryItem[]) {
-  return SLOTS.flatMap((slot) => {
-    const item = items.find((candidate) => candidate.feature === slot.feature && Boolean(candidate.url));
-    return item ? [{ ...slot, item }] : [];
-  });
+/** Every slot with the first published item of its feature, or null (which shows the placeholder). */
+export function orbitCards(items: readonly GalleryItem[]) {
+  return SLOTS.map((slot) => ({ ...slot, item: items.find((candidate) => candidate.feature === slot.feature && Boolean(candidate.url)) ?? null }));
 }
 
 function Media({ item, eager }: { item: GalleryItem; eager: boolean }) {
-  if (item.kind === "image") {
-    return <img src={item.url} alt="" loading={eager ? "eager" : "lazy"} decoding="async" className="h-full w-full object-cover" />;
-  }
+  if (item.kind === "image") return <img src={item.url} alt="" loading={eager ? "eager" : "lazy"} decoding="async" className="h-full w-full object-cover" />;
   const embed = resolveVideoEmbed(item.url);
   if (embed.kind === "file") {
-    return (
-      <AutoplayVideo
-        src={embed.src}
-        poster={item.posterUrl}
-        eager={eager}
-        showBlockedControl={false}
-        respectReducedMotion
-        className="h-full w-full"
-      />
-    );
+    return <AutoplayVideo src={embed.src} poster={item.posterUrl} eager={eager} showBlockedControl={false} respectReducedMotion className="h-full w-full" />;
   }
   // An external embed cannot play silently without controls: show its still picture, never a player.
   if (item.posterUrl) return <img src={item.posterUrl} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />;
-  return <div className="h-full w-full bg-[radial-gradient(circle_at_35%_25%,rgba(139,92,246,.42),transparent_42%),linear-gradient(145deg,#17102f,#070510)]" />;
+  return <Placeholder />;
 }
 
-export function HeroMediaOrbit() {
-  const { items } = useGalleryItems();
-  const cards = useMemo(() => pickOrbitItems(items), [items]);
-  if (!cards.length) return null;
-
+/** The "Your campaign belongs here." screen shown until an admin uploads media for the feature. */
+function Placeholder() {
   return (
-    <div className="hero-media-orbit pointer-events-none absolute inset-0 z-10" aria-hidden="true">
-      {cards.map(({ slot, item, title, sub, Icon }, index) => (
-        <div key={slot} className={`hero-orbit-card hero-orbit-card-${slot}`}>
-          <div className="hero-orbit-media">
-            <Media item={item} eager={index < 2} />
-          </div>
+    <div className="hero-orbit-placeholder">
+      <div className="hero-orbit-placeholder-screen"><span>Your campaign belongs here.</span></div>
+    </div>
+  );
+}
+
+export function HeroSideCards({ side }: { side: "left" | "right" }) {
+  const { items } = useGalleryItems();
+  const cards = useMemo(() => orbitCards(items).filter((card) => card.side === side), [items, side]);
+  return (
+    <div className={`hero-side hero-side-${side} pointer-events-none`} aria-hidden="true">
+      {cards.map(({ feature, item, title, sub, Icon }, index) => (
+        <div key={feature} className={`hero-orbit-card hero-orbit-card-${side}-${index}`}>
+          <div className="hero-orbit-media">{item ? <Media item={item} eager={index < 2} /> : <Placeholder />}</div>
           <div className="hero-orbit-caption">
             <span className="hero-orbit-caption-icon"><Icon size={15} /></span>
             <span>

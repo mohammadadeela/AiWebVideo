@@ -1321,19 +1321,8 @@ export function ChatWidget({
     void finalizeLandingPreviewToWorkspace();
   }
 
-  function handlePublicIntentRequest(intent: CreationIntent) {
-    if (!isPublicCreatorPath() || intent === "website") return true;
-    const destination = `/dashboard?create=${encodeURIComponent(intent)}`;
-    if (isSignedIn) {
-      window.location.assign(destination);
-      return false;
-    }
-    pendingActionRef.current = () => {
-      window.location.assign(destination);
-    };
-    setShowAuthModal(true);
-    return false;
-  }
+  // Choosing a feature never needs an account: anyone can open any feature and look around. Signing in or up happens
+  // when they press Generate (handleStudioSubmit / handleWebsiteSubmit save the request and resume it afterwards).
 
   /** Saves the creator request (and its photos) so it can resume after signing in, even across a reload. */
   async function saveStudioHandoff(request: StudioGenerationRequest) {
@@ -2687,7 +2676,6 @@ Promotion direction: ${visibleBrief(brief)}` : normalized);
                 disabled={busy}
                 showCreditPricing={!isPublicCreatorPath()}
                 landingWebsitePreview={isPublicCreatorPath()}
-                onIntentRequest={handlePublicIntentRequest}
                 recentFilesOwner={isSignedIn ? accountEmail : null}
                 compactLayout={streamlinedInitialComposer}
               />

@@ -23,7 +23,7 @@ type Row = Record<string, unknown>;
 type MetricCard = [label: string, value: string, icon: ComponentType<LucideProps>, hint: string];
 const LANDING_VIDEO_LIMIT = 280;
 /** Features that have a floating card on the landing hero (same list as HeroMediaOrbit). */
-const HERO_FEATURES: string[] = ['website', 'product-video', 'interior', 'scenario', 'architecture'];
+const HERO_FEATURES: string[] = ['website', 'product-video', 'interior', 'scenario', 'architecture', 'photo', 'video'];
 const tabs: Array<{ id: Tab; label: string; icon: typeof LayoutDashboard }> = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'reports', label: 'Reports', icon: BarChart3 },
@@ -595,7 +595,7 @@ export function AdminPage() {
         return <section className="mt-6 space-y-4">
           <div className="rounded-2xl border border-violet/20 bg-[linear-gradient(135deg,rgba(139,92,246,.10),rgba(34,211,238,.05),rgba(236,72,153,.07))] p-4">
             <p className="text-sm font-semibold text-white">Landing page media</p>
-            <p className="mt-1 text-xs leading-5 text-text-muted">Everything here powers the homepage gallery. Each feature's first item also floats around the hero as that feature's card (Website, Product video, Interior, Talking scene, Architecture); phones and tablets hide those cards. Use “Show on the hero” to choose which item a card shows, then Save. Uploaded videos loop silently with no play button.</p>
+            <p className="mt-1 text-xs leading-5 text-text-muted">Everything here powers the homepage gallery. Each feature's first item also floats beside the chat box as that feature's card on wide screens (a feature with nothing uploaded shows a placeholder), and one item per feature appears in the example row right under the chat box, which visitors tap to make one like it. Use “Show on the hero” to choose which item a feature's card shows, then Save. Uploaded videos loop silently with no play button.</p>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-text-muted"><span className="font-semibold text-text-primary">{items.length}</span> of {LANDING_VIDEO_LIMIT} items{unassigned.length > 0 && <span className="ml-2 font-semibold text-amber-200">· {unassigned.length} need a feature</span>}</p>

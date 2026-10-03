@@ -1,37 +1,30 @@
-import { Sparkles } from "lucide-react";
 import { ChatWidget } from "@/components/chat/ChatWidget";
-import { HeroMediaOrbit } from "./HeroMediaOrbit";
+import { HeroExamples } from "./HeroExamples";
+import { HeroSideCards } from "./HeroMediaOrbit";
 
 /**
- * The first screen: a headline, then the creator (feature modes live INSIDE it) as the centrepiece, with the
- * admin's media floating around it over the space backdrop (see SpaceBackdrop).
+ * The first screen, built so everything fits without scrolling: one horizontal headline, the creator (the features
+ * are in the navbar), and a row of examples to remake. On wide screens floating cards fill the side margins.
  */
 export function Hero() {
   return (
-    <section id="generate" className="cinematic-hero relative scroll-mt-20 overflow-hidden">
-      <HeroMediaOrbit />
+    <section id="generate" className="cinematic-hero relative scroll-mt-20">
+      <div className="hero-grid mx-auto w-full max-w-[1900px] px-3 pb-8 pt-4 sm:px-6 lg:px-8">
+        <HeroSideCards side="left" />
 
-      <div className="relative z-20 mx-auto flex max-w-[1500px] flex-col px-4 pb-14 pt-24 sm:px-6 lg:px-8 lg:pt-[5.25rem]">
-        <div className="relative mx-auto max-w-5xl text-center">
-          <div className="hero-title-ring" aria-hidden="true" />
-          <div className="cinematic-kicker relative mx-auto inline-flex items-center gap-2 rounded-full border border-violet/40 bg-[#0d0920]/60 px-4 py-2 font-utility text-[9px] uppercase tracking-[.2em] text-white/80">
-            <Sparkles size={13} className="text-violet" />
-            Powered by advanced AI
-          </div>
-
-          <h1 className="cinematic-title relative mx-auto mt-5 max-w-5xl font-display text-[clamp(2.9rem,6.6vw,6.2rem)] font-black leading-[.9] tracking-[-.06em] text-white">
-            Turn Anything
-            <span className="cinematic-title-gradient block">Into a Video</span>
+        <div className="hero-center relative z-20 mx-auto w-full min-w-0 max-w-[1060px]">
+          <h1 className="cinematic-title text-center font-display font-black tracking-[-.045em] text-white">
+            Turn Anything <span className="cinematic-title-gradient">Into a Video</span>
           </h1>
 
-          <p className="relative mx-auto mt-5 max-w-2xl text-sm leading-7 text-white/72 sm:text-base md:text-lg">
-            Transform websites, products, ideas and more into stunning AI videos in seconds.
-          </p>
+          <div className="hero-creator-shell relative mt-4 w-full sm:mt-5">
+            <ChatWidget compactLanding className="relative w-full" />
+          </div>
+
+          <HeroExamples />
         </div>
 
-        <div className="hero-creator-shell relative mx-auto mt-8 w-full max-w-[1060px] sm:mt-9">
-          <ChatWidget compactLanding className="relative w-full" />
-        </div>
+        <HeroSideCards side="right" />
       </div>
     </section>
   );

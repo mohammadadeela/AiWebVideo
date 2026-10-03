@@ -46,19 +46,28 @@ async function open(browser, viewport) {
   try {
     // ---- desktop
     const { page, errors } = await open(browser, { width: 1672, height: 941 });
-    const orbit = await page.evaluate(() => {
-      const root = document.querySelector(".hero-media-orbit");
-      const videos = Array.from(root.querySelectorAll("video"));
+    const cards = await page.evaluate(() => {
+      const sides = Array.from(document.querySelectorAll(".hero-side"));
+      const videos = sides.flatMap((side) => Array.from(side.querySelectorAll("video")));
       return {
-        titles: Array.from(root.querySelectorAll(".hero-orbit-caption-title")).map((n) => n.textContent),
+        titles: sides.flatMap((side) => Array.from(side.querySelectorAll(".hero-orbit-caption-title")).map((n) => n.textContent)),
         videos: videos.length, loop: videos.every((v) => v.loop), muted: videos.every((v) => v.muted), controls: videos.some((v) => v.controls),
-        ariaHidden: root.getAttribute("aria-hidden"), pointer: getComputedStyle(root).pointerEvents, buttons: root.querySelectorAll("button").length,
+        ariaHidden: sides.every((side) => side.getAttribute("aria-hidden") === "true"), pointer: sides.every((side) => getComputedStyle(side).pointerEvents === "none"),
+        buttons: sides.reduce((sum, side) => sum + side.querySelectorAll("button").length, 0),
       };
     });
-    assert.deepEqual(orbit.titles, ["Website to Video", "Product Video", "Interior Design", "Talking Scene", "Architecture"], "one labelled card per feature");
-    assert.ok(orbit.videos >= 1 && orbit.loop && orbit.muted && !orbit.controls, "floating videos loop silently without controls");
-    assert.equal(orbit.ariaHidden, "true"); assert.equal(orbit.pointer, "none"); assert.equal(orbit.buttons, 0, "no play buttons or media icons");
-    console.log("ok  floating media: 5 labelled cards, silent looping video, decorative only");
+    assert.deepEqual(cards.titles, ["Website to Video", "Interior Design", "Architecture", "Product Photos", "Product Video", "Talking Scene", "AI Video"], "seven labelled cards, four left and three right");
+    assert.ok(cards.videos >= 1 && cards.loop && cards.muted && !cards.controls, "floating videos loop silently without controls");
+    assert.ok(cards.ariaHidden && cards.pointer && cards.buttons === 0, "cards are decorative: no clicks, no buttons or play icons");
+    console.log("ok  floating media: 7 labelled cards, silent looping video, decorative only");
+
+    const covered = await page.evaluate(() => {
+      const center = document.querySelector(".hero-center").getBoundingClientRect();
+      const overlap = (a, b) => a.left < b.right - 6 && a.right > b.left + 6 && a.top < b.bottom && a.bottom > b.top;
+      return Array.from(document.querySelectorAll(".hero-orbit-card")).filter((card) => overlap(card.getBoundingClientRect(), center)).length;
+    });
+    assert.equal(covered, 0, "no floating card covers the headline, the chat box or the examples");
+    console.log("ok  no floating card covers anything (they live in their own side columns)");
 
     const frames = [];
     for (let i = 0; i < 2; i += 1) {
@@ -66,30 +75,54 @@ async function open(browser, viewport) {
       await page.waitForTimeout(700);
     }
     assert.ok(frames[0] > 0 && frames[0] !== frames[1], "star streaks are drawn and move");
-    assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector(".space-backdrop")).pointerEvents), "none");
-    console.log("ok  backdrop: star streaks move and never take a click");
+    console.log("ok  backdrop: star streaks move");
 
     const layout = await page.evaluate(() => {
       const slot = document.querySelector(".generation-submit-slot button"); const bar = document.querySelector(".generation-toolbar");
       const a = slot.getBoundingClientRect(), b = bar.getBoundingClientRect();
-      const top = document.elementFromPoint(a.x + a.width / 2, a.y + a.height / 2);
-      return { sameRow: Math.abs(a.y + a.height / 2 - (b.y + b.height / 2)) < 40, reachable: slot.contains(top), tabsInHeader: document.querySelectorAll("header [role=tab]").length, tabsInCreator: document.querySelectorAll(".creator-composer [role=tab]").length, nav: document.querySelector("header").innerText, h1: document.querySelector("h1").innerText.replace(/\s+/g, " ") };
+      const examples = document.querySelector(".hero-examples").getBoundingClientRect();
+      const h1 = document.querySelector("h1");
+      return {
+        sameRow: Math.abs(a.y + a.height / 2 - (b.y + b.height / 2)) < 40,
+        reachable: slot.contains(document.elementFromPoint(a.x + a.width / 2, a.y + a.height / 2)),
+        pills: Array.from(document.querySelectorAll("header [role=group][aria-label=Features] button")).map((n) => n.textContent.trim()),
+        tabsInBox: document.querySelectorAll(".creator-composer [role=tab]").length,
+        nav: document.querySelector("header").innerText,
+        h1: h1.innerText.replace(/\s+/g, " "), h1Lines: Math.round(h1.getBoundingClientRect().height / parseFloat(getComputedStyle(h1).lineHeight)),
+        examplesVisible: Array.from(document.querySelectorAll(".hero-example-tile")).filter((n) => n.offsetParent).length,
+        examplesBottom: examples.bottom, viewport: innerHeight,
+        badge: /Powered by advanced AI|Transform websites/i.test(document.body.innerText),
+        order: [document.querySelector("h1").getBoundingClientRect().top, document.querySelector(".creator-composer").getBoundingClientRect().top, examples.top],
+      };
     });
     assert.ok(layout.sameRow && layout.reachable, "Generate sits in the settings row and is clickable");
-    assert.equal(layout.tabsInHeader, 0); assert.equal(layout.tabsInCreator, 7, "features live inside the creator");
-    assert.match(layout.nav, /Pricing/); assert.match(layout.nav, /Log in/); assert.match(layout.nav, /Start creating/); assert.doesNotMatch(layout.nav, /Features|How it works/);
-    assert.equal(layout.h1, "Turn Anything Into a Video");
-    console.log("ok  layout: features inside the creator, minimal navbar, Generate inline");
+    assert.deepEqual(layout.pills, ["Website", "AI Video", "Photos", "Product", "Talking", "Interior", "Architect"], "the features are in the navbar");
+    assert.equal(layout.tabsInBox, 0, "no feature tabs inside the landing box");
+    assert.match(layout.nav, /Pricing/); assert.match(layout.nav, /Log in/); assert.match(layout.nav, /Start creating/);
+    assert.equal(layout.h1, "Turn Anything Into a Video"); assert.equal(layout.h1Lines, 1, "the headline is one horizontal line");
+    assert.equal(layout.badge, false, "the badge and the subtitle are gone");
+    assert.ok(layout.order[0] < layout.order[1] && layout.order[1] < layout.order[2], "headline, then box, then examples");
+    assert.ok(layout.examplesVisible >= 5, "a row of examples");
+    assert.ok(layout.examplesBottom <= layout.viewport, `everything fits the first screen (examples end at ${Math.round(layout.examplesBottom)} of ${layout.viewport})`);
+    console.log("ok  layout: features in the navbar, one-line headline, box, then examples, all on the first screen, Generate inline");
     assert.deepEqual(errors, [], "no page errors");
     await page.close();
 
     // ---- phone
     const phone = await open(browser, { width: 390, height: 844 });
-    const mobile = await phone.page.evaluate(() => ({ overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth, orbit: getComputedStyle(document.querySelector(".hero-media-orbit")).display, generate: Array.from(document.querySelectorAll("button")).filter((b) => /Continue to video/.test(b.textContent) && b.offsetParent).length }));
+    const mobile = await phone.page.evaluate(() => ({
+      overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      sides: Array.from(document.querySelectorAll(".hero-side")).every((side) => getComputedStyle(side).display === "none"),
+      menu: !!document.querySelector("header button[aria-label^='Features']"),
+      generate: Array.from(document.querySelectorAll("button")).filter((b) => /Continue to video/.test(b.textContent) && b.offsetParent).length,
+      examplesTop: document.querySelector(".hero-examples").getBoundingClientRect().top, viewport: innerHeight,
+    }));
     assert.equal(mobile.overflow, 0, "no horizontal overflow on a phone");
-    assert.equal(mobile.orbit, "none", "floating cards are hidden on phones");
+    assert.ok(mobile.sides, "floating cards are hidden on phones");
+    assert.ok(mobile.menu, "phones get a Features menu button");
     assert.equal(mobile.generate, 1, "exactly one visible Generate button");
-    console.log("ok  phone: no overflow, cards hidden, one Generate button");
+    assert.ok(mobile.examplesTop < mobile.viewport, "the examples start on the first phone screen");
+    console.log("ok  phone: no overflow, Features menu, one Generate button, examples peek in on the first screen");
     console.log("\nall space landing checks passed");
   } finally {
     await browser.close();

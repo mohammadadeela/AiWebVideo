@@ -56,7 +56,8 @@ test('the backdrop is wired in, calmer off the landing page, still for reduced m
   assert.match(css, /\.space-backdrop \{[^}]*pointer-events: none;/);
   assert.match(css, /\.space-backdrop-quiet \.space-backdrop-image/);
   assert.match(css, /prefers-reduced-motion: reduce\) \{\s*\.space-backdrop-image/);
-  assert.match(css, /\.hero-media-orbit \{ perspective: 1400px; display: none; \}/);   // hidden below 1280px
+  assert.match(css, /\.hero-side \{ display: none; \}/);                          // the side cards are hidden below 1366px
+  assert.match(css, /@media \(min-width: 1366px\) \{\s*\.hero-grid \{\s*display: grid;/);
 });
 
 test('the background photo is a web-sized file, not the 2.7 MB original', async () => {
@@ -79,13 +80,18 @@ test('the floating media is decorative and silent, one card per feature from the
   assert.doesNotMatch(admin, /Use in background|First five items/);
 });
 
-test('the hero follows the design: headline, features inside the creator, Generate in the settings row', async () => {
+test('the hero fits one screen: a single-line headline, the creator, then examples; the features live in the navbar', async () => {
   const hero = await fe('components/landing/Hero.tsx');
-  assert.match(hero, /Turn Anything\s*<span className="cinematic-title-gradient block">Into a Video<\/span>/);
-  assert.match(hero, /Transform websites, products, ideas and more into stunning AI videos in seconds\./);
+  assert.match(hero, /Turn Anything <span className="cinematic-title-gradient">Into a Video<\/span>/);
+  assert.doesNotMatch(hero, /Powered by advanced AI|Transform websites, products, ideas/);   // both lines were removed on request
+  assert.ok(hero.indexOf('<h1') < hero.indexOf('<ChatWidget') && hero.indexOf('<ChatWidget') < hero.indexOf('<HeroExamples'), 'headline, then the box, then the examples');
+  const css = await fe('cinematic-theme.css');
+  assert.match(css, /@media \(min-width: 640px\) \{ \.cinematic-title \{ white-space: nowrap; \} \}/);   // horizontal from tablet up
   const form = await fe('components/chat/WebsiteBriefForm.tsx');
   assert.match(form, /<div className="generation-submit-slot">\{submitButton\("w-full"\)\}<\/div>/);
-  assert.match(form, /\{!landingWebsitePreview && <SampleStrip/);
+  assert.match(form, /\{landingWebsitePreview \? \(/);                                   // no tab row inside the landing box
   const nav = await fe('components/landing/Nav.tsx');
-  assert.doesNotMatch(nav, /How it works|Examples|Features/);
+  assert.doesNotMatch(nav, /How it works|Examples/);
+  assert.match(nav, /<FeaturePills onPick=\{pickFeature\} \/>/);
+  assert.match(nav, /<FeatureDropdown onPick=\{pickFeature\} \/>/);
 });

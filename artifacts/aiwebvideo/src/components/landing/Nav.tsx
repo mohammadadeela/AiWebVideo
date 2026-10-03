@@ -1,3 +1,6 @@
+import { FeatureDropdown, FeaturePills } from "./FeatureMenu";
+import type { CreationIntent } from "@/lib/creationFeatures";
+import { requestCreationMode } from "@/lib/creationMode";
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { BadgeDollarSign, ShieldCheck } from "lucide-react";
@@ -28,7 +31,17 @@ export function Nav() {
   const openAuth = (mode: 'signin' | 'signup') => { setAuthMode(mode); setShowAuthModal(true); };
   const [scrolled, setScrolled] = useState(false);
   const [me, setMe] = useState<Me | null>(null);
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
+
+  /** Opens a feature. On the home page it switches the chat box right there; from any other page it goes home to it. */
+  function pickFeature(intent: CreationIntent) {
+    if (location === "/") {
+      requestCreationMode(intent);
+      document.getElementById("generate")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else {
+      navigate(`/?create=${intent}#generate`);
+    }
+  }
 
   useEffect(
     () =>
@@ -56,7 +69,10 @@ export function Nav() {
             <Wordmark />
           </Link>
 
-          <div className="flex items-center gap-2 sm:gap-2.5">
+          <FeaturePills onPick={pickFeature} />
+
+          <div className="flex items-center gap-1.5 sm:gap-2.5">
+            <FeatureDropdown onPick={pickFeature} />
             <Link
               href="/pricing"
               aria-label="Pricing"

@@ -17,7 +17,8 @@ test('product link and architecture engineer controls stay available', async () 
   const uploads = await serverSource('src/routes/uploads.ts');
   const routes = await serverSource('src/routes/index.ts');
 
-  assert.match(creator, /id: "architecture".*label: "Architecture"/);
+  // the seven features are one shared list (navbar, chat box and cards all read it)
+  assert.match(await readFile(path.resolve(process.cwd(), '../aiwebvideo/src/lib/creationFeatures.ts'), 'utf8'), /id: "architecture", label: "Architecture"/);
   assert.match(creator, /Paste a link to the product page/);
   assert.match(creator, /void loadProductLink\(/);
   assert.match(creator, /Google Maps link or address/);

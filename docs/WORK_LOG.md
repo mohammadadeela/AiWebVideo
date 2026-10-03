@@ -121,3 +121,10 @@ Report: after the site was opened in the Google app and revisited, phone users c
 - In-app browsers (Google, Instagram, Facebook, LINE, TikTok, WeChat, Android/iOS WebViews) are detected: a notice explains what will not work and offers "Copy link to open in a browser"; Google/GitHub pop-up failures fall back to a redirect where the provider allows it.
 - Pages restored from the browser's back/forward cache (and coming back online) now re-check the session.
 - Tests: `phone-auth-resilience.test.ts`; Playwright `browser-checks/phone-resilience.cjs` (wired into `check:browser`).
+
+## 2026-10-06 — Features in the navbar; one-screen landing page
+- The seven features moved out of the chat box into the navbar: inline pills from 1280 px up, a "Features" menu (icon + one line each) below that, also opened by the box's "Change" button. Anyone can open any feature without an account; the sign-in/up requirement is at Generate (the old gate on choosing a feature was removed). From other pages, choosing a feature goes to `/?create=<feature>#generate`. One shared list: `lib/creationFeatures.ts`; the active feature is shared through `lib/creationMode.ts`.
+- Landing page rebuilt so a visitor sees everything without scrolling: ONE horizontal headline ("Turn Anything Into a Video"; may wrap to two lines only on phones under 640 px), the chat box directly below, then a row of examples (one per feature before repeating; 5-8 depending on width, a swipe row on phones). "Powered by advanced AI" and the subtitle were removed. Verified at 1920x1080 down to 360x740: examples start on the first screen at every size.
+- Floating cards: seven (Website, Interior, Architecture, Product Photos | Product Video, Talking Scene, AI Video) in their OWN side columns from 1366 px up, so they cannot cover the headline, box or examples (checked by a test); a feature with no uploaded media shows the "Your campaign belongs here." placeholder; shorter screens show fewer.
+- Tapping an example opens its feature with the example attached ("Example attached" chip), without signing in.
+- Admin > Homepage text and the "Show on the hero" control cover all seven features.
