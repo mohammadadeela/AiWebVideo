@@ -354,7 +354,7 @@ export function DashboardClient() {
     );
 
   return (
-    <div className="cinematic-page min-h-screen bg-bg lg:flex">
+    <div className="cinematic-page workspace-page min-h-screen bg-bg lg:flex">
       {sidebarOpen && (
         <button
           type="button"

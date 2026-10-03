@@ -1,4 +1,4 @@
-import { FeatureDropdown, FeaturePills } from "./FeatureMenu";
+import { FeatureDropdown, FeatureMenuButton, FeaturePills, FeatureRail } from "./FeatureMenu";
 import type { CreationIntent } from "@/lib/creationFeatures";
 import { requestCreationMode } from "@/lib/creationMode";
 import { useEffect, useState } from "react";
@@ -73,6 +73,8 @@ export function Nav() {
 
           <div className="flex items-center gap-1.5 max-[419px]:gap-0.5 sm:gap-2.5">
             <FeatureDropdown onPick={pickFeature} />
+            {/* Phones: the feature rail below folds away once the page scrolls, so this keeps every feature one tap away. */}
+            {scrolled && <FeatureMenuButton />}
             <Link
               href="/pricing"
               aria-label="Pricing"
@@ -134,6 +136,7 @@ export function Nav() {
             )}
           </div>
         </nav>
+        <FeatureRail onPick={pickFeature} collapsed={scrolled} />
       </header>
 
       {showAuthModal && (

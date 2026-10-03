@@ -109,6 +109,11 @@ body {
 /* page roots (workspace, profile, admin) let the background show; what is ON them stays solid */
 .cinematic-page.bg-bg { background-color: transparent; }
 
+/* The WORKSPACE (signed-in dashboard) keeps its original plain background: solid, no space picture. It covers the fixed
+   page backdrop completely, and text on it needs no halo. Profile, admin and the public pages are unchanged. */
+.cinematic-page.workspace-page.bg-bg { background-color: var(--color-bg); }
+.workspace-page :is(h1, h2, h3, p, li, summary, label) { text-shadow: none; }
+
 /* text that sits straight on the picture gets a soft dark halo so it stays readable; inside the dark blocks it is invisible */
 .cinematic-site main :is(h1, h2, h3, p, li, summary, label):not(.cinematic-title) { text-shadow: 0 1px 10px rgba(6, 4, 16, .65); }
 /* gradient-filled text is transparent, so a halo would show THROUGH its letters and grey them: never on those */
@@ -374,3 +379,22 @@ body {
     animation: none !important;
   }
 }
+
+
+/* ------------------------------------------------------------- phone navigation: feature rail + bottom sheet */
+.feature-rail {
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  scroll-padding-inline: 12px;
+  overscroll-behavior-x: contain;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 var(--fade-l, 0px), #000 calc(100% - var(--fade-r, 36px)), transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 var(--fade-l, 0px), #000 calc(100% - var(--fade-r, 36px)), transparent 100%);
+}
+.feature-rail::-webkit-scrollbar { display: none; }
+@keyframes feature-sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes feature-sheet-fade { from { opacity: 0; } to { opacity: 1; } }
+/* a global phone rule caps every dialog at 100vw - 16px; the sheet is edge to edge */
+.feature-sheet[role="dialog"] { width: 100%; max-width: 100vw; }
+.feature-sheet { animation: feature-sheet-up .26s cubic-bezier(.22, 1, .36, 1); }
+.feature-sheet-overlay { animation: feature-sheet-fade .2s ease-out; }
+@media (prefers-reduced-motion: reduce) { .feature-sheet, .feature-sheet-overlay { animation: none; } }
