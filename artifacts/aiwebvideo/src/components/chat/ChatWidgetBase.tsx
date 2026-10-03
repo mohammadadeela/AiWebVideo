@@ -390,6 +390,8 @@ export function ChatWidget({
   const pendingActionRef = useRef<(() => unknown | Promise<unknown>) | null>(null);
   const redirectAfterAuthRef = useRef(false);
   const pendingWebsiteAttachmentsRef = useRef<File[]>([]);
+  /** The job whose source is the person's OWN website photos (no address): it follows the same website flow. */
+  const websitePhotosJobRef = useRef<string | null>(null);
   const pollNoticeRef = useRef(false);
   const workflowReadyRef = useRef(!resumeJobId && !initialJobId);
   const autoRenderRef = useRef(false);
@@ -1029,9 +1031,11 @@ export function ChatWidget({
     // the storyboard twice on the next 1.8s tick.
     capturedRef.current = true;
     setActiveCaptureMetadata(metadata);
-    pushBot(<SiteCard sourceUrl={job.sourceUrl} metadata={metadata} />);
+    const fromWebsitePhotos = websitePhotosJobRef.current === job.id;
+    if (!fromWebsitePhotos) pushBot(<SiteCard sourceUrl={job.sourceUrl} metadata={metadata} />);
 
-    if (job.sourceUrl.startsWith("upload://")) {
+    // Photos added from the Website Video form continue as a website video; only a plain photo upload asks what to make.
+    if (job.sourceUrl.startsWith("upload://") && !fromWebsitePhotos) {
       pushBot("What do you want to generate?");
       setStage("awaiting_mode");
       return;
@@ -1065,7 +1069,9 @@ export function ChatWidget({
       saveLocalJobWorkflow(job.id, previewWorkflow);
       void saveJobWorkflow(job.id, previewWorkflow).catch(() => {});
       pushBot(
-        "That is your real website. I’ve saved the strongest pages and tab icon. Continue when you’re ready — account creation comes next, before AI direction or paid generation.",
+        fromWebsitePhotos
+          ? "Your website photos are saved. Continue when you’re ready — account creation comes next, before AI direction or paid generation."
+          : "That is your real website. I’ve saved the strongest pages and tab icon. Continue when you’re ready — account creation comes next, before AI direction or paid generation.",
       );
       setStage("preview_ready");
       return;
@@ -1415,15 +1421,22 @@ export function ChatWidget({
   }
 
   async function handleUrlSubmit(url: string, brief: string) {
-    let normalized: string;
-    try {
-      normalized = normalizeWebsiteUrl(url);
-    } catch (error) {
-      pushBot(error instanceof Error ? error.message : "Enter a valid website name.");
-      return;
+    // No address, but the person added photos of their website: those photos ARE the source.
+    const photosOnly = !url.trim() && pendingWebsiteAttachmentsRef.current.length > 0;
+    const sourcePhotos = photosOnly ? pendingWebsiteAttachmentsRef.current : [];
+    if (photosOnly) pendingWebsiteAttachmentsRef.current = [];
+    let normalized = "";
+    if (!photosOnly) {
+      try {
+        normalized = normalizeWebsiteUrl(url);
+      } catch (error) {
+        pushBot(error instanceof Error ? error.message : "Enter a valid website name.");
+        return;
+      }
     }
-    pushUser(visibleBrief(brief) ? `${normalized}
-Promotion direction: ${visibleBrief(brief)}` : normalized);
+    const photosLabel = `Your ${sourcePhotos.length} website photo${sourcePhotos.length === 1 ? "" : "s"}`;
+    pushUser(visibleBrief(brief) ? `${photosOnly ? photosLabel : normalized}
+Promotion direction: ${visibleBrief(brief)}` : photosOnly ? photosLabel : normalized);
     setActiveCaptureMetadata(null);
     setSelectedCaptureIds([]);
     setBusy(true);
@@ -1434,7 +1447,8 @@ Promotion direction: ${visibleBrief(brief)}` : normalized);
       const setupSummary = pendingRequest
         ? `Setup: ${MODE_OPTIONS.find((option) => option.mode === pendingRequest.mode)?.label ?? "Website video"} · ${pendingRequest.durationSeconds === "auto" ? "Auto duration" : `${pendingRequest.durationSeconds}s`} · ${pendingRequest.aspectRatio} · ${pendingRequest.outputQuality} · ${pendingRequest.audioMode === "voice_music" ? pendingRequest.narrationLanguage === "auto" ? "Narration · your language" : `Narration ${pendingRequest.narrationLanguage.toUpperCase()}` : pendingRequest.audioMode.replace(/_/g, " ")}`
         : undefined;
-      const res = await startCapture(normalized, brief, setupSummary);
+      const res = photosOnly ? await uploadPhotos(sourcePhotos) : await startCapture(normalized, brief, setupSummary);
+      if (photosOnly) websitePhotosJobRef.current = res.jobId;
       selectJobId(res.jobId);
       if (isPublicCreatorPath() && !isSignedIn && pendingWebsiteAttachmentsRef.current.length) {
         await savePhotoDraft(
@@ -1479,7 +1493,9 @@ Promotion direction: ${visibleBrief(brief)}` : normalized);
         hostname = new URL(normalized).hostname;
       } catch {}
       pushBot(
-        isPublicCreatorPath() && !isSignedIn
+        photosOnly
+          ? "Saving your website photos. I’ll build the video from them, exactly as I would from a website."
+          : isPublicCreatorPath() && !isSignedIn
           ? `I’m opening ${hostname} now. You’ll see the real favicon and the strongest distinct pages before I ask you to create an account.`
           : `I’m opening ${hostname} now. I’ll keep only the strongest distinct pages, learn the visual identity and prepare the promotion automatically.`,
       );

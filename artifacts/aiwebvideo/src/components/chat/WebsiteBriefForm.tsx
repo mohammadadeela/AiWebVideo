@@ -797,8 +797,8 @@ export function WebsiteBriefForm({
       : (activeModel.audioModes[0] ?? "silent");
 
     if (activeMode === "website") {
-      if (!url.trim()) {
-        setError("Enter the public website URL you want to turn into a video.");
+      if (!url.trim() && files.length === 0) {
+        setError("Enter your website address, or add photos of your website with + and generate from them.");
         return;
       }
       if (!brief.trim()) {
@@ -811,7 +811,8 @@ export function WebsiteBriefForm({
         // The request is on its way (and saved for after sign-in), so the draft has done its job.
         clearPromptDraft();
         void onSubmit(
-          normalizeWebsiteUrl(url),
+          // No address but photos: the person's own website photos ARE the source.
+          url.trim() ? normalizeWebsiteUrl(url) : "",
           withHiddenDirection(brief.trim(), selectedIdea?.masterPrompt),
           { ...settings, outputQuality: safeQuality, audioMode: safeAudioMode },
           files,
@@ -931,7 +932,7 @@ export function WebsiteBriefForm({
   const linkBusy = readingProduct || resolvingSite;
   const submitDisabled = disabled || linkBusy || (
     activeMode === "website"
-      ? !url.trim() || !brief.trim()
+      ? (!url.trim() && files.length === 0) || !brief.trim()
       : isProductMode || isInteriorMode
         ? !brief.trim() && !hasBrief
         : !prompt.trim() && !hasBrief
@@ -1244,6 +1245,14 @@ export function WebsiteBriefForm({
                   className="h-13 min-w-0 flex-1 bg-transparent py-3.5 text-sm text-white outline-none placeholder:text-white/40"
                 />
               </div>
+              {/* Tells the person they do not need a link: their own website photos work too. */}
+              <span className="mt-1.5 block text-[11px] leading-4 text-white/55" data-testid="website-photos-hint">
+                {files.length === 0
+                  ? "No link, or want to choose the pages yourself? Add photos of your website with the + button and generate from them."
+                  : url.trim()
+                    ? `Your ${files.length} photo${files.length === 1 ? " is" : "s are"} added to the pages we read from the link.`
+                    : `Generating from your ${files.length} website photo${files.length === 1 ? "" : "s"}. Add a link too if you like.`}
+              </span>
             </label>
           )}
 
