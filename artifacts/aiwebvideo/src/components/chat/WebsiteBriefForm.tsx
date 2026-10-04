@@ -1242,7 +1242,7 @@ export function WebsiteBriefForm({
               {site && <p className="mt-2 flex items-center gap-1.5 text-[12px] text-mint"><Check size={13} /> {site.label || `${site.latitude}, ${site.longitude}`}</p>}
               {site && typeof site.latitude === "number" && typeof site.longitude === "number" && (
                 <div className="mt-2.5 overflow-hidden rounded-xl border border-white/[.10] bg-[#0b0818]" data-testid="site-preview">
-                  <SiteStreetView latitude={site.latitude} longitude={site.longitude} mapSrc={mapPreviewUrl(site.latitude, site.longitude)} value={siteSelection} onChange={setSiteSelection} photos={files} />
+                  <SiteStreetView latitude={site.latitude} longitude={site.longitude} mapSrc={mapPreviewUrl(site.latitude, site.longitude)} value={siteSelection} onChange={setSiteSelection} photos={files} onAddPhoto={() => inputRef.current?.click()} />
                   <div className="space-y-1 px-3 py-2 text-[11px] leading-4 text-white/60">
                     <p><span className="font-semibold text-white">Is this the right spot?</span> The design is placed exactly here: <span className="font-mono text-white/80">{site.latitude.toFixed(6)}, {site.longitude.toFixed(6)}</span></p>
                     <p>{site.imageryAvailable ? "Satellite and street views of this spot are used for the design." : "For a design that matches your plot exactly, add a screenshot of it (satellite view) below."}</p>

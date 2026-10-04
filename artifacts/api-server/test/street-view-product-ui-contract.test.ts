@@ -46,7 +46,7 @@ test('Street View is the main picture of the site card, with the map in the corn
   assert.match(card, /Face the plot again/);
   assert.match(card, /aspect-\[4\/3\]/);                                                                   // the same 4:3 frame the server renders: a tap maps 1:1
   const form = await fe('components/chat/WebsiteBriefForm.tsx');
-  assert.match(form, /<SiteStreetView latitude=\{site\.latitude\} longitude=\{site\.longitude\} mapSrc=\{mapPreviewUrl\(site\.latitude, site\.longitude\)\} value=\{siteSelection\} onChange=\{setSiteSelection\} photos=\{files\} \/>/);
+  assert.match(form, /<SiteStreetView latitude=\{site\.latitude\} longitude=\{site\.longitude\} mapSrc=\{mapPreviewUrl\(site\.latitude, site\.longitude\)\} value=\{siteSelection\} onChange=\{setSiteSelection\} photos=\{files\} onAddPhoto=\{\(\) => inputRef\.current\?\.click\(\)\} \/>/);
   assert.match(form, /\.\.\.selectionToRequest\(siteSelection\),/);
   assert.match(form, /useEffect\(\(\) => \{ setSiteSelection\(EMPTY_SELECTION\); \}, \[site\?\.latitude, site\?\.longitude\]\);/);   // a new place starts fresh
   assert.match(form, /if \(isMarked\(siteSelection\) && siteSelection\.kind === null\)/);                   // a mark needs to be named

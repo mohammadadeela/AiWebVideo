@@ -29,3 +29,20 @@ test('Street View can be looked around like Google\'s: drag to turn and tilt, ar
   // the key still never reaches the page
   assert.doesNotMatch(card, /maps\.googleapis\.com/);
 });
+
+test('Street View is always shown under the map: Google\'s 360° viewer when pictures are off, then screenshot and tap the exact place', async () => {
+  const { streetViewEmbedUrl } = await import('@/lib/mapPreview');
+  const url = streetViewEmbedUrl(31.9062891, 35.2067296, 370);
+  assert.match(url, /^https:\/\/www\.google\.com\/maps\?layer=c&cbll=31\.906289,35\.206730&cbp=12,10,0,0,0&output=svembed$/);   // no key, heading wrapped into 0-359
+  assert.doesNotMatch(url, /key=/);
+  const card = await fe('components/chat/SiteStreetView.tsx');
+  assert.match(card, /data-testid="street-view-embed"/);
+  assert.match(card, /src=\{streetViewEmbedUrl\(latitude, longitude\)\}/);
+  assert.match(card, /Google Street View · drag to look around/);
+  assert.match(card, /take a screenshot of that view/);                       // says how to get the exact view to the AI
+  assert.match(card, /Add a screenshot of the view/);
+  assert.match(card, /onAddPhoto\?: \(\) => void/);                          // the card can open the photo picker
+  assert.match(await fe('components/chat/WebsiteBriefForm.tsx'), /onAddPhoto=\{\(\) => inputRef\.current\?\.click\(\)\}/);
+  // the embed appears only when the server has not switched pictures on, never when it confirmed there is no coverage
+  assert.match(card, /info\?\.enabled \? \(/);
+});

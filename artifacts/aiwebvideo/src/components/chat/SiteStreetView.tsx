@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Compass, ExternalLink, Hand, ImagePlus, Loader2, LocateFixed, ZoomIn, ZoomOut } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Compass, Camera, ExternalLink, Hand, ImagePlus, Loader2, LocateFixed, ZoomIn, ZoomOut } from "lucide-react";
 import { getStreetView, streetViewImageSrc, type StreetViewInfo } from "@/lib/api-client";
 import { DEFAULT_FOV, DEFAULT_PITCH, isMarked, normalizeHeading, type SiteSelection } from "@/lib/siteTarget";
+import { streetViewEmbedUrl } from "@/lib/mapPreview";
 import { TapSurface, TargetKindPicker } from "./SiteTargetControls";
 
 const COMPASS = ["north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west"];
@@ -42,8 +43,8 @@ function CameraButton({ label, onClick, children, disabled }: { label: string; o
 const DRAG_START_PX = 6;
 
 /** The three things to do, with the ones already done ticked: nobody has to guess what comes next. */
-function Steps({ looked, marked, said }: { looked: boolean; marked: boolean; said: boolean }) {
-  const items: Array<[string, boolean]> = [["Look around", looked], ["Tap the exact place", marked], ["Say what it is", said]];
+function Steps({ looked, marked, said, labels = ["Look around", "Tap the exact place", "Say what it is"] }: { looked: boolean; marked: boolean; said: boolean; labels?: [string, string, string] }) {
+  const items: Array<[string, boolean]> = [[labels[0], looked], [labels[1], marked], [labels[2], said]];
   return (
     <ol className="flex items-center gap-1.5 px-3 pb-2 pt-3 text-[11px] font-semibold" aria-label="Steps">
       {items.map(([label, done], index) => (
@@ -63,7 +64,7 @@ function Steps({ looked, marked, said }: { looked: boolean; marked: boolean; sai
  * the exact shop, floor, building or empty plot, and says what it is. The design is made from exactly this view, plus a copy
  * with the tapped spot marked. Without Street View they can tap on their own photo or screenshot instead.
  */
-export function SiteStreetView({ latitude, longitude, mapSrc, value, onChange, photos }: {
+export function SiteStreetView({ latitude, longitude, mapSrc, value, onChange, photos, onAddPhoto }: {
   latitude: number;
   longitude: number;
   mapSrc: string;
@@ -71,6 +72,8 @@ export function SiteStreetView({ latitude, longitude, mapSrc, value, onChange, p
   onChange: (next: SiteSelection) => void;
   /** The customer's own photos, which they can tap on too. */
   photos: File[];
+  /** Opens the page's photo picker (used when Street View pictures are not offered by the server). */
+  onAddPhoto?: () => void;
 }) {
   const [info, setInfo] = useState<StreetViewInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -296,23 +299,62 @@ export function SiteStreetView({ latitude, longitude, mapSrc, value, onChange, p
       ) : (
         <div>
           <iframe title="The exact spot on the map" src={mapSrc} loading="lazy" referrerPolicy="no-referrer" className="h-44 w-full border-0" />
-          <div className="space-y-1.5 px-3 pt-2 text-[11.5px] leading-4 text-white/60">
-            <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span>{info?.enabled ? "There are no Street View photos close to this spot." : "Look at the place on Google Maps:"}</span>
-              <a href={googleMapsLink(latitude, longitude)} target="_blank" rel="noreferrer" className="inline-flex min-h-8 items-center gap-1 font-semibold text-mint hover:underline">
-                Open in Google Maps <ExternalLink size={11} aria-hidden="true" />
-              </a>
-            </p>
-            {info?.enabled && <p>Street View only exists on roads Google has photographed. A screenshot or photo of the plot works just as well.</p>}
-            {info?.reason && (
-              <p role="note" className="rounded-lg border border-[#f5b942]/50 bg-[#2a2110] px-2.5 py-2 text-amber-100">
-                Only you see this: Street View is off in this site ({info.reason}). Set <span className="font-mono">GOOGLE_MAPS_API_KEY</span> (with the Street View Static API enabled) and <span className="font-mono">ARCHITECTURE_MAPS_IMAGERY=1</span>, then restart the server. Customers will then see Street View here and can tap what they mean on it.
+
+          {info?.enabled ? (
+            // The server checked: Google has no street photos near this plot.
+            <div className="space-y-1.5 px-3 pt-2 text-[11.5px] leading-4 text-white/60">
+              <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span>There are no Street View photos close to this spot.</span>
+                <a href={googleMapsLink(latitude, longitude)} target="_blank" rel="noreferrer" className="inline-flex min-h-8 items-center gap-1 font-semibold text-mint hover:underline">
+                  Open in Google Maps <ExternalLink size={11} aria-hidden="true" />
+                </a>
               </p>
-            )}
-            {photos.length === 0 && (
-              <p>Or take a screenshot of the street, or a photo of the plot, add it with the + button, and tap exactly what you mean on it.</p>
-            )}
-          </div>
+              <p>Street View only exists on roads Google has photographed. A screenshot or photo of the plot works just as well.</p>
+              {photos.length === 0 && onAddPhoto && (
+                <button type="button" onClick={onAddPhoto} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-violet to-blue-500 px-4 text-[13px] font-bold text-white transition active:scale-[.98]">
+                  <ImagePlus size={16} aria-hidden="true" /> Add a photo of the plot
+                </button>
+              )}
+            </div>
+          ) : (
+            // Street View pictures are not switched on in this site, so Google's own 360° viewer is shown right under the map.
+            <div data-testid="street-view-embed">
+              <Steps looked={photos.length > 0} marked={photos.length > 0} said={marked && value.source === "photo"} labels={["Look around in 360°", "Add a screenshot of the view", "Tap the exact place"]} />
+              <div className="relative aspect-[4/3] w-full overflow-hidden bg-[#05030f]">
+                <iframe
+                  title="Google Street View of the street, 360 degrees. Drag to look around."
+                  src={streetViewEmbedUrl(latitude, longitude)}
+                  loading="lazy"
+                  allowFullScreen
+                  referrerPolicy="no-referrer"
+                  className="absolute inset-0 h-full w-full border-0"
+                />
+                <p className="pointer-events-none absolute left-2 top-2 z-10 rounded-md bg-black/70 px-2 py-1 text-[11px] font-semibold text-white">Google Street View · drag to look around</p>
+              </div>
+              <div className="space-y-2 px-3 pt-2.5 text-[11.5px] leading-4 text-white/65">
+                <p>
+                  Turn to the exact shop, floor or plot you mean, then <span className="font-semibold text-white">take a screenshot of that view</span>
+                  {" "}(Windows: Win + Shift + S · Mac: Shift + Command + 4 · phone: the screenshot buttons) and add it. Then tap exactly what you mean on it. The design is made from your screenshot.
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  {onAddPhoto && (
+                    <button type="button" onClick={onAddPhoto} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-violet to-blue-500 px-4 text-[13px] font-bold text-white transition active:scale-[.98]">
+                      <Camera size={16} aria-hidden="true" /> {photos.length ? "Add another screenshot" : "Add my screenshot"}
+                    </button>
+                  )}
+                  <span className="text-[11.5px] text-white/55">or paste it (Ctrl/Cmd + V)</span>
+                  <a href={googleMapsLink(latitude, longitude)} target="_blank" rel="noreferrer" className="inline-flex min-h-9 items-center gap-1 font-semibold text-mint hover:underline">
+                    Bigger in Google Maps <ExternalLink size={11} aria-hidden="true" />
+                  </a>
+                </div>
+                {info?.reason && (
+                  <p role="note" className="rounded-lg border border-[#f5b942]/50 bg-[#2a2110] px-2.5 py-2 text-amber-100">
+                    Only you see this: Street View is off in this site ({info.reason}). Set <span className="font-mono">GOOGLE_MAPS_API_KEY</span> (with the Street View Static API enabled) and <span className="font-mono">ARCHITECTURE_MAPS_IMAGERY=1</span>, then restart the server. Customers will then see Street View here and can tap what they mean on it, without a screenshot.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
