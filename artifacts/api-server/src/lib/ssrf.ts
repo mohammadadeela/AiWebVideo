@@ -52,7 +52,8 @@ export async function validateUrl(rawUrl: string): Promise<string> {
     throw new SsrfError('Only http and https URLs are allowed.');
   }
 
-  const hostname = parsed.hostname;
+  // URL keeps IPv6 hosts in brackets ("[::1]"); the address itself is what must be checked.
+  const hostname = parsed.hostname.replace(/^\[|\]$/g, '');
 
   // If the host is already a raw IP, check it directly
   if (ipaddr.isValid(hostname)) {

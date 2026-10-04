@@ -422,7 +422,7 @@ export function WebsiteBriefForm({
   // one shop or unit, one floor or empty land.
   const [siteSelection, setSiteSelection] = useState<SiteSelection>(EMPTY_SELECTION);
   // A product link the shop would not let us read: what we kept from it and what the person can do next.
-  const [blockedProduct, setBlockedProduct] = useState<{ host: string; name: string; blocked: boolean } | null>(null);
+  const [blockedProduct, setBlockedProduct] = useState<{ host: string; name: string; blocked: boolean; slow?: boolean; description?: string; facts?: Record<string, string> } | null>(null);
   const [plotWidth, setPlotWidth] = useState("");
   const [plotDepth, setPlotDepth] = useState("");
   const [floorCount, setFloorCount] = useState("");
@@ -692,12 +692,14 @@ export function WebsiteBriefForm({
       lastReadLinkRef.current = "";
       setProductData(null);
       setChosenProductImages([]);
-      if (error instanceof ApiError && (error.code === "PRODUCT_BLOCKED" || error.code === "PRODUCT_IMAGES_MISSING")) {
+      if (error instanceof ApiError && (error.code === "PRODUCT_BLOCKED" || error.code === "PRODUCT_IMAGES_MISSING" || error.code === "PRODUCT_TIMEOUT" || error.code === "PRODUCT_UNSUPPORTED_RESPONSE")) {
         // Not an error screen: the page keeps the product's name from the link and shows the quick ways to add a photo.
         let host = "That shop";
         try { host = new URL(value).hostname.replace(/^www\./i, ""); } catch { /* keep the generic name */ }
         lastFailedLinkRef.current = value;
-        setBlockedProduct({ host, name: error.productName ?? "", blocked: error.code === "PRODUCT_BLOCKED" });
+        // Whatever the page DID give us (name, description, facts) is kept: only the missing photo is asked for.
+        setBlockedProduct({ host, name: error.productName ?? "", blocked: error.code === "PRODUCT_BLOCKED", slow: error.code === "PRODUCT_TIMEOUT", description: error.productDescription, facts: error.productFacts });
+        if (!brief.trim() && error.productDescription) setBrief(error.productDescription.slice(0, 1200));
         if (explain) setError("Add one photo of the product (see the note above), then press Create again.");
         return null;
       }
@@ -954,7 +956,7 @@ export function WebsiteBriefForm({
       // exactly the units the customer was shown, so what they checked is what the server uses
       drawingUnits: cadMode ? drawingAttachment.drawing?.preview?.units.choice : undefined,
       templateId: selectedSample?.id,
-      productFacts: isProduct && productReference ? { title: productReference.title, description: productReference.description, facts: productReference.facts } : isProduct && blockedProduct?.name ? { title: blockedProduct.name } : undefined,
+      productFacts: isProduct && productReference ? { title: productReference.title, description: productReference.description, facts: productReference.facts } : isProduct && blockedProduct?.name ? { title: blockedProduct.name, description: blockedProduct.description ?? "", facts: blockedProduct.facts ?? {} } : undefined,
       architecture: activeMode === "architecture" ? {
         location: resolvedSite?.label || resolvedSite?.resolvedUrl,
         latitude: resolvedSite?.latitude,
@@ -1170,7 +1172,7 @@ export function WebsiteBriefForm({
             {blockedProduct && files.length === 0 && (
               <div role="status" data-testid="product-blocked" className="mt-2.5 rounded-xl border border-[#f5b942]/50 bg-[#2a2110] p-3 text-[12px] leading-5 text-white/85">
                 <p>
-                  <strong className="font-bold text-white">{blockedProduct.blocked ? `${blockedProduct.host} doesn't allow automatic reading.` : `We couldn't find photos on that ${blockedProduct.host} page.`}</strong>{" "}
+                  <strong className="font-bold text-white">{blockedProduct.blocked ? `${blockedProduct.host} doesn't allow automatic reading.` : blockedProduct.slow ? `${blockedProduct.host} took too long to answer.` : `We couldn't find photos on that ${blockedProduct.host} page.`}</strong>{" "}
                   {blockedProduct.name ? <>We kept the product name: <span className="font-semibold text-white">“{blockedProduct.name}”</span>. </> : null}
                   Add one photo of the product and you're done. It takes a few seconds.
                 </p>

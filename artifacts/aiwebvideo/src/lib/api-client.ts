@@ -6,12 +6,17 @@ export class ApiError extends Error {
   status: number;
   /** The product's name as written in a link the shop would not let us read, so the page can keep it. */
   productName?: string;
-  constructor(message: string, status: number, code?: string, details?: { productName?: string }) {
+  /** What a product link already gave us even though no photo was found: kept so nothing found is thrown away. */
+  productDescription?: string;
+  productFacts?: Record<string, string>;
+  constructor(message: string, status: number, code?: string, details?: { productName?: string; productDescription?: string; productFacts?: Record<string, string> }) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.code = code;
     this.productName = details?.productName;
+    this.productDescription = details?.productDescription;
+    this.productFacts = details?.productFacts;
   }
 }
 
@@ -30,7 +35,11 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new ApiError(data.error || 'Something went wrong.', res.status, data.code, typeof data.productName === 'string' ? { productName: data.productName } : undefined);
+    let productFacts: Record<string, string> | undefined;
+    if (typeof data.productFacts === 'string') { try { productFacts = JSON.parse(data.productFacts) as Record<string, string>; } catch { /* facts are optional */ } }
+    throw new ApiError(data.error || 'Something went wrong.', res.status, data.code, typeof data.productName === 'string' || productFacts
+      ? { productName: typeof data.productName === 'string' ? data.productName : undefined, productDescription: typeof data.productDescription === 'string' ? data.productDescription : undefined, productFacts }
+      : undefined);
   }
   return data as T;
 }
@@ -406,6 +415,8 @@ export interface ProductReference {
   images: string[];
   facts?: Record<string, string>;
   source?: 'page' | 'shop-data' | 'rendered';
+  /** How it was read (server vocabulary): SUCCESS_HTTP, SUCCESS_JSONLD, SUCCESS_PLAYWRIGHT, PARTIAL_SUCCESS, DIRECT_IMAGE. */
+  status?: string;
 }
 
 /** Is there Street View at a spot, from which panorama, how old, and which way faces the plot? (The key stays on the server.) */
@@ -436,6 +447,8 @@ export function extractProductReference(url: string) {
   return request<ProductReference>('/api/product-reference/extract', {
     method: 'POST',
     body: JSON.stringify({ url }),
+    // The server may need its browser step for a script-heavy shop; the default 20 s would cut that off and show a failure.
+    signal: AbortSignal.timeout(70_000),
   });
 }
 

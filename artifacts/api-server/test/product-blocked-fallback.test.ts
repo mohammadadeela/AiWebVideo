@@ -52,7 +52,7 @@ test('a shop that blocks reading still gives back the product name for the page 
     return true;
   });
   // a link with no name in it carries no name
-  await assert.rejects(readProductReference('https://shop.test/itm/123456', deps()), (error: unknown) => error instanceof AppError && error.code === 'PRODUCT_BLOCKED' && error.details === undefined);
+  await assert.rejects(readProductReference('https://shop.test/itm/123456', deps()), (error: unknown) => error instanceof AppError && error.code === 'PRODUCT_BLOCKED' && error.details?.productName === undefined && error.details?.extractionStatus === 'BLOCKED');
 });
 
 test('error details reach the page, and cannot override the error or its code', async () => {

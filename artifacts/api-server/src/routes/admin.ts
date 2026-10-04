@@ -461,9 +461,9 @@ router.post('/link-check', async (req, res) => {
     }
     try {
       const product = await readProductReference(link, undefined, trace);
-      res.json({ kind, ok: true, ms: Date.now() - started, result: { title: product.title, source: product.source, url: product.url, description: product.description.slice(0, 200), facts: product.facts, images: product.images }, trace });
+      res.json({ kind, ok: true, ms: Date.now() - started, result: { title: product.title, source: product.source, status: product.status, url: product.url, description: product.description.slice(0, 200), facts: product.facts, images: product.images }, trace });
     } catch (error) {
-      res.json({ kind, ok: false, ms: Date.now() - started, error: error instanceof Error ? error.message : 'Failed', code: (error as { code?: string })?.code ?? null, trace });
+      res.json({ kind, ok: false, ms: Date.now() - started, error: error instanceof Error ? error.message : 'Failed', code: (error as { code?: string })?.code ?? null, status: (error as { details?: Record<string, string> })?.details?.extractionStatus ?? null, trace });
     }
   } catch (error) { sendError(res, error); }
 });

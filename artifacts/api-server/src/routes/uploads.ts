@@ -426,7 +426,7 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
       try {
         // Many shops refuse hot-linked images: present the product page as the referrer, and skip a photo that
         // still cannot be fetched instead of failing the whole production.
-        const source = await readPublicUrl(imageUrl, 10 * 1024 * 1024, /^image\/(?:jpeg|png|webp)$/, { referer: productUrl || undefined });
+        const source = await readPublicUrl(imageUrl, 10 * 1024 * 1024, /^image\/(?:jpe?g|png|webp|avif)$/, { referer: productUrl || undefined, kind: 'image' });
         const jpeg = await normalizeUploadToJpeg(source.buffer);
         const pageIndex = pages.length;
         const filename = pageIndex === 0 ? 'screenshot-full.jpg' : `page-${pageIndex}.jpg`;
