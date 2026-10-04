@@ -9,6 +9,7 @@ export type JobMode =
   | "tour"
   | "mockup"
   | "linkedin"
+  | "character"
   | "custom";
 export type JobStatus =
   | "queued"

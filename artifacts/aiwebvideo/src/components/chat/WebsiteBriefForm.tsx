@@ -31,6 +31,7 @@ import {
   VolumeX,
   X,
   SlidersHorizontal,
+  UserRound,
 } from "lucide-react";
 import * as Popover from "@radix-ui/react-popover";
 import { normalizeWebsiteUrl } from "@/lib/websiteUrl";
@@ -72,7 +73,7 @@ export type { CreationIntent };
 
 export type WebsiteProductionMode = Extract<
   JobMode,
-  "video" | "tutorial" | "buy" | "tour" | "linkedin" | "demo"
+  "video" | "tutorial" | "buy" | "tour" | "linkedin" | "demo" | "character"
 >;
 
 export interface WebsiteGenerationSettings {
@@ -138,6 +139,7 @@ const WEBSITE_RECIPES: Array<{
 }> = [
   { mode: "video", label: "Promo", helper: "A punchy brand campaign", icon: Megaphone, tint: "from-violet to-pink" },
   { mode: "demo", label: "Cinematic", helper: "A generated brand film", icon: Clapperboard, tint: "from-amber-400 to-pink" },
+  { mode: "character", label: "Character story", helper: "Someone uses your site", icon: UserRound, tint: "from-rose-400 to-amber-300" },
   { mode: "tutorial", label: "Tutorial", helper: "Teach how it works", icon: GraduationCap, tint: "from-sky-400 to-violet" },
   { mode: "tour", label: "Feature tour", helper: "Walk through the product", icon: Compass, tint: "from-mint to-sky-400" },
   { mode: "buy", label: "How to buy", helper: "Guide visitors to checkout", icon: ShoppingCart, tint: "from-emerald-400 to-mint" },

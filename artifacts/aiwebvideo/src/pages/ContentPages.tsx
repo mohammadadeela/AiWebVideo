@@ -300,6 +300,7 @@ const creationFlows = [
 const websiteStyles = [
   ["Promo", "A direct brand or offer campaign with a strong hook and CTA."],
   ["Cinematic", "A more film-like brand treatment focused on mood, pacing, and visual impact."],
+  ["Character story", "A relatable person discovers and uses your real website in a setting that fits your brand, ending on your site as the hero."],
   ["Tutorial", "Explains a workflow or process in a clear step-by-step sequence."],
   ["Feature tour", "Focuses the video on important product or service features."],
   ["How to buy", "Builds the story around the purchase or conversion journey."],

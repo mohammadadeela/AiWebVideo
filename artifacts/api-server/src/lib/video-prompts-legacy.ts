@@ -21,6 +21,9 @@ First determine the website type from the captures. If it is ecommerce, create t
   tour: `FEATURE TOUR — AI-GENERATED FEATURE SHOWCASE
 Inspect all captures and discover the strongest real features, tools, pages, sections, categories, search/filter controls, chat/AI assistant, dashboards, product areas, or navigation patterns that actually exist. Give each timeline section one distinct feature purpose while keeping one continuous film. Show the feature working when real before/after states support it; otherwise animate the existing interface cinematically without inventing a result. Long tours must keep changing subject, scale, interaction, and page so they never become repetitive.`,
 
+  character: `CHARACTER STORY — A PERSON DISCOVERS AND USES THE REAL WEBSITE
+One continuous AI film about a believable adult character (the brand's likely customer) in an on-brand world. They react with genuine emotion to the news, sit down and use the real website with believable hands and eyes, the camera pushes over their shoulder toward the screen, and the film ends on a stable hero view of the device. Whenever a screen is visible it shows the real captured page, sharp and readable; never invent pages, products, prices or states, and keep the character's face, hair and wardrobe identical throughout. Use the brand's palette and real props from the captures. The character shows rather than speaks (gestures, leaning in, smiling at a product); no random dialogue. No social-media interface of any kind: no story bars, buttons, usernames, status bars or watermarks. Any new text is short, correct English only, and only when the customer asked for it.`,
+
   demo: `CINEMATIC BRAND FILM — FULLY AI-GENERATED
 Create a premium AI-generated brand/product film grounded in the real website references. The surrounding world may be cinematic (studio, device, elegant environment, dimensional camera movement), but any website UI shown on a screen must remain faithful to the supplied captures. Preserve the real logo, product identity, colors, prices, and visible interface wording. Do not invent features, claims, statistics, discounts, review counts, or a different brand. Make every moment feel part of one consistent directed film, with no unrelated AI-shot resets.`,
 
@@ -66,7 +69,7 @@ PACING AND COMPLETENESS
 AUDIO
 - When sound is enabled, generate scene-appropriate audio as part of the AI video whenever the provider supports native audio: tasteful music/ambience plus subtle UI clicks/taps/transition sounds when appropriate.
 - Avoid loud or distracting effects. Do not generate random spoken dialogue. If a separate narration track is requested/provided, leave enough space in the mix for it.
-- For tutorial/buy flows, prioritize clean UI click/tap feedback and a light supporting bed. For promo/demo, use more cinematic rhythmic sound design. For feature tours, use polished modern tech/product sound design.
+- For tutorial/buy flows, prioritize clean UI click/tap feedback and a light supporting bed. For promo/demo, use more cinematic rhythmic sound design. For character stories, use warm, intimate ambience (room tone, soft music, gentle keyboard and touch sounds) and never random dialogue. For feature tours, use polished modern tech/product sound design.
 - When sound is disabled, visual timing must still work perfectly without relying on audio cues.
 `;
 

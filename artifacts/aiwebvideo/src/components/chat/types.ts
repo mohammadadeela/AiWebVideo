@@ -9,6 +9,7 @@ export type JobMode =
   | "tour"
   | "mockup"
   | "linkedin"
+  | "character"
   | "custom";
 export type AudioMode =
   "voice_music" | "native_audio" | "music_only" | "silent";
@@ -22,6 +23,7 @@ export const MODE_OPTIONS: Array<{ label: string; mode: JobMode }> = [
   { label: "Cinematic Brand Film", mode: "demo" },
   { label: "Product Mockup Reel", mode: "mockup" },
   { label: "LinkedIn Video", mode: "linkedin" },
+  { label: "Character Story", mode: "character" },
   { label: "Custom Idea", mode: "custom" },
   { label: "Photos", mode: "photos" },
   { label: "Website Icon", mode: "icon" },

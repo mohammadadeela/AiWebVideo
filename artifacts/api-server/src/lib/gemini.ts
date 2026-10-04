@@ -210,6 +210,7 @@ export const GENERATIVE_VIDEO_MODES = [
   'tour',
   'mockup',
   'linkedin',
+  'character',
   'custom',
   'ai-video',
   'product-video',
@@ -287,6 +288,21 @@ PHOTO MODE — REFERENCE-BASED CREATIVE EDITING:
 - When UI remains visible, treat its existing text as protected source pixels rather than asking the image model to typeset it again.
 - Prefer a strong visual ad with no added text unless the user explicitly asks for marketing copy in their written instructions.
 - The four photo scenes should be meaningfully different creative executions, not four near-identical crops.
+- voiceoverScript MUST be null.
+`;
+
+const CHARACTER_CREATIVE_POLICY = `
+CHARACTER STORY MODE — A PERSON DISCOVERS AND USES THE REAL WEBSITE:
+- The result is one continuous true AI-generated video about a believable adult character (the brand's likely customer or user) who discovers and uses THIS website. It is a lifestyle brand story: not a screen recording, not a talking-head ad, not a slideshow.
+- Cast ONE character from what the site sells or does (a shopper, a parent, a barista, a founder, a student...) unless the customer's notes describe someone. Keep the same face, hair, age, build and wardrobe in every beat. Never a real, famous or recognizable person.
+- Build ONE on-brand world around them: interior or exterior, props, colors and light taken from the brand's palette and products in the captures. Props may carry the real logo only when the logo is in the captures.
+- Beats: (1) HOOK — the character reacts with genuine, specific emotion (delight, curiosity, relief) to the news or discovery; when the customer's notes give a message, deliver it through one creative in-world device (a banner towed past the window, a notification, a billboard); (2) USE — the character sits down or picks up a device and uses the website with believable hands and eyes that follow the screen; (3) PUSH IN — the camera glides over the shoulder and moves toward the screen so the real website becomes the hero; (4) HERO — a stable, well-lit, front-facing view of the device with the real website readable, in the brand's world.
+- THE SCREEN IS THE PROOF: whenever a laptop, phone or tablet shows the site it MUST show the real captured page, sharp, facing the camera enough to read, with a stable layout. Never invent pages, products, prices, states or text on the screen. Show only states the captures support.
+- The character shows rather than speaks: gestures toward the screen, leans in, smiles at a product. Do not generate random spoken dialogue.
+- onScreenCopy MUST be "" unless the customer's notes ask for visible text. If they do, direct only short, correctly spelled ENGLISH copy (for example the brand name and a few words) and keep brand names exactly as captured. The real logo from the captures may appear on the closing beat.
+- Never draw platform interface: no story progress bars, "See details" buttons, usernames, status bars, notches or watermarks.
+- Compose for the chosen aspect ratio. For vertical 9:16 keep the character and the screen centered inside the safe area for the whole film.
+- With fewer than four timeline beats, combine the beats in order (reaction and use first, push-in and hero last). Never drop the character using the website, and always finish on the hero view of the real site.
 - voiceoverScript MUST be null.
 `;
 
@@ -370,6 +386,9 @@ First infer the website type. For ecommerce, use the real supported purchase pat
   tour: `FEATURE TOUR — AI-generated feature-by-feature showcase.
 Discover the strongest real features visible across all captures, including search/filter/navigation, product areas, dashboards, tools, chat/AI assistant, categories, or other site-specific capabilities. Give each scene a different feature purpose and, when a real interaction state exists, show the feature working. Long tours must keep introducing new content and motion instead of repeating the same page.`,
 
+  character: `CHARACTER STORY — a believable person discovers and uses this exact website.
+Cast one consistent adult character from this site's real audience and put them in an on-brand world. Open on their genuine reaction to the news or discovery, show them using the real website with believable hands and eyes, push in until the real screen is the hero, and end on a stable hero view of the site with the real logo when it is captured. The screen always shows the real captured page; never invent pages, products, prices or states. No invented dialogue and no platform interface (story bars, buttons, usernames). Honor the customer's notes about who the character is and what the message is.`,
+
   demo: `CINEMATIC BRAND FILM — fully AI-generated premium product film.
 Use the captures as grounding references, then create cinematic motion, dimensional devices, elegant environments, lighting, depth, and premium camera movement. Keep any website UI inside screens faithful to the real references and preserve the actual brand/products. Never invent features, claims, prices, or a different brand.`,
 
@@ -412,6 +431,18 @@ function timelineBeatDurations(totalSeconds: number, count: number) {
   const base = Math.floor(total / safeCount);
   let remainder = total - base * safeCount;
   return Array.from({ length: safeCount }, () => base + (remainder-- > 0 ? 1 : 0));
+}
+
+/**
+ * The Character story has four beats (reaction, using the site, push-in, hero). A short video has fewer beats, and the
+ * story must still be told in full: beats are combined in order, so the character always uses the real site and the film
+ * always ends on the hero view of it.
+ */
+export function characterBeatDirections(beats: string[], count: number): string[] {
+  if (count >= beats.length) return beats;
+  if (count <= 1) return [beats.join(' ')];
+  if (count === 2) return [`${beats[0]} ${beats[1]}`, `${beats[2]} ${beats[3]}`];
+  return [beats[0], `${beats[1]} ${beats[2]}`, beats[3]];
 }
 
 export function buildFallbackStoryboard(input: StoryboardInput): Storyboard {
@@ -508,6 +539,12 @@ export function buildFallbackStoryboard(input: StoryboardInput): Storyboard {
       'Flip to a third distinct real page/panel, varying the motion style (parallax, stack, gentle zoom) so it never feels repetitive.',
       'Close on the strongest remaining real page/panel or title card with a clean, satisfying final reveal.'
     ],
+    character: [
+      'Open on the character in an on-brand world reacting with a genuine, specific emotion to the news or discovery, with one creative in-world device delivering the message if the brief gives one. Establish their identity, wardrobe and the brand palette immediately.',
+      'The character sits down and starts using the real website on a laptop or phone: believable hands, eyes following the screen, reacting to what they see. The screen shows a real captured page, sharp and stable.',
+      'Glide over the character\u2019s shoulder and push toward the screen so the real website becomes the hero, moving to a second real captured state (a product, category or feature) while the character reacts to it.',
+      'Resolve on a stable, well-lit hero view of the device with the real website readable, props in the brand palette, ending on the real logo when the captures include it.'
+    ],
     linkedin: [
       'Open with a concise professional hook grounded in the strongest real website state.',
       'Show the clearest real workflow, feature, or product proof with readable purposeful motion.',
@@ -521,7 +558,9 @@ export function buildFallbackStoryboard(input: StoryboardInput): Storyboard {
       'Resolve the customer\u2019s idea on a clean, satisfying final moment.'
     ]
   };
-  const directions = fallbackDirections[input.mode] ?? fallbackDirections.video;
+  const directions = input.mode === 'character'
+    ? characterBeatDirections(fallbackDirections.character, sceneCount)
+    : (fallbackDirections[input.mode] ?? fallbackDirections.video);
 
   const scenes = Array.from({ length: sceneCount }, (_, index): StoryboardScene => {
     const isFirst = index === 0;
@@ -580,6 +619,8 @@ export function buildFallbackStoryboard(input: StoryboardInput): Storyboard {
         ? `${brandName} turned into a premium marketing photo set using the supplied real references as product/brand ground truth.`
         : isStudioVideo
           ? `A professionally directed continuous AI video generated from the customer's ${input.mode === 'product-video' ? 'real product references and product-film direction' : 'written idea'}${actualCaptureCount ? ' and reference images' : ''}.`
+          : input.mode === 'character'
+            ? `${brandName} told as a character story: a believable customer discovers and uses the real website in an on-brand world, ending on the real site as the hero.`
           : isDemo
             ? `${brandName} presented as a generative cinematic brand film — AI-composited device mockups and feature cards grounded in its real logo, products, and captured brand content.`
             : `${brandName} presented as a true AI-generated website film grounded in its real captured pages, products, UI and brand.`,
@@ -614,6 +655,12 @@ export function buildFallbackStoryboard(input: StoryboardInput): Storyboard {
                   'A story-led version with stronger character or subject progression',
                   'A visually bold variation with different framing, pacing, and camera language'
                 ]
+          : input.mode === 'character'
+            ? [
+                'A customer reacts to the news, then browses the real site at home',
+                'Over-the-shoulder browsing that pushes into the real screen as the hero',
+                'A branded closing hero: the device, props in the brand palette and the real logo'
+              ]
           : isDemo
             ? [
                 'Device-mockup-led brand film with glassmorphism feature cards',
@@ -746,6 +793,8 @@ export function buildStoryboardPrompt(input: StoryboardInput): PlannerPrompt {
         ? PHOTO_CREATIVE_POLICY
         : mode === 'both'
           ? `${AI_VIDEO_REFERENCE_POLICY}\n${BOTH_MODE_POLICY}`
+          : mode === 'character'
+            ? `${AI_VIDEO_REFERENCE_POLICY}\n${CHARACTER_CREATIVE_POLICY}`
           : isDemo
             ? `${AI_VIDEO_REFERENCE_POLICY}\n${DEMO_CREATIVE_POLICY}`
             : mode === 'mockup'

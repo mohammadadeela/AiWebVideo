@@ -173,6 +173,7 @@ const MODE_DEFAULT_VIBES: Record<JobMode, string> = {
   both: "Exact-capture video · creative premium marketing stills",
   mockup: "Fast social-feed reveal · energetic · scroll-stopping",
   linkedin: "Professional · credible · LinkedIn feed optimized",
+  character: "Warm, authentic lifestyle story · a believable person using the real site · on-brand palette",
   custom: "Guided entirely by your written idea",
 };
 
@@ -1556,7 +1557,7 @@ Promotion direction: ${visibleBrief(brief)}` : photosOnly ? photosLabel : normal
     // while Chromium was capturing, rebuild the request from restored workflow
     // state instead of leaving the job stranded at Brand read.
     const fallbackMode: WebsiteProductionMode =
-      mode === "tutorial" || mode === "buy" || mode === "tour" || mode === "linkedin" || mode === "demo"
+      mode === "tutorial" || mode === "buy" || mode === "tour" || mode === "linkedin" || mode === "demo" || mode === "character"
         ? mode
         : "video";
     const request = websiteRequestRef.current ?? {

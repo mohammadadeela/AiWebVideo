@@ -27,6 +27,7 @@ const MODES = new Set<JobWorkflowState["mode"]>([
   "tour",
   "mockup",
   "linkedin",
+  "character",
   "custom",
 ]);
 const AUDIO_MODES = new Set<JobWorkflowState["audioMode"]>([
