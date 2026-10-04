@@ -20,6 +20,11 @@ export interface ArchitectureInput {
   floors?: number;
   setback?: number;
   estimatedScale?: boolean;
+  /** The compass direction (0-359) the customer chose to look in on Street View. Customer-owned. */
+  streetViewHeading?: number;
+  /** Set by the server when Street View was attached: when it was captured, and how many views. Never from the page. */
+  streetViewDate?: string;
+  streetViewViews?: number;
 }
 
 export type StudioKind = 'product' | 'idea' | 'scenario' | 'interior' | 'architecture';
@@ -45,6 +50,7 @@ You are AiWebVideo's senior architectural visualization director working for lic
 SITE FIDELITY
 - The attached site references (map or satellite screenshot, site photo, plan) are ground truth for the surroundings: which side the street is on, neighbouring buildings, vegetation, terrain, orientation and light direction. Reproduce them faithfully. Never invent a different street, skyline or neighbourhood.
 - If only a map or satellite view is supplied, read the plot's position relative to roads and neighbours from it and keep that same orientation in every image.
+- Street-level photos (marked STREET VIEW) are the eye-level truth about the street: the road width, kerb and pavement, the neighbouring facades on both sides, their heights and materials, trees, poles and signs, and the camera height and lens. For street-level views of the new building, take the camera position and perspective from them, place the building on the plot exactly where it stands in them, and keep both neighbours as they are. Never remove or invent neighbouring buildings, and never copy a person, vehicle or sign from them into the result.
 
 DIMENSIONS
 - Numeric inputs are authoritative and in metres. The building footprint must fit inside the plot width x depth minus the setback on every side. Never exceed the stated number of floors. Keep floor-to-floor height realistic (about 3.0-3.5 m residential, 3.5-4.5 m commercial) so the overall height matches the floor count.
@@ -76,6 +82,11 @@ export function architectureContext(input: ArchitectureInput | null | undefined)
     lines.push(`- Coordinates: ${input.latitude.toFixed(6)}, ${input.longitude.toFixed(6)} (use them only to understand the region, climate, vegetation and sun path)`);
   }
   if (input.mapUrl) lines.push(`- Google Maps link supplied by the customer: ${input.mapUrl}`);
+  if (input.streetViewViews && input.streetViewViews > 0) {
+    lines.push(`- Google Street View: ${input.streetViewViews} real street-level photo${input.streetViewViews === 1 ? '' : 's'} of this exact street are attached (${input.streetViewDate ? `captured ${input.streetViewDate}` : 'capture date unknown'}), the first looking straight at the plot. They show the real road, pavement, neighbouring facades, heights, materials, trees and street furniture`);
+    lines.push('- The Street View photos can be older than the site today. If the customer\'s own photos or words disagree with them, the customer wins; otherwise treat them as the truth about the street');
+    if (typeof input.streetViewHeading === 'number') lines.push(`- The customer chose to look toward compass heading ${Math.round(input.streetViewHeading)} degrees: that is the street-facing side of the plot`);
+  }
 
   const { plotWidth: width, plotDepth: depth, setback, floors } = input;
   if (width && depth) {

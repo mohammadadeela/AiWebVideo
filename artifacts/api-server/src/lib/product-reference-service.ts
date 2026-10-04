@@ -1,6 +1,6 @@
 import { AppError } from './errors.js';
 import { readPublicUrl } from './external-reference.js';
-import { imageKey, looksLikeBotWall, parseProductPage, upgradeImageUrl, type ProductFacts } from './product-html.js';
+import { imageKey, isDirectImageUrl, looksLikeBotWall, parseProductPage, productNameFromUrl, upgradeImageUrl, type ProductFacts } from './product-html.js';
 import { renderPage, type RenderedPage } from './rendered-page.js';
 import { validateUrl } from './ssrf.js';
 
@@ -84,6 +84,13 @@ export async function readProductReference(rawUrl: string, deps: ProductReadDeps
     return checked.length ? { ...found, images: checked.slice(0, 8) } : null;
   };
 
+  // 0. The link is already a picture ("Copy image address"): nothing to read, and image servers do not block visitors.
+  if (isDirectImageUrl(rawUrl)) {
+    trace.push('direct image link');
+    const direct = await finish({ title: '', description: '', url: rawUrl, images: [rawUrl], facts: {}, source: 'page' });
+    if (direct) return direct;
+  }
+
   // 1. The plain page.
   let staticParsed: ReturnType<typeof parseProductPage> | null = null;
   let finalUrl = rawUrl;
@@ -139,11 +146,14 @@ export async function readProductReference(rawUrl: string, deps: ProductReadDeps
     if (result) return result;
   }
 
+  // The name the shop put in the link survives even when the page cannot be read, so the AI still knows the product.
+  const productName = productNameFromUrl(finalUrl) || productNameFromUrl(rawUrl);
   throw new AppError(
     blocked
       ? "This shop doesn't allow automatic reading. Upload a photo or screenshot of the product instead."
       : "We couldn't find the product photos on that page. Make sure it is a product page, or upload a photo of the product instead.",
     422,
     blocked ? 'PRODUCT_BLOCKED' : 'PRODUCT_IMAGES_MISSING',
+    productName ? { productName } : undefined,
   );
 }

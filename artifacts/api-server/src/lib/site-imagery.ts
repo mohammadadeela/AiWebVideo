@@ -1,5 +1,6 @@
 /**
- * OPTIONAL map imagery for an architecture site (satellite view and street-level view at the point).
+ * OPTIONAL map imagery for an architecture site: a satellite view and Google Street View (three views of the street, aimed
+ * at the plot, from one panorama; see street-view.ts).
  *
  * OFF by default. It runs only when BOTH `ARCHITECTURE_MAPS_IMAGERY=1` and `GOOGLE_MAPS_API_KEY` are set.
  * Google's Maps Platform terms restrict how its imagery may be stored, derived from and shown, and using it as
@@ -7,11 +8,10 @@
  * Without it, the site is still understood from the location through the analysis step, and customers can add
  * their own screenshot or photo of the plot.
  */
-export interface SiteImage { label: string; buffer: Buffer; mimeType: string }
+import { siteImageryEnabled, type SiteImage } from './imagery-config.js';
+import { fetchStreetViewSet, type StreetViewMeta } from './street-view.js';
 
-export function siteImageryEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  return env.ARCHITECTURE_MAPS_IMAGERY === '1' && Boolean(env.GOOGLE_MAPS_API_KEY?.trim());
-}
+export { siteImageryEnabled, type SiteImage };
 
 export function buildImageryUrls(latitude: number, longitude: number, key: string) {
   const point = `${latitude.toFixed(6)},${longitude.toFixed(6)}`;
@@ -30,27 +30,37 @@ async function image(url: string, fetcher: typeof fetch): Promise<Buffer | null>
   return buffer.length > 1_000 && buffer.length < 8 * 1024 * 1024 ? buffer : null;
 }
 
+export interface SiteImageryResult {
+  images: SiteImage[];
+  /** The Street View panorama the views came from (its date, distance and aim), or null when there is no coverage. */
+  streetView: StreetViewMeta | null;
+}
+
 /** Best effort: returns whatever imagery exists; never throws (the production continues without it). */
-export async function fetchSiteImagery(
+export async function fetchSiteImageryDetailed(
   point: { latitude: number; longitude: number },
-  options: { env?: NodeJS.ProcessEnv; fetcher?: typeof fetch } = {},
-): Promise<SiteImage[]> {
+  options: { env?: NodeJS.ProcessEnv; fetcher?: typeof fetch; /** The compass direction the customer chose to look in. */ heading?: number | null } = {},
+): Promise<SiteImageryResult> {
   const env = options.env ?? process.env;
   const fetcher = options.fetcher ?? fetch;
-  if (!siteImageryEnabled(env)) return [];
+  if (!siteImageryEnabled(env)) return { images: [], streetView: null };
   const urls = buildImageryUrls(point.latitude, point.longitude, env.GOOGLE_MAPS_API_KEY!.trim());
   const found: SiteImage[] = [];
   try {
     const satellite = await image(urls.satellite, fetcher);
     if (satellite) found.push({ label: 'Satellite view of the site', buffer: satellite, mimeType: 'image/png' });
   } catch { /* skip */ }
+  let streetView: StreetViewMeta | null = null;
   try {
-    const meta = await fetcher(urls.streetViewMetadata, { signal: AbortSignal.timeout(8_000) });
-    const status = meta.ok ? ((await meta.json()) as { status?: string }).status : null;
-    if (status === 'OK') {
-      const street = await image(urls.streetView, fetcher);
-      if (street) found.push({ label: 'Street-level view at the site', buffer: street, mimeType: 'image/jpeg' });
-    }
+    const set = await fetchStreetViewSet(point, { env, fetcher, heading: options.heading });
+    if (set) { streetView = set.meta; found.push(...set.images); }
   } catch { /* skip */ }
-  return found;
+  return { images: found, streetView };
+}
+
+export async function fetchSiteImagery(
+  point: { latitude: number; longitude: number },
+  options: { env?: NodeJS.ProcessEnv; fetcher?: typeof fetch; heading?: number | null } = {},
+): Promise<SiteImage[]> {
+  return (await fetchSiteImageryDetailed(point, options)).images;
 }

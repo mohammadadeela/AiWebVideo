@@ -305,3 +305,43 @@ export function looksLikeBotWall(html: string): boolean {
   if (html.length > 40_000) return false;
   return /cf-browser-verification|challenge-platform|cf-challenge|px-captcha|g-recaptcha-response|hcaptcha|enable javascript and cookies to continue|verify you are human|type the characters you see|unusual traffic|automated access/i.test(html);
 }
+
+
+const GENERIC_PATH_WORDS = new Set(['dp', 'gp', 'product', 'products', 'p', 'item', 'items', 'itm', 'shop', 'store', 'collections', 'collection', 'catalog', 'pd', 'buy', 'detail', 'details', 'en', 'us', 'ref', 's', 'c', 'category', 'categories', 'browse', 'listing', 'sku', 'www']);
+
+/**
+ * A product's name as the shop wrote it into the link ("/Biodance-Bio-Collagen-Mask/dp/B0B2RM68G2"). Used when the page
+ * itself cannot be read (shops that block automatic reading) so the AI still knows what the product is called.
+ * Returns '' when the link does not carry a readable name.
+ */
+export function productNameFromUrl(rawUrl: string): string {
+  let url: URL;
+  try { url = new URL(rawUrl); } catch { return ''; }
+  const segments = url.pathname.split('/').filter(Boolean).map((segment) => {
+    try { return decodeURIComponent(segment); } catch { return segment; }
+  });
+  let best = '';
+  let bestWords = 1;
+  for (const raw of segments) {
+    if (raw.includes('=') || GENERIC_PATH_WORDS.has(raw.toLowerCase())) continue;
+    const segment = raw.replace(/\.(?:html?|php|aspx?)$/i, '');
+    if (/^[A-Z0-9]{10}$/.test(segment) || /^\d+$/.test(segment)) continue;           // an Amazon ASIN or a numeric id
+    const words = segment.split(/[-_+\s]+/).filter((word) => /\p{L}{2,}/u.test(word) && !/^\d+$/.test(word));
+    if (words.length > bestWords) { best = words.join(' '); bestWords = words.length; }
+  }
+  const cleaned = best.replace(/[^\p{L}\p{N} &'.,()+-]/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
+  return cleaned ? cleaned.charAt(0).toUpperCase() + cleaned.slice(1) : '';
+}
+
+/**
+ * A link that IS a picture (what "Copy image address" gives on a shop page). Shop images come from public image servers
+ * that do not ask visitors to prove they are human, so these can be used even when the product page itself cannot be read.
+ */
+export function isDirectImageUrl(rawUrl: string): boolean {
+  try {
+    const url = new URL(rawUrl);
+    if (!/^https?:$/.test(url.protocol)) return false;
+    if (/\.(?:jpe?g|png|webp)$/i.test(url.pathname)) return true;
+    return /(?:^|\.)(?:m\.media-amazon\.com|images-na\.ssl-images-amazon\.com)$/i.test(url.hostname) && /^\/images\//i.test(url.pathname);
+  } catch { return false; }
+}

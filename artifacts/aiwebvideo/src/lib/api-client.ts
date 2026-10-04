@@ -4,11 +4,14 @@ import type { AudioMode, JobStatusResponse, JobMode, JobWorkflowState } from '@/
 export class ApiError extends Error {
   code?: string;
   status: number;
-  constructor(message: string, status: number, code?: string) {
+  /** The product's name as written in a link the shop would not let us read, so the page can keep it. */
+  productName?: string;
+  constructor(message: string, status: number, code?: string, details?: { productName?: string }) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.code = code;
+    this.productName = details?.productName;
   }
 }
 
@@ -27,7 +30,7 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new ApiError(data.error || 'Something went wrong.', res.status, data.code);
+    throw new ApiError(data.error || 'Something went wrong.', res.status, data.code, typeof data.productName === 'string' ? { productName: data.productName } : undefined);
   }
   return data as T;
 }
@@ -403,6 +406,27 @@ export interface ProductReference {
   images: string[];
   facts?: Record<string, string>;
   source?: 'page' | 'shop-data' | 'rendered';
+}
+
+/** Is there Street View at a spot, from which panorama, how old, and which way faces the plot? (The key stays on the server.) */
+export interface StreetViewInfo {
+  enabled: boolean;
+  available: boolean;
+  panoId?: string;
+  date?: string | null;
+  dateLabel?: string | null;
+  ageYears?: number | null;
+  distanceM?: number;
+  headingToPlot?: number | null;
+}
+
+export function getStreetView(latitude: number, longitude: number, signal?: AbortSignal) {
+  return request<StreetViewInfo>(`/api/architecture/street-view?lat=${latitude.toFixed(6)}&lng=${longitude.toFixed(6)}`, { signal });
+}
+
+/** One Street View picture, served by our own server. */
+export function streetViewImageSrc(panoId: string, heading: number): string {
+  return `/api/architecture/street-view/image?pano=${encodeURIComponent(panoId)}&heading=${Math.round(((heading % 360) + 360) % 360)}`;
 }
 
 export function extractProductReference(url: string) {

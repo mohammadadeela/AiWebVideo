@@ -15,6 +15,7 @@ import {
   Globe2,
   Image as ImageIcon,
   House,
+  ImagePlus,
   Building2,
   Languages,
   Maximize2,
@@ -56,6 +57,7 @@ import { SampleStrip } from "./SampleStrip";
 import { USE_SAMPLE_EVENT, clearPendingSample, peekPendingSample, rememberPendingSample, useSamples, type Sample, type UseSampleDetail } from "@/lib/showcase";
 import { ComposerPlusMenu } from "./ComposerPlusMenu";
 import { DrawingCard, useDrawingAttachment } from "./DrawingCard";
+import { SiteStreetView } from "./SiteStreetView";
 import { isDrawingFile } from "@/lib/drawingFile";
 import { FormatIcon } from "./FormatIcon";
 import { ModelPicker } from "./ModelPicker";
@@ -413,15 +415,22 @@ export function WebsiteBriefForm({
   const [mapLink, setMapLink] = useState("");
   const [site, setSite] = useState<{ latitude?: number; longitude?: number; label: string | null; resolvedUrl: string; precision?: "pin" | "view" | "none"; imageryAvailable?: boolean } | null>(null);
   const [resolvingSite, setResolvingSite] = useState(false);
+  // The compass direction the customer turned the Street View camera to (null: face the plot, the default).
+  const [streetViewHeading, setStreetViewHeading] = useState<number | null>(null);
+  // A product link the shop would not let us read: what we kept from it and what the person can do next.
+  const [blockedProduct, setBlockedProduct] = useState<{ host: string; name: string; blocked: boolean } | null>(null);
   const [plotWidth, setPlotWidth] = useState("");
   const [plotDepth, setPlotDepth] = useState("");
   const [floorCount, setFloorCount] = useState("");
   const [setback, setSetback] = useState("");
   const [estimatedScale, setEstimatedScale] = useState(false);
+  useEffect(() => { setStreetViewHeading(null); }, [site?.latitude, site?.longitude]);
   const [selectedSample, setSelectedSample] = useState<Sample | null>(null);
   const [languageShake, setLanguageShake] = useState(false);
   const languageShakeTimer = useRef<number | null>(null);
   const lastReadLinkRef = useRef("");
+  // A link the shop would not let us read: not read again on every blur, since the answer would be the same.
+  const lastFailedLinkRef = useRef("");
   const productReadId = useRef(0);
   const siteReadId = useRef(0);
   const [compactPanel, setCompactPanel] = useState<"style" | "ideas" | "model" | null>(null);
@@ -651,19 +660,25 @@ export function WebsiteBriefForm({
     });
   }
 
-  async function loadProductLink(link = productLink) {
+  async function loadProductLink(link = productLink, explain = false) {
     const typed = link.trim();
     if (!typed) return null;
     const value = looksLikeLink(typed) ? withScheme(typed) : typed;
     if (lastReadLinkRef.current === value && productData) return productData;
+    if (lastFailedLinkRef.current === value) {
+      if (explain) setError("Add one photo of the product (see the note above), then press Create again.");
+      return null;
+    }
     // A newer link replaces an older one that is still being read; the older answer is then ignored.
     const readId = ++productReadId.current;
     setReadingProduct(true);
     setError(null);
+    setBlockedProduct(null);
     try {
       const data = await extractProductReference(value);
       if (readId !== productReadId.current) return null;
       lastReadLinkRef.current = value;
+      lastFailedLinkRef.current = "";
       setProductData(data);
       setChosenProductImages(data.images.slice(0, 1));
       if (!brief.trim() && data.description) setBrief(data.description.slice(0, 1200));
@@ -673,6 +688,15 @@ export function WebsiteBriefForm({
       lastReadLinkRef.current = "";
       setProductData(null);
       setChosenProductImages([]);
+      if (error instanceof ApiError && (error.code === "PRODUCT_BLOCKED" || error.code === "PRODUCT_IMAGES_MISSING")) {
+        // Not an error screen: the page keeps the product's name from the link and shows the quick ways to add a photo.
+        let host = "That shop";
+        try { host = new URL(value).hostname.replace(/^www\./i, ""); } catch { /* keep the generic name */ }
+        lastFailedLinkRef.current = value;
+        setBlockedProduct({ host, name: error.productName ?? "", blocked: error.code === "PRODUCT_BLOCKED" });
+        if (explain) setError("Add one photo of the product (see the note above), then press Create again.");
+        return null;
+      }
       setError(error instanceof ApiError && error.message
         ? error.message
         : "We couldn't read photos from that link. Upload a photo of the product instead.");
@@ -875,7 +899,7 @@ export function WebsiteBriefForm({
     let productReference = productData;
     let productImages = chosenProductImages;
     if (isProduct && files.length === 0 && productImages.length === 0 && productLink.trim()) {
-      const data = await loadProductLink();
+      const data = await loadProductLink(undefined, true);
       if (!data) return;
       productUrl = data.url;
       productReference = data;
@@ -922,7 +946,7 @@ export function WebsiteBriefForm({
       // exactly the units the customer was shown, so what they checked is what the server uses
       drawingUnits: cadMode ? drawingAttachment.drawing?.preview?.units.choice : undefined,
       templateId: selectedSample?.id,
-      productFacts: isProduct && productReference ? { title: productReference.title, description: productReference.description, facts: productReference.facts } : undefined,
+      productFacts: isProduct && productReference ? { title: productReference.title, description: productReference.description, facts: productReference.facts } : isProduct && blockedProduct?.name ? { title: blockedProduct.name } : undefined,
       architecture: activeMode === "architecture" ? {
         location: resolvedSite?.label || resolvedSite?.resolvedUrl,
         latitude: resolvedSite?.latitude,
@@ -933,6 +957,7 @@ export function WebsiteBriefForm({
         floors: Number(floorCount) || undefined,
         setback: Number(setback) || undefined,
         estimatedScale,
+        streetViewHeading: typeof streetViewHeading === "number" ? streetViewHeading : undefined,
       } : undefined,
     });
   }
@@ -1105,6 +1130,7 @@ export function WebsiteBriefForm({
                   value={productLink}
                   onChange={(event) => {
                     setProductLink(event.target.value);
+                    setBlockedProduct(null);
                     // Photos read from the previous link must never be used with a different one.
                     if (withScheme(event.target.value) !== lastReadLinkRef.current) { setProductData(null); setChosenProductImages([]); }
                   }}
@@ -1133,6 +1159,24 @@ export function WebsiteBriefForm({
                 ? "Choose the photos to use below. You don't need to upload anything else."
                 : "We'll use the photos on that page. Or skip the link and upload your own product photos. You only need one of the two."}
             </p>
+            {blockedProduct && files.length === 0 && (
+              <div role="status" data-testid="product-blocked" className="mt-2.5 rounded-xl border border-[#f5b942]/50 bg-[#2a2110] p-3 text-[12px] leading-5 text-white/85">
+                <p>
+                  <strong className="font-bold text-white">{blockedProduct.blocked ? `${blockedProduct.host} doesn't allow automatic reading.` : `We couldn't find photos on that ${blockedProduct.host} page.`}</strong>{" "}
+                  {blockedProduct.name ? <>We kept the product name: <span className="font-semibold text-white">“{blockedProduct.name}”</span>. </> : null}
+                  Add one photo of the product and you're done. It takes a few seconds.
+                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <button type="button" onClick={() => inputRef.current?.click()} className="inline-flex h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-violet to-blue-500 px-4 text-[13px] font-bold text-white transition active:scale-[.98]">
+                    <ImagePlus size={16} aria-hidden="true" /> Upload a photo
+                  </button>
+                  <span className="text-[11.5px] text-white/60">or paste a screenshot</span>
+                </div>
+                <p className="mt-2 text-[11.5px] leading-4 text-white/60">
+                  Quicker on {blockedProduct.host}: right-click the product photo, choose <span className="font-semibold text-white/85">Copy image address</span>, and paste it into the link box above.
+                </p>
+              </div>
+            )}
             {productData && (
               <div className="mt-2.5">
                 <div className="flex items-center justify-between gap-3">
@@ -1188,7 +1232,7 @@ export function WebsiteBriefForm({
               {site && <p className="mt-2 flex items-center gap-1.5 text-[12px] text-mint"><Check size={13} /> {site.label || `${site.latitude}, ${site.longitude}`}</p>}
               {site && typeof site.latitude === "number" && typeof site.longitude === "number" && (
                 <div className="mt-2.5 overflow-hidden rounded-xl border border-white/[.10] bg-[#0b0818]" data-testid="site-preview">
-                  <iframe title="The exact spot on the map" src={mapPreviewUrl(site.latitude, site.longitude)} loading="lazy" referrerPolicy="no-referrer" className="h-44 w-full border-0" />
+                  <SiteStreetView latitude={site.latitude} longitude={site.longitude} mapSrc={mapPreviewUrl(site.latitude, site.longitude)} heading={streetViewHeading} onHeading={setStreetViewHeading} />
                   <div className="space-y-1 px-3 py-2 text-[11px] leading-4 text-white/60">
                     <p><span className="font-semibold text-white">Is this the right spot?</span> The design is placed exactly here: <span className="font-mono text-white/80">{site.latitude.toFixed(6)}, {site.longitude.toFixed(6)}</span></p>
                     <p>{site.imageryAvailable ? "Satellite and street views of this spot are used for the design." : "For a design that matches your plot exactly, add a screenshot of it (satellite view) below."}</p>

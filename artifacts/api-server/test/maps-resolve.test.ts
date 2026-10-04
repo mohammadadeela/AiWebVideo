@@ -140,7 +140,10 @@ test('the customer sees the exact spot: coordinates, an embedded map of the poin
   const fe = (file: string) => readFile(path.resolve(process.cwd(), '../aiwebvideo/src', file), 'utf8');
   const form = await fe('components/chat/WebsiteBriefForm.tsx');
   assert.match(form, /data-testid="site-preview"/);
-  assert.match(form, /<iframe title="The exact spot on the map" src=\{mapPreviewUrl\(site\.latitude, site\.longitude\)\}/);
+  // the embedded map of the exact point is still there: it is the corner map of the Street View card, and the whole card when there is no Street View
+  assert.match(form, /<SiteStreetView latitude=\{site\.latitude\} longitude=\{site\.longitude\} mapSrc=\{mapPreviewUrl\(site\.latitude, site\.longitude\)\}/);
+  const card = await fe('components/chat/SiteStreetView.tsx');
+  assert.equal((card.match(/<iframe title="The exact spot on the map" src=\{mapSrc\}/g) ?? []).length, 2);
   assert.match(form, /Is this the right spot\?/);
   assert.match(form, /site\.latitude\.toFixed\(6\), \{site\.longitude\.toFixed\(6\)\}|\{site\.latitude\.toFixed\(6\)\}, \{site\.longitude\.toFixed\(6\)\}/);
   assert.match(form, /site\.imageryAvailable \? "Satellite and street views of this spot are used for the design\." : "For a design that matches your plot exactly, add a screenshot of it/);

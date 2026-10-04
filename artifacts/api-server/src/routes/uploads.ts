@@ -15,7 +15,7 @@ import { readPublicUrl } from '../lib/external-reference.js';
 import { coordinatesFromMapsUrl, isGoogleMapsUrl } from '../lib/maps-url.js';
 import { TEMPLATE_REPLACEMENT_DIRECTION } from '../lib/studio-direction.js';
 import { sanitizeProductFacts } from '../lib/studio-insights.js';
-import { fetchSiteImagery } from '../lib/site-imagery.js';
+import { fetchSiteImageryDetailed } from '../lib/site-imagery.js';
 import { findShowcaseSample, loadShowcaseStill } from '../lib/marketing.js';
 import { z } from 'zod';
 
@@ -203,8 +203,14 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
           floors: z.number().int().positive().max(200).optional(),
           setback: z.number().min(0).max(10_000).optional(),
           estimatedScale: z.boolean().optional(),
+          streetViewHeading: z.number().min(0).max(360).optional(),
+          // set by the server only (below): whatever the page sends here is discarded
+          streetViewDate: z.string().max(24).optional(),
+          streetViewViews: z.number().int().min(0).max(6).optional(),
         }).parse(architectureInput)
       : null;
+    // Whether Street View was attached, and from when, is the server's to say: never taken from the page.
+    if (architecture) { delete architecture.streetViewDate; delete architecture.streetViewViews; }
     const studioMode = ['video', 'photos', 'both', 'custom'].includes(req.body?.mode) ? req.body.mode as 'video' | 'photos' | 'both' | 'custom' : null;
     const studioAudioMode = ['voice_music', 'native_audio', 'music_only', 'silent'].includes(req.body?.audioMode)
       ? req.body.audioMode as 'voice_music' | 'native_audio' | 'music_only' | 'silent'
@@ -394,7 +400,10 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
 
     // Architecture: optional map imagery of the site (off unless the site owner enabled it).
     if (studioKind === 'architecture' && typeof architecture?.latitude === 'number' && typeof architecture?.longitude === 'number') {
-      for (const shot of await fetchSiteImagery({ latitude: architecture.latitude, longitude: architecture.longitude })) {
+      const imagery = await fetchSiteImageryDetailed({ latitude: architecture.latitude, longitude: architecture.longitude }, { heading: architecture.streetViewHeading });
+      architecture.streetViewViews = imagery.images.filter((shot) => shot.label.startsWith('STREET VIEW')).length || undefined;
+      architecture.streetViewDate = imagery.streetView?.dateLabel ?? undefined;
+      for (const shot of imagery.images) {
         try {
           const jpeg = await normalizeUploadToJpeg(shot.buffer);
           const pageIndex = pages.length;

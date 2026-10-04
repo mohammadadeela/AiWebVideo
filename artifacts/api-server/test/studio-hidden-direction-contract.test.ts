@@ -26,7 +26,7 @@ test('a product link is optional, read automatically and is enough without uploa
   const form = await frontend('components/chat/WebsiteBriefForm.tsx');
   assert.match(form, /Product link <span[^>]*>· optional<\/span>/);
   assert.match(form, /onBlur=\{\(\) => \{ if \(productLink\.trim\(\)\) void loadProductLink\(\); \}\}/);
-  assert.match(form, /const data = await loadProductLink\(\);/);
+  assert.match(form, /const data = await loadProductLink\(undefined, true\);/);
   assert.match(form, /You only need one of the two/);
   const uploads = await server('routes/uploads.ts');
   assert.match(uploads, /!files\.length && !productImageUrls\.length/);

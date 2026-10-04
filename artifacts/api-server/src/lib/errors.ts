@@ -4,11 +4,14 @@ import { publicApiErrorMessage } from './public-errors.js';
 export class AppError extends Error {
   status: number;
   code: string;
-  constructor(message: string, status = 400, code = 'BAD_REQUEST') {
+  /** Small server-owned facts that help the page explain the error (for example the product name read from a blocked link). */
+  details?: Record<string, string>;
+  constructor(message: string, status = 400, code = 'BAD_REQUEST', details?: Record<string, string>) {
     super(message);
     this.name = 'AppError';
     this.status = status;
     this.code = code;
+    this.details = details;
   }
 }
 
@@ -40,6 +43,7 @@ function publicErrorCode(code: string): string {
 export function sendError(res: Response, err: unknown, exposeTechnical = res.locals.isAdmin === true): void {
   if (err instanceof AppError) {
     res.status(err.status).json({
+      ...(err.details ?? {}),
       error: exposeTechnical ? err.message : publicApiErrorMessage(err.message),
       code: exposeTechnical ? err.code : publicErrorCode(err.code),
       ...(exposeTechnical ? { technical: true } : {}),
