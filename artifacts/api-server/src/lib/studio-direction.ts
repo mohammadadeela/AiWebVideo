@@ -1,3 +1,4 @@
+import { compassName } from './street-view.js';
 /**
  * Server-owned creative direction for studio productions.
  *
@@ -25,6 +26,92 @@ export interface ArchitectureInput {
   /** Set by the server when Street View was attached: when it was captured, and how many views. Never from the page. */
   streetViewDate?: string;
   streetViewViews?: number;
+  /** How the customer tilted and zoomed the Street View camera (degrees). */
+  streetViewPitch?: number;
+  streetViewFov?: number;
+  /** What the customer pointed at: the whole building, one shop/unit, one floor, or empty land. Customer-owned. */
+  targetKind?: TargetKind;
+  targetLevel?: TargetLevel;
+  /** Where they tapped on the picture, 0-1 from the left / top. */
+  targetX?: number;
+  targetY?: number;
+  /** Tapped on the Street View frame, or on one of their own photos (which one). */
+  targetSource?: 'street' | 'photo';
+  targetPhoto?: number;
+  /** Set by the server when a copy of the picture with the marker was attached. Never from the page. */
+  targetMarked?: boolean;
+}
+
+export const TARGET_KINDS = ['building', 'unit', 'floor', 'land'] as const;
+export type TargetKind = (typeof TARGET_KINDS)[number];
+export const TARGET_LEVELS = ['basement', 'ground', '1', '2', '3', '4', '5', '6+', 'roof'] as const;
+export type TargetLevel = (typeof TARGET_LEVELS)[number];
+
+const LEVEL_WORDS: Record<TargetLevel, string> = {
+  basement: 'the basement (below street level)',
+  ground: 'the ground floor, at street level',
+  '1': 'the 1st floor (one above the ground floor)',
+  '2': 'the 2nd floor',
+  '3': 'the 3rd floor',
+  '4': 'the 4th floor',
+  '5': 'the 5th floor',
+  '6+': 'an upper floor (6th or higher)',
+  roof: 'the roof',
+};
+
+function pointWords(x: number | undefined, y: number | undefined): { place: string; percent: string } | null {
+  if (typeof x !== 'number' || typeof y !== 'number') return null;
+  const horizontal = x < 0.34 ? 'left' : x > 0.66 ? 'right' : 'middle';
+  const vertical = y < 0.34 ? 'upper' : y > 0.66 ? 'lower' : 'middle';
+  const place = vertical === 'middle' && horizontal === 'middle' ? 'the centre' : vertical === 'middle' ? `the ${horizontal}` : `the ${vertical} ${horizontal}`;
+  return { place, percent: `about ${Math.round(x * 100)}% from the left and ${Math.round(y * 100)}% from the top` };
+}
+
+/**
+ * What the customer pointed at, in words the AI can act on. This is the customer's explicit choice: it decides what is being
+ * designed, and everything else in the pictures stays as it is.
+ */
+export function describeTarget(input: ArchitectureInput | null | undefined): string[] {
+  if (!input?.targetKind) return [];
+  const level = input.targetLevel ? LEVEL_WORDS[input.targetLevel] : '';
+  const lines: string[] = [];
+  switch (input.targetKind) {
+    case 'building':
+      lines.push('- TARGET (the customer\'s explicit choice): the WHOLE BUILDING at the marked spot, every floor and the roof. The design is for this entire building');
+      break;
+    case 'unit':
+      lines.push(`- TARGET (the customer\'s explicit choice): ONE SHOP / UNIT at the marked spot, on ${level || 'the ground floor, at street level'}. Design only that unit (its frontage, entrance and glazing from the street, and its interior when asked). The rest of the building, the units above, below and beside it, and the neighbours stay exactly as they are in the pictures`);
+      break;
+    case 'floor':
+      lines.push(`- TARGET (the customer\'s explicit choice): ONE FLOOR of the building at the marked spot: ${level || 'the 1st floor'}. Only that level changes. The other floors, the facade rhythm, the roof and the neighbours stay as in the pictures. If the street cannot see that level (a basement, or an upper floor behind the facade), design it as an interior consistent with the building around it`);
+      break;
+    case 'land':
+      lines.push('- TARGET (the customer\'s explicit choice): EMPTY LAND at the marked spot, a plot with no building to keep. Place a NEW building on exactly that plot. Follow the street line and the setbacks of the neighbours, respect their heights, and keep both neighbours unchanged');
+      break;
+  }
+  const where = pointWords(input.targetX, input.targetY);
+  if (where) {
+    const onStreet = input.targetSource !== 'photo';
+    const camera = onStreet && typeof input.streetViewFov === 'number' || (onStreet && typeof input.streetViewPitch === 'number')
+      ? `; the camera looks ${typeof input.streetViewPitch === 'number' && input.streetViewPitch > 8 ? `up ${Math.round(input.streetViewPitch)} degrees (to see the upper floors)` : 'level'}${typeof input.streetViewFov === 'number' && input.streetViewFov < 70 ? ' and is zoomed in' : ''}`
+      : '';
+    lines.push(`- Where: the customer pointed at ${where.place} of ${onStreet ? 'the first Street View picture' : 'their own photo'} (${where.percent})${camera}`);
+  }
+  if (input.targetMarked) {
+    lines.push('- A copy of that picture with a red box is attached and labelled TARGET MARKER. The box only shows where the customer pointed. It is a locating aid, not part of the scene, and it must never appear in any result');
+  }
+  return lines;
+}
+
+/** The customer's explicit target decides the kind of project; their words only choose between the close variants. */
+export function scopeWithTarget(kind: TargetKind | undefined, fromWords: ProjectScope): ProjectScope {
+  switch (kind) {
+    case 'land': return 'new_building';
+    case 'building': return fromWords === 'facade_retrofit' || fromWords === 'extension' || fromWords === 'landscape' ? fromWords : 'new_building';
+    case 'unit': return fromWords === 'fit_out_interior' || fromWords === 'storefront_exterior' ? fromWords : 'storefront_exterior';
+    case 'floor': return fromWords === 'extension' || fromWords === 'fit_out_interior' ? fromWords : 'fit_out_interior';
+    default: return fromWords;
+  }
 }
 
 export type StudioKind = 'product' | 'idea' | 'scenario' | 'interior' | 'architecture';
@@ -51,6 +138,10 @@ SITE FIDELITY
 - The attached site references (map or satellite screenshot, site photo, plan) are ground truth for the surroundings: which side the street is on, neighbouring buildings, vegetation, terrain, orientation and light direction. Reproduce them faithfully. Never invent a different street, skyline or neighbourhood.
 - If only a map or satellite view is supplied, read the plot's position relative to roads and neighbours from it and keep that same orientation in every image.
 - Street-level photos (marked STREET VIEW) are the eye-level truth about the street: the road width, kerb and pavement, the neighbouring facades on both sides, their heights and materials, trees, poles and signs, and the camera height and lens. For street-level views of the new building, take the camera position and perspective from them, place the building on the plot exactly where it stands in them, and keep both neighbours as they are. Never remove or invent neighbouring buildings, and never copy a person, vehicle or sign from them into the result.
+
+TARGET SELECTION
+- When the site inputs state a TARGET (the whole building, one shop or unit, one floor, or empty land) it is the customer's explicit choice and overrides any guess about what is being designed. Design exactly that target and keep everything else in the references unchanged: the neighbouring buildings, the other floors, the facade rhythm and the street.
+- A reference labelled TARGET MARKER only shows where the customer pointed. Never draw the marker, its box or a crosshair in any result.
 
 DIMENSIONS
 - Numeric inputs are authoritative and in metres. The building footprint must fit inside the plot width x depth minus the setback on every side. Never exceed the stated number of floors. Keep floor-to-floor height realistic (about 3.0-3.5 m residential, 3.5-4.5 m commercial) so the overall height matches the floor count.
@@ -82,6 +173,7 @@ export function architectureContext(input: ArchitectureInput | null | undefined)
     lines.push(`- Coordinates: ${input.latitude.toFixed(6)}, ${input.longitude.toFixed(6)} (use them only to understand the region, climate, vegetation and sun path)`);
   }
   if (input.mapUrl) lines.push(`- Google Maps link supplied by the customer: ${input.mapUrl}`);
+  lines.push(...describeTarget(input));
   if (input.streetViewViews && input.streetViewViews > 0) {
     lines.push(`- Google Street View: ${input.streetViewViews} real street-level photo${input.streetViewViews === 1 ? '' : 's'} of this exact street are attached (${input.streetViewDate ? `captured ${input.streetViewDate}` : 'capture date unknown'}), the first looking straight at the plot. They show the real road, pavement, neighbouring facades, heights, materials, trees and street furniture`);
     lines.push('- The Street View photos can be older than the site today. If the customer\'s own photos or words disagree with them, the customer wins; otherwise treat them as the truth about the street');
@@ -296,7 +388,8 @@ export function composeStudioBrief(input: {
     if (context) sections.push(context);
     // Without any analysis the scope is still read from the customer's own words.
     const site = siteInsightsBlock(input.siteInsights);
-    sections.push(site || `PROJECT SCOPE: ${inferProjectScope(userBrief)} — this is ${SCOPE_LABELS[inferProjectScope(userBrief)]}.`);
+    const fallbackScope = scopeWithTarget(input.architecture?.targetKind, inferProjectScope(userBrief));
+    sections.push(site || `PROJECT SCOPE: ${fallbackScope} — this is ${SCOPE_LABELS[fallbackScope]}.`);
   }
   if ((input.studioKind === 'architecture' || input.studioKind === 'interior') && input.drawingBrief?.trim()) sections.push(input.drawingBrief.trim());
   if (input.studioKind === 'product') {

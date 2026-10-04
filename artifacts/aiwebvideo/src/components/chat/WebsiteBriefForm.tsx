@@ -59,6 +59,7 @@ import { USE_SAMPLE_EVENT, clearPendingSample, peekPendingSample, rememberPendin
 import { ComposerPlusMenu } from "./ComposerPlusMenu";
 import { DrawingCard, useDrawingAttachment } from "./DrawingCard";
 import { SiteStreetView } from "./SiteStreetView";
+import { EMPTY_SELECTION, isMarked, selectionToRequest, type SiteSelection } from "@/lib/siteTarget";
 import { isDrawingFile } from "@/lib/drawingFile";
 import { FormatIcon } from "./FormatIcon";
 import { ModelPicker } from "./ModelPicker";
@@ -417,8 +418,9 @@ export function WebsiteBriefForm({
   const [mapLink, setMapLink] = useState("");
   const [site, setSite] = useState<{ latitude?: number; longitude?: number; label: string | null; resolvedUrl: string; precision?: "pin" | "view" | "none"; imageryAvailable?: boolean } | null>(null);
   const [resolvingSite, setResolvingSite] = useState(false);
-  // The compass direction the customer turned the Street View camera to (null: face the plot, the default).
-  const [streetViewHeading, setStreetViewHeading] = useState<number | null>(null);
+  // What the customer pointed at on the site: Street View camera, the spot they tapped, and whether it is the whole building,
+  // one shop or unit, one floor or empty land.
+  const [siteSelection, setSiteSelection] = useState<SiteSelection>(EMPTY_SELECTION);
   // A product link the shop would not let us read: what we kept from it and what the person can do next.
   const [blockedProduct, setBlockedProduct] = useState<{ host: string; name: string; blocked: boolean } | null>(null);
   const [plotWidth, setPlotWidth] = useState("");
@@ -426,7 +428,7 @@ export function WebsiteBriefForm({
   const [floorCount, setFloorCount] = useState("");
   const [setback, setSetback] = useState("");
   const [estimatedScale, setEstimatedScale] = useState(false);
-  useEffect(() => { setStreetViewHeading(null); }, [site?.latitude, site?.longitude]);
+  useEffect(() => { setSiteSelection(EMPTY_SELECTION); }, [site?.latitude, site?.longitude]);
   const [selectedSample, setSelectedSample] = useState<Sample | null>(null);
   const [languageShake, setLanguageShake] = useState(false);
   const languageShakeTimer = useRef<number | null>(null);
@@ -895,6 +897,10 @@ export function WebsiteBriefForm({
         setError("Add the plot's location: paste a Google Maps link or type the address.");
         return;
       }
+      if (isMarked(siteSelection) && siteSelection.kind === null) {
+        setError("You marked a spot. Choose what it is: the whole building, one shop or unit, one floor, or empty land.");
+        return;
+      }
       // Plot size and a site image are optional: the location and your words are enough to start.
     }
     let productUrl = productData?.url;
@@ -959,7 +965,7 @@ export function WebsiteBriefForm({
         floors: Number(floorCount) || undefined,
         setback: Number(setback) || undefined,
         estimatedScale,
-        streetViewHeading: typeof streetViewHeading === "number" ? streetViewHeading : undefined,
+        ...selectionToRequest(siteSelection),
       } : undefined,
     });
   }
@@ -1234,7 +1240,7 @@ export function WebsiteBriefForm({
               {site && <p className="mt-2 flex items-center gap-1.5 text-[12px] text-mint"><Check size={13} /> {site.label || `${site.latitude}, ${site.longitude}`}</p>}
               {site && typeof site.latitude === "number" && typeof site.longitude === "number" && (
                 <div className="mt-2.5 overflow-hidden rounded-xl border border-white/[.10] bg-[#0b0818]" data-testid="site-preview">
-                  <SiteStreetView latitude={site.latitude} longitude={site.longitude} mapSrc={mapPreviewUrl(site.latitude, site.longitude)} heading={streetViewHeading} onHeading={setStreetViewHeading} />
+                  <SiteStreetView latitude={site.latitude} longitude={site.longitude} mapSrc={mapPreviewUrl(site.latitude, site.longitude)} value={siteSelection} onChange={setSiteSelection} photos={files} />
                   <div className="space-y-1 px-3 py-2 text-[11px] leading-4 text-white/60">
                     <p><span className="font-semibold text-white">Is this the right spot?</span> The design is placed exactly here: <span className="font-mono text-white/80">{site.latitude.toFixed(6)}, {site.longitude.toFixed(6)}</span></p>
                     <p>{site.imageryAvailable ? "Satellite and street views of this spot are used for the design." : "For a design that matches your plot exactly, add a screenshot of it (satellite view) below."}</p>

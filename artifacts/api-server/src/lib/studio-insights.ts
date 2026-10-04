@@ -3,6 +3,7 @@ import { recordGeminiTextUsage } from './costs.js';
 import { runQueuedProviderCall } from './provider-queue.js';
 import {
   PROJECT_SCOPES,
+  describeTarget,
   inferProjectScope,
   isProjectScope,
   type ArchitectureInput,
@@ -177,6 +178,7 @@ export async function analyzeSite(
     architecture.plotWidth && architecture.plotDepth ? `Plot (customer figures, metres): ${architecture.plotWidth} x ${architecture.plotDepth}${architecture.estimatedScale ? ' (estimated)' : ''}` : '',
     architecture.floors ? `Floors wanted: ${architecture.floors}` : '',
     architecture.setback ? `Setback: ${architecture.setback} m` : '',
+    ...describeTarget(architecture).map((line) => line.replace(/^- /, '')),
   ].filter(Boolean).join('\n');
   const prompt = `You are a senior architect and site analyst. A customer pointed to a real place and described what they want. Work out what is at and around this exact point, and what they actually want built there.
 
@@ -186,7 +188,7 @@ ${facts}
 WHAT THE CUSTOMER SAID: ${brief || '(nothing beyond the location)'}
 
 ${hasPoint ? 'Use Google Maps data for this exact point to see what is really here and next to it (land, shops, apartments, offices, road frontage, neighbours).' : 'Use your knowledge of the named place.'}
-Decide the PROJECT SCOPE from their words and what is at the point. They may be pointing at empty land, an apartment block, a row of shops or a commercial building, and asking for a shop or a design "there". Use one of: ${PROJECT_SCOPES.join(', ')}. (Example: "make me a clothes shop" pointing at an apartment building = fit_out_interior for a ground-floor unit, or storefront_exterior; pointing at empty land = new_building.)
+Decide the PROJECT SCOPE from their words and what is at the point. If THE PLACE lists a TARGET, the customer chose it explicitly and the scope must follow it (empty land = new_building; one shop or unit = storefront_exterior or fit_out_interior; one floor = fit_out_interior or extension; the whole building = new_building, facade_retrofit or extension). They may be pointing at empty land, an apartment block, a row of shops or a commercial building, and asking for a shop or a design "there". Use one of: ${PROJECT_SCOPES.join(', ')}. (Example: "make me a clothes shop" pointing at an apartment building = fit_out_interior for a ground-floor unit, or storefront_exterior; pointing at empty land = new_building.)
 
 Reply with ONLY one JSON object with keys: placeName, address, settlement (dense_urban | urban | suburban | rural | coastal | desert | mountain | unknown), siteCondition (empty_land | existing_building | shop_unit | apartment_building | mixed_use_block | road_frontage | unknown), whatIsHere (one or two sentences), frontage (which kind of street it faces), surroundings (array), neighbourHeights, localCharacter (array: typical materials, forms, roofs), climate, constraints (array), projectScope, scopeReason, designBrief (3-5 concrete sentences translating THEIR wish onto THIS site), confidence (high | medium | low), unknowns (array of things you could not determine).
 Be honest: use "unknown" and lower the confidence rather than guessing. Never invent street names, business names or measurements.`;

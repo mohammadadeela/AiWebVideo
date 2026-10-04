@@ -4,7 +4,8 @@ import { AppError, sendError } from '../lib/errors.js';
 import { resolveMapsInput } from '../lib/maps-resolve.js';
 import { defaultMapsDeps } from '../lib/maps-resolve-deps.js';
 import { siteImageryEnabled } from '../lib/site-imagery.js';
-import { fetchStreetViewImage, fetchStreetViewMeta } from '../lib/street-view.js';
+import { tryAuth } from '../lib/auth.js';
+import { CAMERA_LIMITS, fetchStreetViewImage, fetchStreetViewMeta } from '../lib/street-view.js';
 
 const router = Router();
 const attempts = new Map<string, { count: number; reset: number }>();
@@ -44,10 +45,17 @@ function allowStreetView(ip: string): boolean {
 }
 
 /** Is there Street View at the plot, from which panorama, how old, and which way does it have to look to face the plot? */
-router.get('/street-view', async (req, res) => {
+router.get('/street-view', tryAuth, async (req, res) => {
   try {
     const { lat, lng } = z.object({ lat: z.coerce.number().min(-90).max(90), lng: z.coerce.number().min(-180).max(180) }).parse(req.query);
-    if (!siteImageryEnabled()) { res.json({ enabled: false, available: false }); return; }
+    if (!siteImageryEnabled()) {
+      // Only the site owner is told what is missing; customers just see that Street View is not offered.
+      const reason = res.locals.isAdmin === true
+        ? (process.env.ARCHITECTURE_MAPS_IMAGERY !== '1' ? 'ARCHITECTURE_MAPS_IMAGERY is not set to 1' : 'GOOGLE_MAPS_API_KEY is not set')
+        : undefined;
+      res.json({ enabled: false, available: false, ...(reason ? { reason } : {}) });
+      return;
+    }
     if (!allowStreetView(req.ip ?? req.socket.remoteAddress ?? 'unknown')) throw new AppError('Try again in a few minutes.', 429, 'RATE_LIMITED');
     const meta = await fetchStreetViewMeta({ latitude: lat, longitude: lng });
     if (!meta) { res.json({ enabled: true, available: false }); return; }
@@ -63,11 +71,12 @@ router.get('/street-view/image', async (req, res) => {
     const query = z.object({
       pano: z.string().regex(/^[A-Za-z0-9_-]{10,64}$/),
       heading: z.coerce.number().min(0).max(360),
-      fov: z.coerce.number().min(40).max(110).optional(),
+      fov: z.coerce.number().min(CAMERA_LIMITS.fov.min).max(CAMERA_LIMITS.fov.max).optional(),
+      pitch: z.coerce.number().min(CAMERA_LIMITS.pitch.min).max(CAMERA_LIMITS.pitch.max).optional(),
     }).parse(req.query);
     if (!siteImageryEnabled()) throw new AppError('Street View is not switched on.', 404, 'STREET_VIEW_OFF');
     if (!allowStreetView(req.ip ?? req.socket.remoteAddress ?? 'unknown')) throw new AppError('Try again in a few minutes.', 429, 'RATE_LIMITED');
-    const picture = await fetchStreetViewImage({ panoId: query.pano, heading: query.heading, fov: query.fov });
+    const picture = await fetchStreetViewImage({ panoId: query.pano, heading: query.heading, fov: query.fov, pitch: query.pitch });
     if (!picture) throw new AppError('Street View is not available for this view right now.', 502, 'STREET_VIEW_UNAVAILABLE');
     res.set({ 'Content-Type': 'image/jpeg', 'Cache-Control': 'private, max-age=600', 'X-Content-Type-Options': 'nosniff' }).send(picture);
   } catch (error) { sendError(res, error); }

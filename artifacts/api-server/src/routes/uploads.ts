@@ -10,6 +10,8 @@ import { MAX_VIDEO_SECONDS, MIN_VIDEO_SECONDS, videoCreditCost } from '../lib/cr
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_PHOTOS, normalizeUploadToJpeg, sanitizeUploadTitle, uploadPhotoLabel } from '../lib/uploads.js';
 import { DrawingError, MAX_DRAWING_BYTES, drawingBrief, isUnitChoice, readDrawing, type ReadResult, type UnitChoice } from '../lib/cad-drawing.js';
 import { renderDrawingJpeg } from '../lib/cad-render.js';
+import { TARGET_KINDS, TARGET_LEVELS } from '../lib/studio-direction.js';
+import { drawTargetMarker, markerLabel } from '../lib/target-marker.js';
 import { generationModelForMode } from '../lib/generation-models.js';
 import { readPublicUrl } from '../lib/external-reference.js';
 import { coordinatesFromMapsUrl, isGoogleMapsUrl } from '../lib/maps-url.js';
@@ -204,13 +206,39 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
           setback: z.number().min(0).max(10_000).optional(),
           estimatedScale: z.boolean().optional(),
           streetViewHeading: z.number().min(0).max(360).optional(),
+          streetViewPitch: z.number().min(-20).max(70).optional(),
+          streetViewFov: z.number().min(30).max(110).optional(),
+          // what the customer pointed at, and where on which picture
+          targetKind: z.enum(TARGET_KINDS).optional(),
+          targetLevel: z.enum(TARGET_LEVELS).optional(),
+          targetX: z.number().min(0).max(1).optional(),
+          targetY: z.number().min(0).max(1).optional(),
+          targetSource: z.enum(['street', 'photo']).optional(),
+          targetPhoto: z.number().int().min(0).max(9).optional(),
           // set by the server only (below): whatever the page sends here is discarded
+          targetMarked: z.boolean().optional(),
           streetViewDate: z.string().max(24).optional(),
           streetViewViews: z.number().int().min(0).max(6).optional(),
         }).parse(architectureInput)
       : null;
     // Whether Street View was attached, and from when, is the server's to say: never taken from the page.
-    if (architecture) { delete architecture.streetViewDate; delete architecture.streetViewViews; }
+    if (architecture) {
+      delete architecture.streetViewDate; delete architecture.streetViewViews; delete architecture.targetMarked;
+      // The target: a kind is needed for the rest to mean anything, a tap needs both coordinates, and a level only applies to a unit or a floor.
+      if (!architecture.targetKind) {
+        delete architecture.targetLevel; delete architecture.targetX; delete architecture.targetY; delete architecture.targetSource; delete architecture.targetPhoto;
+      } else {
+        if (architecture.targetKind === 'unit') architecture.targetLevel ??= 'ground';
+        else if (architecture.targetKind === 'floor') architecture.targetLevel ??= '1';
+        else delete architecture.targetLevel;
+        const tapped = typeof architecture.targetX === 'number' && typeof architecture.targetY === 'number';
+        if (tapped) architecture.targetSource ??= 'street';
+        if (!tapped || (architecture.targetSource === 'photo' && typeof architecture.targetPhoto !== 'number')) {
+          delete architecture.targetX; delete architecture.targetY; delete architecture.targetSource; delete architecture.targetPhoto;
+        }
+        if (architecture.targetSource !== 'photo') delete architecture.targetPhoto;
+      }
+    }
     const studioMode = ['video', 'photos', 'both', 'custom'].includes(req.body?.mode) ? req.body.mode as 'video' | 'photos' | 'both' | 'custom' : null;
     const studioAudioMode = ['voice_music', 'native_audio', 'music_only', 'silent'].includes(req.body?.audioMode)
       ? req.body.audioMode as 'voice_music' | 'native_audio' | 'music_only' | 'silent'
@@ -346,6 +374,7 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
     }
 
     const pages: Array<{ url: string; title: string; screenshotUrl: string }> = [];
+    let photoTappedOn: Buffer | null = null;
     for (const [index, file] of files.entries()) {
       let jpeg: Buffer;
       try {
@@ -363,6 +392,20 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
       const filename = index === 0 ? 'screenshot-full.jpg' : `page-${index}.jpg`;
       const screenshotUrl = await saveImageFile(job.id, filename, jpeg);
       pages.push({ url: `upload://${job.id}/${index}`, title: uploadPhotoLabel(index, file.originalname), screenshotUrl });
+      if (architecture?.targetSource === 'photo' && architecture.targetPhoto === index) photoTappedOn = jpeg;
+    }
+
+    // Architecture: the customer tapped on one of their own photos. A marked copy goes next to the clean photo (it is a locating aid only).
+    if (studioKind === 'architecture' && architecture?.targetKind && architecture.targetSource === 'photo' && typeof architecture.targetX === 'number' && typeof architecture.targetY === 'number') {
+      const marked = photoTappedOn ? await drawTargetMarker(photoTappedOn, { x: architecture.targetX, y: architecture.targetY }, architecture.targetKind) : null;
+      if (marked) {
+        const pageIndex = pages.length;
+        const screenshotUrl = await saveImageFile(job.id, pageIndex === 0 ? 'screenshot-full.jpg' : `page-${pageIndex}.jpg`, marked);
+        pages.push({ url: `target-marker://${pageIndex}`, title: markerLabel(architecture.targetKind, 'photo'), screenshotUrl });
+        architecture.targetMarked = true;
+      } else {
+        delete architecture.targetX; delete architecture.targetY; delete architecture.targetSource; delete architecture.targetPhoto;
+      }
     }
 
     if (drawing && drawingJpeg) {
@@ -400,7 +443,7 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
 
     // Architecture: optional map imagery of the site (off unless the site owner enabled it).
     if (studioKind === 'architecture' && typeof architecture?.latitude === 'number' && typeof architecture?.longitude === 'number') {
-      const imagery = await fetchSiteImageryDetailed({ latitude: architecture.latitude, longitude: architecture.longitude }, { heading: architecture.streetViewHeading });
+      const imagery = await fetchSiteImageryDetailed({ latitude: architecture.latitude, longitude: architecture.longitude }, { heading: architecture.streetViewHeading, pitch: architecture.streetViewPitch, fov: architecture.streetViewFov });
       architecture.streetViewViews = imagery.images.filter((shot) => shot.label.startsWith('STREET VIEW')).length || undefined;
       architecture.streetViewDate = imagery.streetView?.dateLabel ?? undefined;
       for (const shot of imagery.images) {
@@ -414,6 +457,27 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
           console.warn(`[uploads] job=${job.id} site imagery skipped: ${(err as Error).message}`);
         }
       }
+      // The customer tapped on the Street View frame: a marked copy of the FRONT picture (the one they looked at) goes next to it.
+      if (architecture.targetKind && architecture.targetSource === 'street' && typeof architecture.targetX === 'number' && typeof architecture.targetY === 'number') {
+        const front = imagery.images.find((shot) => shot.role === 'front');
+        const marked = front ? await drawTargetMarker(front.buffer, { x: architecture.targetX, y: architecture.targetY }, architecture.targetKind) : null;
+        if (marked) {
+          try {
+            const pageIndex = pages.length;
+            const screenshotUrl = await saveImageFile(job.id, pageIndex === 0 ? 'screenshot-full.jpg' : `page-${pageIndex}.jpg`, marked);
+            pages.push({ url: `target-marker://${pageIndex}`, title: markerLabel(architecture.targetKind, 'street'), screenshotUrl });
+            architecture.targetMarked = true;
+          } catch (err) {
+            console.warn(`[uploads] job=${job.id} target marker skipped: ${(err as Error).message}`);
+          }
+        } else {
+          // no Street View picture to point at: the customer's choice of target still counts, the tap does not
+          delete architecture.targetX; delete architecture.targetY; delete architecture.targetSource;
+        }
+      }
+    } else if (studioKind === 'architecture' && architecture?.targetSource === 'street') {
+      // Street View was not available, so there is no picture the tap could refer to
+      delete architecture.targetX; delete architecture.targetY; delete architecture.targetSource;
     }
 
     // "Make one like this with my product": attach the chosen showcase sample as the LAST reference.

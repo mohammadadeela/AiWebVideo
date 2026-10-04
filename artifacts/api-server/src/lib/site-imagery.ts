@@ -39,7 +39,7 @@ export interface SiteImageryResult {
 /** Best effort: returns whatever imagery exists; never throws (the production continues without it). */
 export async function fetchSiteImageryDetailed(
   point: { latitude: number; longitude: number },
-  options: { env?: NodeJS.ProcessEnv; fetcher?: typeof fetch; /** The compass direction the customer chose to look in. */ heading?: number | null } = {},
+  options: { env?: NodeJS.ProcessEnv; fetcher?: typeof fetch; /** The camera the customer chose: compass direction, tilt and zoom. */ heading?: number | null; pitch?: number; fov?: number } = {},
 ): Promise<SiteImageryResult> {
   const env = options.env ?? process.env;
   const fetcher = options.fetcher ?? fetch;
@@ -52,7 +52,7 @@ export async function fetchSiteImageryDetailed(
   } catch { /* skip */ }
   let streetView: StreetViewMeta | null = null;
   try {
-    const set = await fetchStreetViewSet(point, { env, fetcher, heading: options.heading });
+    const set = await fetchStreetViewSet(point, { env, fetcher, heading: options.heading, pitch: options.pitch, fov: options.fov });
     if (set) { streetView = set.meta; found.push(...set.images); }
   } catch { /* skip */ }
   return { images: found, streetView };
@@ -60,7 +60,7 @@ export async function fetchSiteImageryDetailed(
 
 export async function fetchSiteImagery(
   point: { latitude: number; longitude: number },
-  options: { env?: NodeJS.ProcessEnv; fetcher?: typeof fetch; heading?: number | null } = {},
+  options: { env?: NodeJS.ProcessEnv; fetcher?: typeof fetch; heading?: number | null; pitch?: number; fov?: number } = {},
 ): Promise<SiteImage[]> {
   return (await fetchSiteImageryDetailed(point, options)).images;
 }

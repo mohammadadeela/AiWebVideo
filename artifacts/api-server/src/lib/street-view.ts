@@ -63,9 +63,21 @@ export function dateLabelOf(date: string | null | undefined): string | null {
   return month >= 1 && month <= 12 ? `${MONTHS[month - 1]} ${match[1]}` : match[1];
 }
 
+/**
+ * The picture is 4:3 (640 x 480): wide enough for a street frontage and tall enough for the floors above. The page shows the same
+ * frame, so where the customer taps on it is where the server marks it. The camera can look down to a basement entrance or up
+ * to the upper floors, and zoom in on one shop.
+ */
+export const FRAME = { width: 640, height: 480 } as const;
+export const CAMERA_LIMITS = { pitch: { min: -20, max: 70 }, fov: { min: 30, max: 110 } } as const;
+export const DEFAULT_CAMERA = { pitch: 5, fov: 90 } as const;
+
+export const clampPitch = (value: number) => Math.max(CAMERA_LIMITS.pitch.min, Math.min(CAMERA_LIMITS.pitch.max, Math.round(value)));
+export const clampFov = (value: number) => Math.max(CAMERA_LIMITS.fov.min, Math.min(CAMERA_LIMITS.fov.max, Math.round(value)));
+
 export function streetViewImageUrl(params: { panoId: string; heading: number; pitch?: number; fov?: number }, key: string): string {
-  const { panoId, heading, pitch = 3, fov = 80 } = params;
-  return `${API}?size=640x640&pano=${encodeURIComponent(panoId)}&heading=${normalizeHeading(heading)}&pitch=${Math.max(-30, Math.min(30, Math.round(pitch)))}&fov=${Math.max(40, Math.min(110, Math.round(fov)))}&source=outdoor&key=${encodeURIComponent(key)}`;
+  const { panoId, heading, pitch = DEFAULT_CAMERA.pitch, fov = DEFAULT_CAMERA.fov } = params;
+  return `${API}?size=${FRAME.width}x${FRAME.height}&pano=${encodeURIComponent(panoId)}&heading=${normalizeHeading(heading)}&pitch=${clampPitch(pitch)}&fov=${clampFov(fov)}&source=outdoor&key=${encodeURIComponent(key)}`;
 }
 
 /**
@@ -99,18 +111,24 @@ export async function fetchStreetViewMeta(point: { latitude: number; longitude: 
   }
 }
 
-export interface StreetViewShot { heading: number; role: 'front' | 'left' | 'right'; description: string }
+export interface StreetViewShot { heading: number; pitch: number; fov: number; role: 'front' | 'left' | 'right'; description: string }
 
 /**
  * The three views that describe a street frontage: straight at the plot, and the street to either side (the neighbours).
  * `preferred` is the compass direction the customer chose to look in; otherwise the camera faces the plot.
  */
-export function planStreetViews(meta: Pick<StreetViewMeta, 'headingToPlot'>, preferred?: number | null): StreetViewShot[] {
+export function planStreetViews(
+  meta: Pick<StreetViewMeta, 'headingToPlot'>,
+  preferred?: number | null,
+  camera: { pitch?: number; fov?: number } = {},
+): StreetViewShot[] {
   const base = typeof preferred === 'number' && Number.isFinite(preferred) ? normalizeHeading(preferred) : (meta.headingToPlot ?? 0);
+  const pitch = clampPitch(camera.pitch ?? DEFAULT_CAMERA.pitch);
+  const fov = clampFov(camera.fov ?? DEFAULT_CAMERA.fov);
   return [
-    { heading: base, role: 'front', description: typeof preferred === 'number' || meta.headingToPlot === null ? `looking ${compassName(base)}` : 'looking at the plot straight on' },
-    { heading: normalizeHeading(base - 60), role: 'left', description: 'the street and neighbours to the left' },
-    { heading: normalizeHeading(base + 60), role: 'right', description: 'the street and neighbours to the right' },
+    { heading: base, pitch, fov, role: 'front', description: typeof preferred === 'number' || meta.headingToPlot === null ? `looking ${compassName(base)}` : 'looking at the plot straight on' },
+    { heading: normalizeHeading(base - 60), pitch, fov, role: 'left', description: 'the street and neighbours to the left' },
+    { heading: normalizeHeading(base + 60), pitch, fov, role: 'right', description: 'the street and neighbours to the right' },
   ];
 }
 
@@ -135,15 +153,15 @@ export async function fetchStreetViewImage(params: { panoId: string; heading: nu
 /** The panorama, and its three views as references for the design. Never throws; empty when nothing is available. */
 export async function fetchStreetViewSet(
   point: { latitude: number; longitude: number },
-  options: Options & { heading?: number | null } = {},
+  options: Options & { heading?: number | null; pitch?: number; fov?: number } = {},
 ): Promise<{ meta: StreetViewMeta; images: SiteImage[] } | null> {
   const meta = await fetchStreetViewMeta(point, options);
   if (!meta) return null;
   const when = meta.dateLabel ? `captured ${meta.dateLabel}` : 'capture date unknown';
   const images: SiteImage[] = [];
-  for (const shot of planStreetViews(meta, options.heading)) {
-    const buffer = await fetchStreetViewImage({ panoId: meta.panoId, heading: shot.heading }, options);
-    if (buffer) images.push({ label: `STREET VIEW (Google, ${when}) — ${shot.description}, facing ${compassName(shot.heading)}`, buffer, mimeType: 'image/jpeg' });
+  for (const shot of planStreetViews(meta, options.heading, { pitch: options.pitch, fov: options.fov })) {
+    const buffer = await fetchStreetViewImage({ panoId: meta.panoId, heading: shot.heading, pitch: shot.pitch, fov: shot.fov }, options);
+    if (buffer) images.push({ label: `STREET VIEW (Google, ${when}) — ${shot.description}, facing ${compassName(shot.heading)}`, buffer, mimeType: 'image/jpeg', role: shot.role });
   }
   return images.length ? { meta, images } : null;
 }

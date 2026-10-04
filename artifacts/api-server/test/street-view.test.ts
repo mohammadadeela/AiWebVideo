@@ -47,7 +47,7 @@ test('bearing and distance are real compass geometry', () => {
 
 test('a Street View picture is addressed by panorama (so every view agrees), with safe, clamped parameters', () => {
   const url = streetViewImageUrl({ panoId: PANO, heading: 725, pitch: 99, fov: 500 }, 'a b');
-  assert.match(url, /pano=CAoSLEFGMVFpcE5ocFZ6&heading=5&pitch=30&fov=110&source=outdoor&key=a%20b$/);
+  assert.match(url, /size=640x480&pano=CAoSLEFGMVFpcE5ocFZ6&heading=5&pitch=70&fov=110&source=outdoor&key=a%20b$/);
   assert.doesNotMatch(url, /location=/);
 });
 
@@ -132,9 +132,9 @@ test('the AI is told what the Street View photos are, how old they are, and that
 test('the upload route lets the server alone say whether Street View was used', async () => {
   const route = await readFile(path.resolve(process.cwd(), 'src/routes/uploads.ts'), 'utf8');
   assert.match(route, /streetViewHeading: z\.number\(\)\.min\(0\)\.max\(360\)\.optional\(\)/);
-  assert.match(route, /if \(architecture\) \{ delete architecture\.streetViewDate; delete architecture\.streetViewViews; \}/);
+  assert.match(route, /delete architecture\.streetViewDate; delete architecture\.streetViewViews; delete architecture\.targetMarked;/);
   assert.ok(route.indexOf('delete architecture.streetViewDate') < route.indexOf('fetchSiteImageryDetailed({'), 'discarded before the server sets its own values');
-  assert.match(route, /\{ heading: architecture\.streetViewHeading \}/);
+  assert.match(route, /heading: architecture\.streetViewHeading, pitch: architecture\.streetViewPitch, fov: architecture\.streetViewFov/);
 });
 
 // ---------------------------------------------------------------- the routes, over real HTTP, with Google stubbed

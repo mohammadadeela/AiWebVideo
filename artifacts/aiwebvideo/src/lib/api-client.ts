@@ -418,15 +418,18 @@ export interface StreetViewInfo {
   ageYears?: number | null;
   distanceM?: number;
   headingToPlot?: number | null;
+  /** Only sent to the site owner: what is missing on the server when Street View is off. */
+  reason?: string;
 }
 
 export function getStreetView(latitude: number, longitude: number, signal?: AbortSignal) {
   return request<StreetViewInfo>(`/api/architecture/street-view?lat=${latitude.toFixed(6)}&lng=${longitude.toFixed(6)}`, { signal });
 }
 
-/** One Street View picture, served by our own server. */
-export function streetViewImageSrc(panoId: string, heading: number): string {
-  return `/api/architecture/street-view/image?pano=${encodeURIComponent(panoId)}&heading=${Math.round(((heading % 360) + 360) % 360)}`;
+/** One Street View picture (4:3), served by our own server. The same frame the design is made from. */
+export function streetViewImageSrc(panoId: string, view: { heading: number; pitch?: number; fov?: number }): string {
+  const heading = Math.round(((view.heading % 360) + 360) % 360);
+  return `/api/architecture/street-view/image?pano=${encodeURIComponent(panoId)}&heading=${heading}&pitch=${Math.round(view.pitch ?? 5)}&fov=${Math.round(view.fov ?? 90)}`;
 }
 
 export function extractProductReference(url: string) {
