@@ -26,9 +26,9 @@ const landingFaqs: ReadonlyArray<readonly [string, string]> = [
 
 export function HomePage() {
   useSeo({
-    title: "AI Video, Product Images & Interior Design",
+    title: "AiWebVideo — AI Video, Product Photo & Architecture Generator",
     description:
-      "Create website videos, original AI videos, product photos and videos, talking scenes, and interior design images or walkthroughs from your own sources.",
+      "AiWebVideo is an AI creative platform for website marketing videos, AI videos, product photos and videos, talking scenes, interior design and architecture concept visuals.",
     path: "/",
     faq: landingFaqs,
   });

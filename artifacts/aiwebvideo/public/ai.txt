@@ -6,18 +6,19 @@ AiWebVideo creates AI videos, product images, and interior design concepts from 
 - Website Video: public website URL plus campaign goal to AI-directed marketing video. https://aiwebvideo.com/website-video-generator
 - URL to Video: a public webpage or landing page as source context. https://aiwebvideo.com/url-to-video
 - SaaS Demo Video: public SaaS site and a specific product or launch angle. https://aiwebvideo.com/saas-demo-video-generator
-- Product Page to Video: public ecommerce page to campaign video. https://aiwebvideo.com/product-page-to-video
+- Product Link to Video and Photos: paste a product page link; AiWebVideo reads the product photos it can access, you choose the references, and generation starts when you confirm. Shops that block automatic reading need an uploaded photo. https://aiwebvideo.com/product-page-to-video
 - AI Video: original prompt, optionally with image references, to generated video. https://aiwebvideo.com/ai-video-generator
 - Product Photos: upload real product photos to create still campaign or ecommerce images. https://aiwebvideo.com/product-photo-generator
 - Product Video: upload real product photos to create a product-focused moving film. https://aiwebvideo.com/product-video-generator
 - Talking Video: describe characters, dialogue, setting, and camera direction to create a talking scene. https://aiwebvideo.com/talking-video-generator
 - Interior Design: upload room or property photos, plans, sketches, or elevations and request design images or a walkthrough video. https://aiwebvideo.com/ai-interior-design-generator
+- Architecture: map link, address or coordinates, site photo or plan, and a brief, to concept visuals (not construction-accurate plans). https://aiwebvideo.com/ai-architectural-visualization
+- Building on a Real Site: mark the exact shop, floor or plot on a location and visualize a building concept there. https://aiwebvideo.com/architecture-site-placement
 
 ## Interior design and property workflows
 - Interior Design Walkthrough: https://aiwebvideo.com/interior-design-walkthrough-video
 - Real Estate Walkthrough: https://aiwebvideo.com/real-estate-walkthrough-video
 - 3D-Style House Walkthrough: https://aiwebvideo.com/3d-house-walkthrough
-- Architectural Visualization: https://aiwebvideo.com/ai-architectural-visualization
 - Floor Plan to 3D-Style Concepts: https://aiwebvideo.com/floor-plan-to-3d
 - Room Redesign From a Photo: https://aiwebvideo.com/room-redesign-ai
 

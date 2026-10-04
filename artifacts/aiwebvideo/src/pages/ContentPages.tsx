@@ -119,7 +119,9 @@ const interiorWorkflows = [
   ["Interior design walkthrough", "/interior-design-walkthrough-video"],
   ["Real estate walkthrough", "/real-estate-walkthrough-video"],
   ["3D-style house walkthrough", "/3d-house-walkthrough"],
-  ["Architectural visualization", "/ai-architectural-visualization"],
+  ["Architecture generator", "/ai-architectural-visualization"],
+  ["Building on a real site", "/architecture-site-placement"],
+  ["Product link to video and photos", "/product-page-to-video"],
   ["Floor plan to 3D-style concepts", "/floor-plan-to-3d"],
   ["Room redesign from a photo", "/room-redesign-ai"],
 ] as const;
@@ -457,26 +459,26 @@ export function AboutPage() {
   return (
     <Shell
       eyebrow="Company"
-      title="Create from the sources you already have"
-      seoTitle="About AiWebVideo — AI Video, Product Media & Interior Design"
-      intro="AiWebVideo turns public websites, original ideas, real product images, and space references into directed video, images, and interior concepts."
-      description="Learn about AiWebVideo's approach to website video, AI video, product photos and video, talking scenes, and interior design."
+      title="About AiWebVideo"
+      seoTitle="About AiWebVideo — AI Creative Platform for Video & Design"
+      intro="AiWebVideo is an AI creative platform for generating website marketing videos, AI videos, product photography, product videos, talking scenes, interior concepts, and architecture visualizations from the sources you already have."
+      description="What AiWebVideo is, how you use it, and where its limits are: an AI creative platform for website videos, product media, interior design and architecture concepts."
       path="/about"
     >
       <section>
         <div className="mx-auto grid max-w-5xl gap-5 px-4 py-12 sm:px-5 sm:py-16 md:grid-cols-3">
           {[
             [
-              "Website grounded",
-              "The real site—not a generic template—is the source of truth for the brand and campaign.",
+              "What AiWebVideo does",
+              "It turns public websites, product links, original ideas, real product photos, and photos, plans or map locations of real spaces into directed video, images, and design concepts, in one workspace.",
             ],
             [
-              "Intent directed",
-              "The customer expresses the goal; AI handles the detailed creative and production decisions.",
+              "How it is built to be used",
+              "You choose a creation mode, add your sources, review the references, and confirm before paid generation starts. Credit estimates are shown before you create.",
             ],
             [
-              "Progress visible",
-              "The work stays understandable from website reading and direction through generation and delivery.",
+              "Limitations we state openly",
+              "Results depend on the sources you provide. Some shops block automatic reading of product pages. Interior and architecture results are concept visualizations, not construction documents, surveys, or exact measurements.",
             ],
           ].map(([title, body]) => (
             <article

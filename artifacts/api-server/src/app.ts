@@ -9,6 +9,7 @@ import { getMarketingSettings } from './lib/marketing.js';
 import {
   buildAiSummary,
   buildRobotsTxt,
+  isValidIndexNowKey,
   buildSitemapXml,
   getSeoPage,
   isKnownPage,
@@ -101,6 +102,12 @@ app.get('/robots.txt', (_req, res) => {
 });
 app.get('/sitemap.xml', (_req, res) => {
   res.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400').type('application/xml').send(buildSitemapXml(publicUrl));
+});
+// IndexNow ownership file: /<INDEXNOW_KEY>.txt answers with the key, and only that exact name does.
+app.get('/:indexNowFile.txt', (req, res, next) => {
+  const key = process.env.INDEXNOW_KEY?.trim();
+  if (!isValidIndexNowKey(key) || req.params.indexNowFile !== key) { next(); return; }
+  res.set('Cache-Control', 'public, max-age=86400').type('text/plain').send(key);
 });
 app.get(['/llms.txt', '/ai.txt'], (_req, res) => {
   res.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400').type('text/plain').send(buildAiSummary(publicUrl));

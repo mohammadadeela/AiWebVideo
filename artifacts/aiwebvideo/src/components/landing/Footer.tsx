@@ -70,6 +70,8 @@ export function Footer() {
                 <li><Link href="/talking-video-generator" className="transition-colors hover:text-white">Talking video generator</Link></li>
                 <li><Link href="/ai-interior-design-generator" className="transition-colors hover:text-white">Interior design generator</Link></li>
                 <li><Link href="/interior-design-walkthrough-video" className="transition-colors hover:text-white">Interior walkthrough</Link></li>
+                <li><Link href="/ai-architectural-visualization" className="transition-colors hover:text-white">Architecture generator</Link></li>
+                <li><Link href="/architecture-site-placement" className="transition-colors hover:text-white">Building on a real site</Link></li>
                 <li><Link href="/features" className="transition-colors hover:text-white">All creation modes</Link></li>
               </ul>
             </div>
@@ -80,7 +82,7 @@ export function Footer() {
               <ul className="space-y-3 text-xs text-text-muted">
                 <li><Link href="/url-to-video" className="transition-colors hover:text-white">URL to video</Link></li>
                 <li><Link href="/saas-demo-video-generator" className="transition-colors hover:text-white">SaaS demo video</Link></li>
-                <li><Link href="/product-page-to-video" className="transition-colors hover:text-white">Product page to video</Link></li>
+                <li><Link href="/product-page-to-video" className="transition-colors hover:text-white">Product link to video</Link></li>
                 <li><Link href="/examples" className="transition-colors hover:text-white">Examples</Link></li>
                 <li>
                   <Link

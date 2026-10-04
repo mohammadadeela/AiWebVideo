@@ -115,7 +115,8 @@ export function useSeo(options: {
   faq?: ReadonlyArray<readonly [string, string]>;
 }) {
   useEffect(() => {
-    const fullTitle = options.title === SITE_NAME ? SITE_NAME : `${options.title} | ${SITE_NAME}`;
+    // A title that already carries the brand (the homepage starts with it) is used as it is: never "... | AiWebVideo | AiWebVideo".
+    const fullTitle = options.title.includes(SITE_NAME) ? options.title : `${options.title} | ${SITE_NAME}`;
     document.title = fullTitle;
     setMeta('name', 'description', options.description);
     setMeta('name', 'robots', options.noindex ? 'noindex, nofollow' : 'index, follow');

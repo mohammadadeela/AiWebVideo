@@ -1,4 +1,33 @@
+User-agent: Googlebot
+Allow: /
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /profile
+Disallow: /admin
+Disallow: /studio
+
+User-agent: Bingbot
+Allow: /
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /profile
+Disallow: /admin
+Disallow: /studio
+
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /profile
+Disallow: /admin
+Disallow: /studio
+
 User-agent: *
 Allow: /
 Disallow: /api/
+Disallow: /dashboard
+Disallow: /profile
+Disallow: /admin
+Disallow: /studio
+
 Sitemap: https://aiwebvideo.com/sitemap.xml

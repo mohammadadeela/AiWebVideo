@@ -100,7 +100,7 @@ const guides: Record<string, Guide> = {
   interiors: {
     path: "/guides/interior-design-from-photos-and-plans",
     title: "How to make interior design images and walkthroughs from real spaces",
-    seoTitle: "How to Create AI Interior Design From Photos and Floor Plans",
+    seoTitle: "How to Create AI Interior Design From Photos and Plans",
     description: "Prepare room photos, scaled plans, measurements, preserved elements, and a design brief for AI interior images or a presentation walkthrough.",
     intro: "A useful redesign starts with the actual room or property. Supply references for the existing geometry, specify what should change, and decide whether the output is a still design concept or a walkthrough presentation.",
     createHref: "/?create=interior#generate",

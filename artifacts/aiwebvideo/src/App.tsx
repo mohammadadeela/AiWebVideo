@@ -32,6 +32,7 @@ const InteriorDesignWalkthroughVideoPage = lazy(() => searchPages().then((module
 const RealEstateWalkthroughVideoPage = lazy(() => searchPages().then((module) => ({ default: module.RealEstateWalkthroughVideoPage })));
 const HouseWalkthrough3dPage = lazy(() => searchPages().then((module) => ({ default: module.HouseWalkthrough3dPage })));
 const ArchitecturalVisualizationPage = lazy(() => searchPages().then((module) => ({ default: module.ArchitecturalVisualizationPage })));
+const ArchitectureSitePlacementPage = lazy(() => searchPages().then((module) => ({ default: module.ArchitectureSitePlacementPage })));
 const FloorPlanTo3dPage = lazy(() => searchPages().then((module) => ({ default: module.FloorPlanTo3dPage })));
 const RoomRedesignAiPage = lazy(() => searchPages().then((module) => ({ default: module.RoomRedesignAiPage })));
 const ExamplesPage = lazy(() => searchPages().then((module) => ({ default: module.ExamplesPage })));
@@ -85,6 +86,7 @@ function Router() {
       <Route path="/real-estate-walkthrough-video" component={RealEstateWalkthroughVideoPage} />
       <Route path="/3d-house-walkthrough" component={HouseWalkthrough3dPage} />
       <Route path="/ai-architectural-visualization" component={ArchitecturalVisualizationPage} />
+      <Route path="/architecture-site-placement" component={ArchitectureSitePlacementPage} />
       <Route path="/floor-plan-to-3d" component={FloorPlanTo3dPage} />
       <Route path="/room-redesign-ai" component={RoomRedesignAiPage} />
       <Route path="/examples" component={ExamplesPage} />
