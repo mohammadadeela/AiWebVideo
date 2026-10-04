@@ -61,6 +61,10 @@ export function ChatWidget({
   const autoFollowRef = useRef(true);
   const lastScrollTopRef = useRef(0);
   const userScrollIntentRef = useRef(false);
+  // When a generation finishes the result is pinned to the top of the view for a few seconds (while its pictures and
+  // video settle), and the follow-the-bottom logic below stands aside. Any wheel or touch from the reader ends it at once.
+  const finishLockUntilRef = useRef(0);
+  const realignFinishedRef = useRef<(smooth: boolean) => void>(() => {});
 
   useEffect(() => {
     const nextChatId = resumeJobId ?? initialJobId ?? null;
@@ -121,6 +125,12 @@ export function ChatWidget({
       if (scheduledFrame) window.cancelAnimationFrame(scheduledFrame);
       scheduledFrame = window.requestAnimationFrame(() => {
         updateButtonPosition(element);
+        if (Date.now() < finishLockUntilRef.current) {
+          realignFinishedRef.current(false);
+          setShowJumpToLatest(false);
+          setHasUnseenBelow(false);
+          return;
+        }
         if (autoFollowRef.current) {
           const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
           element.scrollTo({
@@ -148,6 +158,12 @@ export function ChatWidget({
       updateButtonPosition(element);
 
       const onScroll = () => {
+        if (Date.now() < finishLockUntilRef.current) {
+          // our own scroll to the finished result is not the reader scrolling up
+          lastScrollTopRef.current = element.scrollTop;
+          updateButtonPosition(element);
+          return;
+        }
         const currentTop = element.scrollTop;
         const movingUp = currentTop < lastScrollTopRef.current - 1;
         const distanceFromBottom = element.scrollHeight - currentTop - element.clientHeight;
@@ -180,6 +196,7 @@ export function ChatWidget({
       };
 
       const onWheel = (event: WheelEvent) => {
+        finishLockUntilRef.current = 0;
         if (event.deltaY < 0) markUserScrollUp(element);
       };
 
@@ -188,6 +205,7 @@ export function ChatWidget({
       };
 
       const onTouchMove = (event: TouchEvent) => {
+        finishLockUntilRef.current = 0;
         const nextY = event.touches[0]?.clientY ?? null;
         if (touchY !== null && nextY !== null && nextY > touchY + 2) {
           markUserScrollUp(element);
@@ -364,14 +382,14 @@ export function ChatWidget({
           setFinishControlsCollapsed(true);
           writeFinishedPanelState(activeChatId, true);
 
-          const alignToFinishedResult = () => {
+          const alignToFinishedResult = (smooth = true) => {
             const messages = shell.querySelector<HTMLElement>("[data-chat-messages]");
             if (!messages) return;
 
             // Completion is the one intentional exception to normal follow-mode:
             // even if the user scrolled upward while waiting, reveal the newly
-            // finished image/video exactly once so they never have to hunt for it.
-            // After this scroll, ordinary manual-scroll rules take over again.
+            // finished image/video so they never have to hunt for it. The lock
+            // keeps it there while media settles; the reader's own scroll ends it.
             autoFollowRef.current = true;
             userScrollIntentRef.current = false;
             setShowJumpToLatest(false);
@@ -380,31 +398,35 @@ export function ChatWidget({
             const results = messages.querySelectorAll<HTMLElement>('[data-generated-result="true"]');
             const result = results[results.length - 1];
             const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+            const behavior: ScrollBehavior = reducedMotion || !smooth ? "auto" : "smooth";
 
             if (!result) {
-              messages.scrollTo({
-                top: messages.scrollHeight,
-                behavior: reducedMotion ? "auto" : "smooth",
-              });
+              messages.scrollTo({ top: messages.scrollHeight, behavior });
               lastScrollTopRef.current = messages.scrollHeight;
               return;
             }
 
             const messagesRect = messages.getBoundingClientRect();
-            const resultRect = result.getBoundingClientRect();
-            const top = Math.max(0, messages.scrollTop + resultRect.top - messagesRect.top - 10);
-            messages.scrollTo({
-              top,
-              behavior: reducedMotion ? "auto" : "smooth",
-            });
+            const top = Math.max(0, messages.scrollTop + result.getBoundingClientRect().top - messagesRect.top - 10);
+            if (Math.abs(top - messages.scrollTop) > 2) messages.scrollTo({ top, behavior });
             lastScrollTopRef.current = top;
+
+            // Outside the workspace the whole page scrolls too: bring the chat's top just under the site header.
+            if (!window.location.pathname.startsWith("/dashboard")) {
+              const stickyHeaderOffset = window.matchMedia?.("(max-width: 767px)").matches ? 72 : 92;
+              const delta = messagesRect.top - stickyHeaderOffset;
+              if (Math.abs(delta) > 24) window.scrollBy({ top: delta, behavior });
+            }
           };
 
+          finishLockUntilRef.current = Date.now() + 4500;
+          realignFinishedRef.current = (smooth) => alignToFinishedResult(smooth);
+
           window.requestAnimationFrame(() => {
-            window.requestAnimationFrame(alignToFinishedResult);
+            window.requestAnimationFrame(() => alignToFinishedResult(true));
           });
-          window.setTimeout(alignToFinishedResult, 220);
-          window.setTimeout(alignToFinishedResult, 720);
+          window.setTimeout(() => { if (Date.now() < finishLockUntilRef.current) alignToFinishedResult(false); }, 220);
+          window.setTimeout(() => { if (Date.now() < finishLockUntilRef.current) alignToFinishedResult(false); }, 720);
         }
       }
 

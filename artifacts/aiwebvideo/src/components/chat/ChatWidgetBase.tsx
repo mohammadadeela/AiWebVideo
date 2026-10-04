@@ -652,6 +652,8 @@ export function ChatWidget({
 
   useEffect(() => {
     if (pollingActive) return;
+    // A finished result owns the scroll (it is pinned to its start); scrolling to the very bottom would pass over it.
+    if (stage === "done" && scrollRef.current?.querySelector('[data-generated-result="true"]')) return;
     if (scrollRef.current)
       scrollRef.current.scrollTo({
         top: scrollRef.current.scrollHeight,
