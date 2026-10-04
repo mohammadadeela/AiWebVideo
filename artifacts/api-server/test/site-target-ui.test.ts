@@ -75,7 +75,7 @@ test('tapping works with a finger, a mouse and the keyboard, and the mark can be
   assert.match(controls, /pointer-events-none absolute z-10 rounded/);              // the box never blocks the next tap
   const card = await fe('components/chat/SiteStreetView.tsx');
   assert.match(card, /Moving the camera makes an earlier mark point at the wrong place, so it is cleared/);
-  assert.match(card, /label="Tap the exact place on the street picture"/);
+  assert.match(card, /label="Tap the exact place on the street picture\. Arrow keys look around."/);
   assert.match(card, /label="Tap the exact place on your photo"/);
   assert.match(card, /Mark it on my own photo instead/);
   assert.match(card, /Mark it on Street View instead/);

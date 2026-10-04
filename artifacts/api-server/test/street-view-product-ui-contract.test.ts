@@ -60,9 +60,10 @@ test('a shop that blocks reading no longer ends in a dead end: the name is kept,
   assert.match(form, /Copy image address/);
   assert.match(form, /Upload a photo/);
   assert.match(form, /blockedProduct && files\.length === 0/);                                              // gone as soon as a photo is added
-  assert.match(form, /isProduct && blockedProduct\?\.name \? \{ title: blockedProduct\.name \}/);          // the AI still learns the product's name
+  assert.match(form, /isProduct && blockedProduct\?\.name \? \{ title: blockedProduct\.name, description: blockedProduct\.description/);          // the AI still learns the product's name
   assert.match(form, /lastFailedLinkRef\.current === value/);                                               // a known-blocked link is not read again on every blur
   const client = await fe('lib/api-client.ts');
   assert.match(client, /productName\?: string;/);
-  assert.match(client, /typeof data\.productName === 'string' \? \{ productName: data\.productName \} : undefined/);
+  assert.match(client, /productName: typeof data\.productName === 'string' \? data\.productName : undefined/);   // the kept name travels to the page
+  assert.match(client, /productDescription\?: string;/);                                                          // and so does anything else the page gave us
 });

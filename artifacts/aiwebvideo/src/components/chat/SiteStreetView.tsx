@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Compass, ExternalLink, ImagePlus, Loader2, LocateFixed, ZoomIn, ZoomOut } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Compass, ExternalLink, Hand, ImagePlus, Loader2, LocateFixed, ZoomIn, ZoomOut } from "lucide-react";
 import { getStreetView, streetViewImageSrc, type StreetViewInfo } from "@/lib/api-client";
 import { DEFAULT_FOV, DEFAULT_PITCH, isMarked, normalizeHeading, type SiteSelection } from "@/lib/siteTarget";
 import { TapSurface, TargetKindPicker } from "./SiteTargetControls";
@@ -7,9 +7,23 @@ import { TapSurface, TargetKindPicker } from "./SiteTargetControls";
 const COMPASS = ["north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west"];
 export const compassWord = (heading: number) => COMPASS[Math.round((((heading % 360) + 360) % 360) / 45) % 8];
 
-/** Google's own page for looking around a spot: works without any key, and is the way in when our pictures are off. */
-export const streetViewLink = (latitude: number, longitude: number) =>
-  `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${latitude.toFixed(6)},${longitude.toFixed(6)}`;
+/**
+ * Google's own page for looking around a spot. When the exact panorama is known (it is the one shown here) the link opens THAT
+ * panorama, facing the same way. A bare coordinate opens a black, endlessly loading viewer wherever Google has no photos of
+ * the road, so it is only used when the panorama is known.
+ */
+export function streetViewLink(latitude: number, longitude: number, view?: { panoId?: string | null; heading?: number | null; pitch?: number; fov?: number }): string {
+  const base = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${latitude.toFixed(6)},${longitude.toFixed(6)}`;
+  if (!view?.panoId) return base;
+  const heading = Math.round((((view.heading ?? 0) % 360) + 360) % 360);
+  const pitch = Math.max(-90, Math.min(90, Math.round(view.pitch ?? 0)));
+  const fov = Math.max(10, Math.min(100, Math.round(view.fov ?? 90)));   // Google's viewer allows 10 to 100
+  return `${base}&pano=${encodeURIComponent(view.panoId)}&heading=${heading}&pitch=${pitch}&fov=${fov}`;
+}
+
+/** The spot on Google Maps: always works, with or without Street View photos. */
+export const googleMapsLink = (latitude: number, longitude: number) =>
+  `https://www.google.com/maps/search/?api=1&query=${latitude.toFixed(6)},${longitude.toFixed(6)}`;
 
 const TURN_STEP = 30;
 const TILT_STEP = 20;
@@ -21,6 +35,25 @@ function CameraButton({ label, onClick, children, disabled }: { label: string; o
     <button type="button" onClick={onClick} disabled={disabled} aria-label={label} title={label} className="grid h-11 w-10 place-items-center rounded-xl border border-white/[.12] bg-[#1b1530] text-white transition hover:border-white/30 active:scale-95 disabled:opacity-35">
       {children}
     </button>
+  );
+}
+
+/** Dragging the picture by its full width turns the camera by the picture's field of view, like Google's own viewer. */
+const DRAG_START_PX = 6;
+
+/** The three things to do, with the ones already done ticked: nobody has to guess what comes next. */
+function Steps({ looked, marked, said }: { looked: boolean; marked: boolean; said: boolean }) {
+  const items: Array<[string, boolean]> = [["Look around", looked], ["Tap the exact place", marked], ["Say what it is", said]];
+  return (
+    <ol className="flex items-center gap-1.5 px-3 pb-2 pt-3 text-[11px] font-semibold" aria-label="Steps">
+      {items.map(([label, done], index) => (
+        <li key={label} className={`flex min-w-0 items-center gap-1.5 ${done ? "text-mint" : "text-white/70"}`}>
+          <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10.5px] ${done ? "bg-mint text-[#10231f]" : "border border-white/25"}`} aria-hidden="true">{done ? "✓" : index + 1}</span>
+          <span className="truncate">{label}</span>
+          {index < items.length - 1 && <span className="mx-0.5 text-white/25" aria-hidden="true">›</span>}
+        </li>
+      ))}
+    </ol>
   );
 }
 
@@ -44,6 +77,11 @@ export function SiteStreetView({ latitude, longitude, mapSrc, value, onChange, p
   const [pictureFailed, setPictureFailed] = useState(false);
   const [pictureLoading, setPictureLoading] = useState(true);
   const [mapIsMain, setMapIsMain] = useState(false);
+  // The picture on screen stays until the next one has fully loaded, so turning never flashes empty.
+  const [shownSrc, setShownSrc] = useState<string | null>(null);
+  const [drag, setDrag] = useState<{ dx: number; dy: number } | null>(null);
+  const dragRef = useRef<{ x: number; y: number; heading: number; pitch: number; moved: boolean } | null>(null);
+  const justDraggedRef = useRef(false);
 
   const photoUrls = useMemo(() => photos.map((file) => URL.createObjectURL(file)), [photos]);
   useEffect(() => () => photoUrls.forEach((url) => URL.revokeObjectURL(url)), [photoUrls]);
@@ -65,7 +103,15 @@ export function SiteStreetView({ latitude, longitude, mapSrc, value, onChange, p
   const photoMode = value.source === "photo" && photos.length > 0;
   const facing = value.heading ?? info?.headingToPlot ?? 0;
   const src = available && info?.panoId ? streetViewImageSrc(info.panoId, { heading: facing, pitch: value.pitch, fov: value.fov }) : null;
-  useEffect(() => { setPictureLoading(true); }, [src]);
+  useEffect(() => {
+    if (!src) { setShownSrc(null); return; }
+    setPictureLoading(true);
+    const preload = new Image();
+    preload.onload = () => { setShownSrc(src); setPictureLoading(false); };
+    preload.onerror = () => setPictureFailed(true);
+    preload.src = src;
+    return () => { preload.onload = null; preload.onerror = null; };
+  }, [src]);
 
   // A photo that was removed cannot stay marked.
   useEffect(() => {
@@ -82,6 +128,51 @@ export function SiteStreetView({ latitude, longitude, mapSrc, value, onChange, p
   const tapStreet = (x: number, y: number) => onChange({ ...value, source: "street", x, y });
   const tapPhoto = (x: number, y: number) => onChange({ ...value, source: "photo", x, y });
   const clearMark = () => onChange({ ...value, x: null, y: null });
+  const fovNow = value.fov ?? DEFAULT_FOV;
+
+  /** Drag to look around: the picture follows the finger at once, and the real view is fetched when it is let go. */
+  const dragEnabled = !mapIsMain && available && !photoMode;
+  const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragEnabled || (event.pointerType === "mouse" && event.button !== 0)) return;
+    dragRef.current = { x: event.clientX, y: event.clientY, heading: facing, pitch: value.pitch, moved: false };
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  };
+  const onPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const start = dragRef.current;
+    if (!start) return;
+    const dx = event.clientX - start.x, dy = event.clientY - start.y;
+    if (!start.moved && Math.hypot(dx, dy) < DRAG_START_PX) return;
+    start.moved = true;
+    setDrag({ dx, dy });
+  };
+  const endDrag = (event: React.PointerEvent<HTMLDivElement>, apply: boolean) => {
+    const start = dragRef.current;
+    dragRef.current = null;
+    setDrag(null);
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+    if (!start?.moved) return;
+    justDraggedRef.current = true;
+    window.setTimeout(() => { justDraggedRef.current = false; }, 120);   // the click that ends a drag is not a tap
+    if (!apply) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const dx = event.clientX - start.x, dy = event.clientY - start.y;
+    const degreesPerPixelX = fovNow / Math.max(1, rect.width);
+    const degreesPerPixelY = (fovNow * 0.75) / Math.max(1, rect.height);
+    camera({ heading: normalizeHeading(start.heading - dx * degreesPerPixelX), pitch: clamp(Math.round(start.pitch + dy * degreesPerPixelY), -20, 70) });
+  };
+  const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!dragEnabled) return;
+    const keys: Record<string, () => void> = {
+      ArrowLeft: () => camera({ heading: normalizeHeading(facing - TURN_STEP) }),
+      ArrowRight: () => camera({ heading: normalizeHeading(facing + TURN_STEP) }),
+      ArrowUp: () => camera({ pitch: clamp(value.pitch + TILT_STEP, -20, 70) }),
+      ArrowDown: () => camera({ pitch: clamp(value.pitch - TILT_STEP, -20, 70) }),
+      "+": () => camera({ fov: clamp(fovNow - ZOOM_STEP, 30, 110) }),
+      "-": () => camera({ fov: clamp(fovNow + ZOOM_STEP, 30, 110) }),
+    };
+    const act = keys[event.key];
+    if (act) { event.preventDefault(); act(); }
+  };
   const showPhotoPicker = photos.length > 0 && (!available || photoMode);
 
   const insetClass = "absolute bottom-2 left-2 z-20 h-[78px] w-[104px] overflow-hidden rounded-lg border-2 border-white/85 shadow-[0_6px_18px_rgba(0,0,0,.55)] sm:h-[88px] sm:w-[118px]";
@@ -92,31 +183,53 @@ export function SiteStreetView({ latitude, longitude, mapSrc, value, onChange, p
     <div data-testid="site-streetview">
       {(loading || available) ? (
         <div>
-          <p className="px-3 pb-2 pt-3 text-[12px] leading-4 text-white/80">
-            {mapIsMain ? "Showing the map. Tap the small Street View picture to go back and mark your place." : "Look around, then tap the exact shop, floor or empty plot you mean."}
-          </p>
+          {mapIsMain ? (
+            <p className="px-3 pb-2 pt-3 text-[12px] leading-4 text-white/80">Showing the map. Tap the small Street View picture to go back and mark your place.</p>
+          ) : (
+            <Steps looked={cameraTouched || marked} marked={marked} said={marked && value.kind !== null} />
+          )}
           <div className="relative aspect-[4/3] w-full overflow-hidden bg-[#05030f]">
             <div className={mapLayer}>
               <iframe title="The exact spot on the map" src={mapSrc} loading="lazy" referrerPolicy="no-referrer" className="h-full w-full border-0" />
             </div>
 
             <div className={streetLayer}>
-              <TapSurface className="h-full w-full" selection={value} active={!mapIsMain && available && !photoMode} label="Tap the exact place on the street picture" onTap={tapStreet} onClear={clearMark}>
-                {src && (
-                  <img
-                    key={src}
-                    src={src}
-                    alt={`Google Street View of the street, looking ${compassWord(facing)}`}
-                    onLoad={() => setPictureLoading(false)}
-                    onError={() => setPictureFailed(true)}
-                    className="block h-full w-full object-cover"
-                  />
-                )}
-              </TapSurface>
-              {(loading || pictureLoading) && (
+              <div
+                className={`relative h-full w-full touch-none select-none overflow-hidden ${dragEnabled ? (drag ? "cursor-grabbing" : "cursor-grab") : ""}`}
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={(event) => endDrag(event, true)}
+                onPointerCancel={(event) => endDrag(event, false)}
+                onClickCapture={(event) => { if (justDraggedRef.current) { event.stopPropagation(); event.preventDefault(); } }}
+                onKeyDown={onKeyDown}
+              >
+                <TapSurface className="h-full w-full" selection={value} active={dragEnabled} label="Tap the exact place on the street picture. Arrow keys look around." onTap={tapStreet} onClear={clearMark}>
+                  {shownSrc && (
+                    <img
+                      src={shownSrc}
+                      alt={`Google Street View of the street, looking ${compassWord(facing)}`}
+                      draggable={false}
+                      onError={() => setPictureFailed(true)}
+                      className="block h-full w-full object-cover will-change-transform"
+                      style={drag ? { transform: `translate(${drag.dx}px, ${drag.dy}px)` } : undefined}
+                    />
+                  )}
+                </TapSurface>
+              </div>
+              {(loading || (pictureLoading && !shownSrc)) && (
                 <div className="absolute inset-0 z-30 grid place-items-center bg-[#0b0818]/70" role="status" aria-label="Loading Street View">
                   <Loader2 size={mapIsMain ? 14 : 22} className="animate-spin text-white/80" aria-hidden="true" />
                 </div>
+              )}
+              {pictureLoading && shownSrc && !mapIsMain && (
+                <span className="pointer-events-none absolute bottom-2 right-2 z-20 inline-flex items-center gap-1 rounded-full bg-black/70 px-2 py-1 text-[10.5px] font-semibold text-white" role="status">
+                  <Loader2 size={12} className="animate-spin" aria-hidden="true" /> Turning
+                </span>
+              )}
+              {dragEnabled && !cameraTouched && !marked && (
+                <span className="pointer-events-none absolute bottom-2 left-1/2 z-20 hidden -translate-x-1/2 items-center gap-1.5 rounded-full bg-black/70 px-3 py-1.5 text-[11.5px] font-semibold text-white sm:inline-flex">
+                  <Hand size={13} aria-hidden="true" /> Drag to look around · tap to mark
+                </span>
               )}
             </div>
 
@@ -185,11 +298,12 @@ export function SiteStreetView({ latitude, longitude, mapSrc, value, onChange, p
           <iframe title="The exact spot on the map" src={mapSrc} loading="lazy" referrerPolicy="no-referrer" className="h-44 w-full border-0" />
           <div className="space-y-1.5 px-3 pt-2 text-[11.5px] leading-4 text-white/60">
             <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span>{info?.enabled ? "There are no Street View photos close to this spot." : "See the street in front of the plot:"}</span>
-              <a href={streetViewLink(latitude, longitude)} target="_blank" rel="noreferrer" className="inline-flex min-h-8 items-center gap-1 font-semibold text-mint hover:underline">
-                Open Google Street View <ExternalLink size={11} aria-hidden="true" />
+              <span>{info?.enabled ? "There are no Street View photos close to this spot." : "Look at the place on Google Maps:"}</span>
+              <a href={googleMapsLink(latitude, longitude)} target="_blank" rel="noreferrer" className="inline-flex min-h-8 items-center gap-1 font-semibold text-mint hover:underline">
+                Open in Google Maps <ExternalLink size={11} aria-hidden="true" />
               </a>
             </p>
+            {info?.enabled && <p>Street View only exists on roads Google has photographed. A screenshot or photo of the plot works just as well.</p>}
             {info?.reason && (
               <p role="note" className="rounded-lg border border-[#f5b942]/50 bg-[#2a2110] px-2.5 py-2 text-amber-100">
                 Only you see this: Street View is off in this site ({info.reason}). Set <span className="font-mono">GOOGLE_MAPS_API_KEY</span> (with the Street View Static API enabled) and <span className="font-mono">ARCHITECTURE_MAPS_IMAGERY=1</span>, then restart the server. Customers will then see Street View here and can tap what they mean on it.
@@ -250,7 +364,7 @@ export function SiteStreetView({ latitude, longitude, mapSrc, value, onChange, p
         <div className="space-y-1.5 px-3 pb-1 pt-1 text-[11px] leading-4 text-white/55">
           <p>The design is made from this view and the two beside it, plus a copy with your mark. The real street, neighbours and heights stay as they are.</p>
           <p>
-            <a href={streetViewLink(latitude, longitude)} target="_blank" rel="noreferrer" className="inline-flex min-h-8 items-center gap-1 font-semibold text-mint hover:underline">
+            <a href={streetViewLink(latitude, longitude, { panoId: info?.panoId, heading: facing, pitch: value.pitch, fov: value.fov })} target="_blank" rel="noreferrer" className="inline-flex min-h-8 items-center gap-1 font-semibold text-mint hover:underline">
               Look around in Google Street View <ExternalLink size={11} aria-hidden="true" />
             </a>
           </p>
