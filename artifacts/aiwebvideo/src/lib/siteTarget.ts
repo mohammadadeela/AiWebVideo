@@ -16,14 +16,16 @@ export interface SiteSelection {
   /** Where the customer tapped, 0-1 from the left / top; null = not marked. */
   x: number | null;
   y: number | null;
-  /** Tapped on the Street View frame, or on one of their own photos (which one). */
-  source: "street" | "photo";
+  /** Tapped on the Street View frame, on one of their own photos (which one), or on a nearby street photo they picked. */
+  source: "street" | "photo" | "nearby";
   photo: number;
+  /** The nearby street photo (Mapillary id) picked to design from; null = none. */
+  nearbyId: string | null;
 }
 
 export const DEFAULT_PITCH = 5;
 export const DEFAULT_FOV = 90;
-export const EMPTY_SELECTION: SiteSelection = { heading: null, pitch: DEFAULT_PITCH, fov: DEFAULT_FOV, kind: null, level: "ground", x: null, y: null, source: "street", photo: 0 };
+export const EMPTY_SELECTION: SiteSelection = { heading: null, pitch: DEFAULT_PITCH, fov: DEFAULT_FOV, kind: null, level: "ground", x: null, y: null, source: "street", photo: 0, nearbyId: null };
 
 export const TARGET_OPTIONS: ReadonlyArray<{ id: TargetKind; label: string; hint: string }> = [
   { id: "building", label: "Whole building", hint: "Every floor and the roof" },
@@ -82,5 +84,7 @@ export function selectionToRequest(selection: SiteSelection): Record<string, str
     targetY: marked ? Math.round(selection.y! * 10_000) / 10_000 : undefined,
     targetSource: marked ? selection.source : undefined,
     targetPhoto: marked && selection.source === "photo" ? selection.photo : undefined,
+    // a picked nearby photo is used as a reference even before anything is tapped on it
+    nearbyPhotoId: selection.source === "nearby" && selection.nearbyId ? selection.nearbyId : undefined,
   };
 }

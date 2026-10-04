@@ -58,7 +58,7 @@ export async function drawTargetMarker(image: Buffer, point: { x: number; y: num
 }
 
 /** The label the AI reads next to the marked copy. */
-export function markerLabel(kind: TargetKind, source: 'street' | 'photo'): string {
+export function markerLabel(kind: TargetKind, source: 'street' | 'photo' | 'nearby'): string {
   const what = { building: 'the whole building', unit: 'one shop or unit', floor: 'one floor', land: 'empty land' }[kind];
-  return `TARGET MARKER — locating aid only. The red box shows where the customer pointed on ${source === 'photo' ? 'their own photo' : 'the first Street View picture'} (${what}). It is NOT part of the scene: never draw the box, the cross or any marker in any result, and never treat the box as the exact outline.`;
+  return `TARGET MARKER — locating aid only. The red box shows where the customer pointed on ${source === 'photo' ? 'their own photo' : source === 'nearby' ? 'the nearby street photo' : 'the first Street View picture'} (${what}). It is NOT part of the scene: never draw the box, the cross or any marker in any result, and never treat the box as the exact outline.`;
 }

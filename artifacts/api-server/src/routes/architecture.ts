@@ -6,6 +6,7 @@ import { defaultMapsDeps } from '../lib/maps-resolve-deps.js';
 import { siteImageryEnabled } from '../lib/site-imagery.js';
 import { tryAuth } from '../lib/auth.js';
 import { CAMERA_LIMITS, fetchStreetViewImage, fetchStreetViewMeta } from '../lib/street-view.js';
+import { findNearbyPhotos, mapillaryEnabled } from '../lib/mapillary.js';
 
 const router = Router();
 const attempts = new Map<string, { count: number; reset: number }>();
@@ -79,6 +80,22 @@ router.get('/street-view/image', async (req, res) => {
     const picture = await fetchStreetViewImage({ panoId: query.pano, heading: query.heading, fov: query.fov, pitch: query.pitch });
     if (!picture) throw new AppError('Street View is not available for this view right now.', 502, 'STREET_VIEW_UNAVAILABLE');
     res.set({ 'Content-Type': 'image/jpeg', 'Cache-Control': 'private, max-age=600', 'X-Content-Type-Options': 'nosniff' }).send(picture);
+  } catch (error) { sendError(res, error); }
+});
+
+/**
+ * Free street photos near the plot (Mapillary), best first. Used when Google Street View is not offered or has nothing there.
+ * Only the site owner is told what is missing when it is off.
+ */
+router.get('/photos', tryAuth, async (req, res) => {
+  try {
+    const { lat, lng } = z.object({ lat: z.coerce.number().min(-90).max(90), lng: z.coerce.number().min(-180).max(180) }).parse(req.query);
+    if (!mapillaryEnabled()) {
+      res.json({ enabled: false, photos: [], ...(res.locals.isAdmin === true ? { reason: 'MAPILLARY_ACCESS_TOKEN is not set' } : {}) });
+      return;
+    }
+    if (!allowStreetView(req.ip ?? req.socket.remoteAddress ?? 'unknown')) throw new AppError('Try again in a few minutes.', 429, 'RATE_LIMITED');
+    res.set('Cache-Control', 'private, max-age=300').json({ enabled: true, photos: await findNearbyPhotos({ latitude: lat, longitude: lng }) });
   } catch (error) { sendError(res, error); }
 });
 

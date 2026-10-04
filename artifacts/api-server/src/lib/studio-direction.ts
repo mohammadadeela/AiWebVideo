@@ -36,8 +36,12 @@ export interface ArchitectureInput {
   targetX?: number;
   targetY?: number;
   /** Tapped on the Street View frame, or on one of their own photos (which one). */
-  targetSource?: 'street' | 'photo';
+  targetSource?: 'street' | 'photo' | 'nearby';
   targetPhoto?: number;
+  /** The nearby street photo (Mapillary id) the customer chose to design from. Validated by the server; attached only if it can be downloaded. */
+  nearbyPhotoId?: string;
+  /** Set by the server when the nearby photo was attached: the photographer's name, for the attribution CC BY-SA needs. Never from the page. */
+  nearbyPhotoCredit?: string;
   /** Set by the server when a copy of the picture with the marker was attached. Never from the page. */
   targetMarked?: boolean;
 }
@@ -91,11 +95,12 @@ export function describeTarget(input: ArchitectureInput | null | undefined): str
   }
   const where = pointWords(input.targetX, input.targetY);
   if (where) {
-    const onStreet = input.targetSource !== 'photo';
+    const onStreet = input.targetSource !== 'photo' && input.targetSource !== 'nearby';
+    const pictureWords = input.targetSource === 'photo' ? 'their own photo' : input.targetSource === 'nearby' ? 'the nearby street photo (labelled STREET PHOTO)' : 'the first Street View picture';
     const camera = onStreet && typeof input.streetViewFov === 'number' || (onStreet && typeof input.streetViewPitch === 'number')
       ? `; the camera looks ${typeof input.streetViewPitch === 'number' && input.streetViewPitch > 8 ? `up ${Math.round(input.streetViewPitch)} degrees (to see the upper floors)` : 'level'}${typeof input.streetViewFov === 'number' && input.streetViewFov < 70 ? ' and is zoomed in' : ''}`
       : '';
-    lines.push(`- Where: the customer pointed at ${where.place} of ${onStreet ? 'the first Street View picture' : 'their own photo'} (${where.percent})${camera}`);
+    lines.push(`- Where: the customer pointed at ${where.place} of ${pictureWords} (${where.percent})${camera}`);
   }
   if (input.targetMarked) {
     lines.push('- A copy of that picture with a red box is attached and labelled TARGET MARKER. The box only shows where the customer pointed. It is a locating aid, not part of the scene, and it must never appear in any result');

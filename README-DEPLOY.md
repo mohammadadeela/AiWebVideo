@@ -170,3 +170,14 @@ engines or AI systems cannot be guaranteed.
 ## Cloudflare R2 storage
 
 Production media is stored durably in a private Cloudflare R2 bucket. Configure `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, and `R2_SECRET_ACCESS_KEY` in `.env.local`. `ASSETS_DIR` remains a local FFmpeg/Playwright working directory and hot cache; it is not the durable source of media. Do not enable public bucket access just for the application.
+
+## Street photos for Architecture (optional, free option)
+
+The Architecture card can show real street photos next to the map so the customer taps the exact shop, floor or plot.
+
+| Variable | What it enables |
+|---|---|
+| `MAPILLARY_ACCESS_TOKEN` | **Free.** Nearby street photos from Mapillary volunteers, best first. Create the token at https://www.mapillary.com/dashboard/developers (register an app, copy its *Access Token*; never the client secret). Photos are credited to their photographers (CC BY-SA 4.0) on screen. Coverage depends on volunteers: check your places at mapillary.com/app. |
+| `GOOGLE_MAPS_API_KEY` + `ARCHITECTURE_MAPS_IMAGERY=1` | Paid after Google's free allowance. Google Street View as the main picture, with drag to look around. Used first when it has a picture for the spot. |
+
+Order shown to the customer: Google Street View (if on and available) -> Mapillary photos (if on and any nearby) -> Google's 360 viewer plus "add your screenshot". Restart the server after changing variables. Tokens live only in the server environment, never in page code.

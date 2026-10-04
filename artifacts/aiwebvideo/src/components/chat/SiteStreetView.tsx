@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Compass, Camera, ExternalLink, Hand, ImagePlus, Loader2, LocateFixed, ZoomIn, ZoomOut } from "lucide-react";
-import { getStreetView, streetViewImageSrc, type StreetViewInfo } from "@/lib/api-client";
+import { getNearbyPhotos, getStreetView, streetViewImageSrc, type NearbyPhoto, type NearbyPhotosInfo, type StreetViewInfo } from "@/lib/api-client";
 import { DEFAULT_FOV, DEFAULT_PITCH, isMarked, normalizeHeading, type SiteSelection } from "@/lib/siteTarget";
 import { streetViewEmbedUrl } from "@/lib/mapPreview";
 import { TapSurface, TargetKindPicker } from "./SiteTargetControls";
@@ -59,6 +59,87 @@ function Steps({ looked, marked, said, labels = ["Look around", "Tap the exact p
 }
 
 /**
+ * Free street photos near the plot, best first (close, facing it, recent, sharp). The customer picks one, taps the exact place on
+ * it, and says what it is; the design is made from that very photo plus a copy with the mark. The photographer is credited,
+ * as the CC BY-SA license requires.
+ */
+function NearbyPicker({ photos, value, onChange, latitude, longitude, hasOwnPhotos }: {
+  photos: NearbyPhoto[];
+  value: SiteSelection;
+  onChange: (next: SiteSelection) => void;
+  latitude: number;
+  longitude: number;
+  hasOwnPhotos: boolean;
+}) {
+  const chosen = value.source === "nearby" && value.nearbyId ? photos.find((photo) => photo.id === value.nearbyId) ?? null : null;
+  const marked = isMarked(value) && value.source === "nearby";
+  return (
+    <div data-testid="nearby-photos">
+      <Steps looked={Boolean(chosen)} marked={marked} said={marked && value.kind !== null} labels={["Pick a photo", "Tap the exact place", "Say what it is"]} />
+      {!chosen ? (
+        <div className="px-3 pb-1">
+          <p className="text-[12px] leading-4 text-white/80">Street photos near this spot, best first. Pick the clearest one that shows what you mean.</p>
+          <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3" role="list" aria-label="Street photos near the plot">
+            {photos.map((photo, index) => (
+              <button
+                key={photo.id}
+                type="button"
+                role="listitem"
+                onClick={() => onChange({ ...value, source: "nearby", nearbyId: photo.id, x: null, y: null })}
+                aria-label={`Use street photo ${index + 1}, ${Math.round(photo.distanceM)} metres away${photo.facesPlot ? ", facing the plot" : ""}`}
+                className="relative overflow-hidden rounded-xl border border-white/[.12] bg-[#0b0818] text-left transition hover:border-mint/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mint active:scale-[.98]"
+              >
+                <img src={photo.thumbUrl} alt="" loading="lazy" referrerPolicy="no-referrer" className="aspect-[4/3] w-full object-cover" />
+                {index === 0 && <span className="absolute left-1.5 top-1.5 rounded bg-mint px-1.5 py-0.5 text-[10px] font-bold text-[#10231f]">Best match</span>}
+                <span className="block bg-black/60 px-2 py-1 text-[10.5px] leading-4 text-white/85">
+                  {Math.round(photo.distanceM)} m · {photo.facesPlot ? "faces the plot" : photo.heading !== null ? `looks ${compassWord(photo.heading)}` : "direction unknown"}{photo.dateLabel ? ` · ${photo.dateLabel}` : ""}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="px-3 pb-1">
+          <TapSurface
+            className="block w-full overflow-hidden rounded-lg bg-[#05030f]"
+            selection={value}
+            active
+            label="Tap the exact place on the street photo"
+            onTap={(x, y) => onChange({ ...value, source: "nearby", x, y })}
+            onClear={() => onChange({ ...value, x: null, y: null })}
+          >
+            <img src={chosen.previewUrl} alt={`Street photo near the plot${chosen.heading !== null ? `, looking ${compassWord(chosen.heading)}` : ""}`} referrerPolicy="no-referrer" draggable={false} className="block h-auto w-full" />
+          </TapSurface>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+            <p className="text-[11px] leading-4 text-white/60">
+              Photo{chosen.credit ? ` by ${chosen.credit}` : ""} · <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer" className="font-semibold text-mint hover:underline">CC BY-SA 4.0</a> · <a href={`https://www.mapillary.com/app/?lat=${latitude.toFixed(6)}&lng=${longitude.toFixed(6)}&z=18`} target="_blank" rel="noreferrer" className="font-semibold text-mint hover:underline">Mapillary</a>{chosen.dateLabel ? ` · ${chosen.dateLabel}` : ""}
+            </p>
+            <button type="button" onClick={() => onChange({ ...value, source: "street", nearbyId: null, x: null, y: null })} className="inline-flex min-h-11 items-center text-[12px] font-semibold text-mint hover:underline">Choose another photo</button>
+          </div>
+          {chosen.dateLabel && /\b(19|20)\d\d\b/.test(chosen.dateLabel) && new Date().getFullYear() - Number(/\b((?:19|20)\d\d)\b/.exec(chosen.dateLabel)![1]) >= 4 && (
+            <p className="mt-1 text-[11.5px] leading-4 text-amber-200">This photo is from {chosen.dateLabel}, so newer buildings may be missing. Pick a newer one or add your own photo.</p>
+          )}
+        </div>
+      )}
+      <p className="px-3 pt-1.5 text-[11px] leading-4 text-white/50">These photos come from Mapillary volunteers and can be old. Your own recent photo (the + button) always wins.</p>
+      {hasOwnPhotos && (
+        <p className="px-3 pt-1 text-[11.5px]">
+          <button type="button" onClick={() => onChange({ ...value, source: "photo", photo: 0, x: null, y: null })} className="inline-flex min-h-9 items-center gap-1.5 font-semibold text-mint hover:underline">
+            <ImagePlus size={13} aria-hidden="true" /> Mark it on my own photo instead
+          </button>
+        </p>
+      )}
+      <details className="px-3 pb-1 pt-2 text-[11.5px] text-white/70">
+        <summary className="inline-flex min-h-9 cursor-pointer items-center font-semibold text-mint">Look around in Google Street View (360°, view only)</summary>
+        <div className="mt-2 aspect-[4/3] w-full overflow-hidden rounded-lg bg-[#05030f]">
+          <iframe title="Google Street View of the street, 360 degrees. Drag to look around." src={streetViewEmbedUrl(latitude, longitude)} loading="lazy" allowFullScreen referrerPolicy="no-referrer" className="h-full w-full border-0" />
+        </div>
+      </details>
+    </div>
+  );
+}
+
+/**
  * The place a building will stand, as a person would point at it. Google Street View (the real street in front of the plot) is
  * the main picture and the map sits in the corner. The customer looks around (turn, up or down for other floors, zoom), taps
  * the exact shop, floor, building or empty plot, and says what it is. The design is made from exactly this view, plus a copy
@@ -80,6 +161,8 @@ export function SiteStreetView({ latitude, longitude, mapSrc, value, onChange, p
   const [pictureFailed, setPictureFailed] = useState(false);
   const [pictureLoading, setPictureLoading] = useState(true);
   const [mapIsMain, setMapIsMain] = useState(false);
+  const [nearby, setNearby] = useState<NearbyPhotosInfo | null>(null);
+  const [nearbyLoading, setNearbyLoading] = useState(false);
   // The picture on screen stays until the next one has fully loaded, so turning never flashes empty.
   const [shownSrc, setShownSrc] = useState<string | null>(null);
   const [drag, setDrag] = useState<{ dx: number; dy: number } | null>(null);
@@ -95,9 +178,18 @@ export function SiteStreetView({ latitude, longitude, mapSrc, value, onChange, p
     setLoading(true);
     setPictureFailed(false);
     setMapIsMain(false);
+    setNearby(null);
+    // Free street photos are looked for only when Google Street View cannot be shown for this spot.
+    const loadNearby = () => {
+      setNearbyLoading(true);
+      getNearbyPhotos(latitude, longitude, controller.signal)
+        .then((found) => { if (!controller.signal.aborted) setNearby(found); })
+        .catch(() => { if (!controller.signal.aborted) setNearby({ enabled: false, photos: [] }); })
+        .finally(() => { if (!controller.signal.aborted) setNearbyLoading(false); });
+    };
     getStreetView(latitude, longitude, controller.signal)
-      .then((found) => { if (!controller.signal.aborted) setInfo(found); })
-      .catch(() => { if (!controller.signal.aborted) setInfo({ enabled: false, available: false }); })
+      .then((found) => { if (controller.signal.aborted) return; setInfo(found); if (!found.available) loadNearby(); })
+      .catch(() => { if (controller.signal.aborted) return; setInfo({ enabled: false, available: false }); loadNearby(); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, [latitude, longitude]);
@@ -176,7 +268,7 @@ export function SiteStreetView({ latitude, longitude, mapSrc, value, onChange, p
     const act = keys[event.key];
     if (act) { event.preventDefault(); act(); }
   };
-  const showPhotoPicker = photos.length > 0 && (!available || photoMode);
+  const showPhotoPicker = photos.length > 0 && (!available || photoMode) && value.source !== "nearby";
 
   const insetClass = "absolute bottom-2 left-2 z-20 h-[78px] w-[104px] overflow-hidden rounded-lg border-2 border-white/85 shadow-[0_6px_18px_rgba(0,0,0,.55)] sm:h-[88px] sm:w-[118px]";
   const mapLayer = mapIsMain ? "absolute inset-0" : `${insetClass} pointer-events-none`;
@@ -300,7 +392,11 @@ export function SiteStreetView({ latitude, longitude, mapSrc, value, onChange, p
         <div>
           <iframe title="The exact spot on the map" src={mapSrc} loading="lazy" referrerPolicy="no-referrer" className="h-44 w-full border-0" />
 
-          {info?.enabled ? (
+          {nearbyLoading ? (
+            <p role="status" className="flex items-center gap-2 px-3 py-3 text-[11.5px] text-white/65"><Loader2 size={14} className="animate-spin" aria-hidden="true" /> Looking for street photos near this spot…</p>
+          ) : (nearby?.photos.length ?? 0) > 0 ? (
+            <NearbyPicker photos={nearby!.photos} value={value} onChange={onChange} latitude={latitude} longitude={longitude} hasOwnPhotos={photos.length > 0} />
+          ) : info?.enabled ? (
             // The server checked: Google has no street photos near this plot.
             <div className="space-y-1.5 px-3 pt-2 text-[11.5px] leading-4 text-white/60">
               <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -347,6 +443,11 @@ export function SiteStreetView({ latitude, longitude, mapSrc, value, onChange, p
                     Bigger in Google Maps <ExternalLink size={11} aria-hidden="true" />
                   </a>
                 </div>
+                {nearby?.reason && (
+                  <p role="note" className="rounded-lg border border-[#f5b942]/50 bg-[#2a2110] px-2.5 py-2 text-amber-100">
+                    Only you see this: free street photos are off ({nearby.reason}). Create a free token at mapillary.com/dashboard/developers, set <span className="font-mono">MAPILLARY_ACCESS_TOKEN</span>, then restart the server. Customers will then pick from nearby street photos here.
+                  </p>
+                )}
                 {info?.reason && (
                   <p role="note" className="rounded-lg border border-[#f5b942]/50 bg-[#2a2110] px-2.5 py-2 text-amber-100">
                     Only you see this: Street View is off in this site ({info.reason}). Set <span className="font-mono">GOOGLE_MAPS_API_KEY</span> (with the Street View Static API enabled) and <span className="font-mono">ARCHITECTURE_MAPS_IMAGERY=1</span>, then restart the server. Customers will then see Street View here and can tap what they mean on it, without a screenshot.

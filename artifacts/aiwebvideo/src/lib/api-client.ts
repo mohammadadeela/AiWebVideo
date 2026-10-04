@@ -437,6 +437,24 @@ export function getStreetView(latitude: number, longitude: number, signal?: Abor
   return request<StreetViewInfo>(`/api/architecture/street-view?lat=${latitude.toFixed(6)}&lng=${longitude.toFixed(6)}`, { signal });
 }
 
+/** A free street photo near the plot (from Mapillary volunteers), best first. The picture links carry no token. */
+export interface NearbyPhoto {
+  id: string;
+  thumbUrl: string;
+  previewUrl: string;
+  dateLabel: string | null;
+  distanceM: number;
+  facesPlot: boolean;
+  heading: number | null;
+  /** The photographer's name: the CC BY-SA license requires showing it. */
+  credit: string | null;
+}
+export interface NearbyPhotosInfo { enabled: boolean; photos: NearbyPhoto[]; reason?: string }
+
+export function getNearbyPhotos(latitude: number, longitude: number, signal?: AbortSignal) {
+  return request<NearbyPhotosInfo>(`/api/architecture/photos?lat=${latitude.toFixed(6)}&lng=${longitude.toFixed(6)}`, { signal });
+}
+
 /** One Street View picture (4:3), served by our own server. The same frame the design is made from. */
 export function streetViewImageSrc(panoId: string, view: { heading: number; pitch?: number; fov?: number }): string {
   const heading = Math.round(((view.heading % 360) + 360) % 360);

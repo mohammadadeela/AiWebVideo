@@ -18,6 +18,7 @@ import { coordinatesFromMapsUrl, isGoogleMapsUrl } from '../lib/maps-url.js';
 import { TEMPLATE_REPLACEMENT_DIRECTION } from '../lib/studio-direction.js';
 import { sanitizeProductFacts } from '../lib/studio-insights.js';
 import { fetchSiteImageryDetailed } from '../lib/site-imagery.js';
+import { fetchPhotoForDesign, isMapillaryId } from '../lib/mapillary.js';
 import { findShowcaseSample, loadShowcaseStill } from '../lib/marketing.js';
 import { z } from 'zod';
 
@@ -213,17 +214,19 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
           targetLevel: z.enum(TARGET_LEVELS).optional(),
           targetX: z.number().min(0).max(1).optional(),
           targetY: z.number().min(0).max(1).optional(),
-          targetSource: z.enum(['street', 'photo']).optional(),
+          targetSource: z.enum(['street', 'photo', 'nearby']).optional(),
+          nearbyPhotoId: z.string().refine(isMapillaryId).optional(),
           targetPhoto: z.number().int().min(0).max(9).optional(),
           // set by the server only (below): whatever the page sends here is discarded
           targetMarked: z.boolean().optional(),
           streetViewDate: z.string().max(24).optional(),
           streetViewViews: z.number().int().min(0).max(6).optional(),
+          nearbyPhotoCredit: z.string().max(60).optional(),
         }).parse(architectureInput)
       : null;
     // Whether Street View was attached, and from when, is the server's to say: never taken from the page.
     if (architecture) {
-      delete architecture.streetViewDate; delete architecture.streetViewViews; delete architecture.targetMarked;
+      delete architecture.streetViewDate; delete architecture.streetViewViews; delete architecture.targetMarked; delete architecture.nearbyPhotoCredit;
       // The target: a kind is needed for the rest to mean anything, a tap needs both coordinates, and a level only applies to a unit or a floor.
       if (!architecture.targetKind) {
         delete architecture.targetLevel; delete architecture.targetX; delete architecture.targetY; delete architecture.targetSource; delete architecture.targetPhoto;
@@ -233,11 +236,13 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
         else delete architecture.targetLevel;
         const tapped = typeof architecture.targetX === 'number' && typeof architecture.targetY === 'number';
         if (tapped) architecture.targetSource ??= 'street';
-        if (!tapped || (architecture.targetSource === 'photo' && typeof architecture.targetPhoto !== 'number')) {
+        if (!tapped || (architecture.targetSource === 'photo' && typeof architecture.targetPhoto !== 'number') || (architecture.targetSource === 'nearby' && !architecture.nearbyPhotoId)) {
           delete architecture.targetX; delete architecture.targetY; delete architecture.targetSource; delete architecture.targetPhoto;
         }
         if (architecture.targetSource !== 'photo') delete architecture.targetPhoto;
       }
+      // a tap on a nearby photo only means something together with that photo
+      if (architecture.targetSource === 'nearby' && !architecture.nearbyPhotoId) { delete architecture.targetX; delete architecture.targetY; delete architecture.targetSource; }
     }
     const studioMode = ['video', 'photos', 'both', 'custom'].includes(req.body?.mode) ? req.body.mode as 'video' | 'photos' | 'both' | 'custom' : null;
     const studioAudioMode = ['voice_music', 'native_audio', 'music_only', 'silent'].includes(req.body?.audioMode)
@@ -478,6 +483,38 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
     } else if (studioKind === 'architecture' && architecture?.targetSource === 'street') {
       // Street View was not available, so there is no picture the tap could refer to
       delete architecture.targetX; delete architecture.targetY; delete architecture.targetSource;
+    }
+
+    // Architecture: the nearby street photo (Mapillary) the customer chose, with a marked copy when they tapped on it. If it cannot
+    // be downloaded the design simply goes ahead without it and the tap is dropped (it would point at a picture that is not there).
+    if (studioKind === 'architecture' && architecture?.nearbyPhotoId) {
+      const nearby = await fetchPhotoForDesign(architecture.nearbyPhotoId);
+      let attached = false;
+      if (nearby) {
+        try {
+          const jpeg = await normalizeUploadToJpeg(nearby.buffer);
+          const pageIndex = pages.length;
+          const screenshotUrl = await saveImageFile(job.id, pageIndex === 0 ? 'screenshot-full.jpg' : `page-${pageIndex}.jpg`, jpeg);
+          pages.push({ url: `nearby-photo://${pageIndex}`, title: `STREET PHOTO near the plot${nearby.dateLabel ? `, taken ${nearby.dateLabel}` : ''} (Mapillary${nearby.credit ? `, by ${nearby.credit}` : ''}, CC BY-SA 4.0): the real street as it looks. Keep the neighbours, heights and street line as they are`, screenshotUrl });
+          attached = true;
+          architecture.nearbyPhotoCredit = nearby.credit ?? undefined;
+          if (architecture.targetKind && architecture.targetSource === 'nearby' && typeof architecture.targetX === 'number' && typeof architecture.targetY === 'number') {
+            const marked = await drawTargetMarker(jpeg, { x: architecture.targetX, y: architecture.targetY }, architecture.targetKind);
+            if (marked) {
+              const markerIndex = pages.length;
+              const markerUrl = await saveImageFile(job.id, `page-${markerIndex}.jpg`, marked);
+              pages.push({ url: `target-marker://${markerIndex}`, title: markerLabel(architecture.targetKind, 'nearby'), screenshotUrl: markerUrl });
+              architecture.targetMarked = true;
+            }
+          }
+        } catch (err) {
+          console.warn(`[uploads] job=${job.id} nearby photo skipped: ${(err as Error).message}`);
+        }
+      }
+      if (!attached) {
+        delete architecture.nearbyPhotoId;
+        if (architecture.targetSource === 'nearby') { delete architecture.targetX; delete architecture.targetY; delete architecture.targetSource; }
+      }
     }
 
     // "Make one like this with my product": attach the chosen showcase sample as the LAST reference.
