@@ -23,15 +23,28 @@ test('the sign-in window shows the real reason, clears stale errors and keeps th
   assert.match(modal, /could not complete sign-in\$\{code \?/);
 });
 
-test('a request made before signing in is saved first, keeps its example and idea, expires, and cancel removes it', async () => {
+test('a request made before signing in is saved first, keeps its example and idea, survives a day and a new tab, and is shown again with Start', async () => {
   const widget = await fe('components/chat/ChatWidgetBase.tsx');
   assert.match(widget, /void saveStudioHandoff\(request\);\s*pendingActionRef\.current = \(\) => redirectStudioSubmitToWorkspace\(request\)/);
   assert.match(widget, /studioDirection: request\.studioDirection,\s*templateId: request\.templateId,/);
-  assert.match(widget, /clearPhotoDraft\(abandoned\.attachmentDraftKey\)/);
+  // Closing the sign-in window no longer throws the request away: it waits in the workspace with a Start button.
+  assert.doesNotMatch(widget, /clearPhotoDraft\(abandoned\.attachmentDraftKey\)/);
+  assert.match(widget, /<WaitingRequestCard/);
+  assert.match(widget, /startWaitingRequest\(waiting, \{ automatic: true \}\)/);
+  assert.match(widget, /isHandoffFresh\(handoff\) \|\| checkoutJustSucceededRef\.current/);
   assert.match(widget, /handoffDestination\(waiting\)/);
+  // Website requests made in the workspace before sign-in keep their attachments too.
+  assert.match(widget, /savePublicCreatorHandoff\(\{ kind: "website", url, brief, settings: \{ \.\.\.settings \}, attachmentDraftKey \}\)/);
+  // Too few credits never drops the request: it is saved with reason "credits" and starts when they arrive.
+  assert.match(widget, /await saveStudioHandoff\(request, "credits"\)/);
+  assert.match(widget, /waiting\.reason !== "credits" \|\| showPaywall/);
   const handoff = await fe('lib/publicCreatorHandoff.ts');
-  assert.match(handoff, /HANDOFF_MAX_AGE_MS = 30 \* 60 \* 1000/);
+  assert.match(handoff, /HANDOFF_MAX_AGE_MS = 24 \* 60 \* 60 \* 1000/);
+  assert.match(handoff, /HANDOFF_AUTOSTART_MAX_AGE_MS = 2 \* 60 \* 60 \* 1000/);
+  assert.match(handoff, /window\.localStorage/);
   assert.match(handoff, /templateId\?: string/);
+  const scope = await fe('lib/accountScope.ts');
+  assert.match(scope, /clearAccountScopedState\(\{ keepWaitingRequest: true \}\)/);
   const form = await fe('components/chat/WebsiteBriefForm.tsx');
   assert.match(form, /rememberPendingSample\(sample\)/);
   assert.match(form, /startsWith\("\/dashboard"\)/);

@@ -3,6 +3,7 @@ import { Redirect, Route, Switch, Router as WouterRouter } from 'wouter';
 import { AppErrorBoundary } from '@/components/system/AppErrorBoundary';
 import { ConnectionBanner } from '@/components/system/ConnectionBanner';
 import { useReturnToOpener } from '@/hooks/use-return-to-opener';
+import { SpaceJumpLoader, SpaceJumpTransition } from '@/components/system/SpaceJumpLoader';
 
 const HomePage = lazy(() => import('@/pages/HomePage').then((module) => ({ default: module.HomePage })));
 const DashboardPage = lazy(() => import('@/pages/DashboardPage').then((module) => ({ default: module.DashboardPage })));
@@ -44,19 +45,6 @@ const ProductPageVideoGuidePage = lazy(() => guidePages().then((module) => ({ de
 const PromptVideoGuidePage = lazy(() => guidePages().then((module) => ({ default: module.PromptVideoGuidePage })));
 const ProductReferencesGuidePage = lazy(() => guidePages().then((module) => ({ default: module.ProductReferencesGuidePage })));
 const InteriorDesignGuidePage = lazy(() => guidePages().then((module) => ({ default: module.InteriorDesignGuidePage })));
-
-function PageLoader() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-bg" role="status" aria-label="Loading AiWebVideo">
-      <div className="flex flex-col items-center gap-4">
-        <img src="/logo.svg" alt="" className="h-12 w-12 animate-pulse" />
-        <div className="h-1 w-20 overflow-hidden rounded-full bg-white/[.06]">
-          <div className="h-full w-1/2 animate-pulse rounded-full bg-violet" />
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function Router() {
   return (
@@ -117,7 +105,8 @@ function App() {
         <div className="page-backdrop" aria-hidden="true" />
         <ConnectionBanner />
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
-          <Suspense fallback={<PageLoader />}><Router /></Suspense>
+          <Suspense fallback={<SpaceJumpLoader />}><Router /></Suspense>
+          <SpaceJumpTransition />
         </WouterRouter>
       </div>
     </AppErrorBoundary>

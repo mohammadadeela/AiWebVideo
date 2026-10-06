@@ -390,7 +390,10 @@ export function ChatWidget({
             // even if the user scrolled upward while waiting, reveal the newly
             // finished image/video so they never have to hunt for it. The lock
             // keeps it there while media settles; the reader's own scroll ends it.
-            autoFollowRef.current = true;
+            // Follow-to-bottom stays OFF afterwards: a late-loading poster or the
+            // action tray growing must never carry the view past the result. It
+            // switches back on as soon as the reader themselves reaches the bottom.
+            autoFollowRef.current = false;
             userScrollIntentRef.current = false;
             setShowJumpToLatest(false);
             setHasUnseenBelow(false);

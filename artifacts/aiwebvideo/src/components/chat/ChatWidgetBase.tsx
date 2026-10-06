@@ -67,9 +67,13 @@ import { GenerationCanvas, type ProductionKind } from "./GenerationCanvas";
 import {
   clearPublicCreatorHandoff,
   handoffDestination,
+  isHandoffFresh,
   loadPublicCreatorHandoff,
   savePublicCreatorHandoff,
+  type HandoffReason,
+  type PublicCreatorHandoff,
 } from "@/lib/publicCreatorHandoff";
+import { WaitingRequestCard, type WaitingRequest } from "./WaitingRequestCard";
 
 type Stage = "awaiting_url" | WorkflowStage;
 
@@ -405,6 +409,13 @@ export function ChatWidget({
   const workflowReadyRef = useRef(!resumeJobId && !initialJobId);
   const autoRenderRef = useRef(false);
   const publicHandoffStartedRef = useRef(false);
+  // A request the person prepared before signing in or before having enough credits. It stays on screen (prompt,
+  // attachments, settings) until it has started or they discard it; nothing they typed is ever silently dropped.
+  const [waitingRequest, setWaitingRequest] = useState<WaitingRequest | null>(null);
+  const waitingRequestRef = useRef<WaitingRequest | null>(null);
+  waitingRequestRef.current = waitingRequest;
+  const waitingStartRef = useRef(false);
+  const checkoutJustSucceededRef = useRef(new URLSearchParams(window.location.search).get("checkout") === "success");
   const websiteRequestRef = useRef<{
     brief: string;
     mode: WebsiteProductionMode;
@@ -501,7 +512,9 @@ export function ChatWidget({
     if (!isSignedIn || restoring) return;
     if (!isPublicCreatorPath() || pendingActionRef.current) return;
     const waiting = loadPublicCreatorHandoff();
-    if (!waiting) return;
+    // Only a request made a short while ago pulls the person into the workspace by itself; an older one simply
+    // waits there (shown with a Start button) so a visit to the landing page is never hijacked.
+    if (!waiting || !isHandoffFresh(waiting)) return;
     window.location.assign(handoffDestination(waiting));
   }, [isSignedIn, restoring]);
 
@@ -514,41 +527,141 @@ export function ChatWidget({
     publicHandoffStartedRef.current = true;
 
     void (async () => {
-      try {
-        let files: File[] = [];
-        if (handoff.attachmentDraftKey) {
-          const draft = await loadPhotoDraft(handoff.attachmentDraftKey).catch(() => []);
-          files = draft.map((item) => item.file).filter((file): file is File => file instanceof File);
-          await clearPhotoDraft(handoff.attachmentDraftKey).catch(() => {});
-        }
-
-        clearPublicCreatorHandoff();
-        if (window.location.search.includes("handoff=1") || window.location.search.includes("create=")) {
-          window.history.replaceState({}, "", "/dashboard");
-        }
-
-        if (handoff.kind === "website") {
-          await performWebsiteSubmit(
-            handoff.url,
-            handoff.brief,
-            { ...handoff.settings, modelId: handoff.settings.modelId ?? "cinema-2" },
-            files,
-          );
-        } else {
-          await performStudioSubmit({
-            ...handoff.request,
-            modelId: handoff.request.modelId ?? "cinema-2",
-            files: files.filter((file) => !isDrawingFile(file)),
-            drawing: files.find((file) => isDrawingFile(file)),
-          });
-        }
-      } catch (error) {
-        clearPublicCreatorHandoff();
-        pushBot(errorMessage(error));
-        publicHandoffStartedRef.current = false;
+      let files: File[] = [];
+      if (handoff.attachmentDraftKey) {
+        const draft = await loadPhotoDraft(handoff.attachmentDraftKey).catch(() => []);
+        files = draft.map((item) => item.file).filter((file): file is File => file instanceof File);
+      }
+      if (window.location.search.includes("handoff=1") || window.location.search.includes("create=")) {
+        window.history.replaceState({}, "", "/dashboard");
+      }
+      const waiting: WaitingRequest = { handoff, files, reason: handoff.reason, savedAt: handoff.savedAt };
+      setWaitingRequest(waiting);
+      if (isHandoffFresh(handoff) || checkoutJustSucceededRef.current) {
+        await startWaitingRequest(waiting, { automatic: true });
+      } else {
+        pushBot("Welcome back. Everything you prepared is still here: your prompt, attachments and settings. Press Start whenever you are ready.");
       }
     })();
   }, [isSignedIn, restoring, busy, jobId]);
+
+  function requiredCreditsFor(waiting: WaitingRequest) {
+    if (waiting.handoff.kind !== "studio") return 0;
+    const { request } = waiting.handoff;
+    return estimateRenderCredits(
+      request.mode,
+      request.audioMode !== "voice_music",
+      request.durationSeconds,
+      request.outputQuality,
+      request.modelId ?? "cinema-2",
+    );
+  }
+
+  async function forgetWaitingRequest(waiting: WaitingRequest | null) {
+    clearPublicCreatorHandoff();
+    if (waiting?.handoff.attachmentDraftKey) await clearPhotoDraft(waiting.handoff.attachmentDraftKey).catch(() => {});
+    setWaitingRequest(null);
+  }
+
+  /** Keep the request on this device (storage + screen) with an updated reason, e.g. while credits are bought. */
+  function parkWaitingRequest(waiting: WaitingRequest, reason: HandoffReason, shortfall?: number) {
+    savePublicCreatorHandoff(waiting.handoff, reason);
+    setWaitingRequest({ ...waiting, reason, shortfall, savedAt: Date.now() });
+  }
+
+  async function waitForCreditsAfterCheckout(required: number): Promise<number> {
+    // The payment provider can send the browser back a moment before its webhook reaches the server.
+    const delays = [1500, 2500, 3500, 5000, 7000];
+    let balance = creditBalance;
+    for (const delay of delays) {
+      await new Promise((resolve) => window.setTimeout(resolve, delay));
+      try {
+        const account = await fetchMe();
+        balance = account.creditsBalance;
+        setCreditBalance(balance);
+        if (balance >= required) return balance;
+      } catch { /* try again */ }
+    }
+    return balance;
+  }
+
+  /**
+   * Starts a waiting request. Website requests start at once (reading the site is free; credits are checked
+   * before the paid render with the project saved). Studio requests are checked against the balance first:
+   * with enough credits they start immediately, otherwise they stay on screen and the purchase window opens.
+   */
+  async function startWaitingRequest(waiting: WaitingRequest, options: { automatic: boolean }) {
+    if (waitingStartRef.current || busy) return;
+    waitingStartRef.current = true;
+    try {
+      if (waiting.handoff.kind === "website") {
+        await forgetWaitingRequest(waiting);
+        await performWebsiteSubmit(
+          waiting.handoff.url,
+          waiting.handoff.brief,
+          { ...waiting.handoff.settings, modelId: waiting.handoff.settings.modelId ?? "cinema-2" },
+          waiting.files,
+        );
+        return;
+      }
+
+      const required = requiredCreditsFor(waiting);
+      let balance = creditBalance;
+      try {
+        const account = await fetchMe();
+        balance = account.creditsBalance;
+        setIsSignedIn(true);
+        setCreditBalance(balance);
+      } catch (error) {
+        if (!options.automatic) pushBot(errorMessage(error));
+        return;
+      }
+      if (balance < required && checkoutJustSucceededRef.current) {
+        checkoutJustSucceededRef.current = false;
+        pushBot("Confirming your payment…");
+        balance = await waitForCreditsAfterCheckout(required);
+      }
+      if (balance < required) {
+        const shortfall = required - balance;
+        parkWaitingRequest(waiting, "credits", shortfall);
+        setPaywallContext(`Add ${shortfall} credit${shortfall === 1 ? "" : "s"} to start this AI production`);
+        if (options.automatic) {
+          pushBot(
+            `Your request is saved and ready. It needs ${required} credits and you have ${balance}, so it needs ${shortfall} more. As soon as credits are added it starts automatically.`,
+          );
+        }
+        setShowPaywall(true);
+        return;
+      }
+
+      const request: StudioGenerationRequest = {
+        ...waiting.handoff.request,
+        modelId: waiting.handoff.request.modelId ?? "cinema-2",
+        files: waiting.files.filter((file) => !isDrawingFile(file)),
+        drawing: waiting.files.find((file) => isDrawingFile(file)),
+      };
+      // The live request owns the files now; the saved copy must not start a second production later.
+      await forgetWaitingRequest(waiting);
+      await performStudioSubmit(request, { skipCreditCheck: true });
+      if (!jobIdRef.current) {
+        // Nothing was created (network error, upload refused): keep everything so one tap retries it.
+        await saveStudioHandoff(request, waiting.reason);
+        const saved = loadPublicCreatorHandoff();
+        if (saved) setWaitingRequest({ handoff: saved, files: waiting.files, reason: saved.reason, savedAt: saved.savedAt });
+      }
+    } finally {
+      waitingStartRef.current = false;
+    }
+  }
+
+  // Credits arrived (purchase finished, or the purchase window closed with a higher balance): start what is waiting.
+  useEffect(() => {
+    const waiting = waitingRequestRef.current;
+    if (!waiting || waiting.reason !== "credits" || showPaywall || busy || jobId || !isSignedIn) return;
+    if (creditBalance < requiredCreditsFor(waiting)) return;
+    void startWaitingRequest(waiting, { automatic: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [creditBalance, showPaywall, busy, jobId, isSignedIn]);
 
   function restoreWorkflow(saved: JobStatusResponse): JobWorkflowState | null {
     const localWorkflow = loadLocalJobWorkflow(saved.id);
@@ -670,46 +783,129 @@ export function ChatWidget({
 
   // A finished video/photo must become the visible focus of the conversation.
   // Align to the START of the final result instead of the generic bottom of the
-  // chat, then settle again after media dimensions load. This is UI-only and
-  // does not touch any generation, provider, credit or render logic.
+  // chat. The result card can arrive a render later than the "done" stage, the
+  // live production panel above it shrinks when it finishes, and the video's
+  // real height arrives when its metadata loads: so this keeps re-aligning
+  // while the layout settles (a few seconds), and stops the moment the reader
+  // scrolls, wheels or touches. Nested scrollers and the page itself are all
+  // moved, so it works in Workspace and on phones alike. UI-only.
   useEffect(() => {
     if (stage !== "done" || !jobId) return;
     const focusKey = `${jobId}:done`;
     if (finishedResultFocusRef.current === focusKey) return;
-    finishedResultFocusRef.current = focusKey;
 
     const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     const behavior: ScrollBehavior = reducedMotion ? "auto" : "smooth";
-    let firstFrame = 0;
-    let secondFrame = 0;
-    let settleTimer = 0;
-    let mediaTimer = 0;
+    const onDashboard = window.location.pathname.startsWith("/dashboard");
+    const stickyHeaderOffset = onDashboard ? 0 : window.matchMedia?.("(max-width: 767px)").matches ? 72 : 92;
+    const settleUntil = Date.now() + 5000;
+    let cancelled = false;
+    let found = false;
+    let frame = 0;
+    let resizeObserver: ResizeObserver | null = null;
+    let mutationObserver: MutationObserver | null = null;
+    const timers: number[] = [];
 
-    const alignFinishedResult = () => {
+    const latestResult = () => {
       const scroller = scrollRef.current;
-      if (!scroller) return;
+      if (!scroller) return null;
       const results = scroller.querySelectorAll<HTMLElement>('[data-generated-result="true"]');
-      const target = results[results.length - 1];
-      if (!target) return;
+      return results[results.length - 1] ?? null;
+    };
+
+    const align = (smooth: boolean) => {
+      if (cancelled) return;
+      const scroller = scrollRef.current;
+      const target = latestResult();
+      if (!scroller || !target) return;
+      found = true;
+      finishedResultFocusRef.current = focusKey;
+      const mode: ScrollBehavior = smooth ? behavior : "auto";
       const scrollerRect = scroller.getBoundingClientRect();
       const targetRect = target.getBoundingClientRect();
-      const targetTop = Math.max(0, scroller.scrollTop + targetRect.top - scrollerRect.top - 10);
-      scroller.scrollTo({ top: targetTop, behavior });
+      const innerTop = Math.max(0, scroller.scrollTop + targetRect.top - scrollerRect.top - 10);
+      if (Math.abs(innerTop - scroller.scrollTop) > 1) scroller.scrollTo({ top: innerTop, behavior: mode });
+      // Any outer scroller (page, workspace column, phone layout): bring the result's start under the header.
+      window.requestAnimationFrame(() => {
+        if (cancelled) return;
+        const rect = target.getBoundingClientRect();
+        const chatTop = scroller.getBoundingClientRect().top;
+        const innerCanScroll = scroller.scrollHeight > scroller.clientHeight + 4;
+        // The chat itself must be on screen; when it cannot scroll internally the page carries the result.
+        const wanted = innerCanScroll ? chatTop : rect.top;
+        const delta = wanted - stickyHeaderOffset - 8;
+        if (Math.abs(delta) > 16) {
+          const pageScroller = scroller.parentElement?.closest<HTMLElement>("[data-chat-shell], main, [data-dashboard-main]") ?? null;
+          if (pageScroller && pageScroller.scrollHeight > pageScroller.clientHeight + 4) pageScroller.scrollBy({ top: delta, behavior: mode });
+          else window.scrollBy({ top: delta, behavior: mode });
+        }
+      });
     };
 
-    firstFrame = window.requestAnimationFrame(() => {
-      secondFrame = window.requestAnimationFrame(alignFinishedResult);
+    const stop = () => {
+      cancelled = true;
+      if (frame) window.cancelAnimationFrame(frame);
+      timers.forEach((timer) => window.clearTimeout(timer));
+      resizeObserver?.disconnect();
+      mutationObserver?.disconnect();
+      window.removeEventListener("wheel", onReaderMove);
+      window.removeEventListener("touchmove", onReaderMove);
+      window.removeEventListener("keydown", onReaderKey);
+    };
+    const onReaderMove = () => { if (found) stop(); };
+    const onReaderKey = (event: KeyboardEvent) => {
+      if (found && ["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "].includes(event.key)) stop();
+    };
+    window.addEventListener("wheel", onReaderMove, { passive: true });
+    window.addEventListener("touchmove", onReaderMove, { passive: true });
+    window.addEventListener("keydown", onReaderKey);
+
+    const scheduleSettle = () => {
+      if (cancelled || Date.now() > settleUntil) return;
+      if (frame) window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => align(false));
+    };
+
+    const watchLayout = () => {
+      const scroller = scrollRef.current;
+      if (!scroller) return;
+      resizeObserver = new ResizeObserver(scheduleSettle);
+      resizeObserver.observe(scroller);
+      if (scroller.firstElementChild instanceof HTMLElement) resizeObserver.observe(scroller.firstElementChild);
+      const target = latestResult();
+      if (target) resizeObserver.observe(target);
+      // Media inside the result reports its real size a moment later.
+      scroller.querySelectorAll<HTMLMediaElement | HTMLImageElement>("video, img").forEach((media) => {
+        media.addEventListener(media instanceof HTMLVideoElement ? "loadedmetadata" : "load", scheduleSettle, { once: true });
+      });
+    };
+
+    const begin = () => {
+      align(true);
+      if (!found) return false;
+      watchLayout();
+      [180, 450, 900, 1600, 2600, 4000].forEach((delay) => timers.push(window.setTimeout(() => align(false), delay)));
+      timers.push(window.setTimeout(stop, 5200));
+      return true;
+    };
+
+    frame = window.requestAnimationFrame(() => {
+      frame = window.requestAnimationFrame(() => {
+        if (begin()) return;
+        // The result card is not in the DOM yet: wait for it (it is pushed as a message right after "done").
+        const scroller = scrollRef.current;
+        if (!scroller) return;
+        mutationObserver = new MutationObserver(() => {
+          if (begin()) mutationObserver?.disconnect();
+        });
+        mutationObserver.observe(scroller, { childList: true, subtree: true });
+        timers.push(window.setTimeout(() => { if (!found) stop(); }, 8000));
+      });
     });
-    settleTimer = window.setTimeout(alignFinishedResult, 180);
-    mediaTimer = window.setTimeout(alignFinishedResult, 700);
 
-    return () => {
-      if (firstFrame) window.cancelAnimationFrame(firstFrame);
-      if (secondFrame) window.cancelAnimationFrame(secondFrame);
-      if (settleTimer) window.clearTimeout(settleTimer);
-      if (mediaTimer) window.clearTimeout(mediaTimer);
-    };
-  }, [stage, jobId, messages.length]);
+    return stop;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage, jobId]);
 
   // When a generation actually starts, move the outer page and the chat to the
   // live production canvas automatically. This makes the click on Generate feel
@@ -1352,7 +1548,7 @@ export function ChatWidget({
   // when they press Generate (handleStudioSubmit / handleWebsiteSubmit save the request and resume it afterwards).
 
   /** Saves the creator request (and its photos) so it can resume after signing in, even across a reload. */
-  async function saveStudioHandoff(request: StudioGenerationRequest) {
+  async function saveStudioHandoff(request: StudioGenerationRequest, reason: HandoffReason = "signin") {
     let attachmentDraftKey: string | undefined;
     const savedFiles = request.drawing ? [...request.files, request.drawing] : request.files;
     if (savedFiles.length) {
@@ -1379,7 +1575,7 @@ export function ChatWidget({
         drawingUnits: request.drawingUnits,
       },
       attachmentDraftKey,
-    });
+    }, reason);
     return attachmentDraftKey;
   }
 
@@ -1435,7 +1631,14 @@ export function ChatWidget({
       return;
     }
     if (!isSignedIn) {
-      savePublicCreatorHandoff({ kind: "website", url, brief, settings: { ...settings } });
+      void (async () => {
+        let attachmentDraftKey: string | undefined;
+        if (referenceFiles.length) {
+          attachmentDraftKey = `public-website-${Date.now()}`;
+          await savePhotoDraft(attachmentDraftKey, buildDraftItems(referenceFiles)).catch(() => { attachmentDraftKey = undefined; });
+        }
+        savePublicCreatorHandoff({ kind: "website", url, brief, settings: { ...settings }, attachmentDraftKey });
+      })();
       pendingActionRef.current = () => performWebsiteSubmit(url, brief, settings, referenceFiles);
       setShowAuthModal(true);
       return;
@@ -1754,7 +1957,7 @@ Promotion direction: ${visibleBrief(brief)}` : photosOnly ? photosLabel : normal
     }
   }
 
-  async function performStudioSubmit(request: StudioGenerationRequest) {
+  async function performStudioSubmit(request: StudioGenerationRequest, options: { skipCreditCheck?: boolean } = {}) {
     // The customer's own words only. The master direction and site data are added on the server.
     const effectiveStudioPrompt = request.prompt;
     setBusy(true);
@@ -1808,8 +2011,25 @@ Promotion direction: ${visibleBrief(brief)}` : photosOnly ? photosLabel : normal
         request.outputQuality,
         request.modelId,
       );
-      if (account.creditsBalance < required) {
-        setPaywallContext(`Add ${required - account.creditsBalance} credits to start this AI production`);
+      if (account.creditsBalance < required && !options.skipCreditCheck) {
+        const shortfall = required - account.creditsBalance;
+        // Keep the whole request (prompt, attachments, settings) on this device and on screen: after the
+        // credits are bought (even through a redirect) it starts by itself. Nothing the person made is lost.
+        await saveStudioHandoff(request, "credits");
+        const saved = loadPublicCreatorHandoff();
+        if (saved) {
+          setWaitingRequest({
+            handoff: saved,
+            files: request.drawing ? [...request.files, request.drawing] : request.files,
+            reason: "credits",
+            savedAt: saved.savedAt,
+            shortfall,
+          });
+        }
+        pushBot(
+          `This production needs ${required} credits and you have ${account.creditsBalance}, so it needs ${shortfall} more. Your request is saved exactly as you prepared it and starts automatically once credits are added.`,
+        );
+        setPaywallContext(`Add ${shortfall} credit${shortfall === 1 ? "" : "s"} to start this AI production`);
         setShowPaywall(true);
         setStage("awaiting_url");
         return;
@@ -2706,6 +2926,20 @@ Promotion direction: ${visibleBrief(brief)}` : photosOnly ? photosLabel : normal
           className={`chat-scroll ${stage === "awaiting_url" ? "min-h-0 overflow-y-auto bg-transparent p-0" : immersive ? (stage === "done" ? "shrink-0 bg-[linear-gradient(180deg,rgba(14,11,25,0),rgba(14,11,25,.98)_22%)] px-3 pb-4 pt-5 sm:px-8 sm:pb-6" : "shrink-0 max-h-[70dvh] overflow-y-auto bg-[linear-gradient(180deg,rgba(14,11,25,0),rgba(14,11,25,.98)_18%)] px-3 pb-4 pt-5 sm:px-8 sm:pb-6") : stage === "done" ? "shrink-0 max-h-[42dvh] space-y-2.5 overflow-y-auto border-t border-white/[.07] bg-[linear-gradient(180deg,rgba(9,8,18,.72),rgba(19,15,32,.95))] p-3 sm:max-h-[36vh] sm:p-4" : "shrink-0 max-h-[68dvh] space-y-2.5 overflow-y-auto border-t border-white/[.07] bg-[linear-gradient(180deg,rgba(9,8,18,.72),rgba(19,15,32,.95))] p-3 sm:max-h-[72vh] sm:p-4"}`}
         >
           <div className={`${immersive ? "mx-auto w-full max-w-5xl space-y-2.5" : "space-y-2.5"}`}>
+            {stage === "awaiting_url" && waitingRequest && !jobId && isSignedIn && (
+              <WaitingRequestCard
+                waiting={waitingRequest}
+                busy={busy || waitingStartRef.current}
+                balance={creditBalance}
+                required={requiredCreditsFor(waitingRequest)}
+                onStart={() => void startWaitingRequest(waitingRequest, { automatic: false })}
+                onAddCredits={() => {
+                  setPaywallContext(`Add ${Math.max(1, requiredCreditsFor(waitingRequest) - creditBalance)} credits to start this AI production`);
+                  setShowPaywall(true);
+                }}
+                onDiscard={() => void forgetWaitingRequest(waitingRequest)}
+              />
+            )}
             {stage === "awaiting_url" && (
               <WebsiteBriefForm
                 onSubmit={handleWebsiteSubmit}
@@ -3154,7 +3388,12 @@ Promotion direction: ${visibleBrief(brief)}` : photosOnly ? photosLabel : normal
 
       {showPaywall && (
         <PaywallModal
-          onClose={() => setShowPaywall(false)}
+          onClose={() => {
+            setShowPaywall(false);
+            if (waitingRequestRef.current) {
+              void fetchMe().then((account) => setCreditBalance(account.creditsBalance)).catch(() => {});
+            }
+          }}
           context={paywallContext}
           durationSeconds={job?.storyboard?.targetDurationSeconds || durationSeconds}
           mode={mode}
@@ -3169,12 +3408,11 @@ Promotion direction: ${visibleBrief(brief)}` : photosOnly ? photosLabel : normal
       {showAuthModal && (
         <AuthModal
           onClose={() => {
-            // Closing the window means "not now": the waiting action must not fire on a later, unrelated sign-in.
+            // Closing the window means "not now" for the live action. The saved copy of the request stays on this
+            // device: when the person signs in later (from the navbar, another tab or a verification link) the
+            // workspace shows it again and lets them start it with one tap instead of retyping everything.
             setShowAuthModal(false);
             pendingActionRef.current = null;
-            const abandoned = loadPublicCreatorHandoff();
-            if (abandoned?.attachmentDraftKey) void clearPhotoDraft(abandoned.attachmentDraftKey).catch(() => {});
-            clearPublicCreatorHandoff();
           }}
           onSignedIn={async () => {
             setShowAuthModal(false);

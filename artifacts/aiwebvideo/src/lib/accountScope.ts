@@ -1,5 +1,5 @@
 import { clearActiveJobId } from "./guestSession";
-import { clearPublicCreatorHandoff } from "./publicCreatorHandoff";
+import { clearPublicCreatorHandoff, loadPublicCreatorHandoff } from "./publicCreatorHandoff";
 import { clearPendingSample } from "./showcase";
 
 /**
@@ -17,9 +17,11 @@ import { clearPendingSample } from "./showcase";
 const LAST_ACCOUNT_KEY = "aiwebvideo_last_account";
 const WORKFLOW_PREFIX = "aiwebvideo_workflow_";
 
-export function clearAccountScopedState() {
+export function clearAccountScopedState(options: { keepWaitingRequest?: boolean } = {}) {
   clearActiveJobId();
-  clearPublicCreatorHandoff();
+  // A request waiting to continue after sign-in belongs to the person at the keyboard right now, not to the
+  // account that was signed in earlier on this browser: keep it when a different account signs in to run it.
+  if (!options.keepWaitingRequest || !loadPublicCreatorHandoff()) clearPublicCreatorHandoff();
   clearPendingSample();
   try {
     const stale: string[] = [];
@@ -42,7 +44,7 @@ export function reconcileAccount(email: string | null | undefined): boolean {
     const previous = localStorage.getItem(LAST_ACCOUNT_KEY);
     localStorage.setItem(LAST_ACCOUNT_KEY, current);
     if (previous && previous !== current) {
-      clearAccountScopedState();
+      clearAccountScopedState({ keepWaitingRequest: true });
       return true;
     }
   } catch { /* storage can be unavailable */ }

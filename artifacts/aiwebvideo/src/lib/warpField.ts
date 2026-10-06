@@ -23,10 +23,11 @@ export const STAR_COLORS = [
 
 export type Random = () => number;
 
-export function createStar(rand: Random, z = 1): Star {
+export function createStar(rand: Random, z = 1, fullSky = false): Star {
   return {
-    // upper fan: from just above the left horizon, over the top, to just above the right horizon
-    angle: Math.PI * (1.04 + rand() * 0.92),
+    // upper fan: from just above the left horizon, over the top, to just above the right horizon;
+    // a full sky (every direction) is used for the hyperspace jump between pages
+    angle: fullSky ? rand() * Math.PI * 2 : Math.PI * (1.04 + rand() * 0.92),
     radius: 0.03 + Math.pow(rand(), 1.6) * 0.97,
     z,
     hue: ([0, 0, 1, 2, 3][Math.floor(rand() * 5)] ?? 0) as Star['hue'],
@@ -34,16 +35,16 @@ export function createStar(rand: Random, z = 1): Star {
   };
 }
 
-export function createField(count: number, rand: Random): Star[] {
+export function createField(count: number, rand: Random, fullSky = false): Star[] {
   // spread through depth so the sky is full from the first frame
-  return Array.from({ length: count }, () => createStar(rand, 0.05 + rand() * 0.95));
+  return Array.from({ length: count }, () => createStar(rand, 0.05 + rand() * 0.95, fullSky));
 }
 
 /** Moves a star toward the camera. Returns its previous depth (for the trail) and the star (reborn if it left). */
-export function advanceStar(star: Star, seconds: number, speed: number, rand: Random): { star: Star; previousZ: number } {
+export function advanceStar(star: Star, seconds: number, speed: number, rand: Random, fullSky = false): { star: Star; previousZ: number } {
   const previousZ = star.z;
   const z = star.z - seconds * speed * (0.55 + 0.9 * (1 - star.z));   // accelerates as it nears
-  if (z <= 0.035) return { star: createStar(rand, 1), previousZ: 1 };
+  if (z <= 0.035) return { star: createStar(rand, 1, fullSky), previousZ: 1 };
   return { star: { ...star, z }, previousZ };
 }
 
@@ -78,10 +79,26 @@ export class WarpField {
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
-    private readonly options: { count: number; speed: number; reducedMotion: boolean; rand?: Random; /** vertical position of the vanishing point (the road), 0 = top, 1 = bottom */ centerY?: number },
+    private readonly options: {
+      count: number;
+      speed: number;
+      reducedMotion: boolean;
+      rand?: Random;
+      /** vertical position of the vanishing point (the road), 0 = top, 1 = bottom */
+      centerY?: number;
+      /** stars fly in every direction from the centre (hyperspace), not only into the upper sky */
+      fullSky?: boolean;
+      /** longer streaks for a faster-feeling jump (1 = normal) */
+      streak?: number;
+    },
   ) {
     this.ctx = canvas.getContext('2d');
-    this.stars = createField(options.count, options.rand ?? Math.random);
+    this.stars = createField(options.count, options.rand ?? Math.random, Boolean(options.fullSky));
+  }
+
+  /** Changes the travel speed while running (the jump accelerates, then eases out as the page arrives). */
+  setSpeed(speed: number) {
+    this.options.speed = speed;
   }
 
   resize() {
@@ -102,9 +119,12 @@ export class WarpField {
     ctx.lineCap = 'round';
     const rand = this.options.rand ?? Math.random;
     this.stars = this.stars.map((current) => {
-      const moved = seconds > 0 ? advanceStar(current, seconds, this.options.speed, rand) : { star: current, previousZ: current.z };
-      const segment = starSegment(moved.star, moved.previousZ, this.width, this.height, 0.5, this.options.centerY ?? 0.84);
-      if (segment.offscreen) return createStar(rand, 1);
+      const fullSky = Boolean(this.options.fullSky);
+      const moved = seconds > 0 ? advanceStar(current, seconds, this.options.speed, rand, fullSky) : { star: current, previousZ: current.z };
+      const streak = this.options.streak ?? 1;
+      const stretchedPrevious = streak === 1 ? moved.previousZ : Math.min(1.2, moved.star.z + (moved.previousZ - moved.star.z) * streak);
+      const segment = starSegment(moved.star, stretchedPrevious, this.width, this.height, 0.5, this.options.centerY ?? 0.84);
+      if (segment.offscreen) return createStar(rand, 1, fullSky);
       const [r, g, b] = STAR_COLORS[moved.star.hue];
       ctx.strokeStyle = `rgba(${r},${g},${b},${segment.alpha})`;
       ctx.lineWidth = segment.width;

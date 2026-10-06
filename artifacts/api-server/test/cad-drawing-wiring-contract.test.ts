@@ -54,7 +54,7 @@ test('a drawing attached before signing in survives the sign-in hand-off', async
   const widget = await fe('components/chat/ChatWidgetBase.tsx');
   assert.match(widget, /request\.drawing \? \[\.\.\.request\.files, request\.drawing\] : request\.files/);
   assert.match(widget, /drawingUnits: request\.drawingUnits,\s*\},\s*attachmentDraftKey/);
-  assert.match(widget, /drawing: files\.find\(\(file\) => isDrawingFile\(file\)\)/);
+  assert.match(widget, /drawing: waiting\.files\.find\(\(file\) => isDrawingFile\(file\)\)/);
   assert.match(widget, /drawing: request\.drawing,\s*drawingUnits: request\.drawingUnits,/);
   const client = await fe('lib/api-client.ts');
   assert.match(client, /form\.append\('drawing', opts\.drawing\)/);
