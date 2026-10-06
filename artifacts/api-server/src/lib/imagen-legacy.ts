@@ -11,6 +11,7 @@ import { runQueuedProviderCall } from './provider-queue.js';
 import { prepareImageVariants } from './media-variants.js';
 import {
   ARCHITECTURE_MASTER_DIRECTION,
+  PRODUCT_ACCURACY_RULES,
   ARCHITECTURE_VIEW_ROLES,
   INTERIOR_MASTER_DIRECTION,
   INTERIOR_VIEW_ROLES,
@@ -37,6 +38,8 @@ MASTER IMAGE QUALITY STANDARD — ALWAYS APPLY
 - Respect the requested aspect ratio and keep the main subject safely composed for the final crop.
 - Return one polished final image, not a contact sheet, collage, before/after panel or explanatory layout unless the customer explicitly asked for that format.
 - Before returning, silently inspect prompt coverage, reference identity, anatomy, product geometry, logo/text fidelity, edge quality, composition, lighting logic and crop safety. Correct any avoidable defect.
+- The image must pass as a photograph made by a real professional photographer and retoucher: a real lens (e.g. 50-100 mm for products, 24-35 mm for lifestyle), motivated light from believable sources with soft natural shadows, a restrained editorial colour grade with true whites and natural skin, authentic locations and props. Never neon or glowing edges, sourceless rim light, bloom haze, floating particles, rainbow gradients, abstract "tech" backdrops, CGI-clean surfaces or plastic skin — anything that reads as AI-generated is a defect.
+- Interfaces, when shown, are the real captured UI at native proportions with real brand colours and realistic flat or subtly dimensional buttons; never glowing, neon or restyled controls.
 `;
 
 function imageOutputFrame(aspectRatio: '16:9' | '9:16' | '1:1', quality: '1080p' | '4k') {
@@ -97,7 +100,8 @@ export interface GeneratedImage {
 export type MarketingPhotoKind = 'product-photos' | 'website-photos' | 'mixed-campaign' | 'interior-design' | 'architecture';
 
 export const MARKETING_PHOTO_MASTER_PROMPTS: Record<MarketingPhotoKind, string> = {
-  'product-photos': `PRODUCT PHOTO MASTER — make the exact referenced product the unmistakable hero. Preserve its silhouette, construction, material, colorway, logos, hardware, stitching, packaging and small identifiers. Create a genuinely shoot-worthy commercial setup around it; never swap, redesign or "improve" the item itself.`,
+  'product-photos': `PRODUCT PHOTO MASTER — make the exact referenced product the unmistakable hero. Preserve its silhouette, construction, material, colorway, logos, hardware, stitching, packaging and small identifiers. Create a genuinely shoot-worthy commercial setup around it; never swap, redesign or "improve" the item itself. Light it like a real studio or location photographer would (softbox or window key, controlled fill, a true contact shadow, honest reflections on the real finish) and compose with the confidence of a major-brand campaign: one clear idea per frame, generous negative space, a surface and environment chosen to flatter the product's real colours.
+${PRODUCT_ACCURACY_RULES}`,
   'website-photos': `WEBSITE CAMPAIGN PHOTO MASTER — study the real captures to understand what the brand sells, its palette, audience and strongest authentic product/visual. Create a standalone campaign asset that unmistakably belongs to this business; never turn it into a generic website screenshot or invent an unsupported offer.`,
   'interior-design': INTERIOR_MASTER_DIRECTION,
   'architecture': ARCHITECTURE_MASTER_DIRECTION,

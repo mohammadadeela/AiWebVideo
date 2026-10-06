@@ -139,7 +139,15 @@ You are AiWebVideo's senior interior architect and visualization director. Every
 - Furniture, joinery and fixtures must be at realistic human scale with real clearances and circulation. Materials need believable seams, edges and light response.
 - Every image of a set shows the SAME space: identical walls, openings, ceiling, floor and design; only the camera changes.
 - Produce photoreal architectural photography suitable for a client or engineer presentation. Straight lines stay straight; verticals stay vertical.
-- Avoid impossible furniture, floating objects, warped lines, changing room dimensions, invented rooms, random fixtures, fake construction details, watermarks, text overlays and lettering.`;
+- Avoid impossible furniture, floating objects, warped lines, changing room dimensions, invented rooms, random fixtures, fake construction details, watermarks, text overlays and lettering.
+
+ACCURACY CHECKLIST (verify silently before returning each image)
+- Count and keep every window, door, column, beam, niche, step and level change exactly where the references and plan put them; keep their real widths and heights and the wall they belong to.
+- Keep the real room proportions: a 4 m wall must not read as 7 m; ceiling height stays what the references or numbers say; furniture is sized to real catalogue dimensions (a sofa seat about 45 cm high, a dining table about 75 cm, a door about 2.1 m) so scale is instantly believable.
+- Keep the existing floor, ceiling and wall finishes unless the customer asked to change them; when a material is specified, show its true pattern scale, grout/joint rhythm and sheen.
+- Light behaves physically: daylight enters through the real openings in a direction consistent with their position; artificial light matches the fixtures that are actually there or that the customer specified; shadows are soft, consistent and grounded.
+- Photographed like a real interior photographer: a real wide lens (16-24 mm full-frame equivalent) at about 1.2-1.5 m camera height, verticals perfectly corrected, exposure balanced between window and room, natural colour, no HDR halos, no over-saturation, no glowing surfaces, no fisheye distortion.
+- If a view cannot be rendered without inventing an unseen part of the space, choose a camera position that keeps the unknown area out of frame instead of guessing.`;
 
 export const ARCHITECTURE_MASTER_DIRECTION = `${DIRECTION_MARKER} — ARCHITECTURE ON A REAL SITE
 You are AiWebVideo's senior architectural visualization director working for licensed architects and engineers. The task is to place a NEW building on a REAL site so the result is a credible, presentation-quality visualization.
@@ -173,9 +181,28 @@ CONSISTENCY
 
 QUALITY
 - Photoreal architectural photography: correct perspective with vertical lines kept vertical, physically plausible light and shadows consistent with the site's orientation, believable materials with real joints and edges, landscaping that belongs to the site, the building firmly grounded on the terrain, and people or cars only at correct scale and sparingly.
+- Shot like a real architectural photographer: a shift lens or corrected verticals, camera at eye level or a stated vantage, natural time-of-day light with a real sky, honest exposure, true material colours, no HDR glow, no over-saturated sky, no lens flare, no glowing windows in daylight.
+
+ACCURACY CHECKLIST (verify silently before returning each image)
+- Floor count, floor-to-floor heights, plot footprint and setbacks match the stated numbers; window and door positions repeat consistently across every view; the entrance is in the same place in every image.
+- Facade materials keep real joint patterns and panel sizes (brick courses, stone block sizes, cladding module widths) so the building scale reads correctly against the neighbours and the street furniture.
+- The new building meets the ground correctly: kerb, pavement, thresholds and site levels continue from the real photos; no floating plinth, no missing pavement, no steps that lead nowhere.
+- Neighbouring buildings, their heights, materials, signs and street elements are reproduced from the references, not approximated.
+- Shadows fall in one consistent direction that matches the site orientation and the chosen time of day across the whole set.
 
 AVOID
 - Floating or warped geometry, extra floors, a building outside the plot, inconsistent windows, impossible cantilevers, fake construction drawings, invented signage or lettering (only the customer's own shop name, spelled exactly as in their brief, may appear on their own sign; every other sign stays as it is in the photo), watermarks, text overlays, dimension lines and inset mini-maps.`;
+
+/** Product references are engineering truth: a look-alike is a failed render. */
+export const PRODUCT_ACCURACY_RULES = `
+PRODUCT ACCURACY — THE REAL PRODUCT, NOT A LOOK-ALIKE
+- Study every supplied product reference together before composing. Count and lock the product's parts: buttons, ports, straps, pockets, laces, legs, handles, panels, caps and lids; label and logo placement; seams and stitching lines; hardware finish; packaging faces. Nothing may be added, removed, moved or re-proportioned.
+- Keep the exact silhouette and proportions from every angle, the exact colour values and finish (matte vs gloss, metallic vs painted, fabric vs leather) and the way each material responds to light.
+- Printed text, logos and labels are protected source pixels: identical letterforms, size, position and colour as in the reference. Never respell, translate, restyle or blur them. If a label would be too small to reproduce faithfully, frame wider instead of inventing detail.
+- Show only sides and details the references prove. If the back, base or interior is not shown in any reference, keep it in soft focus, in shadow or out of frame rather than inventing it.
+- Reflections, contact shadows and refraction must match the product's real materials and the new environment; the product sits with believable weight on its surface.
+- One product, once: no duplicates, no colour variants, no "family" of similar items unless the references show them.
+`;
 
 function metres(value: number) {
   return `${Number(value.toFixed(2))} m`;

@@ -230,6 +230,10 @@ HIDDEN MASTER CREATIVE-DIRECTOR SYSTEM — APPLY TO EVERY FEATURE:
 - Design for immediate visual impact, clear hierarchy, intentional negative space, premium detail, believable physics, clean continuity and a memorable resolved payoff. Avoid filler, random effects, generic stock staging and four near-duplicate outputs.
 - Use the selected duration, aspect ratio, quality, frame rate and audio mode as hard delivery constraints. Compose essential subjects safely for the chosen crop from the first frame through the ending.
 - Perform a silent final quality check before returning the plan: prompt coverage, reference fidelity, feature truth, identity continuity, legibility, anatomy/geometry, composition, temporal coherence, audio fit and a fully resolved ending.
+- Direct every shot as a real crew would have filmed it: motivated light from real sources, real lens language, a restrained filmic grade, authentic locations, props and materials, people with weight and intention. Never ask for glowing or neon elements, light streaks, floating particles, holograms, abstract "tech" backdrops or any look that reads as AI-generated.
+- When an interface appears, describe it as the real captured product UI at native proportions: real brand colours, flat or subtly dimensional buttons with correct padding and type size, a normal OS cursor or a real finger, subtle hover/press feedback. Never describe glowing, neon, gradient-pill, glass or animated-light buttons.
+- Think like an award-winning creative director: give the film one surprising but fitting idea (a visual motif, a reveal structure, a motivated transition, a contrast of scale or a human moment) and vary shot scale, setting and camera purpose so nothing repeats.
+- For website-grounded films, plan the final beat as a calm, beautifully lit hero frame that holds for the last 2.5-3 seconds with clean space around the centre: the real logo is composited there in finishing. Never plan a drawn logo, end card, URL or closing title.
 `;
 
 const AI_VIDEO_REFERENCE_POLICY = `

@@ -5,6 +5,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { validateUrl } from './ssrf.js';
 import { uploadBufferToR2 } from './r2-storage.js';
+import { captureBrandLockup } from './brand-ending.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -763,6 +764,13 @@ async function captureSiteNow(jobId: string, sourceUrl: string, onProgress?: Cap
     const screenshotUrl = await saveImageFile(jobId, 'screenshot.jpg', viewportBuffer);
     const fullPageScreenshotUrl = await saveImageFile(jobId, 'screenshot-full.jpg', fullBuffer);
     const websiteIconUrl = await captureWebsiteIcon(page, jobId, meta.iconUrl);
+    // The real header logo becomes the deterministic end plate of every website film
+    // (see brand-ending.ts). Best effort: a site without a findable logo falls back to
+    // its favicon, and a site without either simply ends on the AI hero frame.
+    await withTimeout(captureBrandLockup(page, context, jobId, sourceUrl, meta.title), 25_000, 'BRAND_LOCKUP').catch((error) => {
+      console.warn(`[capture] brand lockup skipped: ${(error as Error).message}`);
+      return null;
+    });
     console.info(`[capture] success ${sourceUrl} screenshot.jpg + screenshot-full.jpg`);
     await page.close();
     await context.close();

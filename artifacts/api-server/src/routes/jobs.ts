@@ -74,7 +74,7 @@ function generationClientKey(req: { ip?: string; socket?: { remoteAddress?: stri
 }
 
 const CAPTURE_SOURCE_FILE =
-  /^(?:screenshot(?:-full|-mobile|-mobile-full)?\.jpg|website-icon\.jpg|page-\d+\.jpg|private-page-\d+\.jpg|interaction-[a-z-]+\.jpg|scroll-recording\.mp4)$/;
+  /^(?:screenshot(?:-full|-mobile|-mobile-full)?\.jpg|website-icon\.jpg|website-brand-lockup\.(?:png|json)|page-\d+\.jpg|private-page-\d+\.jpg|interaction-[a-z-]+\.jpg|scroll-recording\.mp4)$/;
 
 /** Copy only immutable browser-capture sources into a new creative version. */
 async function copyCaptureFiles(sourceJobId: string, targetJobId: string) {
@@ -86,7 +86,7 @@ async function copyCaptureFiles(sourceJobId: string, targetJobId: string) {
   // Restore every capture filename referenced by its saved metadata from R2.
   const source = await getJob(sourceJobId);
   const metadataText = source?.capture_metadata ? JSON.stringify(source.capture_metadata) : "";
-  const referencedNames = new Set<string>(["website-icon.jpg"]);
+  const referencedNames = new Set<string>(["website-icon.jpg", "website-brand-lockup.png", "website-brand-lockup.json"]);
   const assetPattern = new RegExp(`/api/assets/${sourceJobId}/([a-z0-9][a-z0-9._-]{0,180})`, "ig");
   for (const match of metadataText.matchAll(assetPattern)) {
     if (CAPTURE_SOURCE_FILE.test(match[1])) referencedNames.add(match[1]);

@@ -5,7 +5,8 @@ import * as path from 'node:path';
 import { GoogleGenAI } from '@google/genai';
 import { ASSETS_DIR } from './capture.js';
 import type { Storyboard, StoryboardScene } from './gemini.js';
-import { buildAiVideoScenePrompt } from './video-prompts.js';
+import { buildAiVideoScenePrompt, isWebsiteVideoMode } from './video-prompts.js';
+import { addBrandEnding } from './brand-ending.js';
 import { GEMINI_COST_CATALOG, recordGenerationCost } from './costs.js';
 import { runQueuedProviderCall } from './provider-queue.js';
 import {
@@ -672,7 +673,7 @@ async function cleanup(jobId: string) {
   const dir = path.join(ASSETS_DIR, jobId);
   let files: string[] = [];
   try { files = await fs.readdir(dir); } catch { return; }
-  const temporary = /^(?:premium-scene-\d+-(?:provider|master)\.mp4|premium-scenes\.concat\.txt|premium-scenes-master\.mp4|music-only-bed\.m4a)$/;
+  const temporary = /^(?:premium-scene-\d+-(?:provider|master)\.mp4|premium-scenes\.concat\.txt|premium-scenes-master\.mp4|premium-brand-ending\.mp4|brand-ending-gradient-\d+x\d+\.png|music-only-bed\.m4a)$/;
   await Promise.all(files.filter((name) => temporary.test(name)).map((name) => fs.rm(path.join(dir, name), { force: true }).catch(() => {})));
 }
 
@@ -845,6 +846,24 @@ export async function generateMarketingVideo(
       exactDurationSeconds: deliveredDurationSeconds,
       partial,
     });
+
+    // Website films end on the real logo. The plate is the exact captured
+    // artwork composited by ffmpeg (never AI-drawn); audio is copied untouched.
+    if (isWebsiteVideoMode(mode)) {
+      const branded = path.join(ASSETS_DIR, jobId, 'premium-brand-ending.mp4');
+      try {
+        onProgress?.(98, 'Adding the real brand ending', 15);
+        if (await addBrandEnding(output, branded, jobId)) {
+          await fs.rename(branded, output);
+          console.info(`[ai-video] job=${jobId} brand_ending=applied`);
+        } else {
+          console.info(`[ai-video] job=${jobId} brand_ending=skipped (no captured logo)`);
+        }
+      } catch (error) {
+        await fs.rm(branded, { force: true }).catch(() => {});
+        console.warn(`[ai-video] job=${jobId} brand_ending=failed ${(error as Error).message}`);
+      }
+    }
 
     const verifiedDuration = await verifyFinalFile(
       output,

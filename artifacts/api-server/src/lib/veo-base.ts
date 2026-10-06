@@ -6,7 +6,8 @@ import { GoogleGenAI } from '@google/genai';
 import { ASSETS_DIR } from './capture.js';
 import { ensureLocalAsset } from './r2-storage.js';
 import type { Storyboard, StoryboardScene } from './gemini.js';
-import { buildAiVideoScenePrompt, buildContinuousBasePrompt, buildContinuousExtensionPrompt, buildContinuousVideoPrompt } from './video-prompts.js';
+import { buildAiVideoScenePrompt, buildContinuousBasePrompt, buildContinuousExtensionPrompt, buildContinuousVideoPrompt, isWebsiteVideoMode } from './video-prompts.js';
+import { addBrandEnding } from './brand-ending.js';
 import { GEMINI_COST_CATALOG, recordGenerationCost } from './costs.js';
 import { query } from './pool.js';
 import { runQueuedProviderCall } from './provider-queue.js';
@@ -577,7 +578,7 @@ async function cleanup(jobId: string) {
   const dir = path.join(ASSETS_DIR, jobId);
   let files: string[] = [];
   try { files = await fs.readdir(dir); } catch { return; }
-  const temporary = /^(?:ai-scene-\d+-(?:gemini|normalized)\.mp4|ai-scenes\.concat\.txt|ai-video-master-source\.mp4|ai-video-continuous-provider\.mp4|ai-video-continuous-master\.mp4|ai-video-audio-mix\.mp4|music-only-bed\.m4a|brand-name\.txt)$/;
+  const temporary = /^(?:ai-scene-\d+-(?:gemini|normalized)\.mp4|ai-scenes\.concat\.txt|ai-video-master-source\.mp4|ai-video-continuous-provider\.mp4|ai-video-continuous-master\.mp4|ai-video-audio-mix\.mp4|ai-video-brand-ending\.mp4|brand-ending-gradient-\d+x\d+\.png|music-only-bed\.m4a|brand-name\.txt)$/;
   await Promise.all(files.filter((name) => temporary.test(name)).map((name) => fs.rm(path.join(dir, name), { force: true }).catch(() => {})));
 }
 
@@ -916,11 +917,20 @@ export async function generateMarketingVideo(
 
     const output = path.join(dir, `ai-video-${mode}-${variantSeed || Date.now()}.mp4`);
     const musicBed = musicOnly ? await createMusicOnlyBed(jobId, targetDurationSeconds) : null;
-    // Write the audio-finished file directly to its delivery name. The old
-    // automatic brand-card pass re-encoded every frame, added extra waiting,
-    // and covered the AI film with an unrequested ending. Branding now stays
-    // inside the AI-directed film only when the customer's brief asks for it.
+    // Write the audio-finished file to its delivery name, then (website modes
+    // only) composite the real captured logo over the final seconds.
     await finishAudio(masteredSource, output, silent, musicBed ?? narration, musicOnly ? false : nativeAudioPresent, targetDurationSeconds);
+
+    // Website films end on the real captured logo (exact artwork, composited by ffmpeg).
+    if (isWebsiteVideoMode(mode)) {
+      const branded = path.join(dir, 'ai-video-brand-ending.mp4');
+      try {
+        if (await addBrandEnding(output, branded, jobId)) await fs.rename(branded, output);
+      } catch (error) {
+        await fs.rm(branded, { force: true }).catch(() => {});
+        console.warn(`[ai-video] job=${jobId} brand_ending=failed ${(error as Error).message}`);
+      }
+    }
 
     const expectedFrame = outputFrame(aspectRatio, outputQuality);
     const finalFrame = await videoDimensions(output);

@@ -10,6 +10,12 @@ export {
   GLOBAL_AI_VIDEO_RULES,
   buildAiVideoScenePrompt,
   INTERNAL_MASTER_VIDEO_QUALITY_DIRECTIVE,
+  REAL_PRODUCTION_LOOK_RULES,
+  REAL_UI_REALISM_RULES,
+  BRAND_ENDING_DIRECTIVE,
+  PRODUCT_ACCURACY_RULES,
+  WEBSITE_VIDEO_MODES,
+  isWebsiteVideoMode,
   buildContinuousExtensionPrompt
 } from './video-prompts-legacy.js';
 

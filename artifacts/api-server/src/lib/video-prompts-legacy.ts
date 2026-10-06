@@ -1,43 +1,46 @@
 import type { StoryboardScene } from './gemini.js';
+import { PRODUCT_ACCURACY_RULES } from './studio-direction.js';
+
+export { PRODUCT_ACCURACY_RULES };
 
 export const VIDEO_MASTER_PROMPTS: Record<string, string> = {
   'ai-video': `AI VIDEO — ORIGINAL PROMPT-DRIVEN FILM
-Create one coherent original AI-generated film directly from the customer's written idea. Do not introduce website, ecommerce, dashboard, browser, or product-ad language unless the customer actually asked for it. Optional reference images are identity/style anchors only. Preserve any referenced person, product, place or object consistently for the entire film. Follow the requested narrative, mood, action, camera and audio direction with a complete beginning-to-ending arc.`,
+Create one coherent original AI-generated film directly from the customer's written idea. Do not introduce website, ecommerce, dashboard, browser, or product-ad language unless the customer actually asked for it. Optional reference images are identity/style anchors only. Preserve any referenced person, product, place or object consistently for the entire film. Follow the requested narrative, mood, action, camera and audio direction with a complete beginning-to-ending arc. CREATIVE PLAYBOOK — before shooting, choose one strong idea the brief implies (a motif, a reveal structure, a contrast) and commit to it; vary shot scale and camera purpose across the film; land on one unforgettable final image.`,
 
   'product-video': `PRODUCT VIDEO — REFERENCE-FAITHFUL COMMERCIAL FILM
-Create one premium continuous product film grounded in the customer's real product images. Preserve exact product shape, proportions, materials, colors, logos, stitching, hardware, packaging and small details. Never redesign or substitute the product. Build an elegant commercial arc around the real item using believable motion, macro details, hero angles, lighting and environments that support the customer's brief. Do not invent prices, claims, labels or readable packaging text.`,
+Create one premium continuous product film grounded in the customer's real product images. Preserve exact product shape, proportions, materials, colors, logos, stitching, hardware, packaging and small details. Never redesign or substitute the product. Build an elegant commercial arc around the real item using believable motion, macro details, hero angles, lighting and environments that support the customer's brief. Do not invent prices, claims, labels or readable packaging text. CREATIVE PLAYBOOK — plan it like a product commercial from a major brand: a tactile opening detail that sets the material world, a motivated reveal of the whole product, one "in use" beat with real hands or a real context, one macro beauty beat under sculpted light, and a confident hero frame. Every beat must stay identical to the real product.`,
 
   'talking-scene': `TALKING SCENE — PERFORMANCE-FIRST CONTINUOUS VIDEO
-Create one coherent dialogue/performance video from the customer's scenario. Preserve speaker identity, wardrobe, setting and eyelines throughout. Make speech, mouth movement, gestures, reactions, pauses and turn-taking feel natural. If exact dialogue is supplied, keep the spoken wording faithful and do not add unrelated lines. Optional reference images are identity/style anchors, not separate scenes. Use professional camera blocking and audio continuity from beginning to end.`,
+Create one coherent dialogue/performance video from the customer's scenario. Preserve speaker identity, wardrobe, setting and eyelines throughout. Make speech, mouth movement, gestures, reactions, pauses and turn-taking feel natural. If exact dialogue is supplied, keep the spoken wording faithful and do not add unrelated lines. Optional reference images are identity/style anchors, not separate scenes. Use professional camera blocking and audio continuity from beginning to end. CREATIVE PLAYBOOK — block it like a real dialogue scene: establishing two-shot, clean singles with correct eyelines, reaction shots on the listener, natural pauses, practical lighting from the real space.`,
   video: `PROMO VIDEO — AI-GENERATED WEBSITE COMMERCIAL
-Create a real AI-generated commercial, not a slideshow and not a screen recording. Study the supplied website captures and identify what the website actually sells or does. Use the real UI, products, brand, colors, navigation, and visible content as the source of truth. Animate the website naturally with purposeful cursor/touch interaction only when an actual visible control supports it. Build a strong advertising arc: immediate hook, different real benefits/pages/products, satisfying interaction moments, and a clean branded ending. Do not repeat the same page or movement just to fill time.`,
+Create a real AI-generated commercial, not a slideshow and not a screen recording. Study the supplied website captures and identify what the website actually sells or does. Use the real UI, products, brand, colors, navigation, and visible content as the source of truth. Animate the website naturally with purposeful cursor/touch interaction only when an actual visible control supports it. Build a strong advertising arc: immediate hook, different real benefits/pages/products, satisfying interaction moments, and a clean branded ending. Do not repeat the same page or movement just to fill time. CREATIVE PLAYBOOK — open on a real-world moment that makes the audience want what the site sells (a hand unboxing, a customer smiling at the phone, the product in use), then arrive at the real page with a motivated move (a push-in on the device, a match cut from the physical product to its product page, a rack focus from a hand to the screen). Alternate scales: wide lifestyle, over-the-shoulder device, macro on a real UI control. Let one tactile interaction be the hero moment. Finish on a calm, premium hero frame of the device or product, ready to carry the real logo.`,
 
   tutorial: `HOW TO USE — AI-GENERATED GUIDED WALKTHROUGH
-Create a clear, believable AI-generated walkthrough of this exact website. Infer the useful first-time-user journey from the captures. Show the cursor or touch indicator moving naturally to real visible controls, clicking them, and then arriving at the next real captured state. Use readable pacing around important UI, but keep the video alive and polished. Never invent a feature, button result, page, menu, form state, or success state that is not grounded by the supplied captures.`,
+Create a clear, believable AI-generated walkthrough of this exact website. Infer the useful first-time-user journey from the captures. Show the cursor or touch indicator moving naturally to real visible controls, clicking them, and then arriving at the next real captured state. Use readable pacing around important UI, but keep the video alive and polished. Never invent a feature, button result, page, menu, form state, or success state that is not grounded by the supplied captures. CREATIVE PLAYBOOK — frame it like a well-produced product tutorial by a real team: a believable person at a real desk or on a sofa, natural daylight, the device filling most of the frame, a confident unhurried hand, slight camera settles between steps, and a clean final "you are done" moment on the real finished state.`,
 
   buy: `HOW TO BUY / CONVERT — AI-GENERATED TRANSACTION JOURNEY
-First determine the website type from the captures. If it is ecommerce, create the real purchase journey that the available states support: browse/category → real product → real option/size/color when visible → add to cart → cart → checkout when captured. If it is a service/SaaS/booking website, adapt the same conversion logic to the real flow that is visible (for example plan selection, booking, signup, or checkout) instead of forcing an ecommerce cart. Show believable cursor/touch movement and complete each important action before cutting. Never fabricate a checkout, payment, confirmation, cart result, price, field value, or button that is not supported by a capture.`,
+First determine the website type from the captures. If it is ecommerce, create the real purchase journey that the available states support: browse/category → real product → real option/size/color when visible → add to cart → cart → checkout when captured. If it is a service/SaaS/booking website, adapt the same conversion logic to the real flow that is visible (for example plan selection, booking, signup, or checkout) instead of forcing an ecommerce cart. Show believable cursor/touch movement and complete each important action before cutting. Never fabricate a checkout, payment, confirmation, cart result, price, field value, or button that is not supported by a capture. CREATIVE PLAYBOOK — tell a tiny human story around the purchase: desire (seeing the product), decision (choosing the option), commitment (add to cart / checkout), relief (the resolved state). Use real hands and a real device where it adds trust, and keep the camera close enough that every real control is readable.`,
 
   tour: `FEATURE TOUR — AI-GENERATED FEATURE SHOWCASE
-Inspect all captures and discover the strongest real features, tools, pages, sections, categories, search/filter controls, chat/AI assistant, dashboards, product areas, or navigation patterns that actually exist. Give each timeline section one distinct feature purpose while keeping one continuous film. Show the feature working when real before/after states support it; otherwise animate the existing interface cinematically without inventing a result. Long tours must keep changing subject, scale, interaction, and page so they never become repetitive.`,
+Inspect all captures and discover the strongest real features, tools, pages, sections, categories, search/filter controls, chat/AI assistant, dashboards, product areas, or navigation patterns that actually exist. Give each timeline section one distinct feature purpose while keeping one continuous film. Show the feature working when real before/after states support it; otherwise animate the existing interface cinematically without inventing a result. Long tours must keep changing subject, scale, interaction, and page so they never become repetitive. CREATIVE PLAYBOOK — treat each feature like a chapter with its own setting and camera idea: a laptop on a conference table for dashboards, a phone in a hand on the street for mobile features, a tablet on a kitchen counter for booking. Use motivated transitions (a hand swiping, a door opening, a focus pull) instead of generic wipes.`,
 
   character: `CHARACTER STORY — A PERSON DISCOVERS AND USES THE REAL WEBSITE
-One continuous AI film about a believable adult character (the brand's likely customer) in an on-brand world. They react with genuine emotion to the news, sit down and use the real website with believable hands and eyes, the camera pushes over their shoulder toward the screen, and the film ends on a stable hero view of the device. Whenever a screen is visible it shows the real captured page, sharp and readable; never invent pages, products, prices or states, and keep the character's face, hair and wardrobe identical throughout. Use the brand's palette and real props from the captures. The character shows rather than speaks (gestures, leaning in, smiling at a product); no random dialogue. No social-media interface of any kind: no story bars, buttons, usernames, status bars or watermarks. Any new text is short, correct English only, and only when the customer asked for it.`,
+One continuous AI film about a believable adult character (the brand's likely customer) in an on-brand world. They react with genuine emotion to the news, sit down and use the real website with believable hands and eyes, the camera pushes over their shoulder toward the screen, and the film ends on a stable hero view of the device. Whenever a screen is visible it shows the real captured page, sharp and readable; never invent pages, products, prices or states, and keep the character's face, hair and wardrobe identical throughout. Use the brand's palette and real props from the captures. The character shows rather than speaks (gestures, leaning in, smiling at a product); no random dialogue. No social-media interface of any kind: no story bars, buttons, usernames, status bars or watermarks. Any new text is short, correct English only, and only when the customer asked for it. CREATIVE PLAYBOOK — cast one specific, memorable person with a clear life context (their home, café, workshop or office), give them one honest emotional beat per section (curiosity, delight, decision), and photograph them like a documentary commercial: available light, real textures, shallow depth of field, unhurried handheld settles.`,
 
   demo: `CINEMATIC BRAND FILM — FULLY AI-GENERATED
-Create a premium AI-generated brand/product film grounded in the real website references. The surrounding world may be cinematic (studio, device, elegant environment, dimensional camera movement), but any website UI shown on a screen must remain faithful to the supplied captures. Preserve the real logo, product identity, colors, prices, and visible interface wording. Do not invent features, claims, statistics, discounts, review counts, or a different brand. Make every moment feel part of one consistent directed film, with no unrelated AI-shot resets.`,
+Create a premium AI-generated brand/product film grounded in the real website references. The surrounding world may be cinematic (studio, device, elegant environment, dimensional camera movement), but any website UI shown on a screen must remain faithful to the supplied captures. Preserve the real logo, product identity, colors, prices, and visible interface wording. Do not invent features, claims, statistics, discounts, review counts, or a different brand. Make every moment feel part of one consistent directed film, with no unrelated AI-shot resets. CREATIVE PLAYBOOK — think of a tier-one brand film: a signature opening image, one sensory motif that repeats (light through fabric, water, steam, dust in a beam), bold but restrained camera architecture (slow dolly, controlled crane, locked macro), and a final hero frame that could be a print campaign.`,
 
   both: `VIDEO + PHOTOS — AI-GENERATED WEBSITE COMMERCIAL
-For the VIDEO portion, follow the PROMO VIDEO rules: generate one continuous AI film grounded in the real website references, never a set of disconnected clips and never screenshot pans/zooms/transitions. Build a varied commercial arc grounded in the real site. The separate photo pipeline may create marketing stills from the same brand references.`,
+For the VIDEO portion, follow the PROMO VIDEO rules: generate one continuous AI film grounded in the real website references, never a set of disconnected clips and never screenshot pans/zooms/transitions. Build a varied commercial arc grounded in the real site. The separate photo pipeline may create marketing stills from the same brand references. CREATIVE PLAYBOOK — follow the PROMO VIDEO playbook for the film and keep the stills in the same visual world.`,
 
   mockup: `DIGITAL PRODUCT MOCKUP — AI-GENERATED MOTION GRAPHIC REVEAL
-Create the fast, scroll-stopping style used to advertise digital products (templates, planners, guides, PDFs) or physical products on TikTok, Instagram Reels, and Pinterest. Each reference is a real page/panel/photo of the product — treat it as ground truth, never redraw or retranslate its real text or layout. Generate energetic AI motion around and between real pages: cards sliding, flipping, or stacking into view, a natural swipe, gentle parallax, a soft zoom settling on a real detail. A light social-feed frame (subtle like/comment icon accents, soft neutral background) is welcome but must never cover or distort the real product content. Build hook → quick flip through the strongest real pages → satisfying closing reveal. Snappy, current, premium — never a static slideshow, never corporate.`,
+Create the fast, scroll-stopping style used to advertise digital products (templates, planners, guides, PDFs) or physical products on TikTok, Instagram Reels, and Pinterest. Each reference is a real page/panel/photo of the product — treat it as ground truth, never redraw or retranslate its real text or layout. Generate energetic AI motion around and between real pages: cards sliding, flipping, or stacking into view, a natural swipe, gentle parallax, a soft zoom settling on a real detail. A light social-feed frame (subtle like/comment icon accents, soft neutral background) is welcome but must never cover or distort the real product content. Build hook → quick flip through the strongest real pages → satisfying closing reveal. Snappy, current, premium — never a static slideshow, never corporate. CREATIVE PLAYBOOK — real paper, real screens and real hands make it believable: a printed page being placed on a desk, a finger swiping an actual tablet, light raking across the page texture. Keep the social-feed accents minimal and realistic, never glowing.`,
 
   linkedin: `LINKEDIN VIDEO — PROFESSIONAL AI-GENERATED FEED STORY
-Create a polished, credible video for the LinkedIn feed using the real website as evidence. Open with a concise problem/result hook, demonstrate the strongest real workflow, feature or product proof, and resolve on a clean branded state. Use restrained professional motion, readable pacing and business-appropriate sound design. Keep the composition safe for desktop and mobile LinkedIn feeds. Never invent metrics, customers, testimonials, prices, claims, endorsements or capabilities that are not supported by the supplied captures.`,
+Create a polished, credible video for the LinkedIn feed using the real website as evidence. Open with a concise problem/result hook, demonstrate the strongest real workflow, feature or product proof, and resolve on a clean branded state. Use restrained professional motion, readable pacing and business-appropriate sound design. Keep the composition safe for desktop and mobile LinkedIn feeds. Never invent metrics, customers, testimonials, prices, claims, endorsements or capabilities that are not supported by the supplied captures. CREATIVE PLAYBOOK — the look of a credible founder video or product case study: real office light, an authentic workspace, the product shown solving one concrete problem, confident steady camera, and a clean professional hero frame at the end.`,
 
   custom: `CUSTOM IDEA — THE CUSTOMER'S OWN VIDEO, NOT A WEBSITE COMMERCIAL
-The customer's own written brief is the actual creative direction for this complete film — a personal or creative production (a product idea, a lifestyle scene, a narrative moment, a conversation, a testimonial, or anything else they imagined), not a fixed template and not an ecommerce/website promo. Follow it closely and specifically. Reference images are optional: with none, generate directly from the written idea. If a supplied image shows something real, keep it recognizable and never fabricate text/prices/logos that would misrepresent it. The whole film is true AI-generated video, never code-driven motion or stitched unrelated scenes. If the brief describes people talking or a conversation, direct real dialogue and performance. Where the brief leaves a creative choice open, make a strong, exciting, professional choice rather than defaulting to something bland or website-like.`
+The customer's own written brief is the actual creative direction for this complete film — a personal or creative production (a product idea, a lifestyle scene, a narrative moment, a conversation, a testimonial, or anything else they imagined), not a fixed template and not an ecommerce/website promo. Follow it closely and specifically. Reference images are optional: with none, generate directly from the written idea. If a supplied image shows something real, keep it recognizable and never fabricate text/prices/logos that would misrepresent it. The whole film is true AI-generated video, never code-driven motion or stitched unrelated scenes. If the brief describes people talking or a conversation, direct real dialogue and performance. Where the brief leaves a creative choice open, make a strong, exciting, professional choice rather than defaulting to something bland or website-like. CREATIVE PLAYBOOK — where the idea leaves room, add one memorable creative device (a motif, a transition idea, a surprising angle, a contrast of scale) that a seasoned director would propose, and keep the rest disciplined and real.`
 };
 
 export const GLOBAL_AI_VIDEO_RULES = `
@@ -98,6 +101,63 @@ EXECUTION RULES
 - If the idea describes people talking, a conversation, or narration, direct real dialogue: natural expressions, mouth movement, gestures and timing that match spoken lines.
 - If sound is enabled and no dialogue was described, use tasteful mood-appropriate music/ambience.
 `;
+
+/** Modes grounded in a captured website: they show real UI and get the real logo composited at the end. */
+export const WEBSITE_VIDEO_MODES = new Set(['video', 'tutorial', 'buy', 'tour', 'character', 'demo', 'both', 'mockup', 'linkedin']);
+
+export function isWebsiteVideoMode(mode: string) {
+  return WEBSITE_VIDEO_MODES.has(mode);
+}
+
+/**
+ * The single most common complaint about AI commercials is that they look
+ * AI-generated: weightless camera, sourceless glow, neon tech colours, plastic
+ * skin, melting UI. These rules describe what a real crew would have shot.
+ */
+export const REAL_PRODUCTION_LOOK_RULES = `
+LOOKS SHOT BY A REAL CREW — NEVER "AI-GENERATED"
+- Benchmark: a commercial photographed on a real cinema camera by a real director of photography and lit by a real gaffer. Nobody watching should suspect AI.
+- Lens and camera: one consistent real lens language (35/50/85 mm equivalents), honest depth of field, slight natural vignette and focus breathing, realistic motion blur (180-degree shutter), perfectly still tripod/slider frames or barely perceptible organic settle on handheld and gimbal moves. No weightless floating drift, no impossible speed ramps, no orbiting around everything, no constant slow motion.
+- Light: every light is motivated by a visible or implied real source (window, practical lamp, sun, overcast sky, screen). Soft key, natural fill, shadows with correct direction and softness. Nothing glows by itself; no sourceless rim light, no HDR halos, no haze or bloom wash.
+- Colour: a restrained filmic commercial grade with natural skin tones, true whites, deep but detailed blacks and controlled saturation. Absolutely no neon cyan/magenta/purple casts, no electric-blue "tech" glow, no rainbow gradients, no over-saturated plastic colours; these read as AI instantly.
+- Materials: real micro-texture (fabric weave, paper fibre, brushed metal grain, skin pores, dust on glass) with physically correct specular rolloff and reflections. No waxy skin, no smeared textures, no CGI-clean surfaces.
+- People: believable anatomy, natural weight shifts, imperfect but intentional gestures, real blinking and breathing, hands with five fingers doing real things; clothing and hair obey physics.
+- Production design: authentic locations and props, uncluttered frames, intentional negative space, layered foreground/midground/background. No generic "futuristic" sets, no floating particles, light streaks, lens-flare spam, holograms or abstract tech backgrounds.
+- Motion: every move has a reason (push in to reveal, pan to follow, settle to let the viewer read). Objects and interfaces keep their geometry while moving; no morphing, warping, melting transitions or AI-style dissolves.
+- Sound (when enabled): recorded-room realism with a sense of space, foley synced to visible actions, music mixed under, no abrupt resets.
+`;
+
+/**
+ * Buttons and cursors are where AI video usually gives itself away (glowing
+ * neon pills, giant cursors, floating UI). Describe real production UI instead.
+ */
+export const REAL_UI_REALISM_RULES = `
+REAL INTERFACE REALISM — BUTTONS, CURSORS, SCREENS
+- Any interface shown is the REAL captured website at its native proportions, exactly as it renders in a real browser or on a real device. Never restyle it, never "upgrade" it, never add controls it does not have.
+- Buttons, cards, menus and inputs must look like production UI from a real product: flat or very subtle depth, the exact brand colours sampled from the captures, correct padding (text never touching edges), realistic type sizes and weights, corner radii matching the site, hairline borders or a soft 1-2 px shadow. Never neon or glowing outlines, never cyan/magenta/purple gradients, never glass-morphism or blurred panels, never sci-fi frames, pulsing rings, light sweeps across buttons or oversized pill buttons unless the real site uses them.
+- Interactive feedback is subtle and real: hover shifts the button tone by roughly 5-10 percent, a press compresses it by a pixel, a state change (added to cart, menu open, plan selected) appears instantly and crisply. No magical glow, particle burst or ripple of light.
+- The cursor is a standard OS arrow (or a real finger/thumb on touch devices) at normal size, moving along a natural human path with a slight deceleration before each click. No giant cursor, no glowing ring cursor, no trail.
+- Screens emit realistic light: a laptop or phone display has a subtle backlight, true blacks, a faint reflection on the glass and a brightness that matches the room; the page on it stays sharp and faithful to the capture. No saturated screen glow, no UI floating above the device.
+- Browser chrome, if visible, is a real modern browser at normal scale with no readable fake URL; the page content is what matters.
+- Text inside the UI is never retyped: it stays exactly as captured. New overlay copy appears only when explicitly requested, short and correctly spelled English, outside the interface.
+`;
+
+/**
+ * The real logo is composited in finishing from the exact captured artwork;
+ * the model only has to leave a clean, deliberate ending for it.
+ */
+export const BRAND_ENDING_DIRECTIVE = `
+BRANDED ENDING — LEAVE ROOM FOR THE REAL LOGO
+- The real website logo and name are placed over the final seconds in finishing, using the exact original artwork. The video model must therefore NEVER draw, imitate, animate or invent a logo, wordmark, end card, title card, URL, slogan or any closing text.
+- The final 2.5-3 seconds must be a calm, deliberately composed hero frame that holds (a slow settle, not a fade to black): the brand's product, device or world beautifully lit, with clean low-detail space around the centre of the frame where the real logo will sit and read instantly. Keep faces, products and readable UI slightly away from that zone during those seconds.
+- Do not end on a cut, a fast move, a dark frame or a blur. The last frame must work as a still.
+`;
+
+// Compact versions for the per-scene runtime prompt, which must stay small.
+const SCENE_LOOK_RULES = `REAL-CREW LOOK (not AI): real cinema-lens optics, motivated light from visible sources, restrained filmic grade with natural skin and true whites, no neon cyan/magenta/purple glow, no sourceless rim light or bloom, real micro-texture, believable weight in every camera move, no floating particles, light streaks, holograms or abstract tech backdrops.`;
+const SCENE_UI_RULES = `REAL UI: buttons, menus and cursors look like real production software — brand colours from the captures, flat or subtle depth, correct padding and type sizes, hairline borders; never glowing/neon, never gradient pills or glass panels unless the site has them; hover/press feedback is a subtle tone shift, the cursor is a normal-size OS arrow or a real finger, screens have realistic backlight and glass reflection.`;
+const SCENE_PRODUCT_RULES = `PRODUCT TRUTH: lock every part count, proportion, colour, finish, label and logo exactly as in the references; show only sides the references prove; one product, no duplicates or variants.`;
+const SCENE_BRAND_ENDING = `ENDING: the real logo is added in finishing — draw no logo, card, URL or closing text; hold a calm, beautifully lit hero frame for the last 2.5-3s with clean space around the centre.`;
 
 function modePrompt(mode: string) {
   return VIDEO_MASTER_PROMPTS[mode] ?? VIDEO_MASTER_PROMPTS.video;
@@ -221,6 +281,10 @@ DIRECTING & QUALITY
 - Make this shot materially different from neighboring shots in framing, action and composition while preserving the same people/products/world when continuity requires it.
 ${formatRule ? `- ${formatRule}\n` : ''}- Avoid generic stock-video staging, excessive slow motion, plastic skin, oversharpening, flicker, jitter, morphing and repeated background extras.
 ${interactionRule}
+${SCENE_LOOK_RULES}
+${isWebsiteVideoMode(mode) ? SCENE_UI_RULES : ''}
+${mode === 'product-video' ? SCENE_PRODUCT_RULES : ''}
+${isWebsiteVideoMode(mode) && sceneIndex === totalScenes - 1 ? SCENE_BRAND_ENDING : ''}
 
 CONTINUITY
 Previous: ${safePrevious || 'opening of the film'}
@@ -254,6 +318,8 @@ MASTER PRODUCTION STANDARD — ALWAYS APPLY
 - If dialogue is requested, keep speaker identity, mouth movement, expression, timing, room acoustics and turn-taking natural. Do not add unrequested dialogue. If narration is supplied separately, leave acoustic space for it.
 - If audio is enabled, use clean scene-appropriate ambience, music and sound design with no clipping or abrupt resets. Audio should continue naturally as the visual film continues.
 - Finish on a deliberate resolved frame suitable for delivery. The final seconds must look intentional, not like generation simply stopped.
+- The production must pass as footage shot by a real crew: motivated light, real lens behaviour, restrained filmic colour, authentic materials and locations. Reject anything that signals AI (neon glow, sourceless rim light, floating particles, holographic UI, plastic skin, melting geometry).
+- Never generate a logo, wordmark or end card. When a real brand logo is required at the end it is composited in finishing from the exact captured artwork; the film only provides a calm hero frame with clean space for it.
 `;
 
 export interface ContinuousVideoPromptInput {
@@ -392,7 +458,9 @@ ${formatRule}
 ${audioRule}
 
 ${isStudioVideo ? '' : GLOBAL_AI_VIDEO_RULES}
-
+${REAL_PRODUCTION_LOOK_RULES}
+${isWebsiteVideoMode(mode) ? `${REAL_UI_REALISM_RULES}\n${BRAND_ENDING_DIRECTIVE}` : ''}
+${mode === 'product-video' ? PRODUCT_ACCURACY_RULES : ''}
 ${INTERNAL_MASTER_VIDEO_QUALITY_DIRECTIVE}
 
 DELIVERY GOAL
@@ -407,7 +475,7 @@ export function buildContinuousExtensionPrompt(masterPrompt: string, currentSeco
 CONTINUE THE EXACT SAME EXISTING VIDEO from its final frame and audio state. Never replay the opening, recap, reset the set, change identity, repeat an earlier action, or create a disconnected new scene.
 ${
   finalWindow
-    ? `THIS IS THE FINAL WINDOW. Resolve the remaining action and reach the intended payoff within the FIRST ${Math.max(1, endSeconds - currentSeconds)} usable seconds, then hold a deliberate stable ending. Do not cut mid-action, mid-word or during a transition.`
+    ? `THIS IS THE FINAL WINDOW. Resolve the remaining action and reach the intended payoff within the FIRST ${Math.max(1, endSeconds - currentSeconds)} usable seconds, then hold a deliberate, calmly lit stable hero frame for the remaining seconds with clean space around the centre (the real logo is composited there in finishing — draw no logo, card or text). Do not cut mid-action, mid-word or during a transition.`
     : 'THIS IS NOT THE END OF THE FILM. Advance toward the next unfinished timeline beat. Do not show a closing card, logo reveal, final CTA, fade-out or resolved ending yet; leave natural motion and audio continuity for the next extension.'
 }
 Preserve the same people, products, brand, environment, grade, camera language and sound world. Never synthesize non-English or pseudo-language lettering; preserve any real source text only as stable referenced imagery.
