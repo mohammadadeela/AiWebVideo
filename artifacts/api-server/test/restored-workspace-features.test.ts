@@ -25,6 +25,9 @@ test('product link and architecture engineer controls stay available', async () 
   assert.match(creator, /label="Plot width" unit="m"/);
   assert.match(creator, /label="Plot depth" unit="m"/);
   assert.match(creator, /Estimate the plot size/);
+  assert.match(creator, /const \[estimatedScale, setEstimatedScale\] = useState\(true\)/);   // on by default
+  assert.match(creator, /\{!estimatedScale && \(/);   // width and depth only show when the customer turns it off
+  assert.match(creator, /plotWidth: estimatedScale \? undefined/);   // a hidden, stale width is never sent
   assert.match(client, /extractProductReference/);
   assert.match(client, /resolveArchitectureLocation/);
   assert.match(uploads, /productImageUrls/);

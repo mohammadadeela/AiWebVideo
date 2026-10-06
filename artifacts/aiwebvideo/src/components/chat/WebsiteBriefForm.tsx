@@ -427,7 +427,8 @@ export function WebsiteBriefForm({
   const [plotDepth, setPlotDepth] = useState("");
   const [floorCount, setFloorCount] = useState("");
   const [setback, setSetback] = useState("");
-  const [estimatedScale, setEstimatedScale] = useState(false);
+  // On by default: most customers do not know their exact plot size. Turning it off reveals width and depth.
+  const [estimatedScale, setEstimatedScale] = useState(true);
   useEffect(() => { setSiteSelection(EMPTY_SELECTION); }, [site?.latitude, site?.longitude]);
   const [selectedSample, setSelectedSample] = useState<Sample | null>(null);
   const [languageShake, setLanguageShake] = useState(false);
@@ -962,8 +963,8 @@ export function WebsiteBriefForm({
         latitude: resolvedSite?.latitude,
         longitude: resolvedSite?.longitude,
         mapUrl: resolvedSite?.resolvedUrl || undefined,
-        plotWidth: Number(plotWidth) || undefined,
-        plotDepth: Number(plotDepth) || undefined,
+        plotWidth: estimatedScale ? undefined : Number(plotWidth) || undefined,
+        plotDepth: estimatedScale ? undefined : Number(plotDepth) || undefined,
         floors: Number(floorCount) || undefined,
         setback: Number(setback) || undefined,
         estimatedScale,
@@ -1262,19 +1263,23 @@ export function WebsiteBriefForm({
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <NumberStepper label="Plot width" unit="m" value={plotWidth} onChange={setPlotWidth} min={1} max={5000} step={1} decimal placeholder="0" disabled={estimatedScale} />
-              <NumberStepper label="Plot depth" unit="m" value={plotDepth} onChange={setPlotDepth} min={1} max={5000} step={1} decimal placeholder="0" disabled={estimatedScale} />
-              <NumberStepper label="Floors" value={floorCount} onChange={setFloorCount} min={1} max={200} step={1} placeholder="Any" />
-              <NumberStepper label="Setback" unit="m" value={setback} onChange={setSetback} min={0} max={500} step={0.5} decimal placeholder="0" />
-            </div>
-
             <ToggleRow
               checked={estimatedScale}
               onChange={setEstimatedScale}
               label="Estimate the plot size"
-              hint="Turn on if you don't know the exact width and depth."
+              hint="On: we work out a realistic plot size from the map. Turn off to enter the exact width and depth."
             />
+
+            <div className="grid grid-cols-2 gap-2">
+              {!estimatedScale && (
+                <>
+                  <NumberStepper label="Plot width" unit="m" value={plotWidth} onChange={setPlotWidth} min={1} max={5000} step={1} decimal placeholder="0" />
+                  <NumberStepper label="Plot depth" unit="m" value={plotDepth} onChange={setPlotDepth} min={1} max={5000} step={1} decimal placeholder="0" />
+                </>
+              )}
+              <NumberStepper label="Floors" value={floorCount} onChange={setFloorCount} min={1} max={200} step={1} placeholder="Any" />
+              <NumberStepper label="Setback" unit="m" value={setback} onChange={setSetback} min={0} max={500} step={0.5} decimal placeholder="0" />
+            </div>
 
             <p className="text-[11px] leading-4 text-white/45">
               Paste the link and say what you want, for example “a clothes shop here”. A screenshot of the plot or the building to place (via “Add site / building”) is optional but makes it more exact.

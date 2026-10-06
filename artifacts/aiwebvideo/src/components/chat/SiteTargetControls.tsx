@@ -16,7 +16,8 @@ export function TargetKindPicker({ value, onChange, attention }: {
 }) {
   return (
     <div data-testid="target-kind-picker">
-      <p className="text-xs font-semibold text-white">What do you want to design here?</p>
+      <p className="text-xs font-semibold text-white">What do you want to design here? <span className="font-normal text-white/50">(optional)</span></p>
+      <p className="mt-0.5 text-[11px] leading-4 text-white/50">Skip this if your message already says it, for example “a clothes shop here”. Needed only if you tap a spot on a photo.</p>
       <div role="radiogroup" aria-label="What to design" className="mt-2 grid grid-cols-2 gap-2">
         {TARGET_OPTIONS.map(({ id, label, hint }) => {
           const Icon = KIND_ICONS[id];
