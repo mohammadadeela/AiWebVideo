@@ -31,7 +31,8 @@ export function parseVariantWidth(value: unknown): ImageVariantWidth | null {
 export const isImageName = (name: string) => IMAGE_FILE.test(name);
 export const isVideoName = (name: string) => VIDEO_FILE.test(name);
 
-const variantDir = (jobId: string) => path.join(ASSETS_DIR, jobId, '.variants');
+// Not a dot-folder on purpose: Express will not send files from inside one (it answers 404), which is how the first version failed.
+const variantDir = (jobId: string) => path.join(ASSETS_DIR, jobId, 'previews');
 export const variantFileName = (name: string, width: number | 'poster') => `${path.basename(name)}.${width === 'poster' ? 'poster' : `w${width}`}.jpg`;
 
 const inFlight = new Map<string, Promise<string | null>>();
@@ -81,4 +82,22 @@ export function prepareImageVariants(jobId: string, name: string): void {
 }
 export function prepareVideoPoster(jobId: string, name: string): void {
   void make(jobId, name, 'poster').catch(() => {});
+}
+
+/**
+ * Sends a preview or poster. Resolves true when the response was sent (or the client went away), false when nothing was sent
+ * so the caller can fall back. It can never throw and never leaves a half-answered request behind.
+ */
+export function sendVariantFile(res: import('express').Response, file: string, cacheControl: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    res.setHeader('Cache-Control', cacheControl);
+    res.removeHeader('Pragma');
+    res.type('image/jpeg');
+    res.sendFile(path.resolve(file), { dotfiles: 'allow' }, (error) => {
+      if (!error) return resolve(true);
+      // The client closed the page mid-download: nothing more to do. Anything else before headers went out: let the caller fall back.
+      if (!res.headersSent) res.removeHeader('Content-Type');   // the fallback is the original, which has its own type
+      resolve(res.headersSent);
+    });
+  });
 }

@@ -1,3 +1,4 @@
+import { failureMessage, kindForStatus } from "@/lib/userErrors";
 import { ProgressiveImage } from "@/components/ui/ProgressiveImage";
 import { visibleBrief } from "@/lib/hiddenDirection";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -5,7 +6,7 @@ import { ChatBubble } from "./ChatBubble";
 import { QuickReplyChips } from "./QuickReplyChips";
 import { ChatInputBar } from "./ChatInputBar";
 import { SiteCard } from "./SiteCard";
-import { GeneratedPhotoPicker, ResultGrid } from "./ResultGrid";
+import { ResultGrid } from "./ResultGrid";
 import { Button } from "@/components/ui/app-button";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { watchAuthState } from "@/lib/firebase/client";
@@ -188,7 +189,10 @@ function doneResultMessage(
   onUnlock: () => void,
   onGeneratedPhotoSelectionChange?: (assetIds: string[]) => void,
   selectedGeneratedPhotoIds: string[] = [],
+  alreadyShown?: ReadonlySet<string>,
 ): ReactNode {
+  // A follow-up result (a video made from earlier photos) must not put those photos on screen a second time.
+  const assets = (job.assets ?? []).filter((asset) => !alreadyShown?.has(asset.id));
   const label =
     job.captureMetadata?.studioKind === "architecture"
       ? "Your architecture concept is ready."
@@ -202,7 +206,7 @@ function doneResultMessage(
           ? "Your AI-generated production is ready."
           : "Your website campaign is ready.";
 
-  const photos = (job.assets ?? []).filter((asset) => asset.type === "photo");
+  const photos = assets.filter((asset) => asset.type === "photo");
   const hasPhotoSelection = photos.length > 0 && Boolean(onGeneratedPhotoSelectionChange);
 
   return (
@@ -217,7 +221,7 @@ function doneResultMessage(
         </p>
       )}
       <ResultGrid
-        assets={job.assets}
+        assets={assets}
         onUnlock={onUnlock}
         sourceKind={resultSourceKind(job)}
         selectedGeneratedPhotoIds={selectedGeneratedPhotoIds}
@@ -253,10 +257,12 @@ function restoredMessageContent(
   fallbackAssets: JobAsset[] = [],
   onGeneratedPhotoSelectionChange?: (assetIds: string[]) => void,
   selectedGeneratedPhotoIds: string[] = [],
+  alreadyShown?: ReadonlySet<string>,
 ): ReactNode {
-  const assets = Array.isArray(message.payload?.resultAssets) && message.payload.resultAssets.length
+  const own = Array.isArray(message.payload?.resultAssets) && message.payload.resultAssets.length
     ? (message.payload.resultAssets as JobAsset[])
     : fallbackAssets;
+  const assets = own.filter((asset) => !alreadyShown?.has(asset.id));
   if (message.kind === "result" && assets.length > 0) {
     return (
       <div data-generated-result="true" className="space-y-3 scroll-mt-3">
@@ -882,13 +888,18 @@ export function ChatWidget({
           });
         }
         const savedFinalResult = latestResultIndex >= 0 ? visibleSavedMessages[latestResultIndex] : null;
+        // Older result cards show what they showed; the newest one shows only what is new, so no picture or video repeats.
+        const shownBefore = new Set<string>();
         const transcript: Message[] = visibleSavedMessages
           .filter((_message, index) => index !== latestResultIndex)
-          .map((message) => ({
-            id: message.id,
-            role: message.role === "user" ? "user" : "bot",
-            content: restoredMessageContent(message, () => setShowAuthModal(true), resultSourceKind(saved)),
-          }));
+          .map((message) => {
+            const content = restoredMessageContent(message, () => setShowAuthModal(true), resultSourceKind(saved), [], undefined, [], shownBefore);
+            if (message.kind === "result" && Array.isArray(message.payload?.resultAssets)) {
+              for (const asset of message.payload.resultAssets as JobAsset[]) shownBefore.add(asset.id);
+            }
+            return { id: message.id, role: message.role === "user" ? "user" : "bot", content } as Message;
+          });
+        shownAssetIdsRef.current = shownBefore;
         const rebuilt: Message[] = [...transcript];
         if (saved.captureMetadata) {
           rebuilt.push({
@@ -937,12 +948,13 @@ export function ChatWidget({
                     saved.assets,
                     handleGeneratedPhotoSelectionChange,
                     selectedGeneratedPhotoIds,
+                    shownBefore,
                   ),
                 }
               : {
                   id: nextId(),
                   role: "bot",
-                  content: doneResultMessage(saved, () => setShowAuthModal(true), handleGeneratedPhotoSelectionChange, selectedGeneratedPhotoIds),
+                  content: doneResultMessage(saved, () => setShowAuthModal(true), handleGeneratedPhotoSelectionChange, selectedGeneratedPhotoIds, shownBefore),
                 },
           );
           setMessages(rebuilt);
@@ -1171,6 +1183,8 @@ export function ChatWidget({
   }, [job, stage, isSignedIn, mode, aspectRatio, frameRate, manualRenderAfterPlan]);
 
   // Render stage
+  // Every picture and video the chat has already put on screen, so nothing is ever shown twice.
+  const shownAssetIdsRef = useRef<Set<string>>(new Set());
   const renderedRef = useRef(false);
   useEffect(() => {
     if (stage !== "rendering" || !job || job.id !== jobId || renderedRef.current) return;
@@ -1179,7 +1193,8 @@ export function ChatWidget({
       void fetchMe()
         .then((account) => setCreditBalance(account.creditsBalance))
         .catch(() => {});
-      pushBot(doneResultMessage(job, () => setShowAuthModal(true), handleGeneratedPhotoSelectionChange, selectedGeneratedPhotoIds));
+      pushBot(doneResultMessage(job, () => setShowAuthModal(true), handleGeneratedPhotoSelectionChange, selectedGeneratedPhotoIds, shownAssetIdsRef.current));
+      for (const asset of job.assets ?? []) shownAssetIdsRef.current.add(asset.id);
       setStage("done");
     } else if (job.status === "cancelled") {
       renderedRef.current = true;
@@ -2335,17 +2350,14 @@ Promotion direction: ${visibleBrief(brief)}` : photosOnly ? photosLabel : normal
     ) {
       pendingPostResultRequestRef.current = nextBrief;
       pushUser(nextBrief);
+      // The photos are already on screen above: pick on those, never a second copy of them here.
       pushBot(
-        <div className="space-y-3">
-          <p>Choose the image or images you want me to use for this next step. I’ll use exactly the selected images as visual references for your next video or edit.</p>
-          <GeneratedPhotoPicker
-            photos={availablePhotos}
-            selectedGeneratedPhotoIds={effectiveSelectedGeneratedPhotoIds}
-            onSelectionChange={handleGeneratedPhotoSelectionChange}
-            compact
-          />
-        </div>,
+        <p>Tick the photo or photos above that you want me to use for this next step (use "Use for next step" on each one). I will start as soon as you have chosen, using exactly those as visual references.</p>,
       );
+      window.setTimeout(() => {
+        const results = scrollRef.current?.querySelectorAll<HTMLElement>('[data-generated-result="true"]');
+        results?.[results.length - 1]?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 150);
       return;
     }
     const nextAspectRatio = nextMode === "photos" ? "1:1" as const : aspectRatio;
@@ -3193,6 +3205,13 @@ Promotion direction: ${visibleBrief(brief)}` : photosOnly ? photosLabel : normal
 
 function errorMessage(err: unknown): string {
   if (err instanceof ApiError) {
+    // Connection trouble (offline, timeout) is already explained in plain words by the API client.
+    if (err.code?.startsWith("NETWORK_")) return err.message;
+    // A reply with no error code at all (a proxy page, an empty 502) is explained from its status, never with raw text.
+    if (!err.code) {
+      const kind = kindForStatus(err.status);
+      if (kind) return failureMessage(kind);
+    }
     const friendly: Record<string, string> = {
       RATE_LIMITED:
         "The studio is handling several website previews right now. Please wait a few minutes, then try again.",

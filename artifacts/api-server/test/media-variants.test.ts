@@ -53,3 +53,35 @@ test('the asset route serves previews with the original\'s signature and never f
   // the signature is checked before any preview work
   assert.ok(route.indexOf('verifyPrivateAssetSignature(jobId, filename') < route.indexOf('ensureImageVariant(jobId'));
 });
+
+test('a preview is really delivered over HTTP (Express refuses files inside dot-folders, which broke the first version)', { skip: !hasFfmpeg }, async () => {
+  const { default: express } = await import('express');
+  const { ensureImageVariant, sendVariantFile } = await import('../src/lib/media-variants.js');
+  mkdirSync(path.join(assetsDir, JOB), { recursive: true });
+  const image = path.join(assetsDir, JOB, 'http-photo.png');
+  execFileSync('ffmpeg', ['-y', '-f', 'lavfi', '-i', 'testsrc2=size=1600x900:rate=1:duration=1', '-frames:v', '1', image], { stdio: 'ignore' });
+  const variant = await ensureImageVariant(JOB, 'http-photo.png', 960);
+  assert.ok(variant);
+  assert.ok(!variant!.split(path.sep).some((part) => part.startsWith('.') && part.length > 1 && part !== '..'), 'the preview folder is not a dot-folder: ' + variant);
+
+  const app = express();
+  app.get('/ok', async (_req, res) => { if (!(await sendVariantFile(res, variant!, 'private, max-age=60'))) res.status(500).end('fell back'); });
+  app.get('/missing', async (_req, res) => { const sent = await sendVariantFile(res, path.join(assetsDir, 'nothing-here.jpg'), 'private, max-age=60'); if (!sent) res.status(404).json({ fellBack: true, type: res.getHeader('content-type') ?? null }); });
+  const server = app.listen(0);
+  try {
+    const { port } = server.address() as { port: number };
+    const ok = await fetch(`http://127.0.0.1:${port}/ok`);
+    assert.equal(ok.status, 200);
+    assert.equal(ok.headers.get('content-type'), 'image/jpeg');
+    assert.equal(ok.headers.get('cache-control'), 'private, max-age=60');
+    const bytes = Buffer.from(await ok.arrayBuffer());
+    assert.equal(bytes.subarray(0, 2).toString('hex'), 'ffd8');
+    assert.ok(bytes.length < statSync(image).size);
+    // a file that cannot be sent never leaves a wrong content type behind for the fallback
+    const missing = await fetch(`http://127.0.0.1:${port}/missing`);
+    assert.equal(missing.status, 404);
+    assert.deepEqual(await missing.json(), { fellBack: true, type: null });
+  } finally {
+    server.close();
+  }
+});

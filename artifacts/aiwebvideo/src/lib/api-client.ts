@@ -1,4 +1,5 @@
 import { getIdToken } from '@/lib/firebase/client';
+import { classifyNetworkError, failureText } from './userErrors';
 import type { AudioMode, JobStatusResponse, JobMode, JobWorkflowState } from '@/components/chat/types';
 
 export class ApiError extends Error {
@@ -20,9 +21,23 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * fetch, but a dropped connection, a timeout or a closed laptop becomes a plain-language ApiError (status 0) instead of the browser's
+ * "Failed to fetch". A deliberate cancel (AbortError) is passed through untouched so callers can still tell it apart.
+ */
+export async function safeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  try {
+    return await fetch(input, init);
+  } catch (error) {
+    const failure = classifyNetworkError(error);
+    if (failure) throw new ApiError(failure.message, 0, failure.code);
+    throw error;
+  }
+}
+
 export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = await getIdToken();
-  const res = await fetch(path, {
+  const res = await safeFetch(path, {
     ...init,
     signal: init.signal ?? AbortSignal.timeout(20_000),
     credentials: init.credentials ?? 'same-origin',
@@ -37,7 +52,7 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
   if (!res.ok) {
     let productFacts: Record<string, string> | undefined;
     if (typeof data.productFacts === 'string') { try { productFacts = JSON.parse(data.productFacts) as Record<string, string>; } catch { /* facts are optional */ } }
-    throw new ApiError(data.error || 'Something went wrong.', res.status, data.code, typeof data.productName === 'string' || productFacts
+    throw new ApiError(failureText(data, res.status, 'Something went wrong.'), res.status, data.code, typeof data.productName === 'string' || productFacts
       ? { productName: typeof data.productName === 'string' ? data.productName : undefined, productDescription: typeof data.productDescription === 'string' ? data.productDescription : undefined, productFacts }
       : undefined);
   }
@@ -54,7 +69,7 @@ export async function uploadPhotos(files: File[], title?: string) {
   const form = new FormData();
   for (const file of files) form.append('images', file);
   if (title) form.append('title', title);
-  const res = await fetch('/api/uploads', {
+  const res = await safeFetch('/api/uploads', {
     method: 'POST',
     signal: AbortSignal.timeout(10 * 60_000),
     credentials: 'same-origin',
@@ -64,7 +79,7 @@ export async function uploadPhotos(files: File[], title?: string) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new ApiError(data.error || 'Something went wrong uploading your photos.', res.status, data.code);
+    throw new ApiError(failureText(data, res.status, 'Something went wrong uploading your photos.'), res.status, data.code);
   }
   return data as { jobId: string; status: string };
 }
@@ -121,7 +136,7 @@ export async function uploadStudioMedia(opts: {
   if (opts.studioDirection) form.append('studioDirection', opts.studioDirection);
   if (opts.templateId) form.append('templateId', opts.templateId);
   if (opts.productFacts) form.append('productFacts', JSON.stringify(opts.productFacts));
-  const res = await fetch('/api/uploads', {
+  const res = await safeFetch('/api/uploads', {
     method: 'POST',
     signal: AbortSignal.timeout(10 * 60_000),
     credentials: 'same-origin',
@@ -131,7 +146,7 @@ export async function uploadStudioMedia(opts: {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new ApiError(data.error || 'Something went wrong starting your production.', res.status, data.code);
+    throw new ApiError(failureText(data, res.status, 'Something went wrong starting your production.'), res.status, data.code);
   }
   return data as { jobId: string; status: string };
 }
@@ -159,7 +174,7 @@ export async function previewDrawing(file: File, units?: DrawingUnitChoice): Pro
   const form = new FormData();
   form.append('drawing', file);
   if (units) form.append('units', units);
-  const res = await fetch('/api/uploads/drawing-preview', {
+  const res = await safeFetch('/api/uploads/drawing-preview', {
     method: 'POST',
     signal: AbortSignal.timeout(90_000),
     credentials: 'same-origin',
@@ -167,7 +182,7 @@ export async function previewDrawing(file: File, units?: DrawingUnitChoice): Pro
     body: form,
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(data.error || 'Your drawing could not be read.', res.status, data.code);
+  if (!res.ok) throw new ApiError(failureText(data, res.status, 'Your drawing could not be read.'), res.status, data.code);
   return data as DrawingPreview;
 }
 
@@ -175,14 +190,14 @@ export async function uploadPrivatePages(jobId: string, files: File[]) {
   const token = await getIdToken();
   const form = new FormData();
   for (const file of files) form.append('images', file);
-  const res = await fetch(`/api/uploads/${jobId}/add`, {
+  const res = await safeFetch(`/api/uploads/${jobId}/add`, {
     method: 'POST', signal: AbortSignal.timeout(90_000),
     credentials: 'same-origin', cache: 'no-store',
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     body: form,
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(data.error || 'Private-page screenshots could not be added.', res.status, data.code);
+  if (!res.ok) throw new ApiError(failureText(data, res.status, 'Private-page screenshots could not be added.'), res.status, data.code);
   return data as { jobId: string; added: number };
 }
 
@@ -394,9 +409,9 @@ export async function uploadMarketingAsset(file: File) {
   const token = await getIdToken();
   const form = new FormData();
   form.append('file', file);
-  const res = await fetch('/api/admin/marketing/upload', { method: 'POST', signal: AbortSignal.timeout(12 * 60_000), credentials: 'same-origin', cache: 'no-store', headers: token ? { Authorization: `Bearer ${token}` } : undefined, body: form });
+  const res = await safeFetch('/api/admin/marketing/upload', { method: 'POST', signal: AbortSignal.timeout(12 * 60_000), credentials: 'same-origin', cache: 'no-store', headers: token ? { Authorization: `Bearer ${token}` } : undefined, body: form });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(data.error || 'The marketing asset could not be uploaded.', res.status, data.code);
+  if (!res.ok) throw new ApiError(failureText(data, res.status, 'The marketing asset could not be uploaded.'), res.status, data.code);
   return data as { url: string; kind: 'video' | 'image'; posterUrl?: string | null };
 }
 
@@ -601,7 +616,7 @@ function finishBrowserSession(): void {
 }
 
 export async function localLogin(email: string, password: string) {
-  const res = await fetch('/api/auth/login', {
+  const res = await safeFetch('/api/auth/login', {
     method: 'POST',
     credentials: 'same-origin',
     cache: 'no-store',
@@ -609,7 +624,7 @@ export async function localLogin(email: string, password: string) {
     body: JSON.stringify({ email, password }),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(data.error || 'Login failed.', res.status, data.code);
+  if (!res.ok) throw new ApiError(failureText(data, res.status, 'Login failed.'), res.status, data.code);
   finishBrowserSession();
   return data as { user: { email: string; plan: string; creditsBalance: number } };
 }
@@ -617,64 +632,64 @@ export async function localLogin(email: string, password: string) {
 // Email/password sign-up with a 6-digit email verification code.
 // Step 1: send the code. No account exists until step 2 succeeds.
 export async function requestSignupCode(email: string, password: string) {
-  const res = await fetch('/api/auth/register/request-code', {
+  const res = await safeFetch('/api/auth/register/request-code', {
     method: 'POST',
     credentials: 'same-origin', cache: 'no-store',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(data.error || 'We could not send that code.', res.status, data.code);
+  if (!res.ok) throw new ApiError(failureText(data, res.status, 'We could not send that code.'), res.status, data.code);
   return data as { sent: true; expiresInSeconds: number };
 }
 
 // Step 2: confirm the code and create the account.
 export async function verifySignupCode(email: string, code: string) {
-  const res = await fetch('/api/auth/register/verify-code', {
+  const res = await safeFetch('/api/auth/register/verify-code', {
     method: 'POST',
     credentials: 'same-origin', cache: 'no-store',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, code }),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(data.error || 'That code did not work.', res.status, data.code);
+  if (!res.ok) throw new ApiError(failureText(data, res.status, 'That code did not work.'), res.status, data.code);
   finishBrowserSession();
   return data as { user: { email: string; plan: string; creditsBalance: number } };
 }
 
 export async function resendSignupCode(email: string) {
-  const res = await fetch('/api/auth/register/resend-code', {
+  const res = await safeFetch('/api/auth/register/resend-code', {
     method: 'POST',
     credentials: 'same-origin', cache: 'no-store',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email }),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(data.error || 'We could not resend that code.', res.status, data.code);
+  if (!res.ok) throw new ApiError(failureText(data, res.status, 'We could not resend that code.'), res.status, data.code);
   return data as { sent: true; expiresInSeconds: number };
 }
 
 export async function requestPasswordResetCode(email: string) {
-  const res = await fetch('/api/auth/forgot-password/request-code', {
+  const res = await safeFetch('/api/auth/forgot-password/request-code', {
     method: 'POST',
     credentials: 'same-origin', cache: 'no-store',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email }),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(data.error || 'We could not send a password reset code.', res.status, data.code);
+  if (!res.ok) throw new ApiError(failureText(data, res.status, 'We could not send a password reset code.'), res.status, data.code);
   return data as { sent: true; expiresInSeconds: number };
 }
 
 export async function resetPasswordWithCode(email: string, code: string, password: string) {
-  const res = await fetch('/api/auth/forgot-password/reset', {
+  const res = await safeFetch('/api/auth/forgot-password/reset', {
     method: 'POST',
     credentials: 'same-origin', cache: 'no-store',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, code, password }),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(data.error || 'We could not reset your password.', res.status, data.code);
+  if (!res.ok) throw new ApiError(failureText(data, res.status, 'We could not reset your password.'), res.status, data.code);
   finishBrowserSession();
   return data as { reset: true };
 }
@@ -695,27 +710,27 @@ export async function claimJob(jobId: string) {
 }
 
 export async function localRegister(email: string, password: string) {
-  const res = await fetch('/api/auth/register', {
+  const res = await safeFetch('/api/auth/register', {
     method: 'POST',
     credentials: 'same-origin', cache: 'no-store',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(data.error || 'Registration failed.', res.status, data.code);
+  if (!res.ok) throw new ApiError(failureText(data, res.status, 'Registration failed.'), res.status, data.code);
   finishBrowserSession();
   return data as { user: { email: string; plan: string; creditsBalance: number } };
 }
 
 export async function exchangeFirebaseToken(idToken: string) {
-  const res = await fetch('/api/auth/firebase', {
+  const res = await safeFetch('/api/auth/firebase', {
     method: 'POST',
     credentials: 'same-origin', cache: 'no-store',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ idToken }),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(data.error || 'Provider sign-in failed.', res.status, data.code);
+  if (!res.ok) throw new ApiError(failureText(data, res.status, 'Provider sign-in failed.'), res.status, data.code);
   finishBrowserSession();
   return data as { user: { email: string; plan: string; creditsBalance: number } };
 }

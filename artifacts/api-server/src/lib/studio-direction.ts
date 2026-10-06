@@ -321,12 +321,12 @@ const SCOPE_LABELS: Record<ProjectScope, string> = {
 export function inferProjectScope(brief: string | null | undefined, siteHint?: string | null): ProjectScope {
   const text = `${brief ?? ''} ${siteHint ?? ''}`.toLowerCase();
   const has = (pattern: RegExp) => pattern.test(text);
-  if (has(/\b(landscap|garden|courtyard|park|pool area|outdoor space)\b/)) return 'landscape';
+  if (has(/\b(landscap\w*|garden|courtyard|park|pool area|outdoor spaces?)\b/)) return 'landscape';
   if (has(/\b(extension|add (?:\w+ ){0,3}floors?|extra floors?|vertical extension|rooftop addition)\b/)) return 'extension';
-  if (has(/\b(facade|façade|renovat|refurbish|re-?clad|exterior (?:redesign|makeover)|repaint the building)\b/)) return 'facade_retrofit';
+  if (has(/\b(facade|façade|renovat\w*|refurbish\w*|re-?clad\w*|exterior (?:redesign|makeover)|repaint the building)\b/)) return 'facade_retrofit';
   if (has(/\b(storefront|shop ?front|shop sign|signage|shop window|entrance of the shop)\b/)) return 'storefront_exterior';
   if (has(/\b(inside|interior|fit-?out|layout|inside the (?:shop|unit|apartment|store)|existing (?:unit|apartment|shop|store|space|building)|rented|rent)\b/)) return 'fit_out_interior';
-  if (has(/\b(land|plot|empty|vacant|build (?:a|an|me)|new building|from scratch|ground-?up|construct)\b/)) return 'new_building';
+  if (has(/\b(land|plot|empty|vacant|build (?:a|an|me)|new building|from scratch|ground-?up|construct\w*)\b/)) return 'new_building';
   if (has(/\b(shop|store|boutique|clinic|salon|restaurant|cafe|café|office|gym|showroom)\b/) && has(/\b(apartment|unit|flat|building|mall|market|floor|ground floor)\b/)) return 'fit_out_interior';
   return 'new_building';
 }

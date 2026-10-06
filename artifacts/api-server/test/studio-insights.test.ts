@@ -14,6 +14,11 @@ test('the project scope is read from what the customer actually asked for', () =
   assert.equal(inferProjectScope('make me a clothes shop inside this apartment building'), 'fit_out_interior');
   assert.equal(inferProjectScope('design a clothes shop on this empty land'), 'new_building');
   assert.equal(inferProjectScope('renovate the facade of this building'), 'facade_retrofit');
+  // word endings count: renovation / refurbishment / landscaping / construction are read like their stems
+  assert.equal(inferProjectScope('plan the renovation of this old building'), 'facade_retrofit');
+  assert.equal(inferProjectScope('a refurbishment of the building'), 'facade_retrofit');
+  assert.equal(inferProjectScope('landscaping for this site'), 'landscape');
+  assert.equal(inferProjectScope('construction of a new villa'), 'new_building');
   assert.equal(inferProjectScope('new shop front and sign for my unit'), 'storefront_exterior');
   assert.equal(inferProjectScope('add two more floors'), 'extension');
   assert.equal(inferProjectScope('landscape the garden'), 'landscape');

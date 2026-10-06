@@ -38,33 +38,6 @@ function FastVideo({ url, className }: { url: string; className: string }) {
   );
 }
 
-export function GeneratedPhotoPicker({ photos, selectedGeneratedPhotoIds = [], onSelectionChange, compact = false }: { photos: JobAsset[]; selectedGeneratedPhotoIds?: string[]; onSelectionChange: (assetIds: string[]) => void; compact?: boolean }) {
-  const visiblePhotos = photos.filter((asset) => asset.type === "photo").slice(0, 8);
-  if (!visiblePhotos.length) return null;
-  return (
-    <div className={`rounded-[22px] border border-violet/20 bg-violet/[.045] ${compact ? "p-3" : "p-4 sm:p-5"}`}>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div><p className="text-sm font-semibold text-white">Choose the images to continue</p><p className="mt-1 text-[10px] text-text-dim">Select one or more. I’ll use exactly these finished images for the next video or edit.</p></div>
-        <span className="rounded-full border border-violet/20 bg-violet/10 px-2.5 py-1 text-[9px] font-semibold text-violet">{selectedGeneratedPhotoIds.length} selected</span>
-      </div>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {visiblePhotos.map((photo, index) => {
-          const generatedReferenceId = `generated-photo-${index + 1}`;
-          const selected = selectedGeneratedPhotoIds.includes(generatedReferenceId);
-          return <button key={photo.id} type="button" onClick={() => {
-            const next = selected ? selectedGeneratedPhotoIds.filter((id) => id !== generatedReferenceId) : [...selectedGeneratedPhotoIds, generatedReferenceId];
-            onSelectionChange(next);
-          }} className={`relative overflow-hidden rounded-xl border text-left transition ${selected ? "border-violet ring-2 ring-violet/30" : "border-white/[.08] hover:border-white/[.18]"}`}>
-            <ProgressiveImage src={photo.url} alt={`Generated photo ${index + 1}`} className="aspect-square w-full" sizes="(min-width: 640px) 25vw, 50vw" />
-            <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-1 text-[9px] font-semibold text-white">Photo {index + 1}</span>
-            {selected && <span className="absolute right-2 top-2 rounded-full bg-violet px-2 py-1 text-[9px] font-bold text-white">Selected</span>}
-          </button>;
-        })}
-      </div>
-    </div>
-  );
-}
-
 export function ResultGrid({ assets, onUnlock, sourceKind = "website", onGeneratedPhotoSelectionChange, selectedGeneratedPhotoIds = [] }: { assets: JobAsset[]; onUnlock: () => void; sourceKind?: "website" | "studio" | "upload"; onGeneratedPhotoSelectionChange?: (assetIds: string[]) => void; selectedGeneratedPhotoIds?: string[] }) {
   const videos = assets.filter((asset) => asset.type === "video");
   const photos = assets.filter((asset) => asset.type === "photo");
@@ -73,6 +46,17 @@ export function ResultGrid({ assets, onUnlock, sourceKind = "website", onGenerat
   const anyLocked = assets.some((asset) => !asset.downloadable);
   const [activeRatio, setActiveRatio] = useState<(typeof ASPECT_RATIOS)[number]>("16:9");
   const [activePhoto, setActivePhoto] = useState<JobAsset | null>(null);
+  // Choosing photos for a next video or edit happens on the photos shown below: each one appears once. Ids keep the
+  // "generated-photo-N" form the chat already understands.
+  const canSelect = Boolean(onGeneratedPhotoSelectionChange);
+  const [chosen, setChosen] = useState<string[]>(selectedGeneratedPhotoIds);
+  useEffect(() => { setChosen(selectedGeneratedPhotoIds); }, [selectedGeneratedPhotoIds.join("|")]);
+  function toggleChosen(photoNumber: number) {
+    const id = `generated-photo-${photoNumber}`;
+    const next = chosen.includes(id) ? chosen.filter((item) => item !== id) : [...chosen, id];
+    setChosen(next);
+    onGeneratedPhotoSelectionChange?.(next);
+  }
   const activeVideo = videos.find((video) => video.aspectRatio === activeRatio) ?? videos[videos.length - 1];
 
   useEffect(() => {
@@ -144,13 +128,12 @@ export function ResultGrid({ assets, onUnlock, sourceKind = "website", onGenerat
         </div>
       )}
 
-      {photos.length > 0 && <GeneratedPhotoPicker photos={photos} selectedGeneratedPhotoIds={selectedGeneratedPhotoIds} onSelectionChange={(next) => { onGeneratedPhotoSelectionChange?.(next); }} />}
 
       {photos.length > 0 && (
         <div className="overflow-hidden rounded-[22px] border border-white/[.09] bg-[#0c0917] p-4 shadow-[0_28px_70px_-42px_rgba(139,92,246,.75)] sm:p-5">
           <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-            <div><p className="text-sm font-semibold text-white">{photos.length === 4 ? "Your 4 generated photos are ready" : "Your generated photos are ready"}</p><p className="mt-1 text-[10px] text-text-dim">Open any image full size, download directly.</p></div>
-            <div className="flex items-center gap-2"><span className="rounded-full border border-mint/15 bg-mint/[.07] px-2.5 py-1 text-[9px] font-semibold text-mint">{photos.length} photos</span></div>
+            <div><p className="text-sm font-semibold text-white">{photos.length === 4 ? "Your 4 generated photos are ready" : "Your generated photos are ready"}</p><p className="mt-1 text-[10px] text-text-dim">{canSelect ? "Open any image full size, download it, or tick the ones to use for your next video or edit." : "Open any image full size, download directly."}</p></div>
+            <div className="flex items-center gap-2">{canSelect && chosen.length > 0 && <span className="rounded-full border border-violet/30 bg-violet/10 px-2.5 py-1 text-[9px] font-semibold text-violet">{chosen.length} selected</span>}<span className="rounded-full border border-mint/15 bg-mint/[.07] px-2.5 py-1 text-[9px] font-semibold text-mint">{photos.length} photos</span></div>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {photos.slice(0, 8).map((photo, index) => (
@@ -161,6 +144,7 @@ export function ResultGrid({ assets, onUnlock, sourceKind = "website", onGenerat
                   {/* Never covers the picture on a mouse: it appears on hover or focus. On a touchscreen it is a small pill in the corner. */}
                   <span className="pointer-events-none absolute bottom-2.5 right-2.5 rounded-full border border-white/10 bg-black/60 px-3 py-1.5 text-[10px] font-semibold text-white backdrop-blur transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 group-focus-within:opacity-100">View full size</span>
                 </button>
+                {canSelect && <button type="button" onClick={(event) => { event.stopPropagation(); toggleChosen(index + 1); }} aria-pressed={chosen.includes(`generated-photo-${index + 1}`)} aria-label={`Use photo ${index + 1} for the next video or edit`} className={`absolute bottom-2.5 left-2.5 z-20 inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-[10px] font-semibold backdrop-blur transition ${chosen.includes(`generated-photo-${index + 1}`) ? "border-violet bg-violet text-white" : "border-white/15 bg-black/55 text-white hover:bg-black/75"}`}>{chosen.includes(`generated-photo-${index + 1}`) ? "✓ Selected" : "Use for next step"}</button>}
                 {photo.downloadable && <button type="button" onClick={(event) => { event.stopPropagation(); downloadFile(photo); }} aria-label="Download photo" className="absolute right-2.5 top-2.5 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur transition hover:bg-black/75"><Download size={13} /></button>}
               </div>
             ))}

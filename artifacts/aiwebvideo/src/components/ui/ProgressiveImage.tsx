@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { imageSrcSet, imageVariant } from "@/lib/mediaVariants";
+import { hasVariants, imageSrcSet, imageVariant } from "@/lib/mediaVariants";
 
 /**
  * A picture that never shows an empty box. In order:
@@ -36,11 +36,14 @@ export function ProgressiveImage({
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
   const [tinyFailed, setTinyFailed] = useState(false);
+  // If a smaller copy cannot be served for any reason, the original is used: the picture must never depend on its preview.
+  const [originalOnly, setOriginalOnly] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const imageRef = useRef<HTMLImageElement>(null);
   const tiny = imageVariant(src, 32);
 
   useEffect(() => { setLoaded(false); setFailed(false); setTinyFailed(false); }, [src, attempt]);
+  useEffect(() => { setOriginalOnly(false); }, [src]);
   // A picture already in the browser cache can finish before React attaches onLoad.
   useEffect(() => {
     const image = imageRef.current;
@@ -48,6 +51,7 @@ export function ProgressiveImage({
   }, [src, attempt]);
 
   const retryUrl = attempt ? `${src}${src.includes("?") ? "&" : "?"}retry=${attempt}` : src;
+  const smaller = !full && !originalOnly && hasVariants(src);
 
   return (
     <div
@@ -72,15 +76,15 @@ export function ProgressiveImage({
       {!failed && (
         <img
           ref={imageRef}
-          src={full ? retryUrl : imageVariant(src, 960) ?? retryUrl}
-          srcSet={full ? undefined : imageSrcSet(attempt ? retryUrl : src)}
-          sizes={full ? undefined : sizes}
+          src={smaller ? imageVariant(retryUrl, 960) ?? retryUrl : retryUrl}
+          srcSet={smaller ? imageSrcSet(retryUrl) : undefined}
+          sizes={smaller ? sizes : undefined}
           alt={alt}
           decoding="async"
           loading={priority ? "eager" : "lazy"}
           fetchPriority={priority ? "high" : "auto"}
           onLoad={() => setLoaded(true)}
-          onError={() => setFailed(true)}
+          onError={() => { if (smaller) setOriginalOnly(true); else setFailed(true); }}
           className={`relative h-full w-full ${imgClassName}`}
           style={{ opacity: loaded ? 1 : 0, transition: "opacity 450ms ease-out" }}
         />

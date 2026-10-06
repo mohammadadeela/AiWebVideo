@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { Redirect, Route, Switch, Router as WouterRouter } from 'wouter';
 import { AppErrorBoundary } from '@/components/system/AppErrorBoundary';
+import { ConnectionBanner } from '@/components/system/ConnectionBanner';
 import { useReturnToOpener } from '@/hooks/use-return-to-opener';
 
 const HomePage = lazy(() => import('@/pages/HomePage').then((module) => ({ default: module.HomePage })));
@@ -114,6 +115,7 @@ function App() {
     <AppErrorBoundary>
       <div className="cinematic-site">
         <div className="page-backdrop" aria-hidden="true" />
+        <ConnectionBanner />
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
           <Suspense fallback={<PageLoader />}><Router /></Suspense>
         </WouterRouter>

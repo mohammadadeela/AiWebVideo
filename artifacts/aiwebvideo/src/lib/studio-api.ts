@@ -1,5 +1,6 @@
 import { getIdToken } from '@/lib/firebase/client';
-import { ApiError, request } from '@/lib/api-client';
+import { ApiError, request, safeFetch } from '@/lib/api-client';
+import { failureText } from '@/lib/userErrors';
 
 export type StudioAspectRatio = '16:9' | '9:16' | '1:1';
 export type StudioLayerType = 'video' | 'image' | 'audio' | 'text' | 'shape';
@@ -125,7 +126,7 @@ export function deleteStudioProject(projectId: string) {
 
 async function parseApiResponse<T>(response: Response, fallback: string) {
   const data = await response.json().catch(() => ({})) as T & { error?: string; code?: string };
-  if (!response.ok) throw new ApiError(data.error || fallback, response.status, data.code);
+  if (!response.ok) throw new ApiError(failureText(data, response.status, fallback), response.status, data.code);
   return data;
 }
 
@@ -142,7 +143,7 @@ export async function uploadStudioAssets(
   for (const [fileIndex, file] of files.entries()) {
     let uploadId: string | null = null;
     try {
-      const initResponse = await fetch(`/api/studio/upload/projects/${encodeURIComponent(projectId)}/init`, {
+      const initResponse = await safeFetch(`/api/studio/upload/projects/${encodeURIComponent(projectId)}/init`, {
         method: 'POST',
         credentials: 'same-origin',
         cache: 'no-store',
@@ -162,7 +163,7 @@ export async function uploadStudioAssets(
         if (options.signal?.aborted) throw new DOMException('Upload cancelled.', 'AbortError');
         const end = Math.min(file.size, offset + chunkBytes);
         const chunk = file.slice(offset, end);
-        const chunkResponse = await fetch(
+        const chunkResponse = await safeFetch(
           `/api/studio/upload/projects/${encodeURIComponent(projectId)}/${encodeURIComponent(init.uploadId)}/chunk?offset=${offset}`,
           {
             method: 'PUT',
@@ -202,7 +203,7 @@ export async function uploadStudioAssets(
         phase: 'processing',
       });
 
-      const completeResponse = await fetch(
+      const completeResponse = await safeFetch(
         `/api/studio/upload/projects/${encodeURIComponent(projectId)}/${encodeURIComponent(init.uploadId)}/complete`,
         {
           method: 'POST',

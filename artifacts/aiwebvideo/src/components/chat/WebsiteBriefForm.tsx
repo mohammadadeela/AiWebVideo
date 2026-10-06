@@ -38,7 +38,9 @@ import { normalizeWebsiteUrl } from "@/lib/websiteUrl";
 import { displayCredits, estimateRenderCredits } from "@/lib/credits";
 import { defaultModelFor, modelsFor, publicModel, type PublicModelId } from "@/lib/generationModels";
 import {
+  composeIdeaText,
   getIdeasForIntent,
+  splitIdeaText,
   referenceHintForIdea,
   type CreativeIdea,
   type IdeaContext,
@@ -539,13 +541,14 @@ export function WebsiteBriefForm({
 
   const ideaContext = useMemo<IdeaContext>(() => ({
     websiteUrl: activeMode === "website" ? url : undefined,
-    prompt: activeMode === "video" || activeMode === "scenario" ? prompt : brief,
+    // Only the person's own words steer which ideas are offered, never the master prompt an idea put there.
+    prompt: splitIdeaText(activeMode === "video" || activeMode === "scenario" ? prompt : brief).details,
     referenceNames: files.map((file) => file.name),
     hasReferences: files.length > 0,
   }), [activeMode, brief, files, prompt, url]);
 
   const masterIdeas = useMemo(
-    () => getIdeasForIntent(activeMode, ideaContext, 6),
+    () => getIdeasForIntent(activeMode, ideaContext, 8),
     [activeMode, ideaContext],
   );
 
@@ -652,10 +655,12 @@ export function WebsiteBriefForm({
 
   function applyMasterIdea(idea: CreativeIdea) {
     setSelectedIdea(idea);
-    // Every mode shows only the short idea text. The full direction stays hidden: studio modes send it as a
-    // separate field, website mode sends it behind a marker the server splits off.
-    if (activeMode === "video" || activeMode === "scenario") setPrompt(idea.displayText);
-    else setBrief(idea.displayText);
+    // The chat box receives the idea's full master prompt (readable and editable). Anything the person had
+    // already written stays underneath it. Only the feature's safety text travels hidden (see below).
+    const own = splitIdeaText(activeMode === "video" || activeMode === "scenario" ? prompt : brief).details;
+    const text = composeIdeaText(idea, own);
+    if (activeMode === "video" || activeMode === "scenario") setPrompt(text);
+    else setBrief(text);
     setCompactPanel(null);
     setError(null);
     void trackStudioEvent({ event: "idea_clicked", ideaId: idea.id, feature: idea.feature });
@@ -860,7 +865,7 @@ export function WebsiteBriefForm({
         void onSubmit(
           // No address but photos: the person's own website photos ARE the source.
           url.trim() ? normalizeWebsiteUrl(url) : "",
-          withHiddenDirection(brief.trim(), selectedIdea?.masterPrompt),
+          withHiddenDirection(brief.trim(), selectedIdea?.guardrail),
           { ...settings, outputQuality: safeQuality, audioMode: safeAudioMode },
           files,
         );
@@ -952,7 +957,7 @@ export function WebsiteBriefForm({
       modelId: settings.modelId,
       productUrl,
       productImageUrls: productImages,
-      studioDirection: selectedIdea ? selectedIdea.masterPrompt : undefined,
+      studioDirection: selectedIdea ? selectedIdea.guardrail : undefined,
       drawing: cadMode ? drawingAttachment.drawing?.file : undefined,
       // exactly the units the customer was shown, so what they checked is what the server uses
       drawingUnits: cadMode ? drawingAttachment.drawing?.preview?.units.choice : undefined,
@@ -1707,7 +1712,7 @@ export function WebsiteBriefForm({
             <div className="mb-2 flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[12px] font-semibold text-white">Pick a creative direction</p>
-                <p className="mt-0.5 text-[11px] text-white/45">Add your own words to change anything.</p>
+                <p className="mt-0.5 text-[11px] text-white/45">Choose one and a full master prompt is written in the box. Edit it any way you like.</p>
               </div>
               <div className="flex shrink-0 items-center gap-1.5">
                 <button type="button" onClick={() => setCompactPanel(null)} aria-label="Close ideas" className="grid h-7 w-7 place-items-center rounded-lg text-text-dim hover:bg-white/5 hover:text-white"><X size={12} /></button>

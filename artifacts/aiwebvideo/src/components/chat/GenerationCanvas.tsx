@@ -542,7 +542,7 @@ export function GenerationCanvas({
                     </div>
                   )}
 
-                  {(generatedVideo || generatedPhotos.length > 0) && (
+                  {!settled && (generatedVideo || generatedPhotos.length > 0) && (
                     <div>
                       <p className="mb-1.5 text-[8px] font-semibold text-white/45">Live output</p>
                       {generatedVideo ? (

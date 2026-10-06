@@ -14,12 +14,13 @@ test('the browser never adds the master prompt: it sends the customer\'s words p
   assert.match(widget, /templateId: request\.templateId/);
 });
 
-test('idea chips put only their short text in the box in every mode', async () => {
+test('idea chips put the full master prompt in the box in every mode, and only the safety text travels hidden', async () => {
   const form = await frontend('components/chat/WebsiteBriefForm.tsx');
-  assert.match(form, /setPrompt\(idea\.displayText\)/);
-  assert.match(form, /setBrief\(idea\.displayText\)/);
-  assert.doesNotMatch(form, /setPrompt\(idea\.masterPrompt\)|setBrief\(idea\.masterPrompt\)/);
-  assert.match(form, /studioDirection: selectedIdea \? selectedIdea\.masterPrompt : undefined/);
+  assert.match(form, /setPrompt\(text\)/);
+  assert.match(form, /setBrief\(text\)/);
+  assert.match(form, /composeIdeaText\(idea, own\)/);
+  assert.doesNotMatch(form, /setPrompt\(idea\.displayText\)|setBrief\(idea\.displayText\)/);
+  assert.match(form, /studioDirection: selectedIdea \? selectedIdea\.guardrail : undefined/);
 });
 
 test('a product link is optional, read automatically and is enough without uploaded photos', async () => {
