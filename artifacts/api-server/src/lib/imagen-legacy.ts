@@ -8,6 +8,7 @@ import { query } from './pool.js';
 import { GEMINI_COST_CATALOG, recordGenerationCost } from './costs.js';
 import { GENERATION_MODELS, imageModelProviderCostPerImage } from './generation-models.js';
 import { runQueuedProviderCall } from './provider-queue.js';
+import { prepareImageVariants } from './media-variants.js';
 import {
   ARCHITECTURE_MASTER_DIRECTION,
   ARCHITECTURE_VIEW_ROLES,
@@ -16,6 +17,7 @@ import {
   composeStudioBrief,
   extractProjectScope,
   viewRolesForScope,
+  hasRealPhotoAnchor,
 } from './studio-direction.js';
 
 const execFileAsync = promisify(execFile);
@@ -74,6 +76,7 @@ async function masterGeneratedImage(
   await fs.rm(source, { force: true }).catch(() => {});
   const stat = await fs.stat(output);
   if (!stat.size) throw new Error('Generated image mastering produced an empty file.');
+  prepareImageVariants(jobId, finalFilename);
   return `/api/assets/${jobId}/${finalFilename}`;
 }
 
@@ -123,7 +126,7 @@ export function buildArchitecturalImagePrompt(input: {
 }) {
   // A shop fit-out is shown from inside, a storefront from the street, a new building from outside:
   // the project scope in the directed brief decides which four camera views make up the set.
-  const roles = viewRolesForScope(extractProjectScope(input.brief), input.kind);
+  const roles = viewRolesForScope(extractProjectScope(input.brief), input.kind, hasRealPhotoAnchor(input.brief));
   const role = roles[input.sceneIndex % roles.length];
   const userBrief = input.brief?.trim() || (input.kind === 'architecture'
     ? 'Design a well-proportioned contemporary building that suits the site.'

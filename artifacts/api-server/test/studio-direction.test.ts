@@ -146,3 +146,26 @@ test('website jobs get the chosen direction added behind the customer\'s words (
   // no direction chosen: untouched
   assert.equal(composeForWebsite({ studioKind: null, userBrief: 'plain' }), 'plain');
 });
+
+
+test('real photos of the place make every view keep the photo\'s camera, and the context says the photo is to be edited', async () => {
+  const mod = await import('../src/lib/studio-direction.js');
+  const withPhoto = mod.architectureContext({ ownPhotos: 1, targetKind: 'unit' });
+  assert.ok(withPhoto.includes(mod.REAL_PHOTOS_MARKER));
+  assert.match(withPhoto, /photograph to EDIT/);
+  assert.ok(mod.hasRealPhotoAnchor(withPhoto));
+  // no photo at all: nothing claims there is one, and the usual camera plan stays
+  const without = mod.architectureContext({ location: 'Somewhere', targetKind: 'land' });
+  assert.ok(!without.includes(mod.REAL_PHOTOS_MARKER));
+  assert.ok(!mod.hasRealPhotoAnchor(without));
+  assert.equal(mod.viewRolesForScope('storefront_exterior', 'architecture', false), mod.STOREFRONT_VIEW_ROLES);
+  // with a photo, every exterior scope uses the same-camera plan
+  for (const scope of ['storefront_exterior', 'facade_retrofit', 'new_building', 'extension', 'landscape'] as const) {
+    assert.equal(mod.viewRolesForScope(scope, 'architecture', true), mod.ANCHORED_VIEW_ROLES);
+  }
+  // an interior fit-out cannot keep a street camera
+  assert.equal(mod.viewRolesForScope('fit_out_interior', 'architecture', true), mod.INTERIOR_VIEW_ROLES);
+  for (const role of mod.ANCHORED_VIEW_ROLES) assert.match(role, /SAME|same/);
+  assert.match(mod.ARCHITECTURE_MASTER_DIRECTION, /REAL PHOTO FIDELITY/);
+  assert.match(mod.ARCHITECTURE_MASTER_DIRECTION, /PHOTO EDIT, not a new picture/);
+});

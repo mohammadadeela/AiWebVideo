@@ -44,7 +44,12 @@ export interface ArchitectureInput {
   nearbyPhotoCredit?: string;
   /** Set by the server when a copy of the picture with the marker was attached. Never from the page. */
   targetMarked?: boolean;
+  /** Set by the server: how many of the customer's own photos or screenshots were attached. Never from the page. */
+  ownPhotos?: number;
 }
+
+/** Written into the site inputs when real photos of the place are attached; the camera plan reads it. */
+export const REAL_PHOTOS_MARKER = '- REAL PHOTOS OF THE PLACE ARE ATTACHED';
 
 export const TARGET_KINDS = ['building', 'unit', 'floor', 'land'] as const;
 export type TargetKind = (typeof TARGET_KINDS)[number];
@@ -148,6 +153,14 @@ TARGET SELECTION
 - When the site inputs state a TARGET (the whole building, one shop or unit, one floor, or empty land) it is the customer's explicit choice and overrides any guess about what is being designed. Design exactly that target and keep everything else in the references unchanged: the neighbouring buildings, the other floors, the facade rhythm and the street.
 - A reference labelled TARGET MARKER only shows where the customer pointed. Never draw the marker, its box or a crosshair in any result.
 
+REAL PHOTO FIDELITY (applies whenever the site inputs say real photos of the place are attached)
+- This is a PHOTO EDIT, not a new picture. The result must look like the SAME real photograph taken after the work was built: the same position, camera height, angle, lens and framing, the same light, weather and shadows. Someone who knows the street must recognise it at once.
+- Keep exactly as photographed, pixel for pixel in spirit: every neighbouring shop and building, their signs and lettering (Arabic included), shutters, awnings, balconies, air-conditioners, cables, poles, pavement, kerb, road, parked cars, trees and sky. Never tidy, clean, restyle, rebuild, move or "improve" anything outside the target.
+- Keep the real structure around the target: the wall material and texture, the storey heights, the building outline and its joint with the neighbours, and the position and width of the real openings. The new design fills the real opening(s) of the target at the same scale. Do not widen, heighten, mirror or re-proportion the building.
+- Replace the target completely (the old shutters, old sign, old awning, old door) with the new design in the same place. Nothing of the old target survives except what the customer asks to keep.
+- Never move the camera to a "better" angle: no straight-on symmetric elevation, no wider lens, no cinematic re-framing, unless THIS image's camera note says so. If the output shape differs from the photo, extend the edges with the true continuation of the same scene.
+- Interface marks inside a screenshot (street-view arrows, circles, buttons, the Google logo, copyright text, a red marker box) are not part of the place: leave them out of the result.
+
 DIMENSIONS
 - Numeric inputs are authoritative and in metres. The building footprint must fit inside the plot width x depth minus the setback on every side. Never exceed the stated number of floors. Keep floor-to-floor height realistic (about 3.0-3.5 m residential, 3.5-4.5 m commercial) so the overall height matches the floor count.
 - Never claim survey-grade accuracy. When dimensions are marked as estimated, keep proportions plausible and never draw dimension lines or labels.
@@ -162,7 +175,7 @@ QUALITY
 - Photoreal architectural photography: correct perspective with vertical lines kept vertical, physically plausible light and shadows consistent with the site's orientation, believable materials with real joints and edges, landscaping that belongs to the site, the building firmly grounded on the terrain, and people or cars only at correct scale and sparingly.
 
 AVOID
-- Floating or warped geometry, extra floors, a building outside the plot, inconsistent windows, impossible cantilevers, fake construction drawings, invented signage or any lettering, watermarks, text overlays, dimension lines and inset mini-maps.`;
+- Floating or warped geometry, extra floors, a building outside the plot, inconsistent windows, impossible cantilevers, fake construction drawings, invented signage or lettering (only the customer's own shop name, spelled exactly as in their brief, may appear on their own sign; every other sign stays as it is in the photo), watermarks, text overlays, dimension lines and inset mini-maps.`;
 
 function metres(value: number) {
   return `${Number(value.toFixed(2))} m`;
@@ -179,6 +192,10 @@ export function architectureContext(input: ArchitectureInput | null | undefined)
   }
   if (input.mapUrl) lines.push(`- Google Maps link supplied by the customer: ${input.mapUrl}`);
   lines.push(...describeTarget(input));
+  const realPhotos = (input.ownPhotos ?? 0) + (input.streetViewViews ?? 0) + (input.nearbyPhotoCredit ? 1 : 0);
+  if (realPhotos > 0) {
+    lines.push(`${REAL_PHOTOS_MARKER} (${realPhotos}). The first reference of the customer's own is the photograph to EDIT. Follow REAL PHOTO FIDELITY: same camera, same neighbours, same light, only the target changes`);
+  }
   if (input.streetViewViews && input.streetViewViews > 0) {
     lines.push(`- Google Street View: ${input.streetViewViews} real street-level photo${input.streetViewViews === 1 ? '' : 's'} of this exact street are attached (${input.streetViewDate ? `captured ${input.streetViewDate}` : 'capture date unknown'}), the first looking straight at the plot. They show the real road, pavement, neighbouring facades, heights, materials, trees and street furniture`);
     lines.push('- The Street View photos can be older than the site today. If the customer\'s own photos or words disagree with them, the customer wins; otherwise treat them as the truth about the street');
@@ -443,8 +460,25 @@ export const STOREFRONT_VIEW_ROLES = [
   'VIEW 4 — INSIDE-OUT VIEW from just inside the entrance looking out through the glazing to the street.',
 ] as const;
 
-export function viewRolesForScope(scope: ProjectScope | null, kind: 'interior-design' | 'architecture') {
+/**
+ * With a real photo of the place attached, every view keeps THAT camera. The set varies only the framing distance and the
+ * hour, so each image is recognisably the customer's own street and none invents a new angle the references cannot support.
+ */
+export const ANCHORED_VIEW_ROLES = [
+  'VIEW 1 — THE SAME PHOTO, EDITED: exactly the camera of the attached real photo (same position, height, angle, lens and framing) in the same light and weather. Only the target is redesigned; everything else is as photographed.',
+  'VIEW 2 — SAME CAMERA, CLOSER: the same position and direction as VIEW 1, framed tighter on the target (frontage, entrance and glazing). The neighbours stay visible at the edges, exactly as photographed.',
+  'VIEW 3 — SAME CAMERA, DUSK: the same position, direction and framing as VIEW 1 at blue hour. The new design is lit warmly from inside; the neighbours and the street are as photographed, now under dusk and street light.',
+  'VIEW 4 — SAME CAMERA, BUSINESS OPEN: the same position, direction and framing as VIEW 1 in the same daylight, with the new design open and in use (door open, a few customers). No readable lettering on any added object.',
+] as const;
+
+/** True when the directed brief says real photos of the place are attached. */
+export function hasRealPhotoAnchor(brief: string | null | undefined): boolean {
+  return typeof brief === 'string' && brief.includes(REAL_PHOTOS_MARKER);
+}
+
+export function viewRolesForScope(scope: ProjectScope | null, kind: 'interior-design' | 'architecture', anchored = false) {
   if (scope === 'fit_out_interior') return INTERIOR_VIEW_ROLES;
+  if (anchored && kind === 'architecture') return ANCHORED_VIEW_ROLES;
   if (scope === 'storefront_exterior') return STOREFRONT_VIEW_ROLES;
   return kind === 'architecture' ? ARCHITECTURE_VIEW_ROLES : INTERIOR_VIEW_ROLES;
 }

@@ -222,11 +222,12 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
           streetViewDate: z.string().max(24).optional(),
           streetViewViews: z.number().int().min(0).max(6).optional(),
           nearbyPhotoCredit: z.string().max(60).optional(),
+          ownPhotos: z.number().int().min(0).max(10).optional(),
         }).parse(architectureInput)
       : null;
     // Whether Street View was attached, and from when, is the server's to say: never taken from the page.
     if (architecture) {
-      delete architecture.streetViewDate; delete architecture.streetViewViews; delete architecture.targetMarked; delete architecture.nearbyPhotoCredit;
+      delete architecture.streetViewDate; delete architecture.streetViewViews; delete architecture.targetMarked; delete architecture.nearbyPhotoCredit; delete architecture.ownPhotos;
       // The target: a kind is needed for the rest to mean anything, a tap needs both coordinates, and a level only applies to a unit or a floor.
       if (!architecture.targetKind) {
         delete architecture.targetLevel; delete architecture.targetX; delete architecture.targetY; delete architecture.targetSource; delete architecture.targetPhoto;
@@ -399,6 +400,8 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
       pages.push({ url: `upload://${job.id}/${index}`, title: uploadPhotoLabel(index, file.originalname), screenshotUrl });
       if (architecture?.targetSource === 'photo' && architecture.targetPhoto === index) photoTappedOn = jpeg;
     }
+
+    if (architecture) architecture.ownPhotos = pages.length || undefined;
 
     // Architecture: the customer tapped on one of their own photos. A marked copy goes next to the clean photo (it is a locating aid only).
     if (studioKind === 'architecture' && architecture?.targetKind && architecture.targetSource === 'photo' && typeof architecture.targetX === 'number' && typeof architecture.targetY === 'number') {

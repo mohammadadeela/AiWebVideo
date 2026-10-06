@@ -3,6 +3,7 @@ import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Compass, Camera, Ext
 import { getNearbyPhotos, getStreetView, streetViewImageSrc, type NearbyPhoto, type NearbyPhotosInfo, type StreetViewInfo } from "@/lib/api-client";
 import { DEFAULT_FOV, DEFAULT_PITCH, isMarked, normalizeHeading, type SiteSelection } from "@/lib/siteTarget";
 import { streetViewEmbedUrl } from "@/lib/mapPreview";
+import { CaptureError, canCaptureTab, captureElementAsFile, captureFailureMessage } from "@/lib/captureView";
 import { TapSurface, TargetKindPicker } from "./SiteTargetControls";
 
 const COMPASS = ["north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west"];
@@ -145,7 +146,7 @@ function NearbyPicker({ photos, value, onChange, latitude, longitude, hasOwnPhot
  * the exact shop, floor, building or empty plot, and says what it is. The design is made from exactly this view, plus a copy
  * with the tapped spot marked. Without Street View they can tap on their own photo or screenshot instead.
  */
-export function SiteStreetView({ latitude, longitude, mapSrc, value, onChange, photos, onAddPhoto }: {
+export function SiteStreetView({ latitude, longitude, mapSrc, value, onChange, photos, onAddPhoto, onCapture }: {
   latitude: number;
   longitude: number;
   mapSrc: string;
@@ -155,6 +156,8 @@ export function SiteStreetView({ latitude, longitude, mapSrc, value, onChange, p
   photos: File[];
   /** Opens the page's photo picker (used when Street View pictures are not offered by the server). */
   onAddPhoto?: () => void;
+  /** Receives the picture taken by "Capture this view" (the page adds it to the customer's photos). */
+  onCapture?: (file: File) => void;
 }) {
   const [info, setInfo] = useState<StreetViewInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -163,6 +166,13 @@ export function SiteStreetView({ latitude, longitude, mapSrc, value, onChange, p
   const [mapIsMain, setMapIsMain] = useState(false);
   const [nearby, setNearby] = useState<NearbyPhotosInfo | null>(null);
   const [nearbyLoading, setNearbyLoading] = useState(false);
+  // "Capture this view": one picture of Google's 360° frame, taken by the browser's tab capture.
+  const captureFrameRef = useRef<HTMLDivElement>(null);
+  const pickerRef = useRef<HTMLDivElement>(null);
+  const [capturing, setCapturing] = useState(false);
+  const [captureNote, setCaptureNote] = useState<{ ok: boolean; text: string } | null>(null);
+  const canCapture = useMemo(() => Boolean(onCapture) && canCaptureTab(), [onCapture]);
+  const justCapturedRef = useRef(false);
   // The picture on screen stays until the next one has fully loaded, so turning never flashes empty.
   const [shownSrc, setShownSrc] = useState<string | null>(null);
   const [drag, setDrag] = useState<{ dx: number; dy: number } | null>(null);
@@ -193,6 +203,35 @@ export function SiteStreetView({ latitude, longitude, mapSrc, value, onChange, p
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, [latitude, longitude]);
+
+  async function captureThisView() {
+    const frame = captureFrameRef.current;
+    if (!frame || !onCapture || capturing) return;
+    setCaptureNote(null);
+    setCapturing(true);   // hides the "drag to look around" label so it is not part of the picture
+    try {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+      const file = await captureElementAsFile(frame, `street-view-${new Date().toISOString().replace(/[:.]/g, "-")}.jpg`);
+      justCapturedRef.current = true;
+      // Mark on the new picture straight away: it is the next photo in the list.
+      onChange({ ...value, source: "photo", photo: Math.min(photos.length, 9), x: null, y: null });
+      onCapture(file);
+      setCaptureNote({ ok: true, text: "View captured. Now tap the exact place on the picture below." });
+    } catch (error) {
+      justCapturedRef.current = false;
+      setCaptureNote({ ok: false, text: captureFailureMessage(error instanceof CaptureError ? error.reason : "failed") });
+    } finally {
+      setCapturing(false);
+    }
+  }
+
+  // After a capture, bring the picture to tap on into view so the next step is obvious.
+  useEffect(() => {
+    if (!justCapturedRef.current || photos.length === 0) return;
+    justCapturedRef.current = false;
+    const timer = window.setTimeout(() => pickerRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 120);
+    return () => window.clearTimeout(timer);
+  }, [photos.length]);
 
   const available = Boolean(info?.available && info.panoId) && !pictureFailed;
   const photoMode = value.source === "photo" && photos.length > 0;
@@ -415,8 +454,8 @@ export function SiteStreetView({ latitude, longitude, mapSrc, value, onChange, p
           ) : (
             // Street View pictures are not switched on in this site, so Google's own 360° viewer is shown right under the map.
             <div data-testid="street-view-embed">
-              <Steps looked={photos.length > 0} marked={photos.length > 0} said={marked && value.source === "photo"} labels={["Look around in 360°", "Add a screenshot of the view", "Tap the exact place"]} />
-              <div className="relative aspect-[4/3] w-full overflow-hidden bg-[#05030f]">
+              <Steps looked={photos.length > 0} marked={photos.length > 0} said={marked && value.source === "photo"} labels={["Look around in 360°", canCapture ? "Capture the view" : "Add a screenshot of the view", "Tap the exact place"]} />
+              <div ref={captureFrameRef} className="relative aspect-[4/3] w-full overflow-hidden bg-[#05030f]">
                 <iframe
                   title="Google Street View of the street, 360 degrees. Drag to look around."
                   src={streetViewEmbedUrl(latitude, longitude)}
@@ -425,17 +464,36 @@ export function SiteStreetView({ latitude, longitude, mapSrc, value, onChange, p
                   referrerPolicy="no-referrer"
                   className="absolute inset-0 h-full w-full border-0"
                 />
-                <p className="pointer-events-none absolute left-2 top-2 z-10 rounded-md bg-black/70 px-2 py-1 text-[11px] font-semibold text-white">Google Street View · drag to look around</p>
+                {!capturing && <p className="pointer-events-none absolute left-2 top-2 z-10 rounded-md bg-black/70 px-2 py-1 text-[11px] font-semibold text-white">Google Street View · drag to look around</p>}
               </div>
               <div className="space-y-2 px-3 pt-2.5 text-[11.5px] leading-4 text-white/65">
-                <p>
-                  Turn to the exact shop, floor or plot you mean, then <span className="font-semibold text-white">take a screenshot of that view</span>
-                  {" "}(Windows: Win + Shift + S · Mac: Shift + Command + 4 · phone: the screenshot buttons) and add it. Then tap exactly what you mean on it. The design is made from your screenshot.
-                </p>
+                {canCapture ? (
+                  <p>
+                    Turn to the exact shop, floor or plot you mean, then press <span className="font-semibold text-white">Capture this view</span>.
+                    Your browser asks once to share this tab: allow it. One picture is taken and sharing stops at once. Then tap exactly what you mean on it.
+                  </p>
+                ) : (
+                  <p>
+                    Turn to the exact shop, floor or plot you mean, then <span className="font-semibold text-white">take a screenshot of that view</span>
+                    {" "}(Windows: Win + Shift + S · Mac: Shift + Command + 4 · phone: the screenshot buttons) and add it. Then tap exactly what you mean on it. The design is made from your screenshot.
+                  </p>
+                )}
                 <div className="flex flex-wrap items-center gap-2">
+                  {canCapture && (
+                    <button
+                      type="button"
+                      onClick={() => void captureThisView()}
+                      disabled={capturing}
+                      data-testid="capture-view"
+                      className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-violet to-blue-500 px-4 text-[13px] font-bold text-white transition active:scale-[.98] disabled:opacity-70"
+                    >
+                      {capturing ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Camera size={16} aria-hidden="true" />}
+                      {capturing ? "Capturing…" : photos.length ? "Capture this view again" : "Capture this view"}
+                    </button>
+                  )}
                   {onAddPhoto && (
-                    <button type="button" onClick={onAddPhoto} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-violet to-blue-500 px-4 text-[13px] font-bold text-white transition active:scale-[.98]">
-                      <Camera size={16} aria-hidden="true" /> {photos.length ? "Add another screenshot" : "Add my screenshot"}
+                    <button type="button" onClick={onAddPhoto} className={canCapture ? "inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/20 px-3.5 text-[12.5px] font-semibold text-white/85 transition hover:border-white/40 active:scale-[.98]" : "inline-flex min-h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-violet to-blue-500 px-4 text-[13px] font-bold text-white transition active:scale-[.98]"}>
+                      <ImagePlus size={16} aria-hidden="true" /> {canCapture ? "Add my own screenshot" : photos.length ? "Add another screenshot" : "Add my screenshot"}
                     </button>
                   )}
                   <span className="text-[11.5px] text-white/55">or paste it (Ctrl/Cmd + V)</span>
@@ -443,6 +501,9 @@ export function SiteStreetView({ latitude, longitude, mapSrc, value, onChange, p
                     Bigger in Google Maps <ExternalLink size={11} aria-hidden="true" />
                   </a>
                 </div>
+                {captureNote && (
+                  <p role={captureNote.ok ? "status" : "alert"} data-testid="capture-note" className={`rounded-lg border px-2.5 py-2 ${captureNote.ok ? "border-mint/40 bg-mint/[.08] text-mint" : "border-[#f5b942]/50 bg-[#2a2110] text-amber-100"}`}>{captureNote.text}</p>
+                )}
                 {nearby?.reason && (
                   <p role="note" className="rounded-lg border border-[#f5b942]/50 bg-[#2a2110] px-2.5 py-2 text-amber-100">
                     Only you see this: free street photos are off ({nearby.reason}). Create a free token at mapillary.com/dashboard/developers, set <span className="font-mono">MAPILLARY_ACCESS_TOKEN</span>, then restart the server. Customers will then pick from nearby street photos here.
@@ -465,7 +526,7 @@ export function SiteStreetView({ latitude, longitude, mapSrc, value, onChange, p
       )}
 
       {showPhotoPicker && (
-        <div className="px-3 pt-3" data-testid="photo-target">
+        <div ref={pickerRef} className="px-3 pt-3" data-testid="photo-target">
           <p className="text-[12px] font-semibold text-white">Tap the exact place on your photo</p>
           {photos.length > 1 && (
             <div className="mt-2 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Which photo">

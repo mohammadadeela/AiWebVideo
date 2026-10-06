@@ -3,11 +3,39 @@ import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/app-button";
 import type { JobAsset } from "./types";
 import { CheckCircle2, Clapperboard, Download, Images, Loader2, X } from "lucide-react";
+import { ProgressiveImage } from "@/components/ui/ProgressiveImage";
+import { imageVariant, videoPoster } from "@/lib/mediaVariants";
 
 const ASPECT_RATIOS = ["9:16", "1:1", "16:9"] as const;
 
 function videoPreviewUrl(url: string) {
   return `${url.split("#", 1)[0]}#t=0.001`;
+}
+
+/** The video shows its first frame at once (poster) and says so when it is buffering, instead of a black box. */
+function FastVideo({ url, className }: { url: string; className: string }) {
+  const [ready, setReady] = useState(false);
+  const [buffering, setBuffering] = useState(false);
+  useEffect(() => { setReady(false); setBuffering(false); }, [url]);
+  const poster = videoPoster(url);
+  return (
+    <div className="relative">
+      {poster && !ready && <img src={poster} alt="" aria-hidden="true" decoding="async" fetchPriority="high" className="pointer-events-none absolute inset-0 h-full w-full object-contain blur-sm" style={{ transform: "scale(1.02)" }} onError={(event) => { event.currentTarget.style.display = "none"; }} />}
+      <video
+        src={videoPreviewUrl(url)}
+        poster={poster ?? undefined}
+        controls
+        playsInline
+        preload="auto"
+        onLoadedData={() => setReady(true)}
+        onCanPlay={() => { setReady(true); setBuffering(false); }}
+        onWaiting={() => setBuffering(true)}
+        onPlaying={() => setBuffering(false)}
+        className={className}
+      />
+      {buffering && <span role="status" aria-label="Buffering" className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/55 p-3 text-white backdrop-blur"><Loader2 size={20} className="animate-spin" /></span>}
+    </div>
+  );
 }
 
 export function GeneratedPhotoPicker({ photos, selectedGeneratedPhotoIds = [], onSelectionChange, compact = false }: { photos: JobAsset[]; selectedGeneratedPhotoIds?: string[]; onSelectionChange: (assetIds: string[]) => void; compact?: boolean }) {
@@ -27,7 +55,7 @@ export function GeneratedPhotoPicker({ photos, selectedGeneratedPhotoIds = [], o
             const next = selected ? selectedGeneratedPhotoIds.filter((id) => id !== generatedReferenceId) : [...selectedGeneratedPhotoIds, generatedReferenceId];
             onSelectionChange(next);
           }} className={`relative overflow-hidden rounded-xl border text-left transition ${selected ? "border-violet ring-2 ring-violet/30" : "border-white/[.08] hover:border-white/[.18]"}`}>
-            <img src={photo.url} alt={`Generated photo ${index + 1}`} className="aspect-square w-full object-cover" />
+            <ProgressiveImage src={photo.url} alt={`Generated photo ${index + 1}`} className="aspect-square w-full" sizes="(min-width: 640px) 25vw, 50vw" />
             <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-1 text-[9px] font-semibold text-white">Photo {index + 1}</span>
             {selected && <span className="absolute right-2 top-2 rounded-full bg-violet px-2 py-1 text-[9px] font-bold text-white">Selected</span>}
           </button>;
@@ -51,7 +79,8 @@ export function ResultGrid({ assets, onUnlock, sourceKind = "website", onGenerat
     for (const photo of photos) {
       const image = new window.Image();
       image.decoding = "async";
-      image.src = photo.url;
+      // The right-sized copy, not the 4K master: the full-size viewer loads that only when it is opened.
+      image.src = imageVariant(photo.url, 960) ?? photo.url;
     }
   }, [photos.map((photo) => photo.url).join("|")]);
 
@@ -101,7 +130,7 @@ export function ResultGrid({ assets, onUnlock, sourceKind = "website", onGenerat
             <span className="flex items-center gap-1.5 rounded-full border border-white/[.07] bg-white/[.035] px-2.5 py-1 text-[8px] font-semibold uppercase tracking-wider text-text-muted"><Clapperboard size={10} className="text-violet" /> AiWebVideo</span>
           </div>
           <div className="relative min-h-56 overflow-hidden bg-black">
-            <video key={activeVideo.id} src={videoPreviewUrl(activeVideo.url)} controls playsInline preload="auto" className="max-h-[62vh] min-h-56 w-full bg-black object-contain" />
+            <FastVideo key={activeVideo.id} url={activeVideo.url} className="max-h-[62vh] min-h-56 w-full bg-black object-contain" />
             <span className="pointer-events-none absolute bottom-14 right-3 rounded-md bg-black/55 px-2 py-1 text-[9px] font-bold tracking-wide text-white/90 backdrop-blur">AiWebVideo</span>
             {activeVideo.downloadable && <button type="button" onClick={() => downloadFile(activeVideo)} aria-label="Download video" className="absolute right-2.5 top-2.5 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur transition hover:bg-black/75"><Download size={16} /></button>}
           </div>
@@ -125,13 +154,12 @@ export function ResultGrid({ assets, onUnlock, sourceKind = "website", onGenerat
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {photos.slice(0, 8).map((photo, index) => (
-              <div key={photo.id} className={`group relative ${photo.aspectRatio === "9:16" ? "aspect-[9/16]" : photo.aspectRatio === "16:9" ? "aspect-video" : "aspect-square"} min-h-64 overflow-hidden rounded-[20px] border border-white/[.1] bg-[linear-gradient(145deg,#171229,#0b0912)]`}>
-                <button type="button" onClick={() => photo.downloadable ? setActivePhoto(photo) : onUnlock()} className="absolute inset-0 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet">
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_35%_25%,rgba(139,92,246,.22),transparent_36%)]" />
-                  <div className="generation-soft-flash pointer-events-none absolute inset-0" />
-                  <img src={photo.url} alt={`Generated photo ${index + 1}`} loading="eager" decoding="async" fetchPriority={index < 2 ? "high" : "auto"} style={{ opacity: 0 }} onLoad={(event) => { event.currentTarget.style.opacity = "1"; }} className="relative h-full w-full object-cover transition-opacity duration-500" />
-                  <span className="absolute left-2.5 top-2.5 rounded-full border border-white/10 bg-black/45 px-2.5 py-1 text-[9px] font-semibold text-white backdrop-blur">Photo {index + 1}</span>
-                  <span className="absolute inset-x-3 bottom-3 rounded-xl border border-white/10 bg-black/55 px-3 py-2 text-center text-[10px] font-semibold text-white backdrop-blur transition group-hover:bg-black/70">View full size</span>
+              <div key={photo.id} className={`group relative min-w-0 ${photo.aspectRatio === "9:16" ? "aspect-[9/16]" : photo.aspectRatio === "16:9" ? "aspect-video" : "aspect-square"} overflow-hidden rounded-[20px] border border-white/[.1] bg-[linear-gradient(145deg,#171229,#0b0912)]`}>
+                <button type="button" onClick={() => photo.downloadable ? setActivePhoto(photo) : onUnlock()} aria-label={`Open photo ${index + 1} full size`} className="absolute inset-0 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet">
+                  <ProgressiveImage src={photo.url} alt={`Generated photo ${index + 1}`} priority={index < 2} className="h-full w-full" />
+                  <span className="pointer-events-none absolute left-2.5 top-2.5 rounded-full border border-white/10 bg-black/45 px-2.5 py-1 text-[9px] font-semibold text-white backdrop-blur">Photo {index + 1}</span>
+                  {/* Never covers the picture on a mouse: it appears on hover or focus. On a touchscreen it is a small pill in the corner. */}
+                  <span className="pointer-events-none absolute bottom-2.5 right-2.5 rounded-full border border-white/10 bg-black/60 px-3 py-1.5 text-[10px] font-semibold text-white backdrop-blur transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 group-focus-within:opacity-100">View full size</span>
                 </button>
                 {photo.downloadable && <button type="button" onClick={(event) => { event.stopPropagation(); downloadFile(photo); }} aria-label="Download photo" className="absolute right-2.5 top-2.5 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur transition hover:bg-black/75"><Download size={13} /></button>}
               </div>
@@ -149,7 +177,7 @@ export function ResultGrid({ assets, onUnlock, sourceKind = "website", onGenerat
         <div role="dialog" aria-modal="true" aria-label="Photo preview" onClick={() => setActivePhoto(null)} className="fixed inset-0 z-[100] flex cursor-zoom-out items-center justify-center bg-black/65 p-4 backdrop-blur-md">
           <div onClick={(event) => event.stopPropagation()} className="w-full max-w-4xl cursor-default overflow-hidden rounded-2xl border border-white/15 bg-panel shadow-2xl">
             <div className="flex items-center justify-between border-b border-border px-4 py-3"><div><p className="text-sm font-semibold text-text-primary">Full-size preview</p><p className="text-[11px] text-text-dim">Click outside or press Esc to close</p></div><button type="button" onClick={() => setActivePhoto(null)} aria-label="Close preview" className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-panel-alt text-text-muted"><X size={18} /></button></div>
-            <div className="flex max-h-[76vh] min-h-52 items-center justify-center bg-black/75 p-3 sm:p-5"><div className="relative max-h-[70vh] overflow-hidden rounded-lg"><img src={activePhoto.url} alt="Image preview" className="max-h-[70vh] max-w-full object-contain" />{activePhoto.downloadable && <button type="button" onClick={() => downloadFile(activePhoto)} className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur"><Download size={16} /></button>}</div></div>
+            <div className="flex max-h-[76vh] min-h-52 items-center justify-center bg-black/75 p-3 sm:p-5"><div className="relative max-h-[70vh] overflow-hidden rounded-lg">{activePhoto.type === "photo" ? <ProgressiveImage full src={activePhoto.url} alt="Image preview" imgClassName="object-contain" className={`max-h-[70vh] w-[min(100%,56rem)] ${activePhoto.aspectRatio === "9:16" ? "aspect-[9/16]" : activePhoto.aspectRatio === "1:1" ? "aspect-square" : "aspect-video"} bg-transparent`} /> : <img src={activePhoto.url} alt="Image preview" className="max-h-[70vh] max-w-full object-contain" />}{activePhoto.downloadable && <button type="button" onClick={() => downloadFile(activePhoto)} className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur"><Download size={16} /></button>}</div></div>
           </div>
         </div>, document.body)}
     </div>

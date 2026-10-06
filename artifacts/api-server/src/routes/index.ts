@@ -20,6 +20,7 @@ import { ASSETS_DIR } from '../lib/capture.js';
 import { getMarketingSettings } from '../lib/marketing.js';
 import { verifyPrivateAssetSignature } from '../lib/asset-access.js';
 import { getR2Object } from '../lib/r2-storage.js';
+import { ensureImageVariant, ensureVideoPoster, parseVariantWidth } from '../lib/media-variants.js';
 import { requireAuth } from '../lib/auth.js';
 import { CREDIT_DISPLAY_MULTIPLIER } from '../lib/growth-offers.js';
 
@@ -51,6 +52,24 @@ router.get('/assets/:jobId/:filename', async (req, res) => {
   if (jobId.toLowerCase() !== 'marketing' && !verifyPrivateAssetSignature(jobId, filename, req.query.expires, req.query.sig)) {
     res.status(403).json({ error: 'This media link is invalid or expired.', code: 'ASSET_LINK_EXPIRED' });
     return;
+  }
+  // Small copies for fast first paint: ?w=32|480|960 for a picture, ?poster=1 for a video's first frame. Same signature as the original.
+  const wantsPoster = req.query.poster === '1';
+  const variantWidth = parseVariantWidth(req.query.w);
+  if ((wantsPoster || variantWidth) && req.query.download !== '1') {
+    const variant = wantsPoster ? await ensureVideoPoster(jobId, filename) : await ensureImageVariant(jobId, filename, variantWidth!);
+    if (variant) {
+      res.setHeader('Cache-Control', jobId.toLowerCase() === 'marketing' ? 'public, max-age=86400, stale-while-revalidate=604800' : 'private, max-age=3600');
+      res.removeHeader('Pragma');
+      res.type('image/jpeg').sendFile(variant);
+      return;
+    }
+    // A tiny preview or poster is never worth downloading the whole original for: say so and let the page fall back.
+    if (wantsPoster || (variantWidth !== null && variantWidth <= 64)) {
+      res.status(404).setHeader('Cache-Control', 'private, max-age=60');
+      res.json({ error: 'No preview for this file.' });
+      return;
+    }
   }
   const filePath = path.join(ASSETS_DIR, jobId, filename);
   const cacheControl = jobId.toLowerCase() === 'marketing'
