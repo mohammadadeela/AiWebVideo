@@ -448,9 +448,14 @@ export function SiteStreetView({ latitude, longitude, mapSrc, value, onChange, p
                     Only you see this: free street photos are off ({nearby.reason}). Create a free token at mapillary.com/dashboard/developers, set <span className="font-mono">MAPILLARY_ACCESS_TOKEN</span>, then restart the server. Customers will then pick from nearby street photos here.
                   </p>
                 )}
-                {info?.reason && (
+                {info?.reason && nearby?.enabled && (
                   <p role="note" className="rounded-lg border border-[#f5b942]/50 bg-[#2a2110] px-2.5 py-2 text-amber-100">
-                    Only you see this: Street View is off in this site ({info.reason}). Set <span className="font-mono">GOOGLE_MAPS_API_KEY</span> (with the Street View Static API enabled) and <span className="font-mono">ARCHITECTURE_MAPS_IMAGERY=1</span>, then restart the server. Customers will then see Street View here and can tap what they mean on it, without a screenshot.
+                    Only you see this: Mapillary is on, but it has no usable photos within about 90 m of this spot, so customers add a screenshot here. Google Street View is optional and stays off. Coverage depends on volunteers: check this place at mapillary.com/app.
+                  </p>
+                )}
+                {info?.reason && !nearby?.enabled && !nearbyLoading && (
+                  <p role="note" className="rounded-lg border border-[#f5b942]/50 bg-[#2a2110] px-2.5 py-2 text-amber-100">
+                    Only you see this: no street pictures are switched on ({info.reason}). Free option: set <span className="font-mono">MAPILLARY_ACCESS_TOKEN</span>. Paid option: <span className="font-mono">GOOGLE_MAPS_API_KEY</span> with <span className="font-mono">ARCHITECTURE_MAPS_IMAGERY=1</span>. Then restart the server.
                   </p>
                 )}
               </div>

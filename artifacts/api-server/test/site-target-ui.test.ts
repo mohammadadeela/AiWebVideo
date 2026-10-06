@@ -84,7 +84,9 @@ test('tapping works with a finger, a mouse and the keyboard, and the mark can be
 
 test('only the site owner is told why Street View is off, and what to do', async () => {
   const card = await fe('components/chat/SiteStreetView.tsx');
-  assert.match(card, /info\?\.reason && \(/);
-  assert.match(card, /Only you see this: Street View is off in this site/);
+  assert.match(card, /info\?\.reason && /);
+  assert.match(card, /Only you see this: no street pictures are switched on/);
   assert.match(card, /ARCHITECTURE_MAPS_IMAGERY=1/);
+  assert.match(card, /MAPILLARY_ACCESS_TOKEN/);
+  assert.match(card, /Only you see this: Mapillary is on, but it has no usable photos/);
 });
