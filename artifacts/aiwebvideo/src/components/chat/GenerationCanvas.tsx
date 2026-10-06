@@ -1,3 +1,5 @@
+import { ProgressiveImage } from "@/components/ui/ProgressiveImage";
+import { videoPoster } from "@/lib/mediaVariants";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Building2, Check, ChevronDown, Clock3, Film, Globe2, House, Image, LoaderCircle, PackageOpen, ShieldCheck, X } from "lucide-react";
 import { fetchJob, request } from "@/lib/api-client";
@@ -526,13 +528,7 @@ export function GenerationCanvas({
                         {visibleReferences.map((item) => (
                           <div key={item.id} className="w-24 shrink-0">
                             <div className="relative aspect-video overflow-hidden rounded-lg border border-white/[.07] bg-black/20">
-                              <img
-                                src={item.url}
-                                alt={item.title}
-                                loading="eager"
-                                decoding="async"
-                                className="h-full w-full object-cover object-top"
-                              />
+                              <ProgressiveImage src={item.url} alt={item.title} sizes="96px" className="h-full w-full" imgClassName="object-cover object-top" />
                               {sceneAssignments[item.id] ? (
                                 <span className="absolute right-1 top-1 rounded-full bg-violet px-1 py-0.5 text-[6px] font-bold text-white">
                                   R{sceneAssignments[item.id]}
@@ -552,6 +548,7 @@ export function GenerationCanvas({
                       {generatedVideo ? (
                         <video
                           src={generatedVideo.url}
+                          poster={videoPoster(generatedVideo.url) ?? undefined}
                           muted
                           playsInline
                           preload="metadata"
@@ -560,14 +557,7 @@ export function GenerationCanvas({
                       ) : (
                         <div className="chat-scroll flex gap-2 overflow-x-auto pb-1">
                           {generatedPhotos.map((asset, index) => (
-                            <img
-                              key={asset.id}
-                              src={asset.url}
-                              alt={"Generated photo " + (index + 1)}
-                              className="h-20 w-16 shrink-0 rounded-lg border border-white/[.07] object-cover"
-                              loading="eager"
-                              decoding="async"
-                            />
+                            <ProgressiveImage key={asset.id} src={asset.url} alt={"Generated photo " + (index + 1)} sizes="64px" className="h-20 w-16 shrink-0 rounded-lg border border-white/[.07]" />
                           ))}
                         </div>
                       )}

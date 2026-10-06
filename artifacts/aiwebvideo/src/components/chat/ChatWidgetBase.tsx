@@ -1,3 +1,4 @@
+import { ProgressiveImage } from "@/components/ui/ProgressiveImage";
 import { visibleBrief } from "@/lib/hiddenDirection";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ChatBubble } from "./ChatBubble";
@@ -3044,11 +3045,7 @@ Promotion direction: ${visibleBrief(brief)}` : photosOnly ? photosLabel : normal
                               className={`group w-48 shrink-0 overflow-hidden rounded-2xl border text-left transition sm:w-56 ${selected ? "border-violet/40 bg-violet/[.08] shadow-[0_18px_36px_-28px_rgba(139,92,246,.95)]" : "border-white/[.08] bg-black/15 hover:border-white/[.14] hover:bg-white/[.04]"}`}
                             >
                               <div className="relative">
-                                <img
-                                  src={item.url}
-                                  alt={item.title}
-                                  className="aspect-[16/10] w-full object-cover object-top"
-                                />
+                                <ProgressiveImage src={item.url} alt={item.title} sizes="224px" className="aspect-[16/10] w-full" imgClassName="object-cover object-top" />
                                 <span className="absolute left-2 top-2 rounded-full border border-black/10 bg-black/60 px-2 py-1 font-utility text-[8px] uppercase tracking-[.14em] text-white/85">
                                   {String(index + 1).padStart(2, "0")}
                                 </span>

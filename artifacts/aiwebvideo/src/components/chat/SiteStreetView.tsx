@@ -109,7 +109,7 @@ function NearbyPicker({ photos, value, onChange, latitude, longitude, hasOwnPhot
             onTap={(x, y) => onChange({ ...value, source: "nearby", x, y })}
             onClear={() => onChange({ ...value, x: null, y: null })}
           >
-            <img src={chosen.previewUrl} alt={`Street photo near the plot${chosen.heading !== null ? `, looking ${compassWord(chosen.heading)}` : ""}`} referrerPolicy="no-referrer" draggable={false} className="block h-auto w-full" />
+            <img src={chosen.previewUrl} decoding="async" alt={`Street photo near the plot${chosen.heading !== null ? `, looking ${compassWord(chosen.heading)}` : ""}`} referrerPolicy="no-referrer" draggable={false} className="block h-auto w-full" />
           </TapSurface>
           <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
             <p className="text-[11px] leading-4 text-white/60">

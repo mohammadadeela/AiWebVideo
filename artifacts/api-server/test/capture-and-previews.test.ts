@@ -85,3 +85,12 @@ test('generated photos load blurred-first, never at 4K master size, and the full
   assert.match(image, /Try again/);
   assert.match(image, /image\?\.complete/);   // a cached picture still fades in
 });
+
+test('the live workspace thumbnails and chat capture cards also load blurred-first at thumbnail size', async () => {
+  const canvas = await fe('components/chat/GenerationCanvas.tsx');
+  assert.match(canvas, /<ProgressiveImage src=\{item\.url\}/);
+  assert.match(canvas, /<ProgressiveImage key=\{asset\.id\}/);
+  assert.match(canvas, /poster=\{videoPoster\(generatedVideo\.url\)/);
+  const widget = await fe('components/chat/ChatWidgetBase.tsx');
+  assert.match(widget, /<ProgressiveImage src=\{item\.url\} alt=\{item\.title\} sizes="224px"/);
+});
