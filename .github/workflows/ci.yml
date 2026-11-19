@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -63,9 +63,11 @@ jobs:
       - name: Production build
         run: pnpm build
 
-      - name: Upload web build
-        uses: actions/upload-artifact@v4
-        with:
-          name: web-dist
-          path: artifacts/aiwebvideo/dist
-          retention-days: 3
+      - name: Publish preview build (work branch only)
+        if: github.ref == 'refs/heads/redesign'
+        run: |
+          cd artifacts/aiwebvideo/dist/public
+          git init -q -b preview-build
+          git config user.name ci && git config user.email ci@users.noreply.github.com
+          git add -A && git commit -qm "preview build ${GITHUB_SHA}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" preview-build
