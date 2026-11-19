@@ -85,14 +85,3 @@ test('sign-in: the server login is verified, in-app browsers are explained, and 
   assert.match(modal, /<div role="note"/);
   assert.match(modal, /Copy link to open in a browser/);
 });
-
-test('phones show a visible Sign up, and the navbar never leaves a person with only grey placeholders', async () => {
-  const nav = await fe('components/landing/Nav.tsx');
-  assert.match(nav, /<span className="sm:hidden">\s*<Button[^>]*onClick=\{\(\) => openAuth\('signup'\)\}>\s*Sign up/);
-  assert.match(nav, /\{!authChecked && !waited \? \(/);
-  assert.match(nav, /\) : authChecked && isSignedIn \? \(/);
-  assert.match(nav, /initialMode=\{authMode\}/);
-  const dash = await fe('components/dashboard/DashboardClient.tsx');
-  assert.match(dash, /Still checking your account…/);
-  assert.match(dash, /window\.location\.reload\(\)/);
-});

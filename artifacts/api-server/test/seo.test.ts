@@ -32,7 +32,7 @@ test('public routes receive distinct server-rendered metadata and crawlable body
   const rendered = renderSeoDocument(html, page, 'https://aiwebvideo.com');
 
   assert.equal(page.index, true);
-  assert.match(rendered, /<title>URL to Video AI Generator — Turn a Website Into Video \| AiWebVideo<\/title>/);
+  assert.match(rendered, /<title>URL to Video AI Generator — Turn a Website Into Video \| Linkreel<\/title>/);
   assert.match(rendered, /canonical" href="https:\/\/aiwebvideo\.com\/url-to-video"/);
   assert.match(rendered, /name="robots" content="index, follow"/);
   assert.match(rendered, /Turn any website URL into an AI video/);
@@ -107,7 +107,7 @@ test('AI summary lists the focused public search pages', () => {
 
 test('server HTML describes every creation mode and published media is escaped', () => {
   const home = renderSeoDocument(html, getSeoPage('/'), 'https://aiwebvideo.com');
-  for (const term of ['Website to video', 'Idea or dialogue to video', 'Real product to photos or video', 'Real spaces to design images or walkthroughs']) {
+  for (const term of ['Website link to video', 'Product link to video and photos', 'Prompt to video and talking scenes', 'Rooms and buildings']) {
     assert.ok(home.includes(term), `Missing ${term} from the initial HTML`);
   }
   const gallery = renderSeoDocument(html, getSeoPage('/examples'), 'https://aiwebvideo.com', [

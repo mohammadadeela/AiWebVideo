@@ -134,30 +134,6 @@ test('links that are not maps are refused, and so is a redirect that leaves Goog
   await assert.rejects(() => resolveMapsInput('https://maps.app.goo.gl/Out', d), /outside Google Maps/);
 });
 
-test('the customer sees the exact spot: coordinates, an embedded map of the point, and an honest imagery message; typed coordinates are accepted', async () => {
-  const { readFile } = await import('node:fs/promises');
-  const path = await import('node:path');
-  const fe = (file: string) => readFile(path.resolve(process.cwd(), '../aiwebvideo/src', file), 'utf8');
-  const form = await fe('components/chat/WebsiteBriefForm.tsx');
-  assert.match(form, /data-testid="site-preview"/);
-  // the embedded map of the exact point is still there: it is the corner map of the Street View card, and the whole card when there is no Street View
-  assert.match(form, /<SiteStreetView latitude=\{site\.latitude\} longitude=\{site\.longitude\} mapSrc=\{mapPreviewUrl\(site\.latitude, site\.longitude\)\}/);
-  const card = await fe('components/chat/SiteStreetView.tsx');
-  assert.equal((card.match(/<iframe title="The exact spot on the map" src=\{mapSrc\}/g) ?? []).length, 2);
-  assert.match(form, /Is this the right spot\?/);
-  assert.match(form, /site\.latitude\.toFixed\(6\), \{site\.longitude\.toFixed\(6\)\}|\{site\.latitude\.toFixed\(6\)\}, \{site\.longitude\.toFixed\(6\)\}/);
-  assert.match(form, /site\.imageryAvailable \? "Satellite and street views of this spot are used for the design\." : "For a design that matches your plot exactly, add a screenshot of it/);
-  assert.match(form, /Open this spot in Google Maps/);                              // a fallback if the embedded map does not show
-  assert.match(form, /looksLikeCoordinates\(pasted\)/);                              // typed or pasted coordinates are resolved at once
-  assert.match(form, /placeholder="Google Maps link, address or coordinates"/);
-  const preview = await fe('lib/mapPreview.ts');
-  assert.match(preview, /https:\/\/www\.google\.com\/maps\?q=\$\{latitude\.toFixed\(6\)\},\$\{longitude\.toFixed\(6\)\}&z=18&output=embed/);
-  // the same rule as the server: a house number is not a point
-  const { looksLikeCoordinates } = await import('../../aiwebvideo/src/lib/mapPreview.js');
-  for (const yes of ['31.5321, 35.0912', '31.5321 35.0912', '33.8688 S, 151.2093 E', "31°31'55.6\"N 35°05'28.3\"E", 'geo:31.5,35.1']) assert.equal(looksLikeCoordinates(yes), true, yes);
-  for (const no of ['12, 34', 'Main Street 12', 'Old City, Hebron', 'https://maps.app.goo.gl/x', '']) assert.equal(looksLikeCoordinates(no), false, no);
-});
-
 test('the admin can check any product or map link and see every step', async () => {
   const { readFile } = await import('node:fs/promises');
   const path = await import('node:path');

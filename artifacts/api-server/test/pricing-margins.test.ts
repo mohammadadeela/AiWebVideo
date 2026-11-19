@@ -91,7 +91,7 @@ test('every public image/interior model preserves at least 2x provider-cost cove
 
 test('public model ids do not expose provider model names', () => {
   for (const model of Object.values(GENERATION_MODELS)) {
-    assert.ok(model.publicName.startsWith('AiWebVideo '));
+    assert.ok(model.publicName.startsWith('Linkreel '));
     assert.ok(!/gemini|veo/i.test(model.publicName));
   }
 });

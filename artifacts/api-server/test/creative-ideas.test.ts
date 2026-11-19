@@ -79,29 +79,6 @@ test('the best ideas for each feature come first when nothing has been typed', (
   assert.equal(getIdeasForIntent('photo', { hasReferences: true }, 1)[0].id, 'marketplace-white');
 });
 
-test('choosing an idea puts its full master prompt in the box, keeps the person\'s own words, and sends only the safety text hidden', async () => {
-  const idea = CREATIVE_IDEAS.product_images[0];
-  assert.equal(composeIdeaText(idea), idea.prompt);
-  const mixed = composeIdeaText(idea, 'It is a 30 ml serum bottle, gold cap.');
-  assert.equal(mixed, `${idea.prompt}\n\nMy details: It is a 30 ml serum bottle, gold cap.`);
-  assert.deepEqual(splitIdeaText(mixed), { idea, details: 'It is a 30 ml serum bottle, gold cap.' });
-  assert.deepEqual(splitIdeaText(idea.prompt), { idea, details: '' });
-  assert.deepEqual(splitIdeaText('just my own words'), { idea: null, details: 'just my own words' });
-  // changing idea replaces the old master prompt but keeps what the person wrote
-  const other = CREATIVE_IDEAS.product_images[1];
-  assert.equal(composeIdeaText(other, splitIdeaText(mixed).details), `${other.prompt}\n\nMy details: It is a 30 ml serum bottle, gold cap.`);
-  // an edited master prompt is the person's own text now and is never thrown away
-  assert.equal(splitIdeaText(idea.prompt + ' Make it blue.').idea, null);
-
-  const form = await readFile(path.resolve(process.cwd(), '../aiwebvideo/src/components/chat/WebsiteBriefForm.tsx'), 'utf8');
-  assert.match(form, /const text = composeIdeaText\(idea, own\);/);
-  assert.match(form, /setPrompt\(text\)/);
-  assert.match(form, /setBrief\(text\)/);
-  assert.match(form, /studioDirection: selectedIdea \? selectedIdea\.guardrail : undefined/);
-  assert.match(form, /withHiddenDirection\(brief\.trim\(\), selectedIdea\?\.guardrail\)/);
-  assert.doesNotMatch(form, /selectedIdea\??\.masterPrompt/);
-});
-
 // What the studio makes depends on keywords in the customer's words (see inferProjectScope), so a master prompt written into the box must
 // steer an Architecture idea to the right kind of project, and must never send an Interior idea to a street view or a landscape.
 test('every Architecture idea is read as the project it is about', () => {

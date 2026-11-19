@@ -100,7 +100,7 @@ test('checkout UX prewarms payment SDK and keeps hosted fields readable', async 
   assert.match(checkout, /prewarm/);
   // 16px keeps iPhones from zooming into the field; dark text sits on the white field surface.
   assert.match(checkout, /fontSize: '16px'/);
-  assert.match(checkout, /color: '#171321'/);
+  assert.match(checkout, /color: '#13161d'/);
   assert.match(checkout, /bg-white/);
   assert.match(checkout, /buttonColor: 'black'/);
   assert.match(checkout, /overflow-x-hidden/);

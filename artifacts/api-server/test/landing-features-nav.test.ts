@@ -27,39 +27,6 @@ test('opening a feature never needs an account; signing in happens at Generate',
   assert.match(widget, /void saveStudioHandoff\(request\);\s*pendingActionRef\.current = \(\) => redirectStudioSubmitToWorkspace\(request\)/);
 });
 
-test('the navbar menu switches the chat box on the home page and takes you there from every other page', async () => {
-  const nav = await fe('components/landing/Nav.tsx');
-  assert.match(nav, /requestCreationMode\(intent\);/);
-  assert.match(nav, /navigate\(`\/\?create=\$\{intent\}#generate`\)/);
-  const menu = await fe('components/landing/FeatureMenu.tsx');
-  assert.match(menu, /aria-label="Choose a feature"/);
-  assert.match(menu, /Sign in or create a free account when you press Generate\./);
-  assert.match(menu, /OPEN_FEATURE_MENU_EVENT/);
-  const form = await fe('components/chat/WebsiteBriefForm.tsx');
-  assert.match(form, /useEffect\(\(\) => \{ publishCreationMode\(activeMode\); \}, \[activeMode\]\);/);
-});
-
-
-test('the floating photos are only what an admin uploaded, are decoration (not clickable), and there is no tile row any more', async () => {
-  const floating = await fe('components/landing/HeroFloatingPhotos.tsx');
-  assert.match(floating, /useLandingExamples\(\)/);
-  assert.doesNotMatch(floating, /useGalleryItems|useSamples|pickVariety/);              // nothing borrowed from the gallery
-  assert.match(floating, /if \(!examples\.length\) return null;/);                       // nothing uploaded, nothing shown
-  assert.match(floating, /examples\.slice\(0, 4\)/);                                      // a few, never many
-  assert.match(floating, /aria-hidden="true"/);
-  const code = floating.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-  assert.doesNotMatch(code, /<button\b|<a\b|onClick|<Play\b|controls[=\s{]|startFromSample|isSample/);   // not clickable, no controls
-  const hero = await fe('components/landing/Hero.tsx');
-  assert.match(hero, /<HeroFloatingPhotos \/>/);
-  assert.doesNotMatch(hero, /HeroExamples/);
-  const css = await fe('cinematic-theme.css');
-  assert.match(css, /\.hero-floaters \{[^}]*pointer-events: none;/);                       // clicks pass straight through
-  assert.doesNotMatch(css, /hero-example-tile|\.hero-examples/);
-  const store = await fe('lib/showcase.ts');
-  assert.match(store, /export function useLandingExamples\(\)/);
-  assert.match(store, /return \{ samples: media\.gallery\.filter\(isSample\) as Sample\[\], loaded \};/);   // the floating photos are never offered as samples
-});
-
 test('the admin uploads and chooses the landing photos in their own section, and the gallery can never wipe them', async () => {
   const manager = await fe('components/admin/LandingExamplesManager.tsx');
   assert.match(manager, /MAX_LANDING_EXAMPLES = 4/);

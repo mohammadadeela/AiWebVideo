@@ -29,10 +29,12 @@ test('every indexable page has its own title and description, one H1, a canonica
 
 test('the homepage title starts with the brand, and the brand is spelled one way', () => {
   const html = render('/');
-  assert.match(tag(html, /<title>([\s\S]*?)<\/title>/), /^AiWebVideo — /);
-  assert.match(html, /<h1>[^<]*AiWebVideo<\/h1>/);
-  assert.match(html, /"name":"AiWebVideo"/);
-  assert.doesNotMatch(html, /Ai Web Video|AIWEBVIDEO|AIWebVideo/);
+  assert.match(tag(html, /<title>([\s\S]*?)<\/title>/), /^Linkreel: /);
+  assert.match(html, /<h1>Paste a link\. Get a video\.<\/h1>/);
+  assert.match(html, /"name":"Linkreel"/);
+  assert.doesNotMatch(html, /Link Reel|LinkReel|LINKREEL/);
+  // the name the product launched under stays findable
+  assert.match(html, /"alternateName":\["AiWebVideo"/);
 });
 
 test('no orphan pages: every page in the sitemap can be reached from the homepage by plain links', () => {

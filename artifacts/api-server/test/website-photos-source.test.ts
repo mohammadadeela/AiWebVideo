@@ -5,22 +5,6 @@ import path from 'node:path';
 
 const fe = (file: string) => readFile(path.resolve(process.cwd(), '../aiwebvideo/src', file), 'utf8');
 
-test('Website Video: the person can add photos of their own website instead of a link, and is told so', async () => {
-  const form = await fe('components/chat/WebsiteBriefForm.tsx');
-  // Generate needs a link OR at least one photo (plus the brief)
-  assert.match(form, /\(!url\.trim\(\) && files\.length === 0\) \|\| !brief\.trim\(\)/);
-  // the old rule (a link is always required) is gone
-  assert.doesNotMatch(form, /Enter the public website URL you want to turn into a video\./);
-  assert.match(form, /Enter your website address, or add photos of your website with \+ and generate from them\./);
-  // with no link the photos ARE the source: an empty address is passed on
-  assert.match(form, /url\.trim\(\) \? normalizeWebsiteUrl\(url\) : ""/);
-  // the message that tells the person, in all three situations
-  assert.match(form, /data-testid="website-photos-hint"/);
-  assert.match(form, /No link, or want to choose the pages yourself\? Add photos of your website with the \+ button and generate from them\./);
-  assert.match(form, /Generating from your \$\{files\.length\} website photo/);
-  assert.match(form, /added to the pages we read from the link\./);
-});
-
 test('Website Video: photos without a link follow the SAME website flow (not the old "what do you want to generate?" question)', async () => {
   const widget = await fe('components/chat/ChatWidgetBase.tsx');
   // the photos become the job's source

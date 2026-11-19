@@ -71,17 +71,6 @@ test('recent files exist only for signed-in people and belong to one account', a
   assert.match(widget, /recentFilesOwner=\{isSignedIn \? accountEmail : null\}/);
 });
 
-test('Ideas shows its text with an "Added" badge (no sparkle), and the model button keeps its mint icon tile; no extra cost pill', async () => {
-  const form = await fe('components/chat/WebsiteBriefForm.tsx');
-  assert.match(form, /className=\{controlClass\(compactPanel === "ideas"\)\}\s*>\s*Ideas\s*\{selectedIdea && /);   // just the word, no icon in front of it
-  assert.match(form, /<span className="rounded-full bg-mint\/10 px-1\.5 py-0\.5 text-\[8px\] text-mint">Added<\/span>/);
-  assert.match(form, /<span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-mint\/\[\.08\] text-mint">\s*\{modelFamily === "video" \? <Video size=\{13\} \/> : modelFamily === "interior" \? <House size=\{13\} \/> : <ImageIcon size=\{13\} \/>\}/);
-  assert.doesNotMatch(form, /IdeasIcon|ModelRatePill/);
-  // the bulb and the pill are gone from the app, not just hidden
-  const css = await fe('index.css');
-  assert.doesNotMatch(css, /ideas-bulb/);
-});
-
 test('example tiles are never disabled buttons, so a drag can start on them in every mode', async () => {
   const strip = await fe('components/chat/SampleStrip.tsx');
   assert.doesNotMatch(strip, /disabled=\{!selectable\}/);

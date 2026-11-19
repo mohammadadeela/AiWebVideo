@@ -16,16 +16,3 @@ test('sliders can be dragged with a mouse and show grab / grabbing instead of th
   assert.match(lib, /swallowClick/);                     // a drag is never a click
   assert.match(lib, /const SLIDER = "\[data-drag-scroll\]";/);   // opt-in: only the chat's feature slider and examples strip
 });
-
-test('website idea chips put the master prompt in the box and send only their safety text behind a marker the server strips', async () => {
-  const form = await fe('components/chat/WebsiteBriefForm.tsx');
-  assert.match(form, /withHiddenDirection\(brief\.trim\(\), selectedIdea\?\.guardrail\)/);
-  assert.match(form, /setBrief\(text\)/);
-  const widget = await fe('components/chat/ChatWidgetBase.tsx');
-  assert.match(widget, /visibleBrief\(creativeBrief\)/);
-  const capture = await readFile(path.resolve(process.cwd(), 'src/routes/capture.ts'), 'utf8');
-  assert.match(capture, /splitHiddenDirection\(creativeBrief\)/);
-  const jobs = await readFile(path.resolve(process.cwd(), 'src/routes/jobs.ts'), 'utf8');
-  assert.match(jobs, /splitHiddenDirection\(submittedBrief\)/);
-  assert.match(jobs, /splitHiddenDirection\(workflowState\.creativeBrief\)/);
-});

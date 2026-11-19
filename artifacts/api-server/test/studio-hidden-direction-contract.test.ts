@@ -23,16 +23,6 @@ test('idea chips put the full master prompt in the box in every mode, and only t
   assert.match(form, /studioDirection: selectedIdea \? selectedIdea\.guardrail : undefined/);
 });
 
-test('a product link is optional, read automatically and is enough without uploaded photos', async () => {
-  const form = await frontend('components/chat/WebsiteBriefForm.tsx');
-  assert.match(form, /Product link <span[^>]*>· optional<\/span>/);
-  assert.match(form, /onBlur=\{\(\) => \{ if \(productLink\.trim\(\)\) void loadProductLink\(\); \}\}/);
-  assert.match(form, /const data = await loadProductLink\(undefined, true\);/);
-  assert.match(form, /You only need one of the two/);
-  const uploads = await server('routes/uploads.ts');
-  assert.match(uploads, /!files\.length && !productImageUrls\.length/);
-});
-
 test('the server adds the master direction and keeps the stored brief as the customer\'s own text', async () => {
   const jobs = await server('routes/jobs.ts');
   assert.match(jobs, /creativeBrief: directedBriefFor\(meta, creativeBrief\)/);

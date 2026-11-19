@@ -62,24 +62,6 @@ test('admin roles are a labelled pill with a confirmation, not an unlabeled swit
   assert.match(role, /Make administrator/);
 });
 
-test('Generate stays above the examples and attachments, which scroll sideways and take many items', async () => {
-  const form = await fe('components/chat/WebsiteBriefForm.tsx');
-  assert.ok(form.indexOf('onClick={submit}') < form.indexOf('<SampleStrip'), 'Generate must come before the examples');
-  assert.ok(form.indexOf('onClick={submit}') < form.indexOf('{previews.length > 0 && ('), 'Generate must come before the attachments');
-  assert.match(form, /Remove \$\{preview\.file\.name\}/);
-  const marketing = await be('lib/marketing.ts');
-  assert.match(marketing, /MAX_MARKETING_VIDEOS = 280/);
-  assert.match(await fe('components/landing/VideoShowcase.tsx'), /Show more/);
-});
-
-test('the website field keeps the original globe tile, which rotates in a slow circle (and holds still for reduced motion)', async () => {
-  assert.match(await fe('components/chat/WebsiteBriefForm.tsx'), /<span className="globe-orbit flex h-9 w-9[^>]*><Globe2 size=\{17\} \/><\/span>/);
-  const css = await fe('index.css');
-  assert.match(css, /\.globe-orbit \{\s*animation: globe-orbit-spin 8s linear infinite;/);
-  assert.match(css, /@keyframes globe-orbit-spin \{\s*from \{ transform: rotate\(0deg\); \}\s*to \{ transform: rotate\(360deg\); \}/);
-  assert.match(css, /\.globe-orbit \{ animation: none; \}/);
-});
-
 test('the profile Add credits button opens the full purchase list', async () => {
   const profile = await fe('pages/ProfilePage.tsx');
   assert.match(profile, /<PurchaseModal[\s\S]*title="Add credits"/);

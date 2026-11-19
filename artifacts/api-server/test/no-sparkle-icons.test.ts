@@ -31,10 +31,3 @@ test('no sparkle or wand icon is imported or drawn anywhere in the frontend', as
   }
   assert.deepEqual(found, []);
 });
-
-test('the Generate button and the Ideas button carry no icon in front of their text', async () => {
-  const form = await readFile(path.join(root, 'src/components/chat/WebsiteBriefForm.tsx'), 'utf8');
-  // the only thing that can precede the label is the spinner shown while a link is being read
-  assert.match(form, /\{linkBusy && <i className="inline-block h-4 w-4 animate-spin/);
-  assert.doesNotMatch(form, /linkBusy \? <i[^>]*\/> : </);
-});

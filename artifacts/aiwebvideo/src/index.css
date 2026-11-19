@@ -422,7 +422,14 @@ button[aria-disabled="true"],
   .generation-floating-card {
     animation: none !important;
   }
-  
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 @keyframes generationSweep {
   0% { transform: translateX(-120%); opacity: 0; }
   20% { opacity: .65; }

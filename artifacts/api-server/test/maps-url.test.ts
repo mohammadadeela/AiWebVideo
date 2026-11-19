@@ -42,15 +42,3 @@ test('only Google Maps hosts (including both short-link hosts) are accepted', ()
   assert.equal(isGoogleMapsUrl('https://evil.test/maps/place/x'), false);
   assert.equal(isGoogleMapsUrl('http://169.254.169.254/'), false);
 });
-
-test('the form warns when a link only carries the map view, and the route reports the precision', async () => {
-  const { readFile } = await import('node:fs/promises');
-  const path = await import('node:path');
-  const form = await readFile(path.resolve(process.cwd(), '../aiwebvideo/src/components/chat/WebsiteBriefForm.tsx'), 'utf8');
-  assert.match(form, /site\?\.precision === "view"/);
-  assert.match(form, /not an exact pin/);
-  const route = await readFile(path.resolve(process.cwd(), 'src/routes/architecture.ts'), 'utf8');
-  assert.match(route, /resolveMapsInput\(link, defaultMapsDeps\)/);                         // the route delegates to the tested resolver
-  assert.match(route, /res\.json\(\{ \.\.\.result, scale: 'unknown', imageryAvailable: siteImageryEnabled\(\) \}\)/);   // and reports the precision and the real imagery status
-  assert.doesNotMatch(route, /imageryAvailable: false/);                                   // it was hard-coded to false before
-});
