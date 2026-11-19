@@ -49,7 +49,7 @@ export function VideoShowcase() {
                   role="tab"
                   aria-selected={filter === feature}
                   onClick={() => { setFilter(feature); setShown(PAGE_SIZE); }}
-                  className={`min-h-9 shrink-0 rounded-xl px-3.5 text-xs font-semibold transition ${filter === feature ? "bg-white text-[#181b23]" : "text-white/60 hover:text-white"}`}
+                  className={`min-h-9 shrink-0 rounded-xl px-3.5 text-xs font-semibold transition ${filter === feature ? "bg-white text-[var(--color-panel)]" : "text-white/60 hover:text-white"}`}
                 >
                   {feature === "all" ? "All" : SHOWCASE_FEATURE_LABELS[feature]}
                 </button>
@@ -65,11 +65,11 @@ export function VideoShowcase() {
               type="button"
               onClick={() => (isSample(sample) ? startFromSample(sample) : scrollToGenerator())}
               aria-label={isSample(sample) ? "Make one like this" : "Create your own"}
-              className={`group relative mb-3 block w-full break-inside-avoid overflow-hidden rounded-[22px] bg-[#0d0e13] text-left ring-1 ring-white/10 transition duration-300 hover:-translate-y-0.5 hover:ring-violet/50 sm:mb-4 ${SHAPES[index % SHAPES.length]}`}
+              className={`group relative mb-3 block w-full break-inside-avoid overflow-hidden rounded-[22px] bg-[var(--color-sunken)] text-left ring-1 ring-white/10 transition duration-300 hover:-translate-y-0.5 hover:ring-violet/50 sm:mb-4 ${SHAPES[index % SHAPES.length]}`}
             >
               <Media sample={sample} eager={index < 8} />
               <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent opacity-0 transition duration-300 group-hover:opacity-100" />
-              <span className="pointer-events-none absolute bottom-3 right-3 grid h-9 w-9 place-items-center rounded-full bg-white text-[#14161d] opacity-0 shadow-lg transition duration-300 group-hover:opacity-100 max-sm:opacity-90">
+              <span className="pointer-events-none absolute bottom-3 right-3 grid h-9 w-9 place-items-center rounded-full bg-white text-[var(--color-bg)] opacity-0 shadow-lg transition duration-300 group-hover:opacity-100 max-sm:opacity-90">
                 <ArrowUpRight size={16} />
               </span>
             </button>

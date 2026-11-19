@@ -8,7 +8,7 @@ export function QualityGlyph({ quality, size = 20 }: { quality: Quality; size?: 
       aria-hidden="true"
       className={`inline-grid shrink-0 place-items-center rounded-[7px] font-black leading-none tracking-tight ${
         is4k
-          ? "bg-gradient-to-br from-gold via-pink to-violet text-[#181b23] shadow-[0_4px_14px_-4px_rgba(0,0,0,.7)]"
+          ? "bg-gradient-to-br from-gold via-pink to-violet text-[var(--color-panel)] shadow-[0_4px_14px_-4px_rgba(0,0,0,.7)]"
           : "border border-white/20 bg-white/[.08] text-white/75"
       }`}
       style={{ height: size, minWidth: Math.round(size * 1.5), fontSize: Math.round(size * 0.48) }}

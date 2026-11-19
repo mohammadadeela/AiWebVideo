@@ -61,7 +61,7 @@ export function RoleControl({ email, isAdmin, isSelf, isOnlyAdmin, busy, justCha
           sideOffset={6}
           collisionPadding={12}
           aria-label={`Role for ${email}`}
-          className="z-[100] w-[min(92vw,320px)] rounded-2xl border border-white/10 bg-[#14171e]/[.98] p-2 text-white shadow-[0_24px_60px_-20px_rgba(0,0,0,.85)] backdrop-blur-xl"
+          className="z-[100] w-[min(92vw,320px)] rounded-2xl border border-white/10 bg-[var(--color-bg)]/[.98] p-2 text-white shadow-[0_24px_60px_-20px_rgba(0,0,0,.85)] backdrop-blur-xl"
         >
           {pending === null ? (
             <>

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { BadgePercent } from 'lucide-react';
 import { signOut } from '@/lib/firebase/client';
+import { setTheme, useTheme } from '@/lib/theme';
 import { fetchWelcomeGrowthOffer, formatWelcomeCountdown, type WelcomeGrowthOffer } from '@/lib/growth';
 
 export function formatCredits(value: number | undefined) {
@@ -12,6 +13,7 @@ export function formatCredits(value: number | undefined) {
 
 export function UserMenu({ email, plan, creditsBalance, isAdmin = false }: { email: string; plan: string; creditsBalance: number; isAdmin?: boolean }) {
   const [open, setOpen] = useState(false);
+  const theme = useTheme();
   const [location, navigate] = useLocation();
   const [offer, setOffer] = useState<WelcomeGrowthOffer | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -88,6 +90,7 @@ export function UserMenu({ email, plan, creditsBalance, isAdmin = false }: { ema
             <Link href="/profile" onClick={() => setOpen(false)} className={itemClass}>Account and billing</Link>
             <Link href="/pricing" onClick={() => setOpen(false)} className={itemClass}>Plans and credits</Link>
             {isAdmin && <Link href="/admin" onClick={() => setOpen(false)} className={itemClass}>Admin</Link>}
+            <button type="button" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className={`${itemClass} w-full text-left`}>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</button>
             <button type="button" onClick={handleSignOut} className={`${itemClass} w-full text-left`}>Sign out</button>
           </div>
         </div>

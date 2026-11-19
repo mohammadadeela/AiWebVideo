@@ -748,3 +748,52 @@ export interface LinkCheckResult {
 export function checkAdminLink(kind: 'product' | 'map', link: string) {
   return request<LinkCheckResult>('/api/admin/link-check', { method: 'POST', body: JSON.stringify({ kind, link }), signal: AbortSignal.timeout(60_000) });
 }
+
+// ---- The assistant: understands a message and returns a plan the composer can start. ----
+
+export interface AssistantPlan {
+  feature: 'website' | 'video' | 'photo' | 'product-video' | 'scenario' | 'interior' | 'architecture';
+  url: string;
+  productUrl: string;
+  location: string;
+  prompt: string;
+  durationSeconds: number;
+  aspectRatio: '9:16' | '16:9' | '1:1';
+  outputQuality: '1080p' | '4k';
+  audioMode: AudioMode;
+  narrationLanguage: string;
+  websiteStyle: 'auto' | 'video' | 'demo' | 'character' | 'tutorial' | 'tour' | 'buy' | 'linkedin';
+  output: 'images' | 'video';
+}
+
+export interface AssistantTurn {
+  reply: string;
+  thinking: string[];
+  plan: AssistantPlan | null;
+  start: boolean;
+  suggestions: string[];
+}
+
+export interface AssistantContext {
+  feature: AssistantPlan['feature'];
+  link: string;
+  photos: number;
+  hasDrawing: boolean;
+}
+
+export function askAssistant(messages: Array<{ role: 'user' | 'assistant'; text: string }>, context: AssistantContext) {
+  return request<AssistantTurn>('/api/assistant/chat', {
+    method: 'POST',
+    body: JSON.stringify({ messages, context }),
+    signal: AbortSignal.timeout(18_000),
+  });
+}
+
+let assistantStatus: Promise<boolean> | null = null;
+/** Asked once per visit. When the assistant is off (or the check fails) the composer starts requests directly. */
+export function assistantEnabled(): Promise<boolean> {
+  assistantStatus ??= request<{ enabled: boolean }>('/api/assistant/status', { cache: 'default' })
+    .then((status) => status.enabled === true)
+    .catch(() => false);
+  return assistantStatus;
+}

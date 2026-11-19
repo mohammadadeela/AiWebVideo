@@ -30,10 +30,10 @@ export function TargetKindPicker({ value, onChange, attention }: {
               aria-checked={selected}
               onClick={() => onChange({ ...value, kind: selected ? null : id, level: id === "floor" && value.level === "ground" ? "1" : value.level })}
               className={`flex min-h-14 items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition active:scale-[.98] ${
-                selected ? "border-mint/70 bg-mint/[.10]" : attention ? "border-[#f5b942]/70 bg-[#2a2110] hover:border-[#f5b942]" : "border-white/[.10] bg-[#12141a] hover:border-white/30"
+                selected ? "border-mint/70 bg-mint/[.10]" : attention ? "border-[#f5b942]/70 bg-[#2a2110] hover:border-[#f5b942]" : "border-white/[.10] bg-[var(--color-bg)] hover:border-white/30"
               }`}
             >
-              <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${selected ? "bg-mint text-[#10231f]" : "bg-[#252a37] text-violet"}`}>
+              <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${selected ? "bg-mint text-[#10231f]" : "bg-[var(--color-panel-alt)] text-violet"}`}>
                 <Icon size={18} aria-hidden="true" />
               </span>
               <span className="min-w-0">
@@ -59,7 +59,7 @@ export function TargetKindPicker({ value, onChange, attention }: {
                   role="radio"
                   aria-checked={selected}
                   onClick={() => onChange({ ...value, level: id as TargetLevel })}
-                  className={`h-10 min-w-[52px] rounded-lg border px-3 text-[12.5px] font-semibold transition ${selected ? "border-transparent bg-gradient-to-r from-violet to-blue-500 text-white" : "border-white/[.12] bg-[#191d26] text-white/80 hover:border-white/30"}`}
+                  className={`h-10 min-w-[52px] rounded-lg border px-3 text-[12.5px] font-semibold transition ${selected ? "border-transparent bg-gradient-to-r from-violet to-blue-500 text-white" : "border-white/[.12] bg-[var(--color-panel)] text-white/80 hover:border-white/30"}`}
                 >
                   {label}
                 </button>

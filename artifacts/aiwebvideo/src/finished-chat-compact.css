@@ -43,7 +43,7 @@
   overscroll-behavior: contain;
   scrollbar-width: thin;
   border-top: 0 !important;
-  background: linear-gradient(180deg, rgba(13, 15, 20, 0), rgba(13, 15, 20, .96) 16%, rgba(13, 15, 20, .995)) !important;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--color-sunken) 0%, transparent), color-mix(in srgb, var(--color-sunken) 96%, transparent) 16%, color-mix(in srgb, var(--color-sunken) 100%, transparent)) !important;
   box-shadow: none !important;
   backdrop-filter: blur(14px) !important;
   -webkit-backdrop-filter: blur(14px) !important;
@@ -96,7 +96,7 @@
   padding: 0 !important;
   border: 1px solid rgba(146, 174, 252, .38) !important;
   border-radius: 999px !important;
-  background: linear-gradient(180deg, rgba(54, 58, 69, .98), rgba(27, 31, 40, .98)) !important;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--color-panel-alt) 98%, transparent), color-mix(in srgb, var(--color-panel) 98%, transparent)) !important;
   color: rgba(248, 250, 255, .98) !important;
   box-shadow:
     0 9px 24px -17px rgba(0, 0, 0, .9),
@@ -116,7 +116,7 @@
 .finished-action-tray > .finished-chat-collapse-toggle:hover {
   transform: translateY(-1px);
   border-color: rgba(168, 191, 253, .58) !important;
-  background: linear-gradient(180deg, rgba(62, 68, 81, .99), rgba(31, 36, 47, .99)) !important;
+  background: linear-gradient(180deg, rgba(62, 68, 81, .99), color-mix(in srgb, var(--color-panel-alt) 99%, transparent)) !important;
   box-shadow:
     0 12px 28px -18px rgba(0, 0, 0, 1),
     inset 0 1px 0 rgba(255, 255, 255, .11);
@@ -149,7 +149,7 @@
   border: 1px solid rgba(255, 255, 255, .075);
   border-bottom-color: rgba(255, 255, 255, .045);
   border-radius: 20px 20px 12px 12px;
-  background: linear-gradient(180deg, rgba(21, 24, 31, .70), rgba(15, 17, 23, .52));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--color-bg) 70%, transparent), color-mix(in srgb, var(--color-bg) 52%, transparent));
   box-shadow:
     0 24px 52px -44px rgba(0, 0, 0, .9),
     inset 0 1px 0 rgba(255, 255, 255, .025);
@@ -205,7 +205,7 @@
   padding: 0 11px !important;
   border: 1px solid rgba(255, 255, 255, .07) !important;
   border-radius: 12px 12px 18px 18px !important;
-  background: linear-gradient(180deg, rgba(17, 19, 25, .48), rgba(13, 15, 20, .34)) !important;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--color-bg) 48%, transparent), color-mix(in srgb, var(--color-sunken) 34%, transparent)) !important;
   opacity: 1;
   overflow: hidden;
   pointer-events: auto;
@@ -427,7 +427,7 @@
 .chat-widget-shell.chat-finish-collapsed > div > .chat-scroll:has(.finished-action-tray) {
   max-height: min(34dvh, 160px) !important;
   padding-top: 8px !important;
-  background: linear-gradient(180deg, rgba(13, 15, 20, 0), rgba(13, 15, 20, .96) 24%, rgba(13, 15, 20, .995)) !important;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--color-sunken) 0%, transparent), color-mix(in srgb, var(--color-sunken) 96%, transparent) 24%, color-mix(in srgb, var(--color-sunken) 100%, transparent)) !important;
 }
 
 .chat-widget-shell.chat-finish-collapsed .finished-action-tray > .finished-chat-collapse-toggle {
@@ -439,7 +439,7 @@
   margin: 0 auto -1px !important;
   border-bottom-color: transparent !important;
   border-radius: 15px 15px 0 0 !important;
-  background: rgba(27, 31, 40, .98) !important;
+  background: color-mix(in srgb, var(--color-panel) 98%, transparent) !important;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08) !important;
 }
 
@@ -453,7 +453,7 @@
 
 .chat-widget-shell.chat-finish-collapsed .finished-chat-composer form {
   border-color: rgba(146, 174, 252, .18) !important;
-  background: rgba(27, 31, 40, .98) !important;
+  background: color-mix(in srgb, var(--color-panel) 98%, transparent) !important;
   box-shadow:
     0 22px 54px -35px rgba(0, 0, 0, .98),
     inset 0 1px 0 rgba(255, 255, 255, .035) !important;

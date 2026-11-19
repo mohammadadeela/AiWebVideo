@@ -299,7 +299,7 @@ function FieldShell({ label, id }: { label: string; id: string }) {
       <span className="mb-1.5 block text-xs font-medium text-white/60">{label}</span>
       <div
         id={id}
-        className="h-[52px] overflow-hidden rounded-2xl border border-white/10 bg-white transition focus-within:border-violet/60 focus-within:ring-4 focus-within:ring-violet/15"
+        className="h-[52px] overflow-hidden rounded-2xl border border-white/10 bg-[#fff] transition focus-within:border-violet/60 focus-within:ring-4 focus-within:ring-violet/15"
       />
     </label>
   );
@@ -318,7 +318,7 @@ function cardBrand(name: string): CardBrand {
 
 const BRAND_STYLE: Record<CardBrand, string> = {
   visa: 'from-[#1a2fa8] via-[#1f3fd0] to-[#3b6cff]',
-  mastercard: 'from-[#1a1c21] via-[#282b32] to-[#3f434d]',
+  mastercard: 'from-[var(--color-panel)] via-[var(--color-panel-alt)] to-[#3f434d]',
   amex: 'from-[#0a6aa1] via-[#128ac2] to-[#38b6e8]',
   discover: 'from-[#c2500a] via-[#e0721c] to-[#f79a3d]',
   other: 'from-[#2a489a] via-[#3f67d4] to-[#5c83f0]',
@@ -373,7 +373,7 @@ function SavedCardTile({ method, total, paying, busy, onPay, onRemove, removing 
           disabled={busy || removing}
           onClick={onPay}
           aria-label={`Pay ${total} with saved ${method.brand} ending in ${method.lastDigits}`}
-          className="inline-flex min-h-10 items-center gap-2 rounded-full bg-white px-4 text-sm font-bold text-[#14161d] shadow-lg transition hover:scale-[1.03] active:scale-95 disabled:opacity-60"
+          className="inline-flex min-h-10 items-center gap-2 rounded-full bg-white px-4 text-sm font-bold text-[var(--color-bg)] shadow-lg transition hover:scale-[1.03] active:scale-95 disabled:opacity-60"
         >
           {paying ? <><LoaderCircle size={15} className="animate-spin" /> Processing</> : <>Pay {total}</>}
         </button>
@@ -746,10 +746,10 @@ export function SecureCheckoutModal({
       role="dialog"
       aria-modal="true"
       aria-label={`Checkout for ${productName}`}
-      className="fixed inset-0 z-[90] flex items-end justify-center overflow-x-hidden bg-[#07080b]/60 p-0 backdrop-blur-sm sm:items-center sm:p-5"
+      className="fixed inset-0 z-[90] flex items-end justify-center overflow-x-hidden bg-[var(--color-sunken)]/60 p-0 backdrop-blur-sm sm:items-center sm:p-5"
       onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}
     >
-      <div className="relative max-h-[94dvh] w-full overflow-x-hidden overflow-y-auto rounded-t-[32px] border border-white/10 bg-[#0e1014] shadow-[0_38px_120px_-28px_rgba(0,0,0,.96)] sm:max-w-[460px] sm:rounded-[32px]">
+      <div className="relative max-h-[94dvh] w-full overflow-x-hidden overflow-y-auto rounded-t-[32px] border border-white/10 bg-[var(--color-bg)] shadow-[0_38px_120px_-28px_rgba(0,0,0,.96)] sm:max-w-[460px] sm:rounded-[32px]">
         <div className="pointer-events-none absolute -left-24 -top-32 h-72 w-72 rounded-full bg-violet/20 blur-3xl" />
 
         <header className="relative flex items-start justify-between gap-4 px-6 pb-2 pt-6">

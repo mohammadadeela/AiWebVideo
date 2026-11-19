@@ -574,9 +574,9 @@ export function DashboardClient() {
               />
             </div>
           ) : (
-            <div className={composerJobId ? "flex h-full min-h-0 w-full flex-col" : "mx-auto flex w-full max-w-[760px] flex-1 flex-col justify-center px-3 pb-[12vh] pt-6 sm:px-5"}>
+            <div className={composerJobId ? "flex h-full min-h-0 w-full flex-col" : "workspace-empty mx-auto flex w-full max-w-[760px] flex-1 flex-col justify-center px-3 pb-[12vh] pt-6 sm:px-5"}>
               {!composerJobId && (
-                <h1 className="mb-7 text-center font-display text-[30px] font-bold leading-tight tracking-[-.035em] text-text-primary sm:text-[38px]">What are we making?</h1>
+                <h1 className="intro-copy mb-7 text-center font-display text-[30px] font-bold leading-tight tracking-[-.035em] text-text-primary sm:text-[38px]">What are we making?</h1>
               )}
               <div id="workspace-creator" className={composerJobId ? "min-h-0 flex-1" : ""}>
                 <ChatWidget

@@ -309,7 +309,7 @@ export function ProfilePage() {
                   aria-selected={tab === id}
                   aria-controls={`panel-${id}`}
                   onClick={() => selectTab(id)}
-                  className={`min-h-10 rounded-xl px-2 text-xs font-semibold transition ${tab === id ? "bg-white text-[#181b23] shadow" : "text-text-muted hover:text-white"}`}
+                  className={`min-h-10 rounded-xl px-2 text-xs font-semibold transition ${tab === id ? "bg-white text-[var(--color-panel)] shadow" : "text-text-muted hover:text-white"}`}
                 >
                   {label}
                 </button>

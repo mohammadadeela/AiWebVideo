@@ -4,6 +4,7 @@ import { ChatWidget } from "@/components/chat/ChatWidget";
 import { Nav } from "@/components/landing/Nav";
 import { Footer } from "@/components/landing/Footer";
 import { VideoShowcase } from "@/components/landing/VideoShowcase";
+import { LiveDemo } from "@/components/landing/LiveDemo";
 import { useSeo } from "@/lib/useSeo";
 import { CREATION_FEATURES, type CreationIntent } from "@/lib/creationFeatures";
 import { requestCreationMode, useCreationMode } from "@/lib/creationMode";
@@ -23,6 +24,45 @@ const FEATURE_PAGES: Record<CreationIntent, string> = {
   architecture: "/ai-architectural-visualization",
 };
 
+/** The seven features, grouped by what a person starts from. */
+const GROUPS: ReadonlyArray<{ from: string; title: string; body: string; say: string; features: CreationIntent[] }> = [
+  {
+    from: "From a website link",
+    title: "A video of your business",
+    body: "It reads your pages, finds what you sell and why it matters, and builds a promo, a tour or a how-to-buy video around it.",
+    say: "Make a 16 second vertical ad for mystore.com",
+    features: ["website"],
+  },
+  {
+    from: "From a product link or a photo",
+    title: "Product videos and studio photos",
+    body: "Paste a product page and the real product photos are picked up for you. The product stays the product; the scene around it is new.",
+    say: "Studio photos of this on a marble counter",
+    features: ["product-video", "photo"],
+  },
+  {
+    from: "From a sentence",
+    title: "Original videos and talking scenes",
+    body: "Describe a scene, or who is speaking and what they say. Add a photo when a face, a place or a style has to match.",
+    say: "Two founders explain the app in a bright studio",
+    features: ["video", "scenario"],
+  },
+  {
+    from: "From a room photo or a map pin",
+    title: "Rooms redesigned, buildings on real sites",
+    body: "Redesign a space from a photo, a plan or a CAD drawing, or see a new building standing on a real street. Concept visuals, not construction plans.",
+    say: "A two-floor clothes shop on this corner",
+    features: ["interior", "architecture"],
+  },
+];
+
+const OUTPUT_FACTS: ReadonlyArray<readonly [string, string]> = [
+  ["8 to 60 s", "Video length, your choice"],
+  ["3 shapes", "Vertical, wide and square"],
+  ["Up to 4K", "Full HD as standard"],
+  ["14 languages", "For narration and voice-over"],
+];
+
 const steps = [
   ["Paste", "Drop in a website, a product page, a map pin or a few photos."],
   ["Say what you want", "One sentence is enough. Or send it as it is."],
@@ -30,6 +70,7 @@ const steps = [
 ] as const;
 
 const landingFaqs: ReadonlyArray<readonly [string, string]> = [
+  ["Is it a real AI I can talk to?", `Yes. Write what you want in plain language, in any language. ${BRAND.name} works out what to make, the length, the shape and the voice, tells you its plan and starts. You can also just paste a link.`],
   ["How do I turn a website into a video?", `Paste the website link into ${BRAND.name} and press send. It reads the pages, writes the story, and generates a finished video you can download. Adding a sentence about what to highlight is optional.`],
   ["Is it free to try?", `Yes. Reading your link and previewing what was found is free, and every new account gets ${STARTER_CREDITS} credits with no card needed.`],
   ["Can it make a video from a product link?", "Yes. Paste an Amazon, Shopify, Etsy or any product page link. The product photos are picked up automatically and turned into a product video or a set of studio photos."],
@@ -68,33 +109,45 @@ export function HomePage() {
       <Nav />
       <main>
         <section id="generate" className="scroll-mt-16 px-3 sm:px-5">
-          <div className="mx-auto flex min-h-[calc(100svh-3.5rem)] w-full max-w-[760px] flex-col justify-center pb-16 pt-8 sm:min-h-[calc(100svh-4rem)] sm:pb-24">
-            <h1 className="hero-title rise text-center text-text-primary">
-              Paste a link. <span className="lit">Get a video.</span>
-            </h1>
-            <p className="rise rise-2 mx-auto mt-5 max-w-[46ch] text-center text-[17px] leading-7 text-text-muted">
-              Websites, product pages, places and photos, turned into finished videos and images.
-            </p>
+          <div className="mx-auto flex min-h-[calc(92svh-3.5rem)] w-full max-w-[760px] flex-col justify-center pb-14 pt-8 sm:min-h-[calc(92svh-4rem)] sm:pb-20">
+            <div className="intro-copy">
+              <h1 className="hero-title rise text-center text-text-primary">
+                Paste a link. <span className="lit">Get a video.</span>
+              </h1>
+              <p className="rise rise-2 mx-auto mt-5 max-w-[50ch] text-center text-[17px] leading-7 text-text-muted">
+                Tell {BRAND.name} what you want in your own words. It reads your link, plans the shots and makes the video.
+              </p>
+            </div>
 
             <div className="rise rise-3 mt-8">
               <ChatWidget compactLanding className="w-full" />
             </div>
 
-            <div className="rise rise-4 mt-4 flex flex-wrap justify-center gap-1.5" role="group" aria-label="What to make">
-              {CREATION_FEATURES.map(({ id, label, icon: Icon }) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => pick(id)}
-                  aria-pressed={activeMode === id}
-                  className={`inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium transition ${activeMode === id ? "border-white/25 bg-white/[.08] text-white" : "border-white/[.09] text-text-muted hover:border-white/20 hover:text-white"}`}
-                >
-                  <Icon size={14} className={activeMode === id ? "text-violet" : "text-text-dim"} />
-                  {label}
-                </button>
-              ))}
+            <div className="intro-chips">
+              <div className="rise rise-4 mt-4 flex flex-wrap justify-center gap-1.5" role="group" aria-label="What to make">
+                {CREATION_FEATURES.map(({ id, label, icon: Icon }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => pick(id)}
+                    aria-pressed={activeMode === id}
+                    className={`inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium transition ${activeMode === id ? "border-white/30 bg-white/[.06] text-white" : "border-white/[.12] text-text-muted hover:border-white/25 hover:text-white"}`}
+                  >
+                    <Icon size={14} className={activeMode === id ? "text-violet" : "text-text-dim"} />
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <p className="rise rise-4 mt-6 text-center text-[13px] text-text-dim">{STARTER_CREDITS} free credits when you sign up. No card needed.</p>
             </div>
-            <p className="rise rise-4 mt-6 text-center text-[13px] text-text-dim">{STARTER_CREDITS} free credits when you sign up. No card needed.</p>
+          </div>
+        </section>
+
+        <section className="border-t border-white/[.07] bg-sunken px-4 sm:px-5" aria-labelledby="demo-heading">
+          <div className="mx-auto max-w-6xl py-16 sm:py-24">
+            <h2 id="demo-heading" className="mx-auto max-w-[18ch] text-center font-display text-3xl font-bold tracking-[-.035em] text-white sm:text-[44px] sm:leading-[1.05]">Talk to it like you would to a person</h2>
+            <p className="mx-auto mt-4 max-w-[52ch] text-center text-[16px] leading-7 text-text-muted">No forms and no settings to learn. Say the length, the shape and the language in one sentence, and watch it work.</p>
+            <div className="mt-10"><LiveDemo /></div>
           </div>
         </section>
 
@@ -106,7 +159,7 @@ export function HomePage() {
             <ol className="mt-10 grid gap-8 sm:grid-cols-3 sm:gap-6">
               {steps.map(([title, body], index) => (
                 <li key={title} className="border-t border-white/15 pt-5">
-                  <span className="font-utility text-[13px] text-gold">{index + 1}</span>
+                  <span className="font-utility text-[13px] text-text-dim">{index + 1}</span>
                   <h3 className="mt-2 font-display text-xl font-semibold tracking-[-.02em] text-white">{title}</h3>
                   <p className="mt-2 max-w-[34ch] text-[15px] leading-6 text-text-muted">{body}</p>
                 </li>
@@ -115,23 +168,40 @@ export function HomePage() {
           </div>
         </section>
 
-        <section className="border-t border-white/[.07] px-5" aria-labelledby="make-heading">
-          <div className="mx-auto grid max-w-6xl gap-10 py-16 sm:py-24 lg:grid-cols-[1fr_1.6fr]">
+        <section className="border-t border-white/[.07] px-4 sm:px-5" aria-labelledby="make-heading">
+          <div className="mx-auto max-w-6xl py-16 sm:py-24">
             <h2 id="make-heading" className="font-display text-3xl font-bold tracking-[-.035em] text-white sm:text-[40px]">What you can make</h2>
-            <ul className="divide-y divide-white/[.08] border-y border-white/[.08]">
-              {CREATION_FEATURES.map(({ id, label, description, icon: Icon }) => (
-                <li key={id}>
-                  <Link href={FEATURE_PAGES[id]} className="group flex items-center gap-4 py-4 transition hover:bg-white/[.025] sm:px-2">
-                    <Icon size={20} className="shrink-0 text-violet" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[17px] font-medium text-white">{label}</span>
-                      <span className="block text-[14px] text-text-dim">{description}</span>
-                    </span>
-                    <span className="shrink-0 text-[13px] font-medium text-text-dim transition group-hover:text-white">Learn more</span>
-                  </Link>
-                </li>
+            <div className="mt-10 grid gap-3 md:grid-cols-2">
+              {GROUPS.map((group) => (
+                <article key={group.title} className="flex flex-col rounded-3xl border border-white/10 p-6 sm:p-8">
+                  <p className="text-[14px] font-medium text-text-dim">{group.from}</p>
+                  <h3 className="mt-2 font-display text-2xl font-semibold tracking-[-.025em] text-white">{group.title}</h3>
+                  <p className="mt-3 max-w-[44ch] text-[15px] leading-7 text-text-muted">{group.body}</p>
+                  <p className="mt-5 rounded-2xl bg-white/[.04] px-4 py-3 text-[14px] leading-6 text-text-primary">“{group.say}”</p>
+                  <ul className="mt-5 flex flex-wrap gap-x-5 gap-y-2 pt-1">
+                    {group.features.map((id) => {
+                      const feature = CREATION_FEATURES.find((item) => item.id === id)!;
+                      return (
+                        <li key={id}>
+                          <Link href={FEATURE_PAGES[id]} className="inline-flex items-center gap-1.5 text-[14px] font-medium text-violet hover:underline">
+                            <feature.icon size={15} /> {feature.label}
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </article>
               ))}
-            </ul>
+            </div>
+
+            <dl className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+              {OUTPUT_FACTS.map(([value, label]) => (
+                <div key={label} className="rounded-3xl border border-white/10 p-6">
+                  <dt className="font-display text-2xl font-semibold tracking-[-.025em] text-white">{value}</dt>
+                  <dd className="mt-1 text-[14px] text-text-dim">{label}</dd>
+                </div>
+              ))}
+            </dl>
           </div>
         </section>
 
@@ -143,7 +213,7 @@ export function HomePage() {
             </div>
             <div className="mt-10 grid gap-3 sm:grid-cols-3">
               {CREDIT_PACKS.map((pack, index) => (
-                <Link key={pack.id} href="/pricing#buy-credits" className={`rounded-3xl border p-6 transition hover:border-white/25 ${index === 1 ? "border-violet/50 bg-violet/[.06]" : "border-white/[.09]"}`}>
+                <Link key={pack.id} href="/pricing#buy-credits" className={`rounded-3xl border p-6 transition hover:border-white/30 ${index === 1 ? "border-white/40 bg-white/[.03]" : "border-white/10"}`}>
                   <p className="text-[14px] font-medium text-text-muted">{pack.name}</p>
                   <p className="mt-3 font-display text-4xl font-bold tracking-[-.03em] text-white">${pack.amountUsd}</p>
                   <p className="mt-1 font-utility text-[13px] text-text-dim">{displayCredits(pack.credits)} credits, one-time</p>

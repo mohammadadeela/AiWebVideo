@@ -34,7 +34,7 @@ const clamp = (value: number, min: number, max: number) => Math.max(min, Math.mi
 
 function CameraButton({ label, onClick, children, disabled }: { label: string; onClick: () => void; children: React.ReactNode; disabled?: boolean }) {
   return (
-    <button type="button" onClick={onClick} disabled={disabled} aria-label={label} title={label} className="grid h-11 w-10 place-items-center rounded-xl border border-white/[.12] bg-[#191d26] text-white transition hover:border-white/30 active:scale-95 disabled:opacity-35">
+    <button type="button" onClick={onClick} disabled={disabled} aria-label={label} title={label} className="grid h-11 w-10 place-items-center rounded-xl border border-white/[.12] bg-[var(--color-panel)] text-white transition hover:border-white/30 active:scale-95 disabled:opacity-35">
       {children}
     </button>
   );
@@ -88,7 +88,7 @@ function NearbyPicker({ photos, value, onChange, latitude, longitude, hasOwnPhot
                 role="listitem"
                 onClick={() => onChange({ ...value, source: "nearby", nearbyId: photo.id, x: null, y: null })}
                 aria-label={`Use street photo ${index + 1}, ${Math.round(photo.distanceM)} metres away${photo.facesPlot ? ", facing the plot" : ""}`}
-                className="relative overflow-hidden rounded-xl border border-white/[.12] bg-[#0c0e12] text-left transition hover:border-mint/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mint active:scale-[.98]"
+                className="relative overflow-hidden rounded-xl border border-white/[.12] bg-[var(--color-sunken)] text-left transition hover:border-mint/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mint active:scale-[.98]"
               >
                 <img src={photo.thumbUrl} alt="" loading="lazy" referrerPolicy="no-referrer" className="aspect-[4/3] w-full object-cover" />
                 {index === 0 && <span className="absolute left-1.5 top-1.5 rounded bg-mint px-1.5 py-0.5 text-[10px] font-bold text-[#10231f]">Best match</span>}
@@ -102,7 +102,7 @@ function NearbyPicker({ photos, value, onChange, latitude, longitude, hasOwnPhot
       ) : (
         <div className="px-3 pb-1">
           <TapSurface
-            className="block w-full overflow-hidden rounded-lg bg-[#07080a]"
+            className="block w-full overflow-hidden rounded-lg bg-[var(--color-sunken)]"
             selection={value}
             active
             label="Tap the exact place on the street photo"
@@ -132,7 +132,7 @@ function NearbyPicker({ photos, value, onChange, latitude, longitude, hasOwnPhot
       )}
       <details className="px-3 pb-1 pt-2 text-[11.5px] text-white/70">
         <summary className="inline-flex min-h-9 cursor-pointer items-center font-semibold text-mint">Look around in Google Street View (360°, view only)</summary>
-        <div className="mt-2 aspect-[4/3] w-full overflow-hidden rounded-lg bg-[#07080a]">
+        <div className="mt-2 aspect-[4/3] w-full overflow-hidden rounded-lg bg-[var(--color-sunken)]">
           <iframe title="Google Street View of the street, 360 degrees. Drag to look around." src={streetViewEmbedUrl(latitude, longitude)} loading="lazy" allowFullScreen referrerPolicy="no-referrer" className="h-full w-full border-0" />
         </div>
       </details>
@@ -322,7 +322,7 @@ export function SiteStreetView({ latitude, longitude, mapSrc, value, onChange, p
           ) : (
             <Steps looked={cameraTouched || marked} marked={marked} said={marked && value.kind !== null} />
           )}
-          <div className="relative aspect-[4/3] w-full overflow-hidden bg-[#07080a]">
+          <div className="relative aspect-[4/3] w-full overflow-hidden bg-[var(--color-sunken)]">
             <div className={mapLayer}>
               <iframe title="The exact spot on the map" src={mapSrc} loading="lazy" referrerPolicy="no-referrer" className="h-full w-full border-0" />
             </div>
@@ -351,7 +351,7 @@ export function SiteStreetView({ latitude, longitude, mapSrc, value, onChange, p
                 </TapSurface>
               </div>
               {(loading || (pictureLoading && !shownSrc)) && (
-                <div className="absolute inset-0 z-30 grid place-items-center bg-[#0c0e12]/70" role="status" aria-label="Loading Street View">
+                <div className="absolute inset-0 z-30 grid place-items-center bg-[var(--color-sunken)]/70" role="status" aria-label="Loading Street View">
                   <Loader2 size={mapIsMain ? 14 : 22} className="animate-spin text-white/80" aria-hidden="true" />
                 </div>
               )}
@@ -455,7 +455,7 @@ export function SiteStreetView({ latitude, longitude, mapSrc, value, onChange, p
             // Street View pictures are not switched on in this site, so Google's own 360° viewer is shown right under the map.
             <div data-testid="street-view-embed">
               <Steps looked={photos.length > 0} marked={photos.length > 0} said={marked && value.source === "photo"} labels={["Look around in 360°", canCapture ? "Capture the view" : "Add a screenshot of the view", "Tap the exact place"]} />
-              <div ref={captureFrameRef} className="relative aspect-[4/3] w-full overflow-hidden bg-[#07080a]">
+              <div ref={captureFrameRef} className="relative aspect-[4/3] w-full overflow-hidden bg-[var(--color-sunken)]">
                 <iframe
                   title="Google Street View of the street, 360 degrees. Drag to look around."
                   src={streetViewEmbedUrl(latitude, longitude)}

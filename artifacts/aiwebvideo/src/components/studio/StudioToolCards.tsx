@@ -95,7 +95,7 @@ export function StudioToolCards({ className = '', detailed = false }: { classNam
             href={config.path}
             aria-label={`${meta.cta}. ${meta.description}`}
             onClick={() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' })}
-            className={`group relative flex min-h-[300px] cursor-pointer flex-col overflow-hidden rounded-[24px] border border-white/10 bg-[#14171e]/90 p-5 text-left shadow-[0_20px_55px_-38px_rgba(0,0,0,.95)] transition-all duration-300 hover:-translate-y-1.5 hover:bg-[#1a1e27] active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-bg ${meta.borderHover}`}
+            className={`group relative flex min-h-[300px] cursor-pointer flex-col overflow-hidden rounded-[24px] border border-white/10 bg-[var(--color-bg)]/90 p-5 text-left shadow-[0_20px_55px_-38px_rgba(0,0,0,.95)] transition-all duration-300 hover:-translate-y-1.5 hover:bg-[var(--color-panel)] active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-bg ${meta.borderHover}`}
           >
             <span className={`pointer-events-none absolute -right-12 -top-14 h-36 w-36 rounded-full blur-3xl transition-opacity duration-300 group-hover:opacity-100 ${meta.glow}`} aria-hidden="true" />
             <span className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${meta.accent}`} aria-hidden="true" />

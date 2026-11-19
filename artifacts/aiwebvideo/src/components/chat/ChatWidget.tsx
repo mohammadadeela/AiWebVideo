@@ -547,7 +547,7 @@ export function ChatWidget({
         <button
           type="button"
           onClick={jumpToLatest}
-          className="absolute left-1/2 z-[80] inline-flex min-h-9 -translate-x-1/2 items-center gap-1.5 rounded-full border border-white/[.12] bg-[#14171e]/95 px-3 text-[10px] font-semibold text-white shadow-[0_14px_38px_-18px_rgba(0,0,0,.95)] backdrop-blur-xl transition hover:border-violet/35 hover:bg-[#191d26]"
+          className="absolute left-1/2 z-[80] inline-flex min-h-9 -translate-x-1/2 items-center gap-1.5 rounded-full border border-white/[.12] bg-[var(--color-bg)]/95 px-3 text-[10px] font-semibold text-white shadow-[0_14px_38px_-18px_rgba(0,0,0,.95)] backdrop-blur-xl transition hover:border-violet/35 hover:bg-[var(--color-panel)]"
           style={{ bottom: latestButtonBottom }}
           aria-label="Jump to latest message"
         >

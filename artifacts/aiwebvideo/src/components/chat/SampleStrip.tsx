@@ -51,7 +51,7 @@ export function SampleStrip({ feature, selectedId, onSelect, selectable }: {
                 aria-pressed={active}
                 aria-label={active ? "Remove this example" : "Use this example"}
                 onClick={() => onSelect(active ? null : sample)}
-                className={`group relative h-[132px] w-[96px] shrink-0 overflow-hidden rounded-[18px] bg-[#0d0e13] transition duration-200 sm:h-[148px] sm:w-[108px] ${
+                className={`group relative h-[132px] w-[96px] shrink-0 overflow-hidden rounded-[18px] bg-[var(--color-sunken)] transition duration-200 sm:h-[148px] sm:w-[108px] ${
                 active
                   ? "scale-[1.02] ring-2 ring-mint shadow-[0_14px_34px_-14px_rgba(0,0,0,.7)]"
                   : selectable
@@ -75,7 +75,7 @@ export function SampleStrip({ feature, selectedId, onSelect, selectable }: {
             ) : (
               // Inspiration only: a plain tile, not a disabled button (a disabled button swallows the mouse press,
               // so the row could not be dragged from it).
-              <div key={sample.id} aria-label="Example" role="img" className={`group relative h-[132px] w-[96px] shrink-0 overflow-hidden rounded-[18px] bg-[#0d0e13] transition duration-200 sm:h-[148px] sm:w-[108px] ${
+              <div key={sample.id} aria-label="Example" role="img" className={`group relative h-[132px] w-[96px] shrink-0 overflow-hidden rounded-[18px] bg-[var(--color-sunken)] transition duration-200 sm:h-[148px] sm:w-[108px] ${
                 active
                   ? "scale-[1.02] ring-2 ring-mint shadow-[0_14px_34px_-14px_rgba(0,0,0,.7)]"
                   : selectable

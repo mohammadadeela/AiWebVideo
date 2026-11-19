@@ -167,7 +167,7 @@ export function ComposerPlusMenu({ disabled, addLabel, attachedCount, attachedKe
                         type="button"
                         onClick={() => void forget(row.id)}
                         aria-label={`Remove ${row.name} from recent files`}
-                        className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full bg-[#14171e] text-white/50 opacity-0 shadow transition hover:text-white focus:opacity-100 group-hover:opacity-100"
+                        className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full bg-[var(--color-bg)] text-white/50 opacity-0 shadow transition hover:text-white focus:opacity-100 group-hover:opacity-100"
                       >
                         <X size={13} />
                       </button>

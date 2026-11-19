@@ -151,8 +151,8 @@ function UserDetailsModal({ details, loading, onClose }: { details: { user: Row;
   const user = details?.user ?? {};
   return (
     <div role="dialog" aria-modal="true" aria-label="User details" className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/70 p-3 backdrop-blur-sm sm:p-6" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <div className="my-6 w-full max-w-6xl overflow-hidden rounded-[28px] border border-white/10 bg-[#12141a] shadow-2xl">
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-[#12141a]/95 px-5 py-4 backdrop-blur-xl">
+      <div className="my-6 w-full max-w-6xl overflow-hidden rounded-[28px] border border-white/10 bg-[var(--color-bg)] shadow-2xl">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-[var(--color-bg)]/95 px-5 py-4 backdrop-blur-xl">
           <div><p className="font-utility text-[9px] uppercase tracking-[.16em] text-violet">User management</p><h2 className="mt-1 font-display text-xl font-bold text-text-primary">{loading ? 'Loading account…' : text(user.email)}</h2></div>
           <button type="button" onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-xl border border-border text-text-muted hover:bg-white/5 hover:text-white"><X size={17} /></button>
         </div>
@@ -531,7 +531,7 @@ export function AdminPage() {
   const checkoutState = providerStatus.checkout;
 
   return <div className="cinematic-page min-h-screen bg-bg lg:flex">
-    <aside className="border-b border-border bg-[#101318] p-4 lg:sticky lg:top-0 lg:h-screen lg:w-56 lg:border-b-0 lg:border-r">
+    <aside className="border-b border-border bg-[var(--color-bg)] p-4 lg:sticky lg:top-0 lg:h-screen lg:w-56 lg:border-b-0 lg:border-r">
       <Link href="/"><Wordmark /></Link>
       <nav className="chat-scroll mt-5 flex gap-1 overflow-x-auto lg:mt-8 lg:flex-col lg:overflow-visible" aria-label="Admin sections">
         {tabs.map((item) => <button key={item.id} type="button" onClick={() => selectTab(item.id)} aria-current={tab === item.id ? 'page' : undefined} className={`flex shrink-0 items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-xs font-semibold transition ${tab === item.id ? 'bg-violet/15 text-text-primary' : 'text-text-muted hover:bg-white/5 hover:text-text-primary'}`}><item.icon size={15} />{item.label}</button>)}
@@ -591,7 +591,7 @@ export function AdminPage() {
         const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => gallerySelected.includes(id));
         const count = (feature: ShowcaseFeature) => items.filter((item) => item.feature === feature).length;
         const patchItems = (ids: string[], patch: Partial<(typeof items)[number]>) => setShowcase(showcase.map((item) => ids.includes(item.id) ? { ...item, ...patch } : item));
-        const chip = (active: boolean) => `shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition ${active ? 'bg-white text-[#181b23]' : 'bg-white/[.06] text-text-muted hover:text-white'}`;
+        const chip = (active: boolean) => `shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition ${active ? 'bg-white text-[var(--color-panel)]' : 'bg-white/[.06] text-text-muted hover:text-white'}`;
         return <section className="mt-6 space-y-4">
           <LandingExamplesManager
             examples={marketing.videos.examples ?? []}
@@ -627,13 +627,13 @@ export function AdminPage() {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <div className="flex gap-1 rounded-xl bg-white/[.04] p-1">
-                {(['all', 'image', 'video'] as const).map((kind) => <button key={kind} type="button" onClick={() => setGalleryKind(kind)} className={`rounded-lg px-3 py-1 text-xs font-semibold ${galleryKind === kind ? 'bg-white text-[#181b23]' : 'text-text-muted'}`}>{kind === 'all' ? 'All types' : kind === 'image' ? 'Images' : 'Videos'}</button>)}
+                {(['all', 'image', 'video'] as const).map((kind) => <button key={kind} type="button" onClick={() => setGalleryKind(kind)} className={`rounded-lg px-3 py-1 text-xs font-semibold ${galleryKind === kind ? 'bg-white text-[var(--color-panel)]' : 'text-text-muted'}`}>{kind === 'all' ? 'All types' : kind === 'image' ? 'Images' : 'Videos'}</button>)}
               </div>
               <button type="button" onClick={() => setGallerySelected(allVisibleSelected ? gallerySelected.filter((id) => !visibleIds.includes(id)) : Array.from(new Set([...gallerySelected, ...visibleIds])))} className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-violet hover:bg-violet/10" disabled={!visibleIds.length}>{allVisibleSelected ? 'Clear selection' : `Select ${visibleIds.length} shown`}</button>
             </div>
           </div>
 
-          {gallerySelected.length > 0 && <div className="sticky top-3 z-20 flex flex-wrap items-center gap-2 rounded-2xl border border-violet/30 bg-[#191d26]/95 p-3 shadow-xl backdrop-blur">
+          {gallerySelected.length > 0 && <div className="sticky top-3 z-20 flex flex-wrap items-center gap-2 rounded-2xl border border-violet/30 bg-[var(--color-panel)]/95 p-3 shadow-xl backdrop-blur">
             <span className="text-sm font-semibold text-white">{gallerySelected.length} selected</span>
             <span className="text-xs text-text-muted">Move to:</span>
             <div className="chat-scroll flex min-w-0 flex-1 gap-1.5 overflow-x-auto">

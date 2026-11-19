@@ -1,41 +1,82 @@
 @import "tailwindcss";
 
+/*
+ * One set of variables drives the whole site. Light is the default; [data-theme="dark"] swaps the values.
+ * Historical class names are kept so every existing screen follows the theme:
+ *   "white" is the ink colour (text, and the base of every translucent fill and hairline),
+ *   "black" is the page colour, violet = accent blue, mint = positive, pink = danger, gold = highlight.
+ */
+:root {
+  color-scheme: light;
+  --paper: #ffffff;
+  --ink: #0d0d0d;
+  --surface-sunken: #f9f9f9;
+  --surface-panel: #f7f7f8;
+  --surface-raised: #f1f1f3;
+  --text-strong: #0d0d0d;
+  --text-muted: #55555e;
+  --text-dim: #74747e;
+  --accent: #2563eb;
+  --positive: #0b8457;
+  --danger: #d1332b;
+  --highlight: #a16207;
+  --primary: #0d0d0d;
+  --on-primary: #ffffff;
+  --hairline: rgba(13, 13, 13, 0.1);
+  --lift: 0 1px 2px rgba(13, 13, 13, 0.05), 0 8px 28px -12px rgba(13, 13, 13, 0.14);
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #0f1218;
+  --ink: #ffffff;
+  --surface-sunken: #0b0d12;
+  --surface-panel: #181c25;
+  --surface-raised: #212632;
+  --text-strong: #f3f1ec;
+  --text-muted: #b4b8c4;
+  --text-dim: #8b90a0;
+  --accent: #6b8fff;
+  --positive: #3ddc97;
+  --danger: #ff6b6b;
+  --highlight: #ffc857;
+  --primary: #ffffff;
+  --on-primary: #0f1218;
+  --hairline: rgba(255, 255, 255, 0.09);
+  --lift: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 24px 60px -32px rgba(0, 0, 0, 0.8);
+}
+
 @theme inline {
-  /* Surfaces: one cool ink, three steps */
-  --color-bg: #0f1218;
-  --color-sunken: #0b0d12;
-  --color-panel: #181c25;
-  --color-panel-alt: #212632;
-  --color-border: rgba(255, 255, 255, 0.08);
+  --color-white: var(--ink);
+  --color-black: var(--paper);
 
-  /* Text */
-  --color-text-primary: #f3f1ec;
-  --color-text-muted: #b4b8c4;
-  --color-text-dim: #8b90a0;
+  --color-bg: var(--paper);
+  --color-sunken: var(--surface-sunken);
+  --color-panel: var(--surface-panel);
+  --color-panel-alt: var(--surface-raised);
+  --color-border: var(--hairline);
 
-  /* Accents. The class names are historical: violet = primary blue, mint = positive, pink = danger, gold = tungsten. */
-  --color-violet: #6b8fff;
-  --color-mint: #3ddc97;
-  --color-pink: #ff6b6b;
-  --color-gold: #ffc857;
-  --color-primary: #3d6bf0;
+  --color-text-primary: var(--text-strong);
+  --color-text-muted: var(--text-muted);
+  --color-text-dim: var(--text-dim);
 
-  /* Fonts */
-  --font-display: "Bricolage Grotesque", "Geist", system-ui, sans-serif;
+  --color-violet: var(--accent);
+  --color-mint: var(--positive);
+  --color-pink: var(--danger);
+  --color-gold: var(--highlight);
+  --color-primary: var(--primary);
+
+  --font-display: "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-body: "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-utility: "Geist Mono", ui-monospace, "SF Mono", monospace;
   --font-sans: "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "Geist Mono", ui-monospace, "SF Mono", monospace;
 
-  /* Border radius */
   --radius-badge: 14px;
 
-  /* Animations */
   --animate-pulse-soft: pulse-soft 2s ease-in-out infinite;
   --animate-typing-dot: typing-dot 1.2s ease-in-out infinite;
 
-  /* Shadows */
-  --shadow-violet: 0 10px 30px -14px rgba(0, 0, 0, 0.7);
+  --shadow-violet: var(--lift);
 }
 
 @keyframes pulse-soft {
@@ -301,7 +342,7 @@
   background: radial-gradient(
     circle,
     rgba(92, 133, 246, 0.25) 0%,
-    rgba(20, 23, 30, 0) 70%
+    color-mix(in srgb, var(--color-bg) 0%, transparent) 70%
   );
   filter: blur(60px);
 }
@@ -330,7 +371,7 @@
   width: 6px;
 }
 .chat-scroll::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--hairline);
   border-radius: 999px;
 }
 .chat-scroll::-webkit-scrollbar-track {
@@ -342,7 +383,7 @@
   *,
   ::before,
   ::after {
-    border-color: rgba(255, 255, 255, 0.09);
+    border-color: var(--hairline);
   }
 }
 
@@ -646,7 +687,7 @@ picture {
   border: 1px solid transparent;
   border-radius: 9px;
   background: transparent;
-  color: #d7dae0;
+  color: var(--color-text-muted);
   font-size: 12px;
   line-height: 1.4;
   font-weight: 500;
@@ -656,8 +697,8 @@ picture {
 .generation-control > svg:not(.lucide-chevron-down),
 .generation-control > span > svg { width: 15px; height: 15px; }
 .generation-control > span:has(> svg),
-.generation-control > span:has(> span) { background: transparent; color: #babfca; }
-.generation-control > .lucide-chevron-down { width: 11px; color: #a6acbb; }
+.generation-control > span:has(> span) { background: transparent; color: var(--color-text-muted); }
+.generation-control > .lucide-chevron-down { width: 11px; color: var(--color-text-muted); }
 .generation-control:hover:not(:disabled) {
   transform: none;
   background: rgba(255, 255, 255, .07);
@@ -667,17 +708,17 @@ picture {
 .generation-control-active,
 .generation-control[aria-expanded="true"] {
   background: rgba(125, 155, 236, .13);
-  border-color: #7d9bec;
+  border-color: var(--color-text-muted);
   color: #fff;
 }
-.generation-control-model { background: #ced8f3; color: #1c212b; border-color: transparent; font-weight: 600; border-radius: 8px; }
+.generation-control-model { background: var(--color-text-primary); color: var(--color-panel); border-color: transparent; font-weight: 600; border-radius: 8px; }
 .generation-control-model:hover:not(:disabled),
-.generation-control-model[aria-expanded="true"] { background: #dde5fa; color: #1c212b; border-color: transparent; }
+.generation-control-model[aria-expanded="true"] { background: var(--color-text-primary); color: var(--color-panel); border-color: transparent; }
 .generation-control-model > span:has(> svg),
 .generation-control-model > .lucide-chevron-down { color: #4f5667; }
 .generation-control:focus-visible { outline: 2px solid #4edb99; outline-offset: 3px; }
 .generation-control:disabled { opacity: .45; cursor: not-allowed; }
-.generation-control-static { border-color: transparent; color: #a6acbb; }
+.generation-control-static { border-color: transparent; color: var(--color-text-muted); }
 .generation-control-menu {
   z-index: 100;
   width: 220px;
@@ -686,16 +727,16 @@ picture {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 5px;
-  border: 1px solid #2c3342;
+  border: 1px solid var(--color-panel-alt);
   border-radius: 14px;
-  background: #13161d;
-  color: #e9edf8;
+  background: var(--color-bg);
+  color: var(--color-text-primary);
   box-shadow: 0 12px 36px #0008;
 }
 .generation-control-menu-wide { width: 340px; }
 .generation-control-menu button { min-height: 36px; }
 .generation-control-menu [role="option"] > span > span:first-child { font-size: 12px; }
-.generation-control-menu [role="option"] > span > span + span { font-size: 10px; color: #b2b7c4; }
+.generation-control-menu [role="option"] > span > span + span { font-size: 10px; color: var(--color-text-muted); }
 @media (pointer: coarse), (max-width: 767px) {
   .generation-control { min-height: 44px; }
   .generation-control-menu button { min-height: 44px; }
@@ -711,7 +752,7 @@ picture {
 .generation-output-controls { padding: 4px; background: #ffffff05; border: 1px solid #ffffff12; border-radius: 13px; }
 .generation-output-controls .generation-control:not(.generation-control-model) > .lucide-chevron-down { display: none; }
 .generation-output-controls .generation-control:not(.generation-control-model) { font-variant-numeric: tabular-nums; }
-.generation-ratio-icon { display: block; flex-shrink: 0; color: #c5d2f5; border-color: currentColor; box-shadow: inset 0 0 0 2px #13161d; background: #9aaee526; }
+.generation-ratio-icon { display: block; flex-shrink: 0; color: var(--color-text-muted); border-color: currentColor; box-shadow: inset 0 0 0 2px var(--color-bg); background: #9aaee526; }
 @media (max-width: 639px) {
   .generation-toolbar { gap: 6px; }
   .generation-creative-actions { width: 100%; }
@@ -802,4 +843,28 @@ picture {
 @media (prefers-reduced-motion: reduce) {
   .link-status-bar::after { animation: none; width: 100%; opacity: .5; }
   .link-status-shimmer { animation: none; }
+}
+
+/* Text on filled buttons: always the colour that reads on that fill, in both themes. */
+.bg-primary,
+.bg-signature,
+.bg-violet,
+.bg-pink,
+.bg-emerald-500,
+.bg-rose-500 {
+  color: var(--on-primary);
+}
+:root:not([data-theme="dark"]) :is(.bg-violet, .bg-pink, .bg-emerald-500, .bg-rose-500),
+:root:not([data-theme="dark"]) :is(.bg-violet, .bg-pink, .bg-emerald-500, .bg-rose-500) :is(.text-white, [class*="text-white/"]) {
+  color: #fff;
+}
+:is(.bg-primary, .bg-signature) :is(.text-white, [class*="text-white/"]) {
+  color: var(--on-primary);
+}
+.bg-mint,
+.bg-gold {
+  color: #fff;
+}
+:root[data-theme="dark"] :is(.bg-mint, .bg-gold) {
+  color: #10151c;
 }

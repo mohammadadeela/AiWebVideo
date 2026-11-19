@@ -70,7 +70,8 @@ import { FormatIcon } from "./FormatIcon";
 import { ModelPicker } from "./ModelPicker";
 import { QualityGlyph } from "./QualityGlyph";
 import { fileKey, rememberFiles } from "@/lib/recentFiles";
-import { ApiError, extractProductReference, resolveArchitectureLocation, type ProductReference } from "@/lib/api-client";
+import { ApiError, askAssistant, assistantEnabled, extractProductReference, resolveArchitectureLocation, type AssistantPlan, type ProductReference } from "@/lib/api-client";
+import { AssistantThread, type ThreadMessage } from "./AssistantThread";
 import { looksLikeCoordinates, mapPreviewUrl } from "@/lib/mapPreview";
 import type { AudioMode, JobMode } from "./types";
 
@@ -455,6 +456,17 @@ export function WebsiteBriefForm({
   const [compactPanel, setCompactPanel] = useState<"style" | "ideas" | "model" | null>(null);
   const [openSettingMenu, setOpenSettingMenu] = useState<"duration" | "aspect" | "quality" | "audio" | "language" | "style" | "output" | null>(null);
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
+  // The conversation with the assistant before a production starts.
+  const [thread, setThread] = useState<ThreadMessage[]>([]);
+  const [assistantBusy, setAssistantBusy] = useState(false);
+  const [assistantOn, setAssistantOn] = useState(false);
+  const planToStartRef = useRef<AssistantPlan | null>(null);
+  const threadIdRef = useRef(0);
+  useEffect(() => {
+    let cancelled = false;
+    void assistantEnabled().then((enabled) => { if (!cancelled) setAssistantOn(enabled); });
+    return () => { cancelled = true; };
+  }, []);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [customDurationInput, setCustomDurationInput] = useState(String(DEFAULT_SETTINGS.durationSeconds));
   const [usingCustomDuration, setUsingCustomDuration] = useState(false);
@@ -1038,6 +1050,161 @@ export function WebsiteBriefForm({
               ? "Create architecture"
               : "Create talking scene";
 
+  // ---- The assistant: a written message is understood first, then turned into a production. ----
+
+  /** Shows the assistant's plan in the composer (feature, link, settings), so what will be made is always visible. */
+  function applyPlan(plan: AssistantPlan) {
+    if (plan.feature !== activeModeRef.current) applyIntent(plan.feature);
+    if (plan.feature === "website" && plan.url) setUrl(plan.url);
+    if ((plan.feature === "photo" || plan.feature === "product-video") && plan.productUrl && plan.productUrl !== withScheme(productLink.trim() || "x")) {
+      setBlockedProduct(null);
+      setProductLink(plan.productUrl);
+    }
+    if (plan.feature === "architecture" && plan.location && plan.location !== mapLink.trim()) { setMapLink(plan.location); setSite(null); }
+    if (plan.feature === "interior" || plan.feature === "architecture") setInteriorOutput(plan.output);
+    if (plan.feature === "website") setSelectedWebsiteRecipe(plan.websiteStyle === "auto" ? null : plan.websiteStyle);
+    setSettings((current) => {
+      const stills = plan.output === "images";
+      const family = stills ? (plan.feature === "photo" ? "image" : "interior") : "video";
+      const modelId = publicModel(current.modelId).family === family ? current.modelId : defaultModelFor(family);
+      const model = publicModel(modelId);
+      return {
+        ...current,
+        mode: plan.feature === "website" && plan.websiteStyle !== "auto" ? plan.websiteStyle : current.mode,
+        modelId,
+        durationSeconds: plan.durationSeconds,
+        aspectRatio: plan.aspectRatio,
+        outputQuality: model.supportedQualities.includes(plan.outputQuality) ? plan.outputQuality : (model.supportedQualities[0] ?? "1080p"),
+        audioMode: stills ? "silent" : model.audioModes.includes(plan.audioMode) ? plan.audioMode : (model.audioModes[0] ?? "silent"),
+        narrationLanguage: plan.narrationLanguage,
+      };
+    });
+  }
+
+  /** Begins the production the assistant planned. Uses the plan itself, not the form fields it was copied into. */
+  async function startFromPlan(plan: AssistantPlan) {
+    const stills = plan.output === "images";
+    const family = stills ? (plan.feature === "photo" ? "image" : "interior") : "video";
+    const modelId = publicModel(settings.modelId).family === family ? settings.modelId : defaultModelFor(family);
+    const model = publicModel(modelId);
+    const outputQuality = model.supportedQualities.includes(plan.outputQuality) ? plan.outputQuality : (model.supportedQualities[0] ?? "1080p");
+    const audioMode: AudioMode = stills ? "silent" : model.audioModes.includes(plan.audioMode) ? plan.audioMode : (model.audioModes[0] ?? "silent");
+    setError(null);
+    clearPromptDraft();
+
+    if (plan.feature === "website") {
+      try {
+        void onSubmit(
+          plan.url ? normalizeWebsiteUrl(plan.url) : "",
+          plan.prompt || DEFAULT_WEBSITE_BRIEF,
+          { mode: plan.websiteStyle === "auto" ? "video" : plan.websiteStyle, durationSeconds: plan.durationSeconds, aspectRatio: plan.aspectRatio, outputQuality, audioMode, narrationLanguage: plan.narrationLanguage, modelId },
+          files,
+        );
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : "Enter a valid public website URL.");
+      }
+      return;
+    }
+
+    const isProduct = plan.feature === "photo" || plan.feature === "product-video";
+    let productReference: ProductReference | null = null;
+    let productImages: string[] = [];
+    if (isProduct && files.length === 0) {
+      // The page is read now; if the shop refuses, the composer explains and asks for one photo.
+      productReference = await loadProductLink(plan.productUrl, true);
+      if (!productReference) return;
+      productImages = productReference.images.slice(0, 1);
+    }
+
+    let location = site;
+    if (plan.feature === "architecture") {
+      if (!location) location = await resolveSite(plan.location);
+      if (!location) return;
+    }
+
+    void onStudioSubmit({
+      studioKind: isProduct ? "product" : plan.feature === "scenario" ? "scenario" : plan.feature === "interior" ? "interior" : plan.feature === "architecture" ? "architecture" : "idea",
+      prompt: plan.prompt || DEFAULT_PROMPTS[plan.feature] || "",
+      files,
+      mode: plan.feature === "photo" ? "photos" : plan.feature === "product-video" ? "video" : stills ? "photos" : "custom",
+      durationSeconds: plan.durationSeconds,
+      aspectRatio: plan.aspectRatio,
+      outputQuality,
+      audioMode,
+      modelId,
+      productUrl: productReference?.url,
+      productImageUrls: productImages,
+      drawing: cadMode ? drawingAttachment.drawing?.file : undefined,
+      drawingUnits: cadMode ? drawingAttachment.drawing?.preview?.units.choice : undefined,
+      productFacts: productReference ? { title: productReference.title, description: productReference.description, facts: productReference.facts } : undefined,
+      architecture: plan.feature === "architecture" && location ? {
+        location: location.label || location.resolvedUrl,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        mapUrl: location.resolvedUrl || undefined,
+        floors: Number(floorCount) || undefined,
+        setback: Number(setback) || undefined,
+        estimatedScale: true,
+        ...selectionToRequest(siteSelection),
+      } : undefined,
+    });
+  }
+
+  /**
+   * The send button. Words go to the assistant, which answers and (when it has enough) starts the production.
+   * A link or photos with no words start directly. If the assistant cannot be reached, the request still starts.
+   */
+  async function send(spoken?: string) {
+    if (disabled || assistantBusy) return;
+    const text = (spoken ?? brief).trim();
+    if (!assistantOn || !text) { void submit(); return; }
+    setOpenSettingMenu(null);
+    setCompactPanel(null);
+    setError(null);
+
+    const started = Date.now();
+    const userId = `u${++threadIdRef.current}`;
+    const answerId = `a${++threadIdRef.current}`;
+    const history = [...thread.filter((message) => !message.pending), { id: userId, role: "user" as const, text }];
+    setThread([...history, { id: answerId, role: "assistant", text: "", pending: true }]);
+    setBrief("");
+    setAssistantBusy(true);
+    try {
+      const turn = await askAssistant(
+        history.map((message) => ({ role: message.role, text: message.text })),
+        {
+          feature: activeMode,
+          link: (activeMode === "website" ? url : isProductMode ? productLink : activeMode === "architecture" ? mapLink : "").trim(),
+          photos: files.length,
+          hasDrawing: Boolean(drawingAttachment.drawing),
+        },
+      );
+      if (turn.plan) applyPlan(turn.plan);
+      planToStartRef.current = turn.start ? turn.plan : null;
+      const seconds = Math.max(1, Math.round((Date.now() - started) / 1000));
+      setThread((current) => current.map((message) => message.id === answerId
+        ? { ...message, pending: false, animate: true, text: turn.reply, thinking: turn.thinking, suggestions: turn.suggestions, seconds }
+        : message));
+    } catch {
+      // The assistant is a convenience, never a gate: put the words back and start the request the direct way.
+      setThread((current) => current.filter((message) => message.id !== userId && message.id !== answerId));
+      setBrief(text);
+      setAssistantBusy(false);
+      void submit();
+    }
+  }
+
+  /** The answer has finished appearing: free the composer and begin the production if one was planned. */
+  function onAnswerSettled() {
+    setAssistantBusy(false);
+    const plan = planToStartRef.current;
+    planToStartRef.current = null;
+    if (plan) void startFromPlan(plan);
+  }
+  const onAnswerSettledRef = useRef(onAnswerSettled);
+  onAnswerSettledRef.current = onAnswerSettled;
+  const settleAnswer = useRef((_id: string) => onAnswerSettledRef.current()).current;
+
   // ---- One box: links typed or pasted into the message are picked up and filed where they belong. ----
 
   /** Whether the open feature still has room for a link (each feature reads one). */
@@ -1106,7 +1273,7 @@ export function WebsiteBriefForm({
   const ActiveIcon = activeFeature.icon;
   const qualityLabel = selectedModel.supportedQualities.length === 1 ? selectedModel.quality : settings.outputQuality === "4k" ? "4K" : "HD";
   const settingsSummary = `${isVideoMode && selectedModel.supportsDuration ? `${durationSeconds}s · ` : ""}${settings.aspectRatio} · ${qualityLabel}`;
-  const placeholder = activeMode === "website"
+  const placeholder = thread.length ? "Reply to Linkreel" : activeMode === "website"
     ? (url.trim() ? "What should the video show? Leave empty and we'll pick the best story." : "Paste a link, or describe what you want to make")
     : activeMode === "video"
       ? "Describe the video you want"
@@ -1129,6 +1296,7 @@ export function WebsiteBriefForm({
 
   return (
     <div className="w-full">
+    <AssistantThread messages={thread} onSettled={settleAnswer} onSuggestion={(text) => void send(text)} />
     <div
       ref={composerRootRef}
       data-composer
@@ -1256,7 +1424,7 @@ export function WebsiteBriefForm({
                       return (
                         <button key={image} type="button" aria-label="Use product image" aria-pressed={selected}
                           onClick={() => setChosenProductImages((current) => current.includes(image) ? current.filter((item) => item !== image) : [...current, image].slice(0, 6))}
-                          className={`relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border-2 bg-white ${selected ? "border-violet" : "border-transparent opacity-60 hover:opacity-100"}`}>
+                          className={`relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border-2 bg-[#fff] ${selected ? "border-violet" : "border-transparent opacity-60 hover:opacity-100"}`}>
                           <img src={image} alt="" loading="lazy" className="h-full w-full object-contain" />
                           {selected && <span className="absolute right-0.5 top-0.5 grid h-4 w-4 place-items-center rounded-full bg-violet text-white"><Check size={10} strokeWidth={3} /></span>}
                         </button>
@@ -1352,7 +1520,7 @@ export function WebsiteBriefForm({
           // Phones and tablets keep Enter for a new line; with a keyboard it sends, like any chat.
           if (window.matchMedia?.("(pointer: coarse)").matches) return;
           event.preventDefault();
-          if (!submitDisabled) void submit();
+          if (!submitDisabled && !assistantBusy) void send();
         }}
         placeholder={placeholder}
         aria-label="Message"
@@ -1649,13 +1817,13 @@ export function WebsiteBriefForm({
         )}
         <button
           type="button"
-          onClick={() => void submit()}
-          disabled={submitDisabled}
+          onClick={() => void send()}
+          disabled={submitDisabled || assistantBusy}
           aria-label={linkBusy ? "Reading your link" : createLabel}
           title={createLabel}
           className="composer-send grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white text-bg transition hover:bg-white/90 active:scale-95 disabled:bg-white/15 disabled:text-white/40"
         >
-          {linkBusy
+          {linkBusy || assistantBusy
             ? <i className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden="true" />
             : <ArrowUp size={19} strokeWidth={2.4} />}
         </button>

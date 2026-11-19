@@ -2,6 +2,8 @@ import { Link } from "wouter";
 import { Wordmark } from "@/components/ui/Wordmark";
 import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/support";
 import { BRAND } from "@/lib/brand";
+import { Moon, Sun } from "lucide-react";
+import { setTheme, useTheme } from "@/lib/theme";
 
 // Every public page is one click from every other page: this is also the site's internal link map for search engines.
 const COLUMNS: ReadonlyArray<{ title: string; links: ReadonlyArray<readonly [string, string]> }> = [
@@ -52,6 +54,7 @@ const COLUMNS: ReadonlyArray<{ title: string; links: ReadonlyArray<readonly [str
 ];
 
 export function Footer() {
+  const theme = useTheme();
   return (
     <footer className="border-t border-white/[.07]">
       <div className="mx-auto max-w-6xl px-5 pb-10 pt-14">
@@ -72,9 +75,12 @@ export function Footer() {
             </nav>
           ))}
         </div>
-        <p className="mt-12 border-t border-white/[.07] pt-6 text-[13px] text-text-dim">
-          © {new Date().getFullYear()} {BRAND.name}, formerly {BRAND.formerName}.
-        </p>
+        <div className="mt-12 flex flex-wrap items-center justify-between gap-4 border-t border-white/[.07] pt-6">
+          <p className="text-[13px] text-text-dim">© {new Date().getFullYear()} {BRAND.name}, formerly {BRAND.formerName}.</p>
+          <button type="button" className="theme-switch" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+            {theme === "dark" ? <Sun size={14} /> : <Moon size={14} />} {theme === "dark" ? "Light" : "Dark"}
+          </button>
+        </div>
       </div>
     </footer>
   );

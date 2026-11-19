@@ -375,7 +375,7 @@ export function GenerationCanvas({
   return (
     <>
       <section
-        className="relative w-full overflow-hidden rounded-[20px] border border-white/[.09] bg-[#0d0e13]/95 shadow-[0_22px_64px_-42px_rgba(0,0,0,.82)]"
+        className="relative w-full overflow-hidden rounded-[20px] border border-white/[.09] bg-[var(--color-sunken)]/95 shadow-[0_22px_64px_-42px_rgba(0,0,0,.82)]"
         aria-label={copy.label + " generation progress"}
         aria-live="polite"
         aria-atomic="false"
@@ -584,7 +584,7 @@ export function GenerationCanvas({
           if (!stopSubmitting) setStopDialogOpen(open);
         }}
       >
-        <AlertDialogContent className="w-[calc(100%-2rem)] max-w-[440px] overflow-hidden rounded-[24px] border border-white/[.1] bg-[#0f1117] p-0 text-white shadow-[0_28px_90px_-28px_rgba(0,0,0,.92),0_0_70px_-36px_rgba(0,0,0,.45)] sm:rounded-[24px]">
+        <AlertDialogContent className="w-[calc(100%-2rem)] max-w-[440px] overflow-hidden rounded-[24px] border border-white/[.1] bg-[var(--color-bg)] p-0 text-white shadow-[0_28px_90px_-28px_rgba(0,0,0,.92),0_0_70px_-36px_rgba(0,0,0,.45)] sm:rounded-[24px]">
           <div className="relative overflow-hidden p-5 sm:p-6">
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_8%_0%,rgba(244,63,94,.13),transparent_34%),radial-gradient(circle_at_100%_100%,rgba(92,133,246,.12),transparent_32%)]" />
             <div className="relative">

@@ -422,7 +422,7 @@ export function HowItWorksPage() {
       <section className="border-b border-white/[.06]">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-5 sm:py-16">
           <div className="grid gap-8 lg:grid-cols-[1.05fr_.95fr] lg:items-center">
-            <div className="relative overflow-hidden rounded-[30px] border border-white/[.1] bg-[#0c0e12] p-5 sm:p-6">
+            <div className="relative overflow-hidden rounded-[30px] border border-white/[.1] bg-[var(--color-sunken)] p-5 sm:p-6">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(92,133,246,.18),transparent_42%)]" />
               <div className="relative rounded-[22px] border border-white/[.08] bg-black/20 p-4">
                 <div className="flex items-center justify-between gap-3">

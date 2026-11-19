@@ -47,7 +47,7 @@ export function Segmented({ value, onChange, options, label, disabled = false }:
           aria-selected={value === id}
           disabled={disabled}
           onClick={() => onChange(id)}
-          className={`min-h-9 shrink-0 rounded-xl px-3.5 text-xs font-semibold transition disabled:opacity-60 ${value === id ? 'bg-white text-[#181b23] shadow' : 'text-text-muted hover:text-white'}`}
+          className={`min-h-9 shrink-0 rounded-xl px-3.5 text-xs font-semibold transition disabled:opacity-60 ${value === id ? 'bg-white text-[var(--color-panel)] shadow' : 'text-text-muted hover:text-white'}`}
         >
           {text}
         </button>

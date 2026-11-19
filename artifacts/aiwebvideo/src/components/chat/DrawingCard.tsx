@@ -70,7 +70,7 @@ export function useDrawingAttachment() {
 
 function Fact({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
-    <div className="min-w-0 rounded-xl bg-[#12141a] px-3 py-2">
+    <div className="min-w-0 rounded-xl bg-[var(--color-bg)] px-3 py-2">
       <p className="text-[11px] text-white/50">{label}</p>
       <p className="truncate text-[14px] font-bold text-white">{value}</p>
       {note && <p className="text-[11px] text-white/45">{note}</p>}
@@ -87,9 +87,9 @@ export function DrawingCard({ state, onRemove, onUnits }: { state: DrawingState;
   );
 
   return (
-    <section aria-label="CAD drawing" className="mx-3 mb-2 overflow-hidden rounded-2xl border border-white/[.12] bg-[#181b23] sm:mx-4">
+    <section aria-label="CAD drawing" className="mx-3 mb-2 overflow-hidden rounded-2xl border border-white/[.12] bg-[var(--color-panel)] sm:mx-4">
       <div className="flex items-center gap-3 px-3 py-2.5">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#252a37] text-violet"><Ruler size={19} aria-hidden="true" /></span>
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--color-panel-alt)] text-violet"><Ruler size={19} aria-hidden="true" /></span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-[13px] font-bold text-white">{file.name}</p>
           <p className="text-[11.5px] text-white/55">
@@ -97,13 +97,13 @@ export function DrawingCard({ state, onRemove, onUnits }: { state: DrawingState;
           </p>
         </div>
         {reading && <Loader2 size={18} className="shrink-0 animate-spin text-violet" aria-label="Reading" />}
-        <button type="button" onClick={onRemove} aria-label="Remove drawing" className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-white/65 transition hover:bg-[#252a37] hover:text-white">
+        <button type="button" onClick={onRemove} aria-label="Remove drawing" className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-white/65 transition hover:bg-[var(--color-panel-alt)] hover:text-white">
           <X size={17} aria-hidden="true" />
         </button>
       </div>
 
       {error && (
-        <p role="alert" className="flex items-start gap-2 border-t border-white/[.08] bg-[#161921] px-3 py-2.5 text-[12.5px] leading-snug text-[#ffb4c4]">
+        <p role="alert" className="flex items-start gap-2 border-t border-white/[.08] bg-[var(--color-panel)] px-3 py-2.5 text-[12.5px] leading-snug text-[#ffb4c4]">
           <CircleAlert size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
           <span>{error}</span>
         </p>
@@ -113,7 +113,7 @@ export function DrawingCard({ state, onRemove, onUnits }: { state: DrawingState;
         <div className="border-t border-white/[.08] px-3 pb-3 pt-2.5">
           <div className="grid gap-3 sm:grid-cols-[minmax(0,220px)_1fr]">
             {pictureSrc && (
-              <div className="grid min-h-[130px] place-items-center overflow-hidden rounded-xl bg-white p-1.5">
+              <div className="grid min-h-[130px] place-items-center overflow-hidden rounded-xl bg-[#fff] p-1.5">
                 <img src={pictureSrc} alt="Your drawing, to scale" className="max-h-[190px] w-full object-contain" />
               </div>
             )}
@@ -129,7 +129,7 @@ export function DrawingCard({ state, onRemove, onUnits }: { state: DrawingState;
             </div>
           </div>
 
-          <div className={`mt-3 rounded-xl border px-3 py-2.5 ${needsUnits ? "border-[#f5b942]/60 bg-[#2a2110]" : "border-white/[.08] bg-[#12141a]"}`}>
+          <div className={`mt-3 rounded-xl border px-3 py-2.5 ${needsUnits ? "border-[#f5b942]/60 bg-[#2a2110]" : "border-white/[.08] bg-[var(--color-bg)]"}`}>
             <p className="flex items-start gap-2 text-[12.5px] leading-snug text-white/85">
               {needsUnits ? <TriangleAlert size={16} className="mt-0.5 shrink-0 text-[#f5b942]" aria-hidden="true" /> : <Check size={16} className="mt-0.5 shrink-0 text-mint" aria-hidden="true" />}
               <span>
@@ -150,7 +150,7 @@ export function DrawingCard({ state, onRemove, onUnits }: { state: DrawingState;
                     aria-label={long}
                     onClick={() => onUnits(id)}
                     disabled={reading}
-                    className={`h-10 min-w-[52px] rounded-lg border px-3 text-[13px] font-bold transition disabled:opacity-50 ${selected ? "border-transparent bg-gradient-to-r from-violet to-blue-500 text-white" : needsUnits && preview.units.choice === id ? "border-[#f5b942]/70 bg-[#191d26] text-white" : "border-white/[.14] bg-[#191d26] text-white/85 hover:border-white/30"}`}
+                    className={`h-10 min-w-[52px] rounded-lg border px-3 text-[13px] font-bold transition disabled:opacity-50 ${selected ? "border-transparent bg-gradient-to-r from-violet to-blue-500 text-white" : needsUnits && preview.units.choice === id ? "border-[#f5b942]/70 bg-[var(--color-panel)] text-white" : "border-white/[.14] bg-[var(--color-panel)] text-white/85 hover:border-white/30"}`}
                   >
                     {label}
                   </button>
@@ -160,7 +160,7 @@ export function DrawingCard({ state, onRemove, onUnits }: { state: DrawingState;
           </div>
 
           {preview.rooms.length > 0 && (
-            <details className="mt-2.5 rounded-xl bg-[#12141a] px-3 py-2 text-[12.5px] text-white/80">
+            <details className="mt-2.5 rounded-xl bg-[var(--color-bg)] px-3 py-2 text-[12.5px] text-white/80">
               <summary className="cursor-pointer select-none font-semibold text-white">Rooms and areas ({preview.roomCount})</summary>
               <ul className="mt-1.5 grid gap-1">
                 {preview.rooms.map((room, index) => (

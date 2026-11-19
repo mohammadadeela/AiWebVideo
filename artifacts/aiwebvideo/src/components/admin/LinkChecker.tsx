@@ -38,7 +38,7 @@ export function LinkChecker() {
 
   const result = outcome?.result;
   return (
-    <div className="rounded-2xl border border-violet/25 bg-[#13161d] p-4">
+    <div className="rounded-2xl border border-violet/25 bg-[var(--color-bg)] p-4">
       <p className="text-sm font-semibold text-white">Link checker</p>
       <p className="mt-0.5 text-xs text-text-muted">Paste a product link or a map link to see exactly what the server finds, step by step.</p>
 
@@ -46,7 +46,7 @@ export function LinkChecker() {
         <div role="tablist" aria-label="Link type" className="flex gap-1 rounded-xl bg-white/[.05] p-1">
           {(["product", "map"] as const).map((value) => (
             <button key={value} type="button" role="tab" aria-selected={kind === value} onClick={() => { setKind(value); setOutcome(null); }}
-              className={`min-h-9 rounded-lg px-3 text-xs font-semibold transition ${kind === value ? "bg-white text-[#181b23]" : "text-white/60 hover:text-white"}`}>
+              className={`min-h-9 rounded-lg px-3 text-xs font-semibold transition ${kind === value ? "bg-white text-[var(--color-panel)]" : "text-white/60 hover:text-white"}`}>
               {value === "product" ? "Product link" : "Map link"}
             </button>
           ))}
@@ -57,7 +57,7 @@ export function LinkChecker() {
           onKeyDown={(event) => { if (event.key === "Enter") void run(); }}
           placeholder={kind === "product" ? "https://shop.example.com/product/…" : "https://maps.app.goo.gl/… or 31.5321, 35.0912"}
           aria-label="Link to check"
-          className="min-h-10 min-w-[240px] flex-1 rounded-xl border border-white/10 bg-[#0d0e13] px-3 text-sm text-white placeholder:text-text-dim"
+          className="min-h-10 min-w-[240px] flex-1 rounded-xl border border-white/10 bg-[var(--color-sunken)] px-3 text-sm text-white placeholder:text-text-dim"
         />
         <Button disabled={busy || !link.trim()} onClick={() => void run()}><Search size={15} /> {busy ? "Checking…" : "Check"}</Button>
       </div>
@@ -77,7 +77,7 @@ export function LinkChecker() {
           </div>
           {outcome.error && <p className="text-xs text-pink-200">{outcome.error}</p>}
 
-          <ol className="space-y-1 rounded-xl bg-[#0d0e13] p-3 text-xs text-text-muted" aria-label="Steps">
+          <ol className="space-y-1 rounded-xl bg-[var(--color-sunken)] p-3 text-xs text-text-muted" aria-label="Steps">
             {outcome.trace.map((line, index) => <li key={index} className="font-mono leading-5">{line}</li>)}
             {!outcome.trace.length && <li>No steps recorded.</li>}
           </ol>

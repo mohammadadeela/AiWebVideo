@@ -54,7 +54,7 @@ export function LandingExamplesManager({
   };
 
   return (
-    <div className="rounded-2xl border border-violet/25 bg-[#13161d] p-4">
+    <div className="rounded-2xl border border-violet/25 bg-[var(--color-bg)] p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-white">Landing photos</p>
@@ -70,7 +70,7 @@ export function LandingExamplesManager({
       {items.length > 0 && (
         <ul className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6" aria-label="Landing photos">
           {items.map((item, index) => (
-            <li key={item.id} className="overflow-hidden rounded-xl border border-white/10 bg-[#0d0e13]">
+            <li key={item.id} className="overflow-hidden rounded-xl border border-white/10 bg-[var(--color-sunken)]">
               <div className="aspect-[4/3] bg-black">
                 {(item.kind ?? "video") === "image"
                   ? <img src={item.url ?? ""} alt="" className="h-full w-full object-cover" />
@@ -81,7 +81,7 @@ export function LandingExamplesManager({
                   aria-label="Feature"
                   value={item.feature ?? ""}
                   onChange={(event) => onChange(items.map((entry) => entry.id === item.id ? { ...entry, feature: (event.target.value || null) as ShowcaseFeature | null } : entry))}
-                  className={`min-h-9 w-full rounded-lg border bg-[#101318] px-2 text-xs text-white ${item.feature ? "border-white/10" : "border-amber-300/60"}`}
+                  className={`min-h-9 w-full rounded-lg border bg-[var(--color-bg)] px-2 text-xs text-white ${item.feature ? "border-white/10" : "border-amber-300/60"}`}
                 >
                   <option value="">Choose a label</option>
                   {FEATURES.map((feature) => <option key={feature} value={feature}>{SHOWCASE_FEATURE_LABELS[feature]}</option>)}

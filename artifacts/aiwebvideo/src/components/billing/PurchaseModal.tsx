@@ -90,7 +90,7 @@ export function PurchaseModal({ onClose, title, summary, context, funded = 0, re
         onClick={busyCheckout ? undefined : onClose}
       >
         <div
-          className={`w-full max-w-lg max-h-[92dvh] overflow-y-auto overscroll-contain rounded-t-[24px] border border-white/10 bg-[#12141a]/96 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl animate-fade-in-up transition-opacity duration-150 sm:max-h-[90vh] sm:rounded-3xl sm:p-5 ${busyCheckout ? "invisible opacity-0" : "visible opacity-100"}`}
+          className={`w-full max-w-lg max-h-[92dvh] overflow-y-auto overscroll-contain rounded-t-[24px] border border-white/10 bg-[var(--color-bg)]/96 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl animate-fade-in-up transition-opacity duration-150 sm:max-h-[90vh] sm:rounded-3xl sm:p-5 ${busyCheckout ? "invisible opacity-0" : "visible opacity-100"}`}
           onClick={(event) => event.stopPropagation()}
         >
           <div className="flex items-start justify-between gap-4">

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import captureRouter from './capture.js';
+import assistantRouter from './assistant.js';
 import uploadsRouter from './uploads.js';
 import jobsRouter from './jobs.js';
 import userRouter from './user.js';
@@ -210,6 +211,7 @@ router.use('/paypal-card', paypalCardSubscriptionRouter);
 router.use('/paypal-card', paypalCardSettlementRouter);
 router.use('/paypal-card', paypalCardRouter);
 router.use('/growth', growthRouter);
+router.use('/assistant', assistantRouter);
 router.use('/admin', adminRouter);
 
 export default router;
