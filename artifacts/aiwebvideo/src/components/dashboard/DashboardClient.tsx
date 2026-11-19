@@ -7,11 +7,13 @@ import { Button } from "@/components/ui/app-button";
 import { Wordmark } from "@/components/ui/Wordmark";
 import { UserMenu, formatCredits } from "@/components/account/UserMenu";
 import { CreditUpgradeNotice } from "@/components/account/CreditUpgradeNotice";
+import { CreditPill, isLowBalance } from "@/components/account/CreditPill";
+import { creditsBuyLines } from "@/lib/pricing";
+import { CREDIT_DISPLAY_MULTIPLIER } from "@/lib/credits";
 import { watchAuthState } from "@/lib/firebase/client";
 import { deleteSavedChat, fetchMe, fetchUserJobs, fetchUserUsage, updateSavedChat, type UserJobSummary, type UserUsageSummary } from "@/lib/api-client";
 import { type JobMode } from "@/components/chat/types";
 import {
-  CircleUserRound,
   MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
@@ -307,12 +309,13 @@ export function DashboardClient() {
 
   if (!authChecked)
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-violet border-t-transparent" />
+      <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-5 bg-bg px-6 text-center">
+        <img src="/logo.svg" alt="" width={40} height={40} />
+        <span className="page-loader-track" aria-hidden="true"><span /></span>
         {authSlow && (
           <div role="status" className="max-w-xs text-sm text-text-muted">
-            <p>Still checking your account…</p>
-            <p className="mt-1 text-xs text-text-dim">This is taking longer than usual. If you opened the link inside another app, try opening it in Safari or Chrome.</p>
+            <p>Still checking your account.</p>
+            <p className="mt-1 text-[13px] text-text-dim">If you opened this inside another app, try Safari or Chrome.</p>
             <div className="mt-4 flex justify-center gap-2">
               <Button variant="secondary" onClick={() => window.location.reload()}>Reload</Button>
               <Button onClick={() => setShowAuthModal(true)}>Sign in</Button>
@@ -330,16 +333,13 @@ export function DashboardClient() {
 
   if (!isSignedIn)
     return (
-      <main className="flex min-h-screen items-center justify-center px-5">
-        <div className="max-w-md rounded-3xl border border-border bg-panel p-8 text-center">
+      <main className="flex min-h-[100dvh] items-center justify-center bg-bg px-5">
+        <div className="w-full max-w-sm text-center">
           <img src="/logo.svg" alt="" className="mx-auto h-12 w-12" />
-          <h1 className="mt-4 font-display text-xl font-bold text-text-primary">Sign in to open your workspace</h1>
-          <p className="mt-2 text-sm text-text-muted">
-            Your projects, files, credits, and billing stay connected to your account.
-          </p>
-          <Button className="mt-6" onClick={() => setShowAuthModal(true)}>
-            Sign in to workspace
-          </Button>
+          <h1 className="mt-6 font-display text-2xl font-bold tracking-[-.03em] text-text-primary">Sign in to continue</h1>
+          <p className="mt-2 text-[15px] text-text-muted">Your projects and credits are kept in your account.</p>
+          <Button variant="primary" className="mt-7 w-full" onClick={() => setShowAuthModal(true)}>Sign in</Button>
+          <Link href="/" className="mt-4 inline-block text-[14px] text-text-dim hover:text-white">Back to home</Link>
         </div>
         {showAuthModal && (
           <AuthModal
@@ -353,309 +353,214 @@ export function DashboardClient() {
       </main>
     );
 
-  return (
-    <div className="cinematic-page workspace-page min-h-screen bg-bg lg:flex">
-      {sidebarOpen && (
+  const openJobId = selectedJobId ?? composerJobId;
+  const openJob = openJobId ? jobs.find((job) => job.id === openJobId) ?? null : null;
+  const balance = me?.creditsBalance;
+  const low = isLowBalance(balance);
+  // What the balance buys, in plain words (the server sends customer-facing credits; the price list works in internal ones).
+  const buys = typeof balance === "number" ? creditsBuyLines(balance / CREDIT_DISPLAY_MULTIPLIER)[0] ?? null : null;
+  const desktop = typeof window !== "undefined" && window.innerWidth >= 1024;
+
+  const projectRow = (item: UserJobSummary) => {
+    const selected = openJobId === item.id;
+    const running = ACTIVE_STATUSES.has(item.status);
+    const percent = Math.max(0, Math.min(100, Math.round(item.progress)));
+    return (
+      <div key={item.id} className={`group relative rounded-xl transition-colors ${selected ? "bg-white/[.09]" : "hover:bg-white/[.05]"}`}>
+        <a
+          href={`/dashboard?job=${encodeURIComponent(item.id)}`}
+          onClick={(event) => {
+            // A real href keeps "open in new tab", middle-click and Cmd/Ctrl-click working. Only a plain click stays in-app.
+            if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+            event.preventDefault();
+            openProject(item.id);
+          }}
+          aria-current={selected ? "true" : undefined}
+          className="flex min-h-11 items-center gap-2.5 py-2 pl-2.5 pr-10"
+        >
+          {(item.previewUrl || item.screenshotUrl) ? (
+            <img src={item.previewUrl || item.screenshotUrl || ""} alt="" loading="lazy" className="h-7 w-7 shrink-0 rounded-md object-cover" />
+          ) : (
+            <span className={`mx-[11px] h-1.5 w-1.5 shrink-0 rounded-full ${running ? "animate-pulse-soft bg-violet" : item.status === "failed" ? "bg-pink" : "bg-white/25"}`} aria-hidden="true" />
+          )}
+          <span className="min-w-0 flex-1">
+            <span className="flex items-center gap-1.5">
+              {item.pinned && <Pin size={11} className="shrink-0 fill-gold text-gold" aria-label="Pinned" />}
+              <span className="truncate text-[14px] text-text-primary">{item.title}</span>
+            </span>
+            {running ? (
+              <span className="mt-1.5 flex items-center gap-2">
+                <span className="credit-meter flex-1" role="progressbar" aria-label={`${item.title} progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}><span style={{ width: `${Math.max(4, percent)}%` }} /></span>
+                <span className="font-utility text-[11px] text-text-dim">{percent}%</span>
+              </span>
+            ) : item.status === "failed" ? (
+              <span className="block text-[12px] text-pink">Didn't finish</span>
+            ) : null}
+          </span>
+          {!running && <span className="shrink-0 text-[12px] text-text-dim group-hover:opacity-0 group-focus-within:opacity-0 max-sm:hidden">{relativeTime(item.updatedAt)}</span>}
+        </a>
         <button
+          data-chat-actions
           type="button"
-          aria-label="Close project menu"
-          className="fixed inset-x-0 bottom-0 top-14 z-30 bg-black/35 backdrop-blur-[1px] lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
+          onClick={() => setActionMenuId((value) => (value === item.id ? null : item.id))}
+          className="absolute right-0.5 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-lg text-text-dim opacity-100 hover:text-white sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
+          aria-label={`Options for ${item.title}`}
+        >
+          <MoreHorizontal size={16} />
+        </button>
+        {actionMenuId === item.id && (
+          <div data-chat-actions className="absolute right-1 top-full z-50 w-40 rounded-xl border border-white/10 bg-panel p-1 shadow-[0_18px_50px_rgba(0,0,0,.55)]">
+            <button type="button" onClick={() => void togglePin(item)} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2.5 text-[14px] text-text-muted hover:bg-white/[.06] hover:text-white">
+              <Pin size={14} /> {item.pinned ? "Unpin" : "Pin"}
+            </button>
+            <button type="button" onClick={() => void removeChat(item)} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2.5 text-[14px] text-pink hover:bg-pink/10">
+              <Trash2 size={14} /> Delete
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="app-shell">
+      {sidebarOpen && (
+        <button type="button" aria-label="Close menu" className="fixed inset-0 z-30 bg-black/60 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
       <aside
         id="workspace-project-menu"
-        aria-label="Workspace projects"
-        style={typeof window !== "undefined" && window.innerWidth >= 1024 && !sidebarCollapsed ? { width: sidebarWidth } : undefined}
-        className={`fixed bottom-2.5 left-2.5 top-[4.15rem] z-40 flex w-[min(82vw,292px)] max-w-[calc(100vw-3.25rem)] flex-col overflow-hidden rounded-[22px] border border-white/[.10] bg-[#100c20]/[.99] p-2.5 shadow-[0_28px_80px_-34px_rgba(0,0,0,.98)] backdrop-blur-2xl transition-[transform,opacity] duration-200 sm:left-3 sm:w-[300px] sm:p-3 lg:sticky lg:bottom-auto lg:left-auto lg:top-0 lg:h-screen lg:max-w-none lg:rounded-none lg:border-y-0 lg:border-l-0 lg:border-r lg:bg-[#100c20] lg:shadow-none lg:backdrop-blur-none ${sidebarOpen ? "pointer-events-auto translate-x-0 opacity-100" : "pointer-events-none -translate-x-[115%] opacity-0 lg:pointer-events-auto lg:translate-x-0 lg:opacity-100"} ${sidebarCollapsed ? "lg:w-0 lg:overflow-hidden lg:border-0 lg:p-0" : "lg:w-[286px]"}`}
+        aria-label="Projects"
+        style={desktop && !sidebarCollapsed ? { width: sidebarWidth } : undefined}
+        className={`fixed inset-y-0 left-0 z-40 flex w-[min(86vw,300px)] shrink-0 flex-col border-r border-white/[.07] bg-sunken transition-transform duration-200 lg:relative lg:z-auto lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${sidebarCollapsed ? "lg:hidden" : ""}`}
       >
-        <div className="flex items-center justify-between px-2 py-2">
-          <Link href="/">
-            <Wordmark />
-          </Link>
+        <div className="flex h-14 shrink-0 items-center justify-between pl-4 pr-2">
+          <Link href="/" aria-label="Home"><Wordmark /></Link>
           <button
             type="button"
             onClick={() => {
               if (window.matchMedia("(min-width: 1024px)").matches) setSidebarCollapsed(true);
               else setSidebarOpen(false);
             }}
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/[.06] bg-white/[.025] text-text-dim transition hover:bg-white/5 hover:text-text-primary active:scale-95 lg:h-10 lg:w-10 lg:border-0 lg:bg-transparent"
-            aria-label="Close project menu"
+            className="grid h-10 w-10 place-items-center rounded-lg text-text-dim transition hover:bg-white/[.06] hover:text-white"
+            aria-label="Close menu"
           >
-            <PanelLeftClose size={17} />
+            <PanelLeftClose size={18} />
           </button>
         </div>
-        <button
-          type="button"
-          onClick={startNew}
-          className="premium-button mt-2.5 flex w-full items-center gap-2.5 rounded-xl border border-violet/30 bg-violet/10 px-3 py-2.5 text-left text-[12px] font-semibold text-text-primary transition hover:bg-violet/15 active:scale-[.99] sm:mt-3 sm:py-3 sm:text-sm"
-        >
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-signature text-white"><SquarePen size={15} /></span>
-          New creation
-        </button>
-        <div className="relative mt-3">
-          <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-dim" />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            type="search"
-            placeholder="Search projects"
-            className="w-full rounded-xl border border-border bg-panel/70 py-2.5 pl-9 pr-9 text-base text-text-primary outline-none placeholder:text-text-dim focus:border-violet/50 sm:text-xs"
-          />
-          {query && (
-            <button
-              type="button"
-              onClick={() => setQuery("")}
-              className="absolute right-0.5 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-lg text-text-dim hover:bg-white/5 hover:text-text-primary"
-              aria-label="Clear search"
-            >
-              <X size={14} />
-            </button>
-          )}
+
+        <div className="px-2.5">
+          <button type="button" onClick={startNew} className="flex h-11 w-full items-center gap-2.5 rounded-xl px-2.5 text-[14px] font-medium text-text-primary transition hover:bg-white/[.06]">
+            <SquarePen size={17} className="text-violet" /> New
+          </button>
+          <label className="relative mt-1 flex h-11 items-center rounded-xl px-2.5 text-text-dim transition focus-within:bg-white/[.05] hover:bg-white/[.05]">
+            <Search size={16} className="shrink-0" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              type="search"
+              placeholder="Search"
+              aria-label="Search projects"
+              className="h-full min-w-0 flex-1 bg-transparent pl-2.5 text-base text-text-primary outline-none placeholder:text-text-dim sm:text-[14px]"
+            />
+            {query && (
+              <button type="button" onClick={() => setQuery("")} className="grid h-8 w-8 place-items-center rounded-lg hover:text-white" aria-label="Clear search"><X size={14} /></button>
+            )}
+          </label>
         </div>
-        <div className="chat-scroll mt-4 flex-1 overflow-y-auto">
+
+        <div className="sidebar-scroll mt-3 flex-1 overflow-y-auto px-2.5 pb-3">
           {runningJobs.length > 0 && (
-            <section aria-label="Running now" className="sticky top-0 z-10 mx-1 mb-3 rounded-2xl border border-violet/30 bg-[#100c20]/95 p-1.5 shadow-lg shadow-black/25 backdrop-blur">
-              <div className="flex items-center gap-2 px-2 pb-1 pt-1">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-mint/60" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-mint" />
-                </span>
-                <p className="text-[11px] font-semibold text-text-primary">Running now</p>
-                <span className="ml-auto rounded-full bg-white/[.08] px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-text-muted">{runningJobs.length}</span>
-              </div>
-              {/* The one place a running project is shown: pinned to the top so it is never something to hunt
-                  for. It is NOT repeated in the list below. */}
-              <div className="space-y-1">
-                {runningJobs.map((job) => {
-                  const percent = Math.max(0, Math.min(100, Math.round(job.progress)));
-                  const selected = (selectedJobId ?? composerJobId) === job.id;
-                  return (
-                    <a
-                      key={job.id}
-                      href={`/dashboard?job=${encodeURIComponent(job.id)}`}
-                      onClick={(event) => {
-                        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-                        event.preventDefault();
-                        openProject(job.id);
-                      }}
-                      aria-current={selected ? "true" : undefined}
-                      className={`block rounded-xl px-2.5 py-2 text-left transition ${selected ? "bg-violet/[.14]" : "hover:bg-white/[.05]"}`}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        {(job.previewUrl || job.screenshotUrl) && (
-                          <img src={job.previewUrl || job.screenshotUrl || ""} alt="" loading="lazy" className="h-8 w-8 shrink-0 rounded-lg border border-white/10 object-cover" />
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-xs font-semibold text-text-primary">{job.title}</p>
-                          <p className="truncate text-[10px] capitalize text-text-dim">{job.featureLabel || job.mode}</p>
-                        </div>
-                        <span className="shrink-0 text-[11px] font-semibold tabular-nums text-violet">{percent}%</span>
-                      </div>
-                      <span className="mt-2 block h-1 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-label={`${job.title} progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}>
-                        <span className="block h-full rounded-full bg-signature transition-all" style={{ width: `${Math.max(4, percent)}%` }} />
-                      </span>
-                    </a>
-                  );
-                })}
-              </div>
+            <section aria-label="In progress" className="mb-4">
+              <p className="px-2.5 pb-1.5 text-[12px] font-medium text-text-dim">In progress</p>
+              <div className="space-y-0.5">{runningJobs.map(projectRow)}</div>
             </section>
           )}
-          <p className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-[.16em] text-text-dim">
-            Recent projects
-          </p>
-          <div className="space-y-1">
-            {recentJobs.map((item) => (
-              <div
-                key={item.id}
-                className={`group relative rounded-xl border transition-colors ${item.pinned ? "border-violet/20 bg-violet/[.045]" : "border-transparent"} ${(selectedJobId ?? composerJobId) === item.id ? "bg-white/10" : "hover:bg-white/5"}`}
-              >
-                <a
-                  href={`/dashboard?job=${encodeURIComponent(item.id)}`}
-                  onClick={(event) => {
-                    // A real href makes right-click → "open in new tab",
-                    // middle-click, and Cmd/Ctrl-click work like any normal
-                    // link. Only a plain left-click is intercepted for
-                    // in-app SPA navigation.
-                    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-                    event.preventDefault();
-                    openProject(item.id);
-                  }}
-                  className="block w-full px-3 py-2.5 pr-9 text-left"
-                >
-                  <div className="flex items-center gap-2">
-                    {(item.previewUrl || item.screenshotUrl) && (
-                      <img src={item.previewUrl || item.screenshotUrl || ""} alt="" loading="lazy" className="h-8 w-8 shrink-0 rounded-lg border border-white/10 object-cover" />
-                    )}
-                    <span
-                      className={`h-1.5 w-1.5 shrink-0 rounded-full ${item.status === "done" ? "bg-mint" : item.status === "failed" ? "bg-pink" : "bg-violet animate-pulse-soft"}`}
-                    />
-                    {item.pinned && <Pin size={11} className="shrink-0 fill-violet text-violet" />}
-                    <span className="min-w-0 flex-1 truncate text-xs font-medium text-text-primary">{item.title}</span>
-                    <span className="text-[10px] text-text-dim">{relativeTime(item.updatedAt)}</span>
-                  </div>
-                  <div className="mt-1 flex items-center gap-2 pl-3.5">
-                    <p className="min-w-0 flex-1 truncate text-[10px] capitalize text-text-dim">
-                      {item.featureLabel || item.mode} · {statusLabel(item.status, item.progress)}
-                    </p>
-                    {ACTIVE_STATUSES.has(item.status) && (
-                      <span className="h-1 w-12 overflow-hidden rounded-full bg-white/10">
-                        <span
-                          className="block h-full rounded-full bg-signature transition-all"
-                          style={{
-                            width: `${Math.max(4, Math.min(100, item.progress))}%`,
-                          }}
-                        />
-                      </span>
-                    )}
-                  </div>
-                </a>
-                <button
-                  data-chat-actions
-                  type="button"
-                  onClick={() => setActionMenuId((value) => (value === item.id ? null : item.id))}
-                  className="absolute right-1 top-1 flex h-10 w-10 items-center justify-center rounded-lg text-text-dim opacity-100 hover:bg-white/10 hover:text-text-primary sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
-                  aria-label={`Production options for ${item.title}`}
-                >
-                  <MoreHorizontal size={15} />
-                </button>
-                {actionMenuId === item.id && (
-                  <div data-chat-actions className="absolute right-2 top-10 z-50 w-44 rounded-xl border border-border bg-panel p-1.5 shadow-2xl">
-                    <button
-                      type="button"
-                      onClick={() => void togglePin(item)}
-                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-text-muted hover:bg-white/5 hover:text-text-primary"
-                    >
-                      <Pin size={14} />
-                      {item.pinned ? "Unpin production" : "Pin production"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void removeChat(item)}
-                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-pink hover:bg-pink/10"
-                    >
-                      <Trash2 size={14} />
-                      Delete production
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
+          <p className="px-2.5 pb-1.5 text-[12px] font-medium text-text-dim">Recent</p>
+          <div className="space-y-0.5">
+            {recentJobs.map(projectRow)}
             {!recentJobs.length && (
-              <p className="px-3 py-6 text-center text-xs text-text-dim">
-                {query ? "No matching projects." : runningJobs.length ? "Finished projects will appear here." : "Your first project will appear here."}
+              <p className="px-2.5 py-3 text-[14px] text-text-dim">
+                {query ? "Nothing matches." : "What you make shows up here."}
               </p>
             )}
           </div>
         </div>
+
         {me && (
-          <div className="mt-3 space-y-2">
-            {me.isAdmin && (
+          <div className="shrink-0 space-y-1 border-t border-white/[.07] p-2.5">
+            <div className={`rounded-2xl border p-3 ${low ? "border-gold/30 bg-gold/[.06]" : "border-white/[.08]"}`} data-testid="credit-card">
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="text-[14px] text-text-muted"><span className="font-utility text-[17px] font-semibold text-white">{formatCredits(balance)}</span> credits</p>
+                {low && <span className="text-[12px] font-medium text-gold">Running low</span>}
+              </div>
+              <div className="credit-meter mt-2.5" data-low={low} role="progressbar" aria-label="Credits used this month" aria-valuemin={0} aria-valuemax={100} aria-valuenow={monthlyUsagePercent}>
+                <span style={{ width: `${Math.max(3, 100 - monthlyUsagePercent)}%` }} />
+              </div>
+              <p className="mt-2 text-[12px] leading-4 text-text-dim">{buys ? `Enough for ${buys.split(" · ")[0]}` : "Not enough for a new creation"}</p>
               <Link
-                href="/admin"
-                className="flex items-center gap-2 rounded-xl border border-violet/25 bg-violet/10 px-3 py-2.5 text-xs font-semibold text-violet transition hover:bg-violet/15"
+                href="/pricing#buy-credits"
+                className={`mt-3 flex h-10 items-center justify-center rounded-full text-[14px] font-semibold transition ${low ? "bg-gold text-bg hover:brightness-105" : "bg-white/10 text-white hover:bg-white/15"}`}
               >
-                <ShieldCheck size={15} />
-                Admin control center
+                Add credits
+              </Link>
+            </div>
+            {me.isAdmin && (
+              <Link href="/admin" className="flex h-10 items-center gap-2.5 rounded-xl px-2.5 text-[14px] text-text-muted transition hover:bg-white/[.06] hover:text-white">
+                <ShieldCheck size={16} /> Admin
               </Link>
             )}
-            <Link
-              href="/profile"
-              className="flex items-center gap-2.5 rounded-xl border border-border bg-panel/60 p-2.5 transition hover:bg-panel sm:gap-3 sm:p-3"
-            >
-              <span className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-panel-alt text-text-primary sm:h-9 sm:w-9">
-                <CircleUserRound size={19} strokeWidth={1.8} aria-hidden="true" />
-              </span>
+            <Link href="/profile" className="flex h-11 items-center gap-2.5 rounded-xl px-2.5 transition hover:bg-white/[.06]">
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white/10 text-[12px] font-semibold text-white">{(me.email[0] ?? "?").toUpperCase()}</span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-xs font-semibold text-text-primary">{me.email}</span>
-                <span className="block text-[10px] capitalize text-text-muted">
-                  {me.plan} · {formatCredits(me.creditsBalance)} credits
-                </span>
-                <div className="mt-2.5">
-                  <div className="mb-1 flex items-center justify-between text-[9px] text-text-dim">
-                    <span>Usage this month</span>
-                    <span>{monthlyUsagePercent}%</span>
-                  </div>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-white/[.08]">
-                    <div className="h-full rounded-full bg-signature transition-[width] duration-300" style={{ width: `${monthlyUsagePercent}%` }} />
-                  </div>
-                </div>
+                <span className="block truncate text-[14px] text-text-primary">{me.email}</span>
               </span>
-              <span className="text-text-dim">›</span>
+              <span className="shrink-0 text-[12px] capitalize text-text-dim">{me.plan}</span>
             </Link>
           </div>
         )}
         {!sidebarCollapsed && (
           <button
             type="button"
-            aria-label="Resize chat sidebar"
-            title="Drag to resize sidebar"
+            aria-label="Resize sidebar"
             onPointerDown={beginSidebarResize}
             className="absolute -right-1 top-0 hidden h-full w-2 cursor-col-resize touch-none lg:block"
-          >
-            <span className="absolute left-1/2 top-1/2 h-12 w-[2px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/10" />
-          </button>
+          />
         )}
       </aside>
 
-      <div className="min-w-0 flex-1">
-        <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-border bg-bg/95 px-2.5 backdrop-blur-xl sm:h-16 sm:px-6">
-          <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="flex h-14 shrink-0 items-center justify-between gap-2 px-2 sm:px-4">
+          <div className="flex min-w-0 items-center gap-1">
             <button
               type="button"
-              onClick={() => {
-                setSidebarOpen(true);
-                setSidebarCollapsed(false);
-              }}
-              className={`flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-panel/60 text-text-muted shadow-[0_8px_22px_-18px_rgba(0,0,0,.9)] transition hover:text-text-primary active:scale-95 sm:h-10 sm:w-10 ${sidebarCollapsed ? "" : "lg:hidden"}`}
-              aria-label="Open projects menu"
+              onClick={() => { setSidebarOpen(true); setSidebarCollapsed(false); }}
+              className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg text-text-muted transition hover:bg-white/[.06] hover:text-white ${sidebarCollapsed ? "" : "lg:hidden"}`}
+              aria-label="Open menu"
               aria-expanded={sidebarOpen}
               aria-controls="workspace-project-menu"
             >
-              <PanelLeftOpen size={16} />
+              <PanelLeftOpen size={18} />
             </button>
-            <div>
-              <p className="text-sm font-semibold text-text-primary">
-                {selectedJobId || composerJobId ? "Creative chat" : "New creation"}
-              </p>
-              <p className="hidden text-[10px] text-text-dim sm:block">AI video, product media and website campaigns</p>
-            </div>
+            <button
+              type="button"
+              onClick={startNew}
+              className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg text-text-muted transition hover:bg-white/[.06] hover:text-white ${sidebarCollapsed ? "" : "lg:hidden"}`}
+              aria-label="New"
+            >
+              <SquarePen size={18} />
+            </button>
+            {openJob && <p className="min-w-0 truncate pl-1 text-[15px] font-medium text-text-primary">{openJob.title}</p>}
           </div>
-          <div className="flex items-center gap-3">
-            {me?.isAdmin && (
-              <Link
-                href="/admin"
-                className="hidden items-center gap-2 rounded-xl border border-violet/25 bg-violet/10 px-3 py-2 text-xs font-semibold text-violet transition hover:bg-violet/15 md:flex"
-              >
-                <ShieldCheck size={14} />
-                Admin
-              </Link>
-            )}
-            <div className="hidden items-center overflow-hidden rounded-full border border-white/[.09] bg-panel/80 shadow-[0_10px_28px_-22px_rgba(0,0,0,.9)] sm:flex">
-              <Link href="/profile#usage" className="flex min-h-9 items-center gap-1.5 px-3 text-[11px] text-text-muted transition hover:bg-white/[.04] hover:text-white" title="View usage">
-                <span className="font-utility font-semibold text-white">{formatCredits(me?.creditsBalance)}</span>
-                <span>credits</span>
-              </Link>
-              <span className="h-4 w-px bg-white/[.09]" aria-hidden="true" />
-              <Link href="/pricing#buy-credits" className="flex min-h-9 items-center px-3 text-[11px] font-semibold text-violet transition hover:bg-violet/[.10]">
-                Recharge
-              </Link>
-            </div>
+          <div className="flex shrink-0 items-center gap-2">
+            {me && <CreditPill balance={me.creditsBalance} className="lg:hidden" />}
             {me && <UserMenu email={me.email} plan={me.plan} creditsBalance={me.creditsBalance} isAdmin={me.isAdmin} />}
           </div>
         </header>
 
-        <main
-          className={`flex h-[calc(100dvh-3.5rem)] flex-col sm:h-[calc(100dvh-4rem)] ${selectedJobId || composerJobId ? "overflow-hidden" : "overflow-y-auto p-2.5 sm:p-5 lg:p-6"}`}
-        >
+        <main className={`flex min-h-0 flex-1 flex-col ${openJobId ? "overflow-hidden" : "overflow-y-auto"}`}>
           {error && (
-            <div className="mx-auto mb-4 w-full max-w-4xl shrink-0 rounded-xl border border-pink/20 bg-pink/5 px-4 py-3 text-xs text-text-muted">
+            <div className="mx-auto mb-3 mt-1 w-[calc(100%-1.5rem)] max-w-[760px] shrink-0 rounded-2xl border border-pink/25 bg-pink/[.07] px-4 py-3 text-[14px] text-text-primary" role="alert">
               {error}
-            </div>
-          )}
-          {me && me.creditsBalance <= 0 && (
-            <div className="mx-auto mb-4 w-full max-w-4xl shrink-0">
-              <CreditUpgradeNotice plan={me.plan} creditsBalance={me.creditsBalance} />
             </div>
           )}
           {selectedJobId ? (
@@ -669,21 +574,11 @@ export function DashboardClient() {
               />
             </div>
           ) : (
-            <div
-              className={`mx-auto w-full ${composerJobId ? "flex h-full min-h-0 flex-col" : "max-w-6xl pb-5 sm:pb-8"}`}
-            >
+            <div className={composerJobId ? "flex h-full min-h-0 w-full flex-col" : "mx-auto flex w-full max-w-[760px] flex-1 flex-col justify-center px-3 pb-[12vh] pt-6 sm:px-5"}>
               {!composerJobId && (
-                <div className="mb-3 flex items-center justify-between gap-3 px-1">
-                  <div>
-                    <p className="font-display text-base font-semibold text-white sm:text-xl">Create</p>
-                    <p className="mt-0.5 hidden text-[11px] text-text-dim sm:block">
-                      Start with the website URL or choose another creation mode below.
-                    </p>
-                  </div>
-                </div>
+                <h1 className="mb-7 text-center font-display text-[30px] font-bold leading-tight tracking-[-.035em] text-text-primary sm:text-[38px]">What are we making?</h1>
               )}
-
-              <div id="workspace-creator" className={`scroll-mt-24 ${composerJobId ? "min-h-0 flex-1" : ""}`}>
+              <div id="workspace-creator" className={composerJobId ? "min-h-0 flex-1" : ""}>
                 <ChatWidget
                   key={newProjectKey}
                   initialJobId={reuseJobId}
@@ -695,6 +590,11 @@ export function DashboardClient() {
                   onJobCreated={registerComposerJob}
                 />
               </div>
+              {!composerJobId && me && me.creditsBalance <= 0 && (
+                <div className="mt-4">
+                  <CreditUpgradeNotice plan={me.plan} creditsBalance={me.creditsBalance} />
+                </div>
+              )}
             </div>
           )}
         </main>

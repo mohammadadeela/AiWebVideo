@@ -2787,53 +2787,24 @@ Promotion direction: ${visibleBrief(brief)}` : photosOnly ? photosLabel : normal
   return (
     <div
       ref={chatRootRef}
-      className={`relative flex min-h-0 flex-col overflow-hidden ${immersive ? "bg-bg" : `${compactLanding ? "rounded-[20px] sm:rounded-[24px]" : "rounded-[20px] sm:rounded-[30px]"} border border-white/10 bg-[linear-gradient(180deg,rgba(34,24,62,.96),rgba(17,12,30,.98))] shadow-[0_34px_110px_-48px_rgba(139,92,246,.8)] backdrop-blur-2xl`} ${className ?? ""}`}
+      className={`relative flex min-h-0 flex-col ${stage === "awaiting_url" && !restoring ? "" : immersive ? "overflow-hidden bg-bg" : "overflow-hidden rounded-[24px] border border-white/10 bg-panel"} ${className ?? ""}`}
     >
-      {!immersive && (
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-violet/10 to-transparent" />
-      )}
       {/* Header — hidden on the compact public landing composer because the mode tabs already explain the tool. */}
       <div
         className={`${immersive || (streamlinedInitialComposer && stage === "awaiting_url") ? "hidden" : "relative flex items-center gap-3 border-b border-border bg-white/[.018] px-4 py-3.5 sm:px-5"}`}
       >
-        <img src="/logo.svg" alt="" width={26} height={26} className="shrink-0 rounded-md" />
-        <div className="min-w-0 flex-1">
-          <p className="font-display text-[13.5px] font-semibold text-text-primary">AiWebVideo Director</p>
-          <p className="flex items-center gap-1.5 text-[11px] text-text-muted">
-            <span className="h-1.5 w-1.5 rounded-full bg-mint" aria-hidden="true" />
-            {productionKind === "product-photos"
-              ? "Product campaign · one conversation"
-              : productionKind === "product-video"
-                ? "Product film · one conversation"
-                : productionKind === "talking-scene"
-                  ? "Talking scene · one conversation"
-                  : productionKind === "ai-video"
-                    ? "AI video · one conversation"
-                    : "Website campaign · one conversation"}
-          </p>
-        </div>
-        {jobId && (
-          <div className="hidden items-center gap-1.5 rounded-full border border-mint/20 bg-mint/10 px-2.5 py-1 text-[10px] font-semibold text-mint sm:flex">
-            <span aria-hidden="true">✓</span>{" "}
-            {isStudioProject
-              ? mode === "photos"
-                ? "AI product photos"
-                : projectCaptureMetadata?.studioKind === "product"
-                  ? "AI product video"
-                  : projectCaptureMetadata?.studioKind === "scenario"
-                    ? "Talking scene"
-                    : "Original AI video"
-              : mode === "photos"
-                ? "Creative photo edits"
-                : mode === "icon"
-                  ? "Website icon studio"
-                  : mode === "both"
-                    ? "AI video · creative photos"
-                    : mode === "demo"
-                      ? "AI cinematic film"
-                      : "AI video · site-grounded"}
-          </div>
-        )}
+        <img src="/logo.svg" alt="" width={24} height={24} className="shrink-0" />
+        <p className="min-w-0 flex-1 truncate text-[14px] font-medium text-text-primary">
+          {productionKind === "product-photos"
+            ? "Product photos"
+            : productionKind === "product-video"
+              ? "Product video"
+              : productionKind === "talking-scene"
+                ? "Talking scene"
+                : productionKind === "ai-video"
+                  ? "AI video"
+                  : "Website video"}
+        </p>
       </div>
 
       {/* Messages */}
@@ -2923,7 +2894,7 @@ Promotion direction: ${visibleBrief(brief)}` : photosOnly ? photosLabel : normal
       {!restoring && (
         <div
           data-chat-controls
-          className={`chat-scroll ${stage === "awaiting_url" ? "min-h-0 overflow-y-auto bg-transparent p-0" : immersive ? (stage === "done" ? "shrink-0 bg-[linear-gradient(180deg,rgba(14,11,25,0),rgba(14,11,25,.98)_22%)] px-3 pb-4 pt-5 sm:px-8 sm:pb-6" : "shrink-0 max-h-[70dvh] overflow-y-auto bg-[linear-gradient(180deg,rgba(14,11,25,0),rgba(14,11,25,.98)_18%)] px-3 pb-4 pt-5 sm:px-8 sm:pb-6") : stage === "done" ? "shrink-0 max-h-[42dvh] space-y-2.5 overflow-y-auto border-t border-white/[.07] bg-[linear-gradient(180deg,rgba(9,8,18,.72),rgba(19,15,32,.95))] p-3 sm:max-h-[36vh] sm:p-4" : "shrink-0 max-h-[68dvh] space-y-2.5 overflow-y-auto border-t border-white/[.07] bg-[linear-gradient(180deg,rgba(9,8,18,.72),rgba(19,15,32,.95))] p-3 sm:max-h-[72vh] sm:p-4"}`}
+          className={`chat-scroll ${stage === "awaiting_url" ? "min-h-0 bg-transparent p-0" : immersive ? (stage === "done" ? "shrink-0 bg-[linear-gradient(180deg,rgba(13,15,20,0),rgba(13,15,20,.98)_22%)] px-3 pb-4 pt-5 sm:px-8 sm:pb-6" : "shrink-0 max-h-[70dvh] overflow-y-auto bg-[linear-gradient(180deg,rgba(13,15,20,0),rgba(13,15,20,.98)_18%)] px-3 pb-4 pt-5 sm:px-8 sm:pb-6") : stage === "done" ? "shrink-0 max-h-[42dvh] space-y-2.5 overflow-y-auto border-t border-white/[.07] bg-[linear-gradient(180deg,rgba(10,11,14,.72),rgba(17,20,26,.95))] p-3 sm:max-h-[36vh] sm:p-4" : "shrink-0 max-h-[68dvh] space-y-2.5 overflow-y-auto border-t border-white/[.07] bg-[linear-gradient(180deg,rgba(10,11,14,.72),rgba(17,20,26,.95))] p-3 sm:max-h-[72vh] sm:p-4"}`}
         >
           <div className={`${immersive ? "mx-auto w-full max-w-5xl space-y-2.5" : "space-y-2.5"}`}>
             {stage === "awaiting_url" && waitingRequest && !jobId && isSignedIn && (
@@ -3288,7 +3259,7 @@ Promotion direction: ${visibleBrief(brief)}` : photosOnly ? photosLabel : normal
                               key={item.id}
                               type="button"
                               onClick={() => toggleCaptureSelection(item.id)}
-                              className={`group w-48 shrink-0 overflow-hidden rounded-2xl border text-left transition sm:w-56 ${selected ? "border-violet/40 bg-violet/[.08] shadow-[0_18px_36px_-28px_rgba(139,92,246,.95)]" : "border-white/[.08] bg-black/15 hover:border-white/[.14] hover:bg-white/[.04]"}`}
+                              className={`group w-48 shrink-0 overflow-hidden rounded-2xl border text-left transition sm:w-56 ${selected ? "border-violet/40 bg-violet/[.08] shadow-[0_18px_36px_-28px_rgba(0,0,0,.95)]" : "border-white/[.08] bg-black/15 hover:border-white/[.14] hover:bg-white/[.04]"}`}
                             >
                               <div className="relative">
                                 <ProgressiveImage src={item.url} alt={item.title} sizes="224px" className="aspect-[16/10] w-full" imgClassName="object-cover object-top" />

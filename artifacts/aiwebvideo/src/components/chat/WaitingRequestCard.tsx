@@ -114,7 +114,7 @@ export function WaitingRequestCard({
     <section
       data-waiting-request
       aria-label="Your request is ready"
-      className="space-y-3 rounded-2xl border border-violet/30 bg-[linear-gradient(180deg,rgba(139,92,246,.10),rgba(139,92,246,.04))] p-3.5 shadow-[0_18px_50px_-30px_rgba(139,92,246,.7)] sm:p-4"
+      className="space-y-3 rounded-2xl border border-violet/30 bg-[linear-gradient(180deg,rgba(92,133,246,.10),rgba(92,133,246,.04))] p-3.5 shadow-[0_18px_50px_-30px_rgba(0,0,0,.7)] sm:p-4"
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>

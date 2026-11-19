@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import {
   ArrowRight,
+  ArrowUp,
+  Lightbulb,
   Check,
   ChevronDown,
   Clock,
@@ -50,6 +52,7 @@ import { withHiddenDirection } from "@/lib/hiddenDirection";
 import { clearPromptDraft, loadPromptDraft, savePromptDraft } from "@/lib/promptDraft";
 import { useAutoGrow } from "@/lib/useAutoGrow";
 import { looksLikeLink, withScheme } from "@/lib/linkStatus";
+import { classifyLink, findLinkInText, linkHost } from "@/lib/smartLink";
 import { LinkStatus } from "./LinkStatus";
 import { CREATION_FEATURES } from "@/lib/creationFeatures";
 import { CREATION_INTENT_EVENT, publishCreationMode } from "@/lib/creationMode";
@@ -120,6 +123,15 @@ const TEMPLATE_PROMPTS: Partial<Record<CreationIntent, string>> = {
   scenario: "Recreate this scene with my references.",
   interior: "Redesign my space in the style of this example.",
   architecture: "Place my building on my site in the style of this example.",
+};
+
+/** Used when someone sends a link or a photo with no message: the result should still be a good one. */
+const DEFAULT_WEBSITE_BRIEF = "Show what this website offers, its strongest benefits, and end with a clear call to action.";
+const DEFAULT_PROMPTS: Partial<Record<CreationIntent, string>> = {
+  photo: "Clean, premium studio photos of this product with soft light.",
+  "product-video": "A premium product video: a slow reveal, close-up details and a strong final hero shot.",
+  interior: "Redesign this space in a clean, modern style and keep its real proportions.",
+  architecture: "Place a modern building on this site that fits its surroundings.",
 };
 
 const DEFAULT_SETTINGS: WebsiteGenerationSettings = {
@@ -441,7 +453,9 @@ export function WebsiteBriefForm({
   const productReadId = useRef(0);
   const siteReadId = useRef(0);
   const [compactPanel, setCompactPanel] = useState<"style" | "ideas" | "model" | null>(null);
-  const [openSettingMenu, setOpenSettingMenu] = useState<"duration" | "aspect" | "quality" | "audio" | "language" | null>(null);
+  const [openSettingMenu, setOpenSettingMenu] = useState<"duration" | "aspect" | "quality" | "audio" | "language" | "style" | "output" | null>(null);
+  const [modeMenuOpen, setModeMenuOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [customDurationInput, setCustomDurationInput] = useState(String(DEFAULT_SETTINGS.durationSeconds));
   const [usingCustomDuration, setUsingCustomDuration] = useState(false);
   const [settings, setSettings] = useState<WebsiteGenerationSettings>(DEFAULT_SETTINGS);
@@ -572,7 +586,7 @@ export function WebsiteBriefForm({
   }, [recentFilesOwner]);
 
   // The prompt box grows with the text (up to ~40% of the screen) and scrolls inside after that.
-  useAutoGrow(activeMode === "website" ? websiteBriefRef : studioPromptRef, activeMode === "video" || activeMode === "scenario" ? prompt : brief, { minPx: compactLayout ? 96 : 120, maxPx: 260 });
+  useAutoGrow(activeMode === "website" ? websiteBriefRef : studioPromptRef, activeMode === "video" || activeMode === "scenario" ? prompt : brief, { minPx: 60, maxPx: 240 });
 
   // A visitor tapped an example ("make one like this"): open that feature with the example attached.
   useEffect(() => {
@@ -840,6 +854,21 @@ export function WebsiteBriefForm({
       });
     }
 
+    let websiteUrl = url;
+    let text = brief;
+    const pending = findLinkInText(text, true);
+    if (pending && linkSlotOpen() && (activeMode !== "video" && activeMode !== "scenario" || !pending.rest)) {
+      if (activeMode === "website" && classifyLink(pending.link) === "website") {
+        websiteUrl = withScheme(pending.link);
+        text = pending.rest;
+        setUrl(websiteUrl);
+        setBrief(text);
+      } else if (routeLink(pending.link, pending.rest)) {
+        // The link now sits in its own chip and is being read; one more press sends it.
+        return;
+      }
+    }
+
     const activeModel = publicModel(settings.modelId);
     const safeQuality = activeModel.supportedQualities.includes(settings.outputQuality)
       ? settings.outputQuality
@@ -849,12 +878,8 @@ export function WebsiteBriefForm({
       : (activeModel.audioModes[0] ?? "silent");
 
     if (activeMode === "website") {
-      if (!url.trim() && files.length === 0) {
-        setError("Enter your website address, or add photos of your website with + and generate from them.");
-        return;
-      }
-      if (!brief.trim()) {
-        setError("Tell AiWebVideo what the video should communicate before generating.");
+      if (!websiteUrl.trim() && files.length === 0) {
+        setError("Paste your website link, or add screenshots of your website with the + button.");
         websiteBriefRef.current?.focus();
         return;
       }
@@ -864,8 +889,9 @@ export function WebsiteBriefForm({
         clearPromptDraft();
         void onSubmit(
           // No address but photos: the person's own website photos ARE the source.
-          url.trim() ? normalizeWebsiteUrl(url) : "",
-          withHiddenDirection(brief.trim(), selectedIdea?.guardrail),
+          websiteUrl.trim() ? normalizeWebsiteUrl(websiteUrl) : "",
+          // A link on its own is enough: an empty message gets a sensible default story.
+          withHiddenDirection(text.trim() || DEFAULT_WEBSITE_BRIEF, selectedIdea?.guardrail),
           { ...settings, outputQuality: safeQuality, audioMode: safeAudioMode },
           files,
         );
@@ -877,9 +903,10 @@ export function WebsiteBriefForm({
 
     const isProduct = activeMode === "photo" || activeMode === "product-video";
     const isInterior = activeMode === "interior" || activeMode === "architecture";
-    const typedPrompt = isProduct || isInterior ? brief.trim() : prompt.trim();
-    // Picking an example is enough of a brief on its own.
-    const activePrompt = typedPrompt || (selectedSample ? (TEMPLATE_PROMPTS[activeMode] ?? "") : "");
+    const typedPrompt = text.trim();
+    const hasSource = files.length > 0 || Boolean(productLink.trim()) || chosenProductImages.length > 0 || Boolean(site) || Boolean(mapLink.trim()) || Boolean(drawingAttachment.drawing);
+    // Picking an example, or adding a link or a photo, is enough of a brief on its own.
+    const activePrompt = typedPrompt || (selectedSample ? (TEMPLATE_PROMPTS[activeMode] ?? "") : "") || (hasSource ? (DEFAULT_PROMPTS[activeMode] ?? "") : "");
     if (!activePrompt) {
       setError(
         activeMode === "scenario"
@@ -994,15 +1021,11 @@ export function WebsiteBriefForm({
   // what (link, photo, location, size) instead of leaving a silently disabled button.
   // While a pasted link is being read the button waits; it never asks the person to click anything to continue.
   const linkBusy = readingProduct || resolvingSite;
-  const submitDisabled = disabled || linkBusy || (
-    activeMode === "website"
-      ? (!url.trim() && files.length === 0) || !brief.trim()
-      : isProductMode || isInteriorMode
-        ? !brief.trim() && !hasBrief
-        : !prompt.trim() && !hasBrief
+  const submitDisabled = disabled || linkBusy || !(
+    brief.trim() || url.trim() || files.length > 0 || productLink.trim() || mapLink.trim() || hasBrief || drawingAttachment.drawing
   );
   const createLabel = activeMode === "website"
-    ? "Create website campaign"
+    ? "Create website video"
     : activeMode === "video"
       ? "Create AI video"
       : activeMode === "photo"
@@ -1015,27 +1038,101 @@ export function WebsiteBriefForm({
               ? "Create architecture"
               : "Create talking scene";
 
-  // The Generate button. On wide screens it sits at the end of the settings row (like a command bar); on small
-  // screens it keeps its own full-width row below.
-  const submitButton = (extraClass: string) => (
-    <button
-      type="button"
-      onClick={submit}
-      disabled={submitDisabled}
-      className={`premium-button creator-primary-button flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-signature px-5 text-sm font-bold text-white shadow-violet transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60 ${extraClass}`}
-    >
-      {/* an <i>, not a <span>: the button's sizing rule treats the SECOND span as the credits badge */}
-      {linkBusy && <i className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/80 border-t-transparent" aria-hidden="true" />}
-      <span>{linkBusy ? "Reading your link…" : landingWebsitePreview && activeMode === "website" ? "Continue to video" : createLabel}</span>
-      {showCreditPricing && !linkBusy && <span className="rounded-full border border-white/15 bg-black/15 px-2 py-1 text-[9px] font-semibold text-white/90">{exactCredits} credits</span>}
-      <ArrowRight size={15} />
-    </button>
+  // ---- One box: links typed or pasted into the message are picked up and filed where they belong. ----
+
+  /** Whether the open feature still has room for a link (each feature reads one). */
+  function linkSlotOpen() {
+    const mode = activeModeRef.current;
+    if (mode === "website") return !url.trim();
+    if (mode === "photo" || mode === "product-video") return !productLink.trim();
+    if (mode === "architecture") return !mapLink.trim();
+    if (mode === "interior") return false;
+    // AI video and talking scenes take no link: a link alone (nothing else written) means "make it from this".
+    return !brief.trim();
+  }
+
+  /** Files a link under the right feature (switching feature when the link is clearly something else). */
+  function routeLink(link: string, rest: string | null): boolean {
+    const kind = classifyLink(link);
+    const mode = activeModeRef.current;
+    const productMode = mode === "photo" || mode === "product-video";
+    if (mode === "interior") return false;
+    if (kind === "map" || mode === "architecture") {
+      if (mode !== "architecture") applyIntent("architecture", true);
+      setMapLink(withScheme(link));
+      setSite(null);
+    } else if (productMode || kind === "product") {
+      if (!productMode) applyIntent("product-video", true);
+      setBlockedProduct(null);
+      setProductData(null);
+      setChosenProductImages([]);
+      setProductLink(withScheme(link));
+    } else {
+      if (mode !== "website") applyIntent("website", true);
+      setUrl(withScheme(link));
+    }
+    if (rest !== null) setBrief(rest);
+    setError(null);
+    return true;
+  }
+
+  function onMessageChange(value: string) {
+    const found = findLinkInText(value, false);
+    if (found && linkSlotOpen() && (activeModeRef.current !== "video" && activeModeRef.current !== "scenario" || !found.rest)) {
+      if (routeLink(found.link, found.rest)) return;
+    }
+    setBrief(value);
+  }
+
+  /** Choosing a feature by hand keeps the link that was already added. */
+  function chooseMode(intent: CreationIntent) {
+    const carried = (activeMode === "website" ? url : isProductMode ? productLink : "").trim();
+    applyIntent(intent, true);
+    setModeMenuOpen(false);
+    if (!carried) return;
+    if (intent === "website") {
+      setUrl(carried);
+      setProductLink("");
+      setProductData(null);
+      setChosenProductImages([]);
+      setBlockedProduct(null);
+    } else if (intent === "photo" || intent === "product-video") {
+      setProductLink(carried);
+      setUrl("");
+    }
+  }
+
+  const activeFeature = CREATION_MODES.find((feature) => feature.id === activeMode) ?? CREATION_MODES[0];
+  const ActiveIcon = activeFeature.icon;
+  const qualityLabel = selectedModel.supportedQualities.length === 1 ? selectedModel.quality : settings.outputQuality === "4k" ? "4K" : "HD";
+  const settingsSummary = `${isVideoMode && selectedModel.supportsDuration ? `${durationSeconds}s · ` : ""}${settings.aspectRatio} · ${qualityLabel}`;
+  const placeholder = activeMode === "website"
+    ? (url.trim() ? "What should the video show? Leave empty and we'll pick the best story." : "Paste a link, or describe what you want to make")
+    : activeMode === "video"
+      ? "Describe the video you want"
+      : activeMode === "photo"
+        ? "Paste a product link or add a photo, then describe the photos"
+        : activeMode === "product-video"
+          ? "Paste a product link or add a photo, then describe the video"
+          : activeMode === "interior"
+            ? "Add a photo or plan of the room, then describe the design"
+            : activeMode === "architecture"
+              ? "Describe the building, for example “a two-floor clothes shop”"
+              : "Describe the scene and who is speaking";
+  const chipClass = "inline-flex h-8 max-w-full items-center gap-1.5 rounded-full border border-white/10 bg-white/[.05] pl-2.5 pr-1 text-[13px] text-text-primary";
+  const chipRemove = "grid h-6 w-6 shrink-0 place-items-center rounded-full text-text-dim transition hover:bg-white/10 hover:text-white";
+  const toolClass = (active: boolean) => `inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium transition max-sm:h-10 ${active ? "bg-white/[.12] text-white" : "text-text-muted hover:bg-white/[.07] hover:text-white"}`;
+  const hasContext = Boolean(
+    (activeMode === "website" && url.trim()) || (isProductMode && productLink.trim()) || previews.length || selectedSample
+    || activeMode === "architecture" || (cadMode && drawingAttachment.drawing) || linkBusy,
   );
 
   return (
+    <div className="w-full">
     <div
       ref={composerRootRef}
-      className={`creator-composer relative overflow-visible ${compactLayout ? "rounded-[22px]" : "rounded-[28px]"} border bg-[#151027]/95 shadow-[0_28px_90px_-48px_rgba(139,92,246,.72)] backdrop-blur-2xl transition ${dragging ? "border-mint/60 ring-2 ring-mint/15" : "border-white/10"}`}
+      data-composer
+      className={`composer-box relative rounded-[26px] border bg-panel-alt transition-colors ${dragging ? "border-violet" : "border-white/[.09] focus-within:border-white/20"}`}
       onPaste={(event) => {
         if (disabled) return;
         const pasted = Array.from(event.clipboardData.files ?? []).filter((file) => file.type.startsWith("image/"));
@@ -1062,7 +1159,6 @@ export function WebsiteBriefForm({
       }}
       onDrop={onDrop}
     >
-      <div className="pointer-events-none absolute inset-x-16 -top-24 h-44 rounded-full bg-violet/20 blur-3xl" />
       <input
         ref={drawingInputRef}
         type="file"
@@ -1087,395 +1183,254 @@ export function WebsiteBriefForm({
       />
 
       {dragging && (
-        <div className="pointer-events-none absolute inset-0 z-30 grid place-items-center rounded-[inherit] bg-[#0b0818]/90 backdrop-blur-sm">
-          <div className="rounded-2xl border border-mint/30 bg-panel px-6 py-5 text-center shadow-2xl">
-            <Paperclip className="mx-auto text-mint" size={22} />
-            <p className="mt-2 text-sm font-semibold text-white">Drop your references here</p>
-            <p className="mt-1 text-[10px] text-text-dim">JPEG, PNG or WEBP · up to 10MB each</p>
-          </div>
+        <div className="pointer-events-none absolute inset-0 z-30 grid place-items-center rounded-[inherit] bg-panel-alt/95">
+          <p className="flex items-center gap-2 text-sm font-medium text-white"><Paperclip size={16} className="text-violet" /> Drop images here</p>
         </div>
       )}
 
-      {/* On the landing page the features live in the navbar, so the box starts straight at its fields. */}
-      {!landingWebsitePreview && (
-      <div className={`relative border-b border-white/[.08] ${compactLayout ? "p-2" : "p-2.5 sm:p-3"}`}>
-        {/* The workspace keeps the feature tabs here. */}
-        <ScrollRow drag className="gap-1 pb-0.5 max-sm:grid max-sm:grid-cols-4 max-sm:gap-1.5 max-sm:overflow-visible" role="tablist" ariaLabel="Creation mode" activeKey={activeMode}>
-          {CREATION_MODES.map(({ id, label, short, icon: Icon }) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={activeMode === id}
-              onClick={() => applyIntent(id, true)}
-              className={`flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl px-3 text-[10px] font-semibold transition max-sm:min-h-[60px] max-sm:flex-col max-sm:gap-1 max-sm:px-1 max-sm:text-[10.5px] sm:px-4 sm:text-[11px] ${
-                activeMode === id
-                  ? "bg-mint text-[#10231f] shadow-[0_10px_26px_-18px_rgba(114,255,222,.9)]"
-                  : "text-text-muted hover:bg-mint/[.08] hover:text-white"
-              }`}
-            >
-              <Icon size={14} className="max-sm:h-[19px] max-sm:w-[19px]" />
-              <span className="hidden md:inline">{label}</span>
-              <span className="md:hidden">{short}</span>
-            </button>
-          ))}
-        </ScrollRow>
-      </div>
-      )}
+      {hasContext && (
+        <div className="space-y-2.5 px-3 pt-3 sm:px-4">
+          <div className="flex flex-wrap items-center gap-1.5 empty:hidden">
+            {activeMode === "website" && url.trim() && (
+              <span className={chipClass} data-testid="website-link-chip">
+                <Globe2 size={14} className="shrink-0 text-violet" />
+                <span className="truncate">{linkHost(url)}</span>
+                <button type="button" onClick={() => setUrl("")} aria-label="Remove website link" className={chipRemove}><X size={13} /></button>
+              </span>
+            )}
+            {isProductMode && productLink.trim() && (
+              <span className={chipClass} data-testid="product-link-chip">
+                {readingProduct
+                  ? <i className="inline-block h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-violet border-t-transparent" aria-hidden="true" />
+                  : <PackageOpen size={14} className="shrink-0 text-violet" />}
+                <span className="truncate">{productData?.title || linkHost(productLink)}</span>
+                <button
+                  type="button"
+                  onClick={() => { setProductLink(""); setProductData(null); setChosenProductImages([]); setBlockedProduct(null); lastReadLinkRef.current = ""; lastFailedLinkRef.current = ""; }}
+                  aria-label="Remove product link"
+                  className={chipRemove}
+                ><X size={13} /></button>
+              </span>
+            )}
+            {selectedSample && activeMode !== "website" && (
+              <span className={chipClass}>
+                <Film size={14} className="shrink-0 text-violet" />
+                <span className="truncate">Like the example</span>
+                <button type="button" onClick={() => setSelectedSample(null)} aria-label="Remove the attached example" className={chipRemove}><X size={13} /></button>
+              </span>
+            )}
+            {previews.map((preview, index) => (
+              <span key={`${preview.file.name}-${preview.file.lastModified}-${index}`} className="group relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/10" title={preview.file.name}>
+                <img src={preview.url} alt={`Reference ${index + 1}: ${preview.file.name}`} className="h-full w-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setFiles((current) => current.filter((_, i) => i !== index))}
+                  aria-label={`Remove ${preview.file.name}`}
+                  className="absolute right-0.5 top-0.5 grid h-5 w-5 place-items-center rounded-full bg-black/70 text-white opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
+                ><X size={11} /></button>
+              </span>
+            ))}
+          </div>
 
-      <div className={`relative ${compactLayout ? "p-3 sm:p-4" : "p-4 sm:p-5"}`}>
-        {landingWebsitePreview && selectedSample && (
-          // The landing page hides the examples strip, so say clearly when an example from the row below is attached.
-          <button
-            type="button"
-            onClick={() => setSelectedSample(null)}
-            aria-label="Remove the attached example"
-            className="mb-3 inline-flex min-h-9 items-center gap-1.5 rounded-full border border-mint/40 bg-mint/10 px-3 text-[11px] font-semibold text-mint transition hover:bg-mint/20"
-          >
-            Example attached <X size={12} />
-          </button>
-        )}
-        {isProductMode && (
-          <div className="mb-3 rounded-2xl border border-white/[.08] bg-white/[.025] p-3.5">
-            <p className="text-xs font-semibold text-white">Product link <span className="font-normal text-white/45">· optional</span></p>
-            <div className="mt-2 flex items-center gap-2">
-              <div className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-xl border border-white/[.10] bg-[#0b0818] px-3 transition focus-within:border-violet/50">
-                <PackageOpen size={14} className="shrink-0 text-violet" />
+          {isProductMode && (
+            <>
+              <LinkStatus active={readingProduct} skeleton messages={["Reading the product page…", "Still working: some shops load slowly…", "Trying a deeper read of this page. Almost there…"]} />
+              {blockedProduct && files.length === 0 && (
+                <div role="status" data-testid="product-blocked" className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-gold/30 bg-gold/[.07] px-3 py-2.5 text-[13px] leading-5 text-text-primary">
+                  <p className="min-w-0 flex-1">
+                    {blockedProduct.blocked ? `${blockedProduct.host} doesn't allow automatic reading.` : blockedProduct.slow ? `${blockedProduct.host} took too long to answer.` : `No photos found on that ${blockedProduct.host} page.`}{" "}
+                    {blockedProduct.name ? <>We kept the name “{blockedProduct.name}”. </> : null}
+                    Add one photo of the product to continue.
+                  </p>
+                  <button type="button" onClick={() => inputRef.current?.click()} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-white px-3.5 text-[13px] font-semibold text-bg transition active:scale-[.98]">
+                    <ImagePlus size={15} aria-hidden="true" /> Add a photo
+                  </button>
+                </div>
+              )}
+              {productData && productData.images.length > 0 && (
+                <div>
+                  <p className="mb-1.5 text-[12px] text-text-dim">Photos to use · {chosenProductImages.length} selected</p>
+                  <ScrollRow className="gap-2 pb-1" nudge={false}>
+                    {productData.images.map((image) => {
+                      const selected = chosenProductImages.includes(image);
+                      return (
+                        <button key={image} type="button" aria-label="Use product image" aria-pressed={selected}
+                          onClick={() => setChosenProductImages((current) => current.includes(image) ? current.filter((item) => item !== image) : [...current, image].slice(0, 6))}
+                          className={`relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border-2 bg-white ${selected ? "border-violet" : "border-transparent opacity-60 hover:opacity-100"}`}>
+                          <img src={image} alt="" loading="lazy" className="h-full w-full object-contain" />
+                          {selected && <span className="absolute right-0.5 top-0.5 grid h-4 w-4 place-items-center rounded-full bg-violet text-white"><Check size={10} strokeWidth={3} /></span>}
+                        </button>
+                      );
+                    })}
+                  </ScrollRow>
+                </div>
+              )}
+            </>
+          )}
+
+          {activeMode === "architecture" && (
+            <div className="space-y-2.5">
+              <div className="flex min-h-11 items-center gap-2 rounded-2xl border border-white/10 bg-bg/60 px-3 transition focus-within:border-violet/60">
+                <MapPin size={15} className="shrink-0 text-violet" />
                 <input
-                  type="url"
-                  value={productLink}
-                  onChange={(event) => {
-                    setProductLink(event.target.value);
-                    setBlockedProduct(null);
-                    // Photos read from the previous link must never be used with a different one.
-                    if (withScheme(event.target.value) !== lastReadLinkRef.current) { setProductData(null); setChosenProductImages([]); }
-                  }}
-                  onBlur={() => { if (productLink.trim()) void loadProductLink(); }}
+                  type="text"
+                  value={mapLink}
+                  onChange={(event) => { setMapLink(event.target.value); setSite(null); }}
+                  onBlur={() => { if (mapLink.trim() && !site) void resolveSite(); }}
                   onPaste={(event) => {
                     const pasted = event.clipboardData.getData("text").trim();
-                    if (!/^https?:\/\//i.test(pasted)) return;
+                    if (!/^https?:\/\//i.test(pasted) && !looksLikeCoordinates(pasted)) return;
                     event.preventDefault();
-                    setProductLink(pasted);
-                    void loadProductLink(pasted);
+                    setMapLink(pasted);
+                    setSite(null);
+                    void resolveSite(pasted);
                   }}
-                  onKeyDown={(event) => {
-                    if (event.key !== "Enter") return;
-                    event.preventDefault();
-                    void loadProductLink();
-                  }}
-                  placeholder="Paste a link to the product page"
-                  aria-label="Product link (optional)"
-                  className="min-w-0 flex-1 bg-transparent py-2.5 text-base text-white outline-none placeholder:text-white/35 sm:text-xs"
+                  onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void resolveSite(); } }}
+                  placeholder="Google Maps link, address or coordinates"
+                  aria-label="Google Maps link, address or coordinates"
+                  className="min-w-0 flex-1 bg-transparent py-2.5 text-base text-white outline-none placeholder:text-text-dim sm:text-sm"
                 />
-              </div>
-            </div>
-            <LinkStatus active={readingProduct} skeleton messages={["Reading the product page…", "Still working: some shops load slowly…", "Trying a deeper read of this page. Almost there…"]} />
-            <p className="mt-2 text-[11px] leading-4 text-white/45">
-              {productData
-                ? "Choose the photos to use below. You don't need to upload anything else."
-                : "We'll use the photos on that page. Or skip the link and upload your own product photos. You only need one of the two."}
-            </p>
-            {blockedProduct && files.length === 0 && (
-              <div role="status" data-testid="product-blocked" className="mt-2.5 rounded-xl border border-[#f5b942]/50 bg-[#2a2110] p-3 text-[12px] leading-5 text-white/85">
-                <p>
-                  <strong className="font-bold text-white">{blockedProduct.blocked ? `${blockedProduct.host} doesn't allow automatic reading.` : blockedProduct.slow ? `${blockedProduct.host} took too long to answer.` : `We couldn't find photos on that ${blockedProduct.host} page.`}</strong>{" "}
-                  {blockedProduct.name ? <>We kept the product name: <span className="font-semibold text-white">“{blockedProduct.name}”</span>. </> : null}
-                  Add one photo of the product and you're done. It takes a few seconds.
-                </p>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <button type="button" onClick={() => inputRef.current?.click()} className="inline-flex h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-violet to-blue-500 px-4 text-[13px] font-bold text-white transition active:scale-[.98]">
-                    <ImagePlus size={16} aria-hidden="true" /> Upload a photo
-                  </button>
-                  <span className="text-[11.5px] text-white/60">or paste a screenshot</span>
-                </div>
-                <p className="mt-2 text-[11.5px] leading-4 text-white/60">
-                  Quicker on {blockedProduct.host}: right-click the product photo, choose <span className="font-semibold text-white/85">Copy image address</span>, and paste it into the link box above.
-                </p>
-              </div>
-            )}
-            {productData && (
-              <div className="mt-2.5">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="min-w-0 truncate text-[12px] font-semibold text-white">{productData.title || "Product photos"}</p>
-                  <span className="shrink-0 text-[11px] text-white/45">{chosenProductImages.length} selected</span>
-                </div>
-                <ScrollRow className="mt-2 gap-2 pb-1" nudge={false}>
-                  {productData.images.map((image) => {
-                    const selected = chosenProductImages.includes(image);
-                    return (
-                      <button key={image} type="button" aria-label="Use product image" aria-pressed={selected}
-                        onClick={() => setChosenProductImages((current) => current.includes(image) ? current.filter((url) => url !== image) : [...current, image].slice(0, 6))}
-                        className={`relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 bg-white ${selected ? "border-mint" : "border-transparent opacity-65 hover:opacity-100"}`}>
-                        <img src={image} alt="" loading="lazy" className="h-full w-full object-contain" />
-                        {selected && <span className="absolute right-1 top-1 grid h-4 w-4 place-items-center rounded-full bg-mint text-[9px] font-bold text-[#10231f]">✓</span>}
-                      </button>
-                    );
-                  })}
-                </ScrollRow>
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeMode === "architecture" && (
-          <div className="mb-3 space-y-3 rounded-2xl border border-white/[.08] bg-white/[.025] p-3.5">
-            <div>
-              <p className="text-xs font-semibold text-white">Where will it be built?</p>
-              <div className="mt-2 flex items-center gap-2">
-                <div className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-xl border border-white/[.10] bg-[#0b0818] px-3 transition focus-within:border-violet/50">
-                  <MapPin size={14} className="shrink-0 text-mint" />
-                  <input
-                    type="text"
-                    value={mapLink}
-                    onChange={(event) => { setMapLink(event.target.value); setSite(null); }}
-                    onBlur={() => { if (mapLink.trim() && !site) void resolveSite(); }}
-                    onPaste={(event) => {
-                      const pasted = event.clipboardData.getData("text").trim();
-                      if (!/^https?:\/\//i.test(pasted) && !looksLikeCoordinates(pasted)) return;
-                      event.preventDefault();
-                      setMapLink(pasted);
-                      setSite(null);
-                      void resolveSite(pasted);
-                    }}
-                    onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void resolveSite(); } }}
-                    placeholder="Google Maps link, address or coordinates"
-                    aria-label="Google Maps link, address or coordinates"
-                    className="min-w-0 flex-1 bg-transparent py-2.5 text-base text-white outline-none placeholder:text-white/35 sm:text-xs"
-                  />
-                </div>
+                {site && <Check size={15} className="shrink-0 text-mint" aria-label="Location found" />}
               </div>
               <LinkStatus active={resolvingSite} messages={["Finding the exact place on the map…", "Still working on the location…", "This map link is slow to open. Almost there…"]} />
-              {site && <p className="mt-2 flex items-center gap-1.5 text-[12px] text-mint"><Check size={13} /> {site.label || `${site.latitude}, ${site.longitude}`}</p>}
               {site && typeof site.latitude === "number" && typeof site.longitude === "number" && (
-                <div className="mt-2.5 overflow-hidden rounded-xl border border-white/[.10] bg-[#0b0818]" data-testid="site-preview">
+                <div className="overflow-hidden rounded-2xl border border-white/10 bg-bg/60" data-testid="site-preview">
                   <SiteStreetView latitude={site.latitude} longitude={site.longitude} mapSrc={mapPreviewUrl(site.latitude, site.longitude)} value={siteSelection} onChange={setSiteSelection} photos={files} onAddPhoto={() => inputRef.current?.click()} onCapture={(file) => addFiles([file])} />
-                  <div className="space-y-1 px-3 py-2 text-[11px] leading-4 text-white/60">
-                    <p><span className="font-semibold text-white">Is this the right spot?</span> The design is placed exactly here: <span className="font-mono text-white/80">{site.latitude.toFixed(6)}, {site.longitude.toFixed(6)}</span></p>
-                    <p>{site.imageryAvailable ? "Satellite and street views of this spot are used for the design." : "For a design that matches your plot exactly, add a screenshot of it (satellite view) below."}</p>
-                    <p><a href={`https://www.google.com/maps?q=${site.latitude.toFixed(6)},${site.longitude.toFixed(6)}`} target="_blank" rel="noreferrer" className="font-semibold text-mint hover:underline">Open this spot in Google Maps</a></p>
-                  </div>
+                  <p className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-[12px] text-text-muted">
+                    <span className="min-w-0 truncate">{site.label || `${site.latitude.toFixed(6)}, ${site.longitude.toFixed(6)}`}</span>
+                    <a href={`https://www.google.com/maps?q=${site.latitude.toFixed(6)},${site.longitude.toFixed(6)}`} target="_blank" rel="noreferrer" className="font-medium text-violet hover:underline">Check in Google Maps</a>
+                  </p>
                 </div>
               )}
               {site && site.precision !== "pin" && site.precision !== "view" && typeof site.latitude !== "number" && (
-                <p className="mt-1.5 text-[11px] leading-4 text-amber-200">
-                  We couldn&apos;t find exact coordinates for this address. For the exact place, paste the Google Maps share link or type coordinates like 31.5321, 35.0912.
-                </p>
+                <p className="text-[12px] leading-5 text-amber-200">No exact coordinates for this address. For the exact place, paste the Google Maps share link.</p>
               )}
               {site?.precision === "view" && (
-                <p className="mt-1.5 text-[11px] leading-4 text-amber-200">
-                  This link shows the map view, not an exact pin, so the spot may be a little off. For the exact place, open it in Google Maps, tap Share and paste that link.
-                </p>
+                <p className="text-[12px] leading-5 text-amber-200">This link shows a map view, not a pin, so the spot may be slightly off. In Google Maps, tap Share and paste that link.</p>
+              )}
+              {site && (
+                <details className="group rounded-2xl border border-white/[.08] px-3 py-2">
+                  <summary className="flex list-none items-center justify-between text-[13px] font-medium text-text-muted">Plot size and floors <ChevronDown size={14} className="transition group-open:rotate-180" /></summary>
+                  <div className="mt-2.5 space-y-2.5">
+                    <ToggleRow checked={estimatedScale} onChange={setEstimatedScale} label="Estimate the plot size" hint="Turn off to enter the exact width and depth." />
+                    <div className="grid grid-cols-2 gap-2">
+                      {!estimatedScale && (
+                        <>
+                          <NumberStepper label="Plot width" unit="m" value={plotWidth} onChange={setPlotWidth} min={1} max={5000} step={1} decimal placeholder="0" />
+                          <NumberStepper label="Plot depth" unit="m" value={plotDepth} onChange={setPlotDepth} min={1} max={5000} step={1} decimal placeholder="0" />
+                        </>
+                      )}
+                      <NumberStepper label="Floors" value={floorCount} onChange={setFloorCount} min={1} max={200} step={1} placeholder="Any" />
+                      <NumberStepper label="Setback" unit="m" value={setback} onChange={setSetback} min={0} max={500} step={0.5} decimal placeholder="0" />
+                    </div>
+                  </div>
+                </details>
               )}
             </div>
-
-            <ToggleRow
-              checked={estimatedScale}
-              onChange={setEstimatedScale}
-              label="Estimate the plot size"
-              hint="On: we work out a realistic plot size from the map. Turn off to enter the exact width and depth."
-            />
-
-            <div className="grid grid-cols-2 gap-2">
-              {!estimatedScale && (
-                <>
-                  <NumberStepper label="Plot width" unit="m" value={plotWidth} onChange={setPlotWidth} min={1} max={5000} step={1} decimal placeholder="0" />
-                  <NumberStepper label="Plot depth" unit="m" value={plotDepth} onChange={setPlotDepth} min={1} max={5000} step={1} decimal placeholder="0" />
-                </>
-              )}
-              <NumberStepper label="Floors" value={floorCount} onChange={setFloorCount} min={1} max={200} step={1} placeholder="Any" />
-              <NumberStepper label="Setback" unit="m" value={setback} onChange={setSetback} min={0} max={500} step={0.5} decimal placeholder="0" />
-            </div>
-
-            <p className="text-[11px] leading-4 text-white/45">
-              Paste the link and say what you want, for example “a clothes shop here”. A screenshot of the plot or the building to place (via “Add site / building”) is optional but makes it more exact.
-            </p>
-          </div>
-        )}
-
-        {(activeMode === "interior" || activeMode === "architecture") && (
-          <div className="mb-3 inline-flex rounded-xl border border-white/[.10] bg-white/[.025] p-1">
-            <button
-              type="button"
-              onClick={() => {
-                setInteriorOutput("images");
-                setSettings((current) => ({ ...current, modelId: defaultModelFor("interior"), outputQuality: "1080p", audioMode: "silent" }));
-              }}
-              className={`rounded-lg px-3 py-2 text-[10px] font-semibold transition ${interiorOutput === "images" ? "bg-white/[.10] text-white" : "text-white/45 hover:text-white"}`}
-            >
-              Images
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setInteriorOutput("video");
-                setSettings((current) => ({ ...current, modelId: defaultModelFor("video"), outputQuality: "1080p", audioMode: "native_audio" }));
-              }}
-              className={`rounded-lg px-3 py-2 text-[10px] font-semibold transition ${interiorOutput === "video" ? "bg-white/[.10] text-white" : "text-white/45 hover:text-white"}`}
-            >
-              Video
-            </button>
-          </div>
-        )}
-
-        {!compactLayout && (
-          <div className="mb-4">
-            <p className="font-display text-base font-semibold text-white">
-              {activeMode === "website" ? "Create a video from your website" : activeMode === "video" ? "Create an AI video" : activeMode === "photo" ? "Create product photos" : activeMode === "product-video" ? "Create a product video" : activeMode === "interior" ? "Design an interior" : activeMode === "architecture" ? "Place architecture on a real site" : "Create a talking scene"}
-            </p>
-            <p className="mt-1 text-[11px] text-text-dim">Describe what you want, then use Ideas only when you want creative inspiration.</p>
-          </div>
-        )}
-
-        <div className="space-y-3">
-          {activeMode === "website" && (
-            <label className="block">
-              <span className="mb-1.5 block text-[11px] font-semibold text-white">Website URL</span>
-              <div className="flex items-center gap-3 rounded-2xl border border-mint/30 bg-[#0b0818] px-3 transition focus-within:border-mint/60 focus-within:ring-2 focus-within:ring-mint/10">
-                <span className="globe-orbit flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-mint/20 bg-mint/[.08] text-mint" aria-hidden="true"><Globe2 size={17} /></span>
-                <input
-                  value={url}
-                  onChange={(event) => setUrl(event.currentTarget.value)}
-                  type="url"
-                  inputMode="url"
-                  autoComplete="url"
-                  placeholder="Paste your website URL — example.com"
-                  disabled={disabled}
-                  className="h-13 min-w-0 flex-1 bg-transparent py-3.5 text-sm text-white outline-none placeholder:text-white/40"
-                />
-              </div>
-              {/* Tells the person they do not need a link: their own website photos work too. */}
-              <span className="mt-1.5 block text-[11px] leading-4 text-white/55" data-testid="website-photos-hint">
-                {files.length === 0
-                  ? "No link, or want to choose the pages yourself? Add photos of your website with the + button and generate from them."
-                  : url.trim()
-                    ? `Your ${files.length} photo${files.length === 1 ? " is" : "s are"} added to the pages we read from the link.`
-                    : `Generating from your ${files.length} website photo${files.length === 1 ? "" : "s"}. Add a link too if you like.`}
-              </span>
-            </label>
           )}
 
-          <label className="block">
-            <span className="mb-1.5 flex items-center justify-between gap-3 text-[11px] font-semibold text-white">
-              <span>{activeMode === "website" ? "What should the video highlight?" : activeMode === "video" ? "Describe your video" : activeMode === "photo" ? "Describe the product photos" : activeMode === "product-video" ? "Describe the product video" : activeMode === "interior" ? "Describe the space, measurements and design" : activeMode === "architecture" ? "Describe the building and site placement" : "Describe the talking scene"}</span>
-            </span>
-            <textarea
-              ref={activeMode === "website" ? websiteBriefRef : studioPromptRef}
-              value={activeMode === "video" || activeMode === "scenario" ? prompt : brief}
-              onChange={(event) => {
-                if (activeMode === "video" || activeMode === "scenario") setPrompt(event.currentTarget.value);
-                else setBrief(event.currentTarget.value);
-              }}
-              placeholder={
-                activeMode === "website"
-                  ? "Example: Show the best products, main benefits, and finish with a strong CTA."
-                  : activeMode === "video"
-                    ? "Example: A cinematic drone reveal that moves from the city into the location."
-                    : activeMode === "photo"
-                      ? "Example: Premium ecommerce product photos with soft studio light."
-                      : activeMode === "product-video"
-                        ? "Example: Slow premium reveal, macro details, strong hero ending."
-                        : activeMode === "interior"
-                          ? "Example: Redesign this shop using the supplied measurements, white shelving and magnetic lighting."
-                          : activeMode === "architecture"
-                            ? "Example: Place a modern two-floor commercial building on this exact site while respecting the plot dimensions and road setback."
-                            : "Example: Two founders explain the product naturally in a bright studio."
-              }
-              rows={compactLayout ? 3 : 4}
-              disabled={disabled}
-              className="creator-field w-full resize-none rounded-2xl border border-white/[.14] bg-[#0b0818] px-4 py-3 text-sm leading-6 text-white outline-none transition placeholder:text-white/35 focus:border-violet/55 focus:ring-2 focus:ring-violet/10"
-            />
-          </label>
+          {cadMode && drawingAttachment.drawing && (
+            <DrawingCard state={drawingAttachment.drawing} onRemove={drawingAttachment.remove} onUnits={drawingAttachment.chooseUnits} />
+          )}
         </div>
+      )}
 
-        <div className="generation-toolbar" role="group" aria-label="Generation settings">
-          <div className="generation-creative-actions" role="group" aria-label="Creative tools">
-            <ComposerPlusMenu
-              disabled={disabled}
-              addLabel={isProductMode ? "Upload product photo" : activeMode === "interior" ? "Add space photos or plans" : activeMode === "architecture" ? "Add site or building reference" : "Add photos"}
-              attachedCount={files.length}
-              attachedKeys={attachedKeys}
-              maxFiles={10}
-              onPickFiles={() => { setOpenSettingMenu(null); inputRef.current?.click(); }}
-              onPickDrawing={cadMode ? () => { setOpenSettingMenu(null); drawingInputRef.current?.click(); } : undefined}
-              drawingAttached={Boolean(drawingAttachment.drawing)}
-              onUseRecent={(file) => addFiles([file])}
-              recentOwner={recentFilesOwner}
-              styleValue={activeMode === "website" ? (selectedWebsiteRecipe ? WEBSITE_RECIPES.find((recipe) => recipe.mode === selectedWebsiteRecipe)?.label : "Auto") : undefined}
-              onStyle={activeMode === "website" ? () => { setOpenSettingMenu(null); setCompactPanel("style"); } : undefined}
-            />
+      <textarea
+        ref={(element) => { websiteBriefRef.current = element; studioPromptRef.current = element; }}
+        value={brief}
+        onChange={(event) => onMessageChange(event.currentTarget.value)}
+        onPaste={(event) => {
+          const pasted = event.clipboardData.getData("text").trim();
+          if (!pasted || !looksLikeLink(pasted) || !linkSlotOpen() || activeModeRef.current === "interior") return;
+          event.preventDefault();
+          routeLink(pasted, null);
+        }}
+        onKeyDown={(event) => {
+          if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
+          // Phones and tablets keep Enter for a new line; with a keyboard it sends, like any chat.
+          if (window.matchMedia?.("(pointer: coarse)").matches) return;
+          event.preventDefault();
+          if (!submitDisabled) void submit();
+        }}
+        placeholder={placeholder}
+        aria-label="Message"
+        rows={2}
+        disabled={disabled}
+        className="composer-input block w-full resize-none bg-transparent px-4 pb-1 pt-3.5 text-base leading-6 text-white outline-none placeholder:text-text-dim sm:px-5"
+      />
 
-            <button
-              type="button"
-              onClick={() => {
+      {settingsOpen && (
+        <div className="flex flex-wrap items-center gap-1 px-2.5 pb-1 pt-1 sm:px-3" role="group" aria-label="Output settings">
+          <ModelPicker
+            models={availableModels}
+            selected={selectedModel}
+            quality={settings.outputQuality}
+            open={compactPanel === "model"}
+            onOpenChange={(next) => { setOpenSettingMenu(null); setCompactPanel(next ? "model" : null); }}
+            onSelect={(id) => { chooseModel(id); setCompactPanel(null); }}
+          />
+
+          {isInteriorMode && (
+            <CompactDropdown
+              onClose={() => setOpenSettingMenu(null)}
+              value={interiorOutput}
+              options={[
+                { value: "images", label: "Images", helper: "A set of four", icon: <ImageIcon size={13} /> },
+                { value: "video", label: "Video", helper: "A walkthrough", icon: <Video size={13} /> },
+              ]}
+              open={openSettingMenu === "output"}
+              onToggle={() => { setCompactPanel(null); setOpenSettingMenu((current) => current === "output" ? null : "output"); }}
+              onChange={(value) => {
+                const next = value === "video" ? "video" : "images";
+                setInteriorOutput(next);
+                setSettings((current) => next === "video"
+                  ? { ...current, modelId: defaultModelFor("video"), outputQuality: "1080p", audioMode: "native_audio" }
+                  : { ...current, modelId: defaultModelFor("interior"), outputQuality: "1080p", audioMode: "silent" });
                 setOpenSettingMenu(null);
-                toggleIdeas();
               }}
-              aria-expanded={compactPanel === "ideas"}
-              className={controlClass(compactPanel === "ideas")}
-            >
-              Ideas
-              {selectedIdea && <span className="rounded-full bg-mint/10 px-1.5 py-0.5 text-[8px] text-mint">Added</span>}
-              <ChevronDown size={12} className={`transition-transform ${compactPanel === "ideas" ? "rotate-180" : ""}`} />
-            </button>
-          </div>
-
-          <div className="generation-output-controls" role="group" aria-label="Output settings">
-            <ModelPicker
-              models={availableModels}
-              selected={selectedModel}
-              quality={settings.outputQuality}
-              open={compactPanel === "model"}
-              onOpenChange={(next) => { setOpenSettingMenu(null); setCompactPanel(next ? "model" : null); }}
-              onSelect={(id) => { chooseModel(id); setCompactPanel(null); }}
-              trigger={
-                <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-mint/[.08] text-mint">
-                  {modelFamily === "video" ? <Video size={13} /> : modelFamily === "interior" ? <House size={13} /> : <ImageIcon size={13} />}
-                </span>
-              }
+              icon={<ImageIcon size={12} />}
+              ariaLabel="Output"
             />
+          )}
 
-          {selectedModel.supportsDuration && (
+          {activeMode === "website" && (
+            <CompactDropdown
+              onClose={() => setOpenSettingMenu(null)}
+              value={selectedWebsiteRecipe ?? "auto"}
+              options={[
+                { value: "auto", label: "Auto style", helper: "We pick the best fit", icon: <SlidersHorizontal size={13} /> },
+                ...WEBSITE_RECIPES.map((recipe) => ({ value: recipe.mode, label: recipe.label, helper: recipe.helper, icon: <recipe.icon size={13} /> })),
+              ]}
+              open={openSettingMenu === "style"}
+              onToggle={() => { setCompactPanel(null); setOpenSettingMenu((current) => current === "style" ? null : "style"); }}
+              onChange={(value) => {
+                const recipe = WEBSITE_RECIPES.find((item) => item.mode === value) ?? null;
+                setSelectedWebsiteRecipe(recipe ? recipe.mode : null);
+                setSettings((current) => ({ ...current, mode: recipe ? recipe.mode : "video" }));
+                setOpenSettingMenu(null);
+              }}
+              icon={<SlidersHorizontal size={12} />}
+              ariaLabel="Video style"
+            />
+          )}
+
+          {isVideoMode && selectedModel.supportsDuration && (
             <ControlMenu open={openSettingMenu === "duration"} onClose={() => setOpenSettingMenu(null)} label="Video duration" wide trigger={
               <button
                 type="button"
-                onClick={() => {
-                  setCompactPanel(null);
-                  setOpenSettingMenu((current) => current === "duration" ? null : "duration");
-                }}
+                onClick={() => { setCompactPanel(null); setOpenSettingMenu((current) => current === "duration" ? null : "duration"); }}
                 aria-label={`Duration: ${durationSeconds} seconds`}
                 aria-expanded={openSettingMenu === "duration"}
                 aria-haspopup="dialog"
                 className={controlClass(openSettingMenu === "duration")}
               >
-                <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-white/[.045] text-mint">
-                  <Clock size={12} />
-                </span>
+                <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-white/[.045] text-violet"><Clock size={12} /></span>
                 <span>{durationSeconds}s</span>
                 <ChevronDown size={12} className={`transition-transform ${openSettingMenu === "duration" ? "rotate-180" : ""}`} />
               </button>}>
-
               {openSettingMenu === "duration" && (
-                <div
-                  role="dialog"
-                  aria-label="Video duration"
-                  className="p-1"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-[11px] font-semibold text-white">Video duration</p>
-                      <p className="mt-0.5 text-[8px] text-white/38">Choose a quick preset or enter any whole second from 8 to 60.</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setOpenSettingMenu(null)}
-                      aria-label="Close duration menu"
-                      className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-white/35 transition hover:bg-white/[.06] hover:text-white"
-                    >
-                      <X size={12} />
-                    </button>
-                  </div>
-
-                  <div className="mt-3 grid grid-cols-4 gap-1.5">
+                <div role="dialog" aria-label="Video duration" className="p-1.5">
+                  <div className="grid grid-cols-4 gap-1.5">
                     {DURATION_PRESETS.map((seconds) => {
                       const active = !usingCustomDuration && durationSeconds === seconds;
                       return (
@@ -1483,72 +1438,44 @@ export function WebsiteBriefForm({
                           key={seconds}
                           type="button"
                           onClick={() => applyDurationPreset(seconds)}
-                          className={`flex min-h-11 flex-col items-center justify-center rounded-xl border px-2 py-2 transition ${
-                            active
-                              ? "border-mint/35 bg-mint/[.10] text-mint"
-                              : "border-white/[.08] bg-white/[.035] text-white/70 hover:border-violet/30 hover:bg-white/[.055] hover:text-white"
-                          }`}
+                          className={`min-h-11 rounded-xl border text-[13px] font-semibold transition ${active ? "border-violet bg-violet/[.16] text-white" : "border-white/[.08] bg-white/[.035] text-text-muted hover:border-white/25 hover:text-white"}`}
                         >
-                          <Clock size={12} className={active ? "text-mint" : "text-white/40"} />
-                          <span className="mt-1 text-[10px] font-semibold">{seconds}s</span>
+                          {seconds}s
                         </button>
                       );
                     })}
                   </div>
-
-                  <div className={`mt-3 rounded-xl border p-2.5 transition ${
-                    usingCustomDuration ? "border-violet/35 bg-violet/[.07]" : "border-white/[.08] bg-white/[.025]"
-                  }`}>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="flex items-center gap-1.5 text-[10px] font-semibold text-white">
-                        <Clock size={12} className="text-violet" />
-                        Custom
-                      </span>
-                      <span className="text-[8px] text-white/35">8–60 sec</span>
-                    </div>
-                    <div className="mt-2 flex items-center gap-2">
-                      <div className="relative min-w-0 flex-1">
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          value={customDurationInput}
-                          onFocus={() => setUsingCustomDuration(true)}
-                          onChange={(event) => {
-                            const digits = event.currentTarget.value.replace(/\D/g, "").slice(0, 3);
-                            setUsingCustomDuration(true);
-                            setCustomDurationInput(digits);
-                          }}
-                          onBlur={() => commitCustomDuration()}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter") {
-                              event.preventDefault();
-                              commitCustomDuration();
-                              setOpenSettingMenu(null);
-                            }
-                            if (event.key === "Escape") {
-                              setCustomDurationInput(String(durationSeconds));
-                              setOpenSettingMenu(null);
-                            }
-                          }}
-                          placeholder="8–60"
-                          className="h-10 w-full rounded-xl border border-white/[.10] bg-[#0b0818] px-3 pr-10 text-center text-sm font-semibold text-white outline-none transition placeholder:text-white/25 focus:border-violet/55 focus:ring-2 focus:ring-violet/10"
-                          aria-label="Custom video duration in seconds"
-                        />
-                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[8px] font-semibold uppercase tracking-[.12em] text-white/30">sec</span>
-                      </div>
-                      <button
-                        type="button"
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => {
-                          commitCustomDuration();
-                          setOpenSettingMenu(null);
+                  <div className="mt-2 flex items-center gap-2">
+                    <div className="relative min-w-0 flex-1">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={customDurationInput}
+                        onFocus={() => setUsingCustomDuration(true)}
+                        onChange={(event) => {
+                          const digits = event.currentTarget.value.replace(/\D/g, "").slice(0, 3);
+                          setUsingCustomDuration(true);
+                          setCustomDurationInput(digits);
                         }}
-                        className="h-10 rounded-xl border border-violet/30 bg-violet/[.12] px-3 text-[10px] font-semibold text-white transition hover:bg-violet/[.18]"
-                      >
-                        Use
-                      </button>
+                        onBlur={() => commitCustomDuration()}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") { event.preventDefault(); commitCustomDuration(); setOpenSettingMenu(null); }
+                          if (event.key === "Escape") { setCustomDurationInput(String(durationSeconds)); setOpenSettingMenu(null); }
+                        }}
+                        placeholder="8–60"
+                        className="h-11 w-full rounded-xl border border-white/10 bg-bg px-3 pr-12 text-center text-base font-semibold text-white outline-none transition placeholder:text-text-dim focus:border-violet sm:text-sm"
+                        aria-label="Custom video duration in seconds"
+                      />
+                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-text-dim">sec</span>
                     </div>
-                    <p className="mt-2 text-[8px] leading-3.5 text-white/32">Your value is saved only after you finish typing, so clearing or replacing the number no longer jumps back to 8 while you type.</p>
+                    <button
+                      type="button"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => { commitCustomDuration(); setOpenSettingMenu(null); }}
+                      className="h-11 rounded-xl bg-white/10 px-4 text-[13px] font-semibold text-white transition hover:bg-white/15"
+                    >
+                      Set
+                    </button>
                   </div>
                 </div>
               )}
@@ -1564,10 +1491,7 @@ export function WebsiteBriefForm({
               { value: "1:1", label: "1:1", helper: "Square · Feed", icon: <FormatIcon ratio="1:1" size={20} /> },
             ]}
             open={openSettingMenu === "aspect"}
-            onToggle={() => {
-              setCompactPanel(null);
-              setOpenSettingMenu((current) => current === "aspect" ? null : "aspect");
-            }}
+            onToggle={() => { setCompactPanel(null); setOpenSettingMenu((current) => current === "aspect" ? null : "aspect"); }}
             onChange={(value) => {
               setSettings((current) => ({ ...current, aspectRatio: value as "16:9" | "9:16" | "1:1" }));
               setOpenSettingMenu(null);
@@ -1576,7 +1500,7 @@ export function WebsiteBriefForm({
             ariaLabel="Aspect ratio"
           />
 
-          {selectedModel.supportedQualities.length > 1 ? (
+          {selectedModel.supportedQualities.length > 1 && (
             <CompactDropdown
               onClose={() => setOpenSettingMenu(null)}
               value={settings.outputQuality}
@@ -1588,10 +1512,7 @@ export function WebsiteBriefForm({
                 iconBare: true,
               }))}
               open={openSettingMenu === "quality"}
-              onToggle={() => {
-                setCompactPanel(null);
-                setOpenSettingMenu((current) => current === "quality" ? null : "quality");
-              }}
+              onToggle={() => { setCompactPanel(null); setOpenSettingMenu((current) => current === "quality" ? null : "quality"); }}
               onChange={(value) => {
                 setSettings((current) => ({ ...current, outputQuality: value as "1080p" | "4k" }));
                 setOpenSettingMenu(null);
@@ -1599,14 +1520,9 @@ export function WebsiteBriefForm({
               icon={<QualityGlyph quality="1080p" size={18} />}
               ariaLabel="Quality"
             />
-          ) : (
-            <span className="generation-control generation-control-static" title="Fixed quality for this model">
-              <QualityGlyph quality={selectedModel.supportedQualities[0] === "4k" ? "4k" : "1080p"} size={18} />
-              {selectedModel.quality}
-            </span>
           )}
 
-          {selectedModel.audioModes.length > 0 && (
+          {isVideoMode && selectedModel.audioModes.length > 0 && (
             <CompactDropdown
               onClose={() => setOpenSettingMenu(null)}
               value={settings.audioMode}
@@ -1617,10 +1533,7 @@ export function WebsiteBriefForm({
                 ...(selectedModel.audioModes.includes("silent") ? [{ value: "silent", label: "Silent", helper: "No audio", icon: <VolumeX size={13} /> }] : []),
               ]}
               open={openSettingMenu === "audio"}
-              onToggle={() => {
-                setCompactPanel(null);
-                setOpenSettingMenu((current) => current === "audio" ? null : "audio");
-              }}
+              onToggle={() => { setCompactPanel(null); setOpenSettingMenu((current) => current === "audio" ? null : "audio"); }}
               onChange={(value) => {
                 setSettings((current) => ({ ...current, audioMode: value as AudioMode }));
                 setOpenSettingMenu(null);
@@ -1631,12 +1544,8 @@ export function WebsiteBriefForm({
               align="right"
             />
           )}
-          </div>
-          <div className="generation-submit-slot">{submitButton("w-full")}</div>
-        </div>
 
-        {selectedModel.audioModes.includes("voice_music") && settings.audioMode === "voice_music" && (
-          <div className="mt-2 flex justify-end">
+          {isVideoMode && selectedModel.audioModes.includes("voice_music") && settings.audioMode === "voice_music" && (
             <div className={languageShake ? "attention-shake rounded-xl" : ""}>
               <CompactDropdown
                 onClose={() => setOpenSettingMenu(null)}
@@ -1646,11 +1555,7 @@ export function WebsiteBriefForm({
                   ...NARRATION_LANGUAGES.map(([code, label]) => ({ value: code, label, icon: <Languages size={13} /> })),
                 ]}
                 open={openSettingMenu === "language"}
-                onToggle={() => {
-                  setCompactPanel(null);
-                  setLanguageShake(false);
-                  setOpenSettingMenu((current) => current === "language" ? null : "language");
-                }}
+                onToggle={() => { setCompactPanel(null); setLanguageShake(false); setOpenSettingMenu((current) => current === "language" ? null : "language"); }}
                 onChange={(value) => {
                   setSettings((current) => ({ ...current, narrationLanguage: value }));
                   setOpenSettingMenu(null);
@@ -1660,122 +1565,116 @@ export function WebsiteBriefForm({
                 align="right"
               />
             </div>
-          </div>
-        )}
-
-        {compactPanel === "style" && activeMode === "website" && (
-          <div className="mt-2 rounded-2xl border border-white/[.08] bg-white/[.025] p-3" role="radiogroup" aria-label="Video style">
-            <div className="mb-2.5 flex items-baseline justify-between gap-3">
-              <p className="text-[12px] font-semibold text-white">Choose a style</p>
-              <p className="text-[11px] text-white/40">How should the video feel?</p>
-            </div>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {[{ mode: null, label: "Auto", helper: "We pick the best fit", icon: SlidersHorizontal, tint: "from-white/25 to-white/10" }, ...WEBSITE_RECIPES].map((recipe) => {
-                const active = (selectedWebsiteRecipe ?? null) === recipe.mode;
-                const Icon = recipe.icon;
-                return (
-                  <button
-                    key={recipe.mode ?? "auto"}
-                    type="button"
-                    role="radio"
-                    aria-checked={active}
-                    onClick={() => {
-                      setSelectedWebsiteRecipe(recipe.mode);
-                      setSettings((current) => ({ ...current, mode: recipe.mode ?? "video" }));
-                      setCompactPanel(null);
-                    }}
-                    className={`group relative flex items-start gap-2.5 rounded-2xl border p-2.5 text-left transition active:scale-[.98] ${
-                      active ? "border-mint/60 bg-mint/[.09] shadow-[0_12px_30px_-20px_rgba(52,211,153,.9)]" : "border-white/[.08] bg-white/[.02] hover:border-white/25 hover:bg-white/[.05]"
-                    }`}
-                  >
-                    <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br text-white shadow-[inset_0_1px_0_rgba(255,255,255,.35)] ${recipe.tint}`}>
-                      <Icon size={17} />
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-[13px] font-semibold leading-tight text-white">{recipe.label}</span>
-                      <span className="mt-0.5 block text-[11px] leading-[1.3] text-white/50">{recipe.helper}</span>
-                    </span>
-                    {active && (
-                      <span className="absolute right-2 top-2 grid h-5 w-5 place-items-center rounded-full bg-mint text-[#10231f]">
-                        <Check size={12} strokeWidth={3} />
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {compactPanel === "ideas" && (
-          <div className="mt-2 rounded-2xl border border-violet/15 bg-violet/[.035] p-2.5 sm:p-3">
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[12px] font-semibold text-white">Pick a creative direction</p>
-                <p className="mt-0.5 text-[11px] text-white/45">Choose one and a full master prompt is written in the box. Edit it any way you like.</p>
-              </div>
-              <div className="flex shrink-0 items-center gap-1.5">
-                <button type="button" onClick={() => setCompactPanel(null)} aria-label="Close ideas" className="grid h-7 w-7 place-items-center rounded-lg text-text-dim hover:bg-white/5 hover:text-white"><X size={12} /></button>
-              </div>
-            </div>
-            <MasterIdeas ideas={masterIdeas} context={ideaContext} selectedId={selectedIdea?.id ?? null} onSelect={applyMasterIdea} />
-          </div>
-        )}
-
-        {error && <p role="alert" className="mt-3 rounded-xl border border-pink/20 bg-pink/5 px-3 py-2 text-xs text-pink">{error}</p>}
-
-        {/* "mt-4" matters: creator-cta-position.css sizes the Generate button only inside a row with that class. */}
-        <div className={`mt-4 flex flex-col gap-2 sm:flex-row sm:items-center ${compactLayout ? "generation-row-inline" : ""}`}>
-          {!compactLayout && (
-            <div className="flex-1 text-[9px] text-text-dim">
-              {isProductMode && !files.length && !chosenProductImages.length && !productLink.trim() ? "Paste a product link or upload a product photo." : activeMode === "interior" && !files.length ? "Add space references before generating." : `Your setup: ${isVideoMode ? `${durationSeconds}s · ` : ""}${formatSummary} · ${selectedModel.supportedQualities.length === 1 ? selectedModel.quality : (settings.outputQuality === "4k" ? "4K" : "1080p")}`}
-            </div>
           )}
-          {submitButton("sm:flex-none sm:min-w-[260px]")}
         </div>
+      )}
 
-        {!landingWebsitePreview && <SampleStrip
-          feature={activeMode}
-          selectedId={selectedSample?.id ?? null}
-          onSelect={(sample) => { setSelectedSample(sample); setError(null); }}
-          selectable={activeMode !== "website"}
-        />}
+      <div className="flex items-center gap-0.5 px-2 pb-2 pt-1 sm:gap-1 sm:px-2.5 sm:pb-2.5">
+        <ComposerPlusMenu
+          disabled={disabled}
+          addLabel={isProductMode ? "Add product photos" : activeMode === "interior" ? "Add room photos or plans" : activeMode === "architecture" ? "Add site or building photos" : activeMode === "website" ? "Add website screenshots" : "Add photos"}
+          attachedCount={files.length}
+          attachedKeys={attachedKeys}
+          maxFiles={10}
+          onPickFiles={() => { setOpenSettingMenu(null); inputRef.current?.click(); }}
+          onPickDrawing={cadMode ? () => { setOpenSettingMenu(null); drawingInputRef.current?.click(); } : undefined}
+          drawingAttached={Boolean(drawingAttachment.drawing)}
+          onUseRecent={(file) => addFiles([file])}
+          recentOwner={recentFilesOwner}
+        />
 
-        {cadMode && drawingAttachment.drawing && (
-          <div className="mt-4 -mx-3 sm:-mx-4">
-            <DrawingCard state={drawingAttachment.drawing} onRemove={drawingAttachment.remove} onUnits={drawingAttachment.chooseUnits} />
-          </div>
-        )}
-
-        {previews.length > 0 && (
-          <div className="mt-4">
-            <div className="mb-1.5 flex items-center justify-between gap-3">
-              <p className="text-[11px] font-medium text-white/50">{previews.length} attached</p>
-              <button type="button" onClick={() => setFiles([])} className="text-[11px] font-medium text-white/40 transition hover:text-white">Remove all</button>
-            </div>
-            <ScrollRow className="gap-2 pb-1" nudge={false}>
-              {previews.map((preview, index) => (
-                <div key={`${preview.file.name}-${preview.file.lastModified}-${index}`} className="group flex w-[196px] shrink-0 items-center gap-2.5 rounded-2xl border border-white/10 bg-white/[.04] p-1.5 pr-2 transition hover:border-white/20 hover:bg-white/[.06]">
-                  <img src={preview.url} alt={`Reference ${index + 1}: ${preview.file.name}`} className="h-12 w-12 shrink-0 rounded-xl object-cover" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[12px] font-medium leading-tight text-white" title={preview.file.name}>{preview.file.name}</p>
-                    <p className="mt-0.5 text-[11px] text-white/40">{preview.file.type.replace("image/", "").replace("jpeg", "jpg").toUpperCase()} · {fileSize(preview.file.size)}</p>
-                  </div>
+        <Popover.Root open={modeMenuOpen} onOpenChange={setModeMenuOpen}>
+          <Popover.Trigger asChild>
+            <button type="button" aria-label={`Making: ${activeFeature.label}. Change`} aria-haspopup="listbox" aria-expanded={modeMenuOpen} className={toolClass(modeMenuOpen)} data-testid="mode-menu">
+              <ActiveIcon size={16} className="text-violet" />
+              <span className="whitespace-nowrap">{activeFeature.label}</span>
+              <ChevronDown size={13} className={`text-text-dim transition-transform ${modeMenuOpen ? "rotate-180" : ""}`} />
+            </button>
+          </Popover.Trigger>
+          <Popover.Portal>
+            <Popover.Content side="top" align="start" sideOffset={8} collisionPadding={12} aria-label="What to make" className="z-[100] w-[300px] max-w-[calc(100vw-24px)] rounded-2xl border border-white/10 bg-panel p-1.5 shadow-[0_18px_50px_rgba(0,0,0,.55)]">
+              <div role="listbox" aria-label="What to make" className="max-h-[min(60vh,var(--radix-popover-content-available-height))] overflow-y-auto">
+                {CREATION_MODES.map(({ id, label, description, icon: Icon }) => (
                   <button
+                    key={id}
                     type="button"
-                    onClick={() => setFiles((current) => current.filter((_, i) => i !== index))}
-                    aria-label={`Remove ${preview.file.name}`}
-                    className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-white/45 transition hover:bg-white/10 hover:text-white"
+                    role="option"
+                    aria-selected={activeMode === id}
+                    onClick={() => chooseMode(id)}
+                    className={`flex min-h-12 w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition ${activeMode === id ? "bg-white/[.08]" : "hover:bg-white/[.05]"}`}
                   >
-                    <X size={14} />
+                    <Icon size={18} className={activeMode === id ? "shrink-0 text-violet" : "shrink-0 text-text-dim"} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[14px] font-medium leading-tight text-white">{label}</span>
+                      <span className="mt-0.5 block truncate text-[12px] text-text-dim">{description}</span>
+                    </span>
+                    {activeMode === id && <Check size={15} className="shrink-0 text-violet" />}
                   </button>
-                </div>
-              ))}
-            </ScrollRow>
-          </div>
-        )}
+                ))}
+              </div>
+            </Popover.Content>
+          </Popover.Portal>
+        </Popover.Root>
 
+        <button
+          type="button"
+          onClick={() => { setOpenSettingMenu(null); setCompactPanel(null); setSettingsOpen((current) => !current); }}
+          aria-expanded={settingsOpen}
+          aria-label={`Settings: ${settingsSummary}`}
+          className={toolClass(settingsOpen)}
+          data-testid="settings-toggle"
+        >
+          <SlidersHorizontal size={15} />
+          <span className="whitespace-nowrap max-[430px]:hidden">{settingsSummary}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => { setOpenSettingMenu(null); toggleIdeas(); }}
+          aria-expanded={compactPanel === "ideas"}
+          aria-label="Ideas"
+          className={`${toolClass(compactPanel === "ideas")} max-sm:px-2.5`}
+        >
+          <Lightbulb size={15} className={selectedIdea ? "text-gold" : undefined} />
+          <span className="max-sm:hidden">Ideas</span>
+        </button>
+
+        <span className="min-w-0 flex-1" />
+
+        {showCreditPricing && !linkBusy && (
+          <span className="shrink-0 whitespace-nowrap pr-1.5 font-utility text-[12px] text-text-dim" title="What this will use" data-testid="composer-cost">{exactCredits} credits</span>
+        )}
+        <button
+          type="button"
+          onClick={() => void submit()}
+          disabled={submitDisabled}
+          aria-label={linkBusy ? "Reading your link" : createLabel}
+          title={createLabel}
+          className="composer-send grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white text-bg transition hover:bg-white/90 active:scale-95 disabled:bg-white/15 disabled:text-white/40"
+        >
+          {linkBusy
+            ? <i className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden="true" />
+            : <ArrowUp size={19} strokeWidth={2.4} />}
+        </button>
       </div>
+
+      {compactPanel === "ideas" && (
+        <div className="border-t border-white/[.07] p-2.5 sm:p-3">
+          <MasterIdeas ideas={masterIdeas} context={ideaContext} selectedId={selectedIdea?.id ?? null} onSelect={applyMasterIdea} />
+        </div>
+      )}
+    </div>
+
+    {error && <p role="alert" className="mt-2 rounded-2xl border border-pink/25 bg-pink/[.07] px-3.5 py-2.5 text-[13px] leading-5 text-pink">{error}</p>}
+
+    {!landingWebsitePreview && (
+      <SampleStrip
+        feature={activeMode}
+        selectedId={selectedSample?.id ?? null}
+        onSelect={(sample) => { setSelectedSample(sample); setError(null); }}
+        selectable={activeMode !== "website"}
+      />
+    )}
     </div>
   );
 }

@@ -70,7 +70,7 @@ const EDITOR_FEATURES = [
 ] as const;
 
 export function StudioIndexPage() {
-  useSeo({ title: 'AI Video & Image Editor | AiWebVideo', description: 'Edit generated or uploaded videos and images with timeline, layers and AI Edit.', path: '/studio', noindex: true });
+  useSeo({ title: 'AI Video & Image Editor | Linkreel', description: 'Edit generated or uploaded videos and images with timeline, layers and AI Edit.', path: '/studio', noindex: true });
   const [, navigate] = useLocation();
   const uploadRef = useRef<HTMLInputElement>(null);
   const [projects, setProjects] = useState<Array<Omit<StudioProject,'assets'>>>([]);
@@ -185,13 +185,13 @@ export function StudioIndexPage() {
         }}
       />
 
-      <section className="border-b border-white/8 bg-[radial-gradient(circle_at_32%_0%,rgba(116,78,205,.18),transparent_44%)] px-4 py-8 sm:px-6 lg:px-8">
+      <section className="border-b border-white/8 bg-[radial-gradient(circle_at_32%_0%,rgba(78,112,205,.18),transparent_44%)] px-4 py-8 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
               <div className="inline-flex items-center gap-2 rounded-full border border-violet/25 bg-violet/[.08] px-3 py-1 text-xs font-medium text-violet"><Layers3 size={13} />AI Video & Image Editor</div>
               <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">Edit your video or image, not just generate it.</h1>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-text-muted">Upload your own media or open a finished AiWebVideo generation. Use a real timeline, layers, text, audio, captions, precise transforms and natural-language AI Edit.</p>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-text-muted">Upload your own media or open a finished Linkreel generation. Use a real timeline, layers, text, audio, captions, precise transforms and natural-language AI Edit.</p>
               <div className="mt-4 flex flex-wrap gap-2">
                 {EDITOR_FEATURES.map(([Icon, label]) => <span key={label} className="inline-flex items-center gap-1.5 rounded-full border border-white/[.08] bg-white/[.035] px-2.5 py-1 text-[10px] text-white/70"><Icon size={11} className="text-violet" />{label}</span>)}
               </div>
@@ -204,7 +204,7 @@ export function StudioIndexPage() {
               type="button"
               onClick={() => uploadRef.current?.click()}
               disabled={Boolean(creating)}
-              className="group rounded-2xl border border-violet/35 bg-[linear-gradient(135deg,rgba(139,92,246,.16),rgba(139,92,246,.05))] p-5 text-left transition hover:border-violet/60 hover:bg-violet/[.12] disabled:opacity-50"
+              className="group rounded-2xl border border-violet/35 bg-[linear-gradient(135deg,rgba(92,133,246,.16),rgba(92,133,246,.05))] p-5 text-left transition hover:border-violet/60 hover:bg-violet/[.12] disabled:opacity-50"
             >
               <span className="grid size-11 place-items-center rounded-xl bg-violet text-white">{creating === 'upload' ? <Loader2 className="animate-spin" size={20} /> : <Upload size={20} />}</span>
               <h2 className="mt-4 text-lg font-semibold text-white">Upload & edit now</h2>
@@ -241,7 +241,7 @@ export function StudioIndexPage() {
                 <div key={job.id} className="flex items-center gap-3 p-3 sm:p-4">
                   <div className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-white/[.05]">{job.screenshotUrl ? <img src={job.screenshotUrl} alt="" className="h-full w-full object-cover" /> : <Film size={16} className="text-violet" />}</div>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium text-white">{job.title || 'AiWebVideo generation'}</div>
+                    <div className="truncate text-sm font-medium text-white">{job.title || 'Linkreel generation'}</div>
                     <div className="mt-0.5 text-[10px] text-text-muted">{relativeTime(job.updatedAt)} · {job.mode || 'video'}</div>
                   </div>
                   <button type="button" disabled={creating === `job:${job.id}`} onClick={() => void importJob(job)} className="inline-flex min-w-max items-center gap-1.5 rounded-lg border border-violet/30 bg-violet/[.08] px-3 py-2 text-xs font-semibold text-violet transition hover:bg-violet/[.14] disabled:opacity-50">
@@ -271,7 +271,7 @@ export function StudioIndexPage() {
         </section>
 
         <section>
-          <div className="mb-4"><h2 className="text-lg font-semibold text-white">Need new media first?</h2><p className="mt-1 text-xs text-text-muted">Generate it with AiWebVideo, then open the result here for editing.</p></div>
+          <div className="mb-4"><h2 className="text-lg font-semibold text-white">Need new media first?</h2><p className="mt-1 text-xs text-text-muted">Generate it with Linkreel, then open the result here for editing.</p></div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {[
               ['AI Video','Generate a cinematic video','/?create=video#generate',Film],

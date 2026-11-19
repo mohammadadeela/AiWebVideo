@@ -173,7 +173,7 @@ export function PricingTable() {
             const hasDiscount = discounted < pack.amountUsd;
             const featured = index === 1;
             return (
-              <div key={pack.id} className={`${CARD} ${featured ? "border-violet/60 bg-signature-soft shadow-[0_0_44px_-14px_rgba(139,92,246,.45)]" : "border-border bg-panel hover:border-violet/30"}`}>
+              <div key={pack.id} className={`${CARD} ${featured ? "border-violet/60 bg-signature-soft shadow-[0_0_44px_-14px_rgba(0,0,0,.45)]" : "border-border bg-panel hover:border-violet/30"}`}>
                 <p className="text-sm font-semibold text-text-muted">{pack.name}</p>
                 <p className="mt-2 font-display text-4xl font-bold leading-none text-text-primary">
                   {packCredits.toLocaleString()} <span className="text-base font-semibold text-text-muted">credits</span>
@@ -206,7 +206,7 @@ export function PricingTable() {
       >
         <div className="grid gap-3 sm:grid-cols-3 sm:gap-4">
           {VIDEO_PACKS.map((pack) => (
-            <div key={pack.id} className={`${CARD} ${pack.popular ? "border-mint/50 bg-panel shadow-[0_0_44px_-16px_rgba(52,211,153,.4)]" : "border-border bg-panel hover:border-mint/30"}`}>
+            <div key={pack.id} className={`${CARD} ${pack.popular ? "border-mint/50 bg-panel shadow-[0_0_44px_-16px_rgba(0,0,0,.4)]" : "border-border bg-panel hover:border-mint/30"}`}>
               <p className="text-sm font-semibold text-text-muted">{pack.name}</p>
               <p className="mt-2 font-display text-4xl font-bold leading-none text-text-primary">{pack.seconds}<span className="text-base font-semibold text-text-muted"> seconds</span></p>
               <div className="mt-3 flex items-baseline gap-2">
@@ -253,7 +253,7 @@ export function PricingTable() {
           </div>
 
           {PLAN_PACKS.map((plan) => (
-            <div key={plan.id} className={`${CARD} ${plan.highlight ? "border-violet/60 bg-signature-soft shadow-[0_0_44px_-14px_rgba(139,92,246,.45)]" : "border-border bg-panel hover:border-violet/30"}`}>
+            <div key={plan.id} className={`${CARD} ${plan.highlight ? "border-violet/60 bg-signature-soft shadow-[0_0_44px_-14px_rgba(0,0,0,.45)]" : "border-border bg-panel hover:border-violet/30"}`}>
               <p className="text-sm font-semibold text-text-muted">{plan.name}</p>
               <p className="mt-2 font-display text-4xl font-bold leading-none text-text-primary">${plan.amountUsd}<span className="text-base font-semibold text-text-muted"> /mo</span></p>
               <p className="mt-2 font-utility text-xs text-mint">{displayCredits(plan.credits).toLocaleString()} credits every month</p>

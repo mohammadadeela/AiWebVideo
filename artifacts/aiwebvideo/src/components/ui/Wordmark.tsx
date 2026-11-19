@@ -1,16 +1,14 @@
 import { clsx } from "clsx";
+import { BRAND } from "@/lib/brand";
 
-export function Wordmark({ className }: { className?: string }) {
+/** The mark (a link that turns into a play button) and the name. `compact` shows the mark alone. */
+export function Wordmark({ className, compact = false }: { className?: string; compact?: boolean }) {
   return (
-    <span className={clsx("inline-flex items-center gap-2.5 max-[419px]:gap-2", className)}>
-      <span className="relative grid h-9 w-9 shrink-0 place-items-center">
-        <span className="absolute inset-0 rounded-xl bg-violet/20 blur-md" aria-hidden="true" />
-        <img src="/logo.svg" alt="" width={36} height={36} className="logo-motion relative h-9 w-9 shrink-0" />
-      </span>
-      <span className="font-display text-lg font-extrabold tracking-[-0.035em] whitespace-nowrap max-[419px]:text-base sm:text-xl">
-        <span className="bg-[linear-gradient(135deg,#67e8f9_0%,#a78bfa_42%,#f472b6_78%,#fb923c_100%)] bg-clip-text text-transparent">Ai</span>
-        <span className="text-white">WebVideo</span>
-      </span>
+    <span className={clsx("inline-flex items-center gap-2.5", className)}>
+      <img src="/logo.svg" alt="" width={30} height={30} className="h-[30px] w-[30px] shrink-0" />
+      {!compact && (
+        <span className="font-display text-[19px] font-bold tracking-[-0.03em] text-text-primary whitespace-nowrap">{BRAND.name}</span>
+      )}
     </span>
   );
 }

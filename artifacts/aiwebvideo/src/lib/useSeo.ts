@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-const SITE_NAME = 'AiWebVideo';
+const SITE_NAME = 'Linkreel';
 const BASE_URL = (import.meta.env.NEXT_PUBLIC_APP_URL as string | undefined)?.replace(/\/$/, '') || window.location.origin;
 
 function setMeta(attr: 'name' | 'property', key: string, content: string) {
@@ -44,7 +44,7 @@ function setStructuredData(options: { title: string; description: string; path: 
       '@id': `${BASE_URL}/#website`,
       url: `${BASE_URL}/`,
       name: SITE_NAME,
-      alternateName: ['AI Web Video', 'AiWebVideo.com'],
+      alternateName: ['AiWebVideo', 'AI Web Video', 'aiwebvideo.com'],
       publisher: { '@id': `${BASE_URL}/#organization` },
     },
     {
@@ -115,7 +115,7 @@ export function useSeo(options: {
   faq?: ReadonlyArray<readonly [string, string]>;
 }) {
   useEffect(() => {
-    // A title that already carries the brand (the homepage starts with it) is used as it is: never "... | AiWebVideo | AiWebVideo".
+    // A title that already carries the brand (the homepage starts with it) is used as it is: never "... | Linkreel | Linkreel".
     const fullTitle = options.title.includes(SITE_NAME) ? options.title : `${options.title} | ${SITE_NAME}`;
     document.title = fullTitle;
     setMeta('name', 'description', options.description);

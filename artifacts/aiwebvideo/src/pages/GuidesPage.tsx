@@ -31,7 +31,7 @@ const guides: Record<string, Guide> = {
       { heading: "4. Match format to distribution", paragraphs: ["A landscape homepage film and a vertical social campaign serve different viewing contexts. Choose the format before production when the destination is known; otherwise a smart default is usually enough for the first draft."], bullets: ["16:9 for websites, YouTube and presentations", "9:16 for Reels, Shorts and TikTok-style placements", "1:1 for compact social placements"] },
       { heading: "5. Review the story before obsessing over polish", paragraphs: ["The most important review question is whether the video communicates the right sequence: hook, value, evidence and call to action. A visually impressive render with the wrong story is still the wrong campaign."], bullets: ["Can a new viewer understand the product quickly?", "Is one benefit clearly prioritized?", "Does each scene earn its place?", "Is the CTA obvious?"] },
     ],
-    related: [["Try URL to Video", "/url-to-video"], ["See how AiWebVideo works", "/how-it-works"], ["Website video generator", "/website-video-generator"]],
+    related: [["Try URL to Video", "/url-to-video"], ["See how Linkreel works", "/how-it-works"], ["Website video generator", "/website-video-generator"]],
   },
   saas: {
     path: "/guides/saas-product-demo-video",

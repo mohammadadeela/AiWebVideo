@@ -188,7 +188,7 @@ export function PhotoUploadPicker({ onSubmit, disabled, isAdmin = false, title =
               </button>
             )}
           </div>
-          <div className="sticky bottom-0 z-10 -mx-1 rounded-xl border border-violet/20 bg-[#17122b]/95 p-1 shadow-[0_-10px_30px_rgba(12,8,28,.75)] backdrop-blur-xl">
+          <div className="sticky bottom-0 z-10 -mx-1 rounded-xl border border-violet/20 bg-[#161a22]/95 p-1 shadow-[0_-10px_30px_rgba(0,0,0,.75)] backdrop-blur-xl">
             <Button
               variant="primary" size="sm" className="w-full"
               disabled={disabled || submitting || photos.length === 0}

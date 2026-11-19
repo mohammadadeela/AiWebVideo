@@ -142,7 +142,7 @@ export function StudioWorkspacePage() {
   const [, params] = useRoute('/studio/project/:projectId');
   const routeProjectId = params?.projectId ?? null;
   const [, navigate] = useLocation();
-  useSeo({ title: 'AI Video & Image Editor | AiWebVideo', description: 'Edit videos and images with timeline, layers and AI Edit.', path: routeProjectId ? `/studio/project/${routeProjectId}` : '/studio', noindex: true });
+  useSeo({ title: 'AI Video & Image Editor | Linkreel', description: 'Edit videos and images with timeline, layers and AI Edit.', path: routeProjectId ? `/studio/project/${routeProjectId}` : '/studio', noindex: true });
 
   const [account, setAccount] = useState<Account | null>(null);
   const [signedIn, setSignedIn] = useState(true);
@@ -634,14 +634,14 @@ export function StudioWorkspacePage() {
     }
   }
 
-  if (loading) return <div className="grid min-h-screen place-items-center bg-[#090710] text-text-muted"><Loader2 className="animate-spin" /></div>;
+  if (loading) return <div className="grid min-h-screen place-items-center bg-[#080a0d] text-text-muted"><Loader2 className="animate-spin" /></div>;
 
   if (!signedIn) return (
-    <div className="grid min-h-screen place-items-center bg-[#090710] px-5">
-      <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#120e1d] p-7 text-center shadow-2xl">
+    <div className="grid min-h-screen place-items-center bg-[#080a0d] px-5">
+      <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#101218] p-7 text-center shadow-2xl">
         <Layers3 className="mx-auto text-violet" size={34} />
         <h1 className="mt-4 text-2xl font-semibold text-white">Sign in to open the editor</h1>
-        <p className="mt-2 text-sm leading-6 text-text-muted">Your uploaded media, edits and exports stay private in your AiWebVideo account.</p>
+        <p className="mt-2 text-sm leading-6 text-text-muted">Your uploaded media, edits and exports stay private in your Linkreel account.</p>
         <Link href="/?signin=1" className="mt-6 inline-flex rounded-xl bg-violet px-5 py-3 text-sm font-semibold text-white">Sign in</Link>
       </div>
     </div>
@@ -653,13 +653,13 @@ export function StudioWorkspacePage() {
   const paidBlocked = Boolean(aiPlan?.execution === 'paid' && (account?.creditsBalance ?? 0) < (aiPlan?.costCredits ?? 0));
 
   return (
-    <div className="cinematic-page flex h-[100dvh] min-h-[680px] flex-col overflow-hidden bg-[#090710] text-text-primary">
+    <div className="cinematic-page flex h-[100dvh] min-h-[680px] flex-col overflow-hidden bg-[#080a0d] text-text-primary">
       <input ref={fileInputRef} type="file" accept={ACCEPT} multiple className="hidden" onChange={(event) => { void addFiles(Array.from(event.currentTarget.files ?? [])); event.currentTarget.value = ''; }} />
 
-      <header className="z-30 flex h-14 shrink-0 items-center gap-2 border-b border-white/[.08] bg-[#0c0913]/95 px-2.5 backdrop-blur-xl sm:px-4">
-        <Link href="/" className="flex items-center gap-2 rounded-xl px-2 py-1.5 transition hover:bg-white/5" title="AiWebVideo home">
-          <img src="/logo.svg" alt="AiWebVideo" className="h-7 w-7" />
-          <span className="hidden text-sm font-semibold text-white sm:inline">AiWebVideo</span>
+      <header className="z-30 flex h-14 shrink-0 items-center gap-2 border-b border-white/[.08] bg-[#0a0c0f]/95 px-2.5 backdrop-blur-xl sm:px-4">
+        <Link href="/" className="flex items-center gap-2 rounded-xl px-2 py-1.5 transition hover:bg-white/5" title="Linkreel home">
+          <img src="/logo.svg" alt="Linkreel" className="h-7 w-7" />
+          <span className="hidden text-sm font-semibold text-white sm:inline">Linkreel</span>
         </Link>
         <span className="hidden text-white/15 sm:inline">/</span>
         <button type="button" onClick={() => { setLeftTab('projects'); setLeftOpen(true); }} className="hidden items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-semibold text-white/80 hover:bg-white/5 sm:flex"><Layers3 size={14} className="text-violet" />Editor</button>
@@ -686,7 +686,7 @@ export function StudioWorkspacePage() {
       </header>
 
       {uploading && uploadProgress && (
-        <div className="z-40 shrink-0 border-b border-violet/20 bg-[#130d20] px-3 py-2 sm:px-5">
+        <div className="z-40 shrink-0 border-b border-violet/20 bg-[#111319] px-3 py-2 sm:px-5">
           <div className="mx-auto flex max-w-6xl items-center gap-3">
             <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-violet/10 text-violet"><Upload size={14} /></span>
             <div className="min-w-0 flex-1">
@@ -700,7 +700,7 @@ export function StudioWorkspacePage() {
       )}
 
       {exportOpen && project && (
-        <div className="absolute right-3 top-16 z-50 w-[min(92vw,330px)] rounded-2xl border border-white/10 bg-[#151021] p-4 shadow-2xl">
+        <div className="absolute right-3 top-16 z-50 w-[min(92vw,330px)] rounded-2xl border border-white/10 bg-[#12151b] p-4 shadow-2xl">
           <div className="flex items-center justify-between"><div><p className="text-sm font-semibold text-white">Export project</p><p className="mt-0.5 text-[9px] text-text-dim">Server-rendered from your timeline</p></div><button onClick={() => setExportOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg text-text-muted hover:bg-white/5"><X size={14} /></button></div>
           <div className="mt-4 grid grid-cols-3 gap-2">{(['720p','1080p','4k'] as const).map((value) => <button key={value} onClick={() => setExportResolution(value)} className={`rounded-lg border px-2 py-2 text-[10px] font-semibold ${exportResolution === value ? 'border-violet/55 bg-violet/15 text-white' : 'border-white/10 text-text-muted'}`}>{value === '4k' ? '4K' : value}</button>)}</div>
           {exportState && <div className="mt-3 rounded-xl bg-black/20 p-3 text-[10px] text-text-muted"><div className="flex justify-between"><span>{exportState.status}</span><span>{exportState.progress}%</span></div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/5"><div className="h-full bg-violet" style={{ width: `${exportState.progress}%` }} /></div>{exportState.error && <p className="mt-2 text-pink">{exportState.error}</p>}{exportState.url && <a href={`${exportState.url}&download=1`} className="mt-3 inline-flex items-center gap-1.5 font-semibold text-violet"><Download size={12} />Download export</a>}</div>}
@@ -709,7 +709,7 @@ export function StudioWorkspacePage() {
       )}
 
       <main className="flex min-h-0 flex-1 overflow-hidden">
-        <aside className={`${leftOpen ? 'flex' : 'hidden'} absolute inset-y-14 left-0 z-40 w-[88vw] max-w-[330px] flex-col border-r border-white/[.08] bg-[#0d0a14] shadow-2xl lg:relative lg:inset-auto lg:z-auto lg:flex lg:w-[280px] lg:shadow-none xl:w-[300px]`}>
+        <aside className={`${leftOpen ? 'flex' : 'hidden'} absolute inset-y-14 left-0 z-40 w-[88vw] max-w-[330px] flex-col border-r border-white/[.08] bg-[#0b0d11] shadow-2xl lg:relative lg:inset-auto lg:z-auto lg:flex lg:w-[280px] lg:shadow-none xl:w-[300px]`}>
           <div className="flex h-12 shrink-0 items-center gap-1 border-b border-white/[.08] p-2">
             <button onClick={() => setLeftTab('projects')} className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[10px] font-semibold ${leftTab === 'projects' ? 'bg-violet/12 text-violet' : 'text-text-muted hover:bg-white/5 hover:text-white'}`}><FolderOpen size={13} />Projects</button>
             <button onClick={() => setLeftTab('media')} disabled={!project} className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[10px] font-semibold disabled:opacity-25 ${leftTab === 'media' ? 'bg-violet/12 text-violet' : 'text-text-muted hover:bg-white/5 hover:text-white'}`}><ImageIcon size={13} />Media</button>
@@ -730,12 +730,12 @@ export function StudioWorkspacePage() {
               </div>
 
               <div className="mt-5 flex items-center justify-between"><p className="text-[10px] font-semibold uppercase tracking-[.12em] text-text-dim">Past productions</p><Clock3 size={12} className="text-text-dim" /></div>
-              <p className="mt-1 text-[8px] leading-4 text-text-dim">Open a finished AiWebVideo generation directly in this editor.</p>
+              <p className="mt-1 text-[8px] leading-4 text-text-dim">Open a finished Linkreel generation directly in this editor.</p>
               <div className="mt-2 space-y-2">
                 {doneJobs.slice(0, 14).map((job) => (
                   <button key={job.id} onClick={() => void openPast(job)} disabled={creating === `job:${job.id}`} className="flex w-full items-center gap-2.5 rounded-xl border border-white/[.06] bg-white/[.018] p-2 text-left transition hover:border-violet/25 hover:bg-violet/[.04] disabled:opacity-50">
                     <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-lg bg-black/30">{job.screenshotUrl ? <img src={job.screenshotUrl} alt="" className="h-full w-full object-cover" /> : <Film size={15} className="text-violet" />}</span>
-                    <span className="min-w-0 flex-1"><span className="block truncate text-[10px] font-semibold text-white">{job.title || 'AiWebVideo production'}</span><span className="mt-0.5 block text-[8px] text-text-dim">{job.mode || 'video'} · finished</span></span>
+                    <span className="min-w-0 flex-1"><span className="block truncate text-[10px] font-semibold text-white">{job.title || 'Linkreel production'}</span><span className="mt-0.5 block text-[8px] text-text-dim">{job.mode || 'video'} · finished</span></span>
                     {creating === `job:${job.id}` ? <Loader2 size={12} className="animate-spin text-violet" /> : <MonitorPlay size={12} className="text-violet" />}
                   </button>
                 ))}
@@ -757,7 +757,7 @@ export function StudioWorkspacePage() {
           )}
         </aside>
 
-        <section className="relative flex min-w-0 flex-1 flex-col bg-[radial-gradient(circle_at_50%_12%,rgba(113,73,190,.10),transparent_42%)]">
+        <section className="relative flex min-w-0 flex-1 flex-col bg-[radial-gradient(circle_at_50%_12%,rgba(73,104,190,.10),transparent_42%)]">
           {!project || !state ? (
             <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto p-5 sm:p-8">
               <div className="w-full max-w-3xl text-center">
@@ -776,7 +776,7 @@ export function StudioWorkspacePage() {
           ) : (
             <>
               <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto p-3 sm:p-5 lg:p-7">
-                <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-2xl border border-white/[.06] bg-[#05040a] shadow-[inset_0_0_80px_rgba(0,0,0,.35)]">
+                <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-2xl border border-white/[.06] bg-[#050608] shadow-[inset_0_0_80px_rgba(0,0,0,.35)]">
                   <div className="relative max-h-[calc(100%-28px)] max-w-[calc(100%-28px)] overflow-hidden rounded-xl border border-white/[.08] shadow-2xl" style={{ ...canvasStyle, height: state.canvas.aspectRatio === '9:16' ? '88%' : 'auto', width: state.canvas.aspectRatio === '9:16' ? 'auto' : state.canvas.aspectRatio === '1:1' ? '72%' : '88%' }}>
                     <div className="absolute inset-0" style={{ background: state.canvas.background }} />
                     {visibleLayers.map((layer) => {
@@ -804,7 +804,7 @@ export function StudioWorkspacePage() {
                 </div>
               </div>
 
-              <div className="shrink-0 border-t border-white/[.08] bg-[#0c0913]">
+              <div className="shrink-0 border-t border-white/[.08] bg-[#0a0c0f]">
                 <div className="flex h-11 items-center gap-2 border-b border-white/[.06] px-3 sm:px-4">
                   <button onClick={() => void togglePlayback()} className="grid h-8 w-8 place-items-center rounded-lg bg-white/[.06] text-white hover:bg-white/[.1]">{playing ? <Pause size={14} /> : <Play size={14} />}</button>
                   <span className="min-w-[72px] text-[10px] tabular-nums text-white/80">{formatTime(playhead)} / {formatTime(state.duration)}</span>
@@ -827,7 +827,7 @@ export function StudioWorkspacePage() {
           )}
         </section>
 
-        <aside className={`${rightOpen ? 'flex' : 'hidden'} absolute inset-y-14 right-0 z-40 w-[92vw] max-w-[380px] flex-col border-l border-white/[.08] bg-[#0d0a14] shadow-2xl xl:relative xl:inset-auto xl:z-auto xl:flex xl:w-[340px] xl:shadow-none 2xl:w-[370px]`}>
+        <aside className={`${rightOpen ? 'flex' : 'hidden'} absolute inset-y-14 right-0 z-40 w-[92vw] max-w-[380px] flex-col border-l border-white/[.08] bg-[#0b0d11] shadow-2xl xl:relative xl:inset-auto xl:z-auto xl:flex xl:w-[340px] xl:shadow-none 2xl:w-[370px]`}>
           <div className="flex h-12 shrink-0 items-center gap-1 border-b border-white/[.08] p-2">
             <button onClick={() => setRightTab('ai')} disabled={!project} className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[10px] font-semibold disabled:opacity-25 ${rightTab === 'ai' ? 'bg-violet/12 text-violet' : 'text-text-muted hover:bg-white/5 hover:text-white'}`}>AI Edit</button>
             <button onClick={() => setRightTab('inspector')} disabled={!project} className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[10px] font-semibold disabled:opacity-25 ${rightTab === 'inspector' ? 'bg-violet/12 text-violet' : 'text-text-muted hover:bg-white/5 hover:text-white'}`}><Layers3 size={13} />Adjust</button>
@@ -864,7 +864,7 @@ export function StudioWorkspacePage() {
               </div>
 
               <div className="shrink-0 border-t border-white/[.08] p-3">
-                <div className="rounded-2xl border border-white/10 bg-[#090710] p-2.5 focus-within:border-violet/35">
+                <div className="rounded-2xl border border-white/10 bg-[#080a0d] p-2.5 focus-within:border-violet/35">
                   <textarea value={aiInstruction} onChange={(event) => { setAiInstruction(event.currentTarget.value); setAiPlan(null); }} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void planAi(); } }} rows={3} placeholder="Describe the edit…" className="w-full resize-none bg-transparent text-[11px] leading-5 text-white outline-none placeholder:text-white/25" />
                   <div className="mt-2 flex items-center justify-between gap-2"><span className="text-[8px] text-text-dim">{account?.creditsBalance ?? 0} credits available</span><button onClick={() => void planAi()} disabled={!aiInstruction.trim() || aiBusy || Boolean(aiOperationId)} className="grid h-8 w-8 place-items-center rounded-lg bg-violet text-white disabled:opacity-30">{aiBusy ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}</button></div>
                 </div>
@@ -888,7 +888,7 @@ export function StudioWorkspacePage() {
         </aside>
       </main>
 
-      <div className="flex h-12 shrink-0 items-center justify-around border-t border-white/[.08] bg-[#0c0913] px-2 lg:hidden">
+      <div className="flex h-12 shrink-0 items-center justify-around border-t border-white/[.08] bg-[#0a0c0f] px-2 lg:hidden">
         <button onClick={() => { setLeftTab('projects'); setLeftOpen(true); }} className="flex min-w-16 flex-col items-center gap-1 text-[8px] text-text-muted"><FolderOpen size={15} />Projects</button>
         <button onClick={() => { setLeftTab('media'); setLeftOpen(true); }} disabled={!project} className="flex min-w-16 flex-col items-center gap-1 text-[8px] text-text-muted disabled:opacity-30"><ImageIcon size={15} />Media</button>
         <button onClick={() => { setRightTab('ai'); setRightOpen(true); }} disabled={!project} className="flex min-w-16 flex-col items-center gap-1 text-[8px] text-violet disabled:opacity-30"><Pencil size={15} />AI Edit</button>

@@ -437,7 +437,7 @@ async function normalizeClip(
   if (actualShortEdge < requiredShortEdge) {
     throw new Error(
       `Quality gate rejected ${path.basename(input)}: provider returned ${sourceSize.width}x${sourceSize.height} for requested ${quality}. ` +
-      `AiWebVideo will not upscale a lower-resolution source and call it ${quality}.`,
+      `Linkreel will not upscale a lower-resolution source and call it ${quality}.`,
     );
   }
   const sourceHasAudio = await hasAudio(input);

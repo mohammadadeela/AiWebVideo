@@ -65,7 +65,7 @@ function CTA() {
   return (
     <section className="border-t border-white/[.06] px-4 py-12 sm:px-5 sm:py-16">
       <div className="relative mx-auto max-w-5xl overflow-hidden rounded-[34px] border border-white/10 bg-panel px-6 py-14 text-center">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(139,92,246,.22),transparent_52%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(92,133,246,.22),transparent_52%)]" />
         <h2 className="relative font-display text-3xl font-bold tracking-[-.035em] text-white">
           Start creating in one chat
         </h2>
@@ -130,10 +130,10 @@ export function FeaturesPage() {
   return (
     <Shell
       eyebrow="Choose a creation mode"
-      title="What can I create with AiWebVideo?"
+      title="What can I create with Linkreel?"
       seoTitle="AI Video, Product Media & Interior Design Features"
       intro="Choose the source you already have and the result you need. Every mode runs in the same creator, with its own references, settings, and credit estimate."
-      description="Compare AiWebVideo creation modes: website video, original AI video, product photos and video, talking scenes, and interior design images or walkthroughs."
+      description="Compare Linkreel creation modes: website video, original AI video, product photos and video, talking scenes, and interior design images or walkthroughs."
       path="/features"
     >
       <section className="border-b border-white/[.06] bg-black/10" aria-labelledby="mode-directory">
@@ -228,7 +228,7 @@ const creationFlows = [
     border: "border-mint/25",
     glow: "bg-mint/[.06]",
     input: "Paste a public website URL and tell AI what you want the video to highlight.",
-    process: "AiWebVideo first captures useful public pages, the favicon, and visual source as a free preview. When you continue to production, credits are verified before paid AI planning begins; then the captured brand, products, interface, and calls to action guide the video.",
+    process: "Linkreel first captures useful public pages, the favicon, and visual source as a free preview. When you continue to production, credits are verified before paid AI planning begins; then the captured brand, products, interface, and calls to action guide the video.",
     result: "A brand-aware campaign video built from the website context and your direction, with no paid AI/provider step started before the credit gate passes.",
     href: "/?create=website#generate",
   },
@@ -323,7 +323,7 @@ export function HowItWorksPage() {
       eyebrow="How it works"
       title="One creator. Six ways to start."
       seoTitle="How AI Video, Product Images & Interior Design Work"
-      intro="Start with a website, an idea, a product, dialogue, or a real space. AiWebVideo keeps the source, direction, settings, generation progress, and final result together in one workflow."
+      intro="Start with a website, an idea, a product, dialogue, or a real space. Linkreel keeps the source, direction, settings, generation progress, and final result together in one workflow."
       description="See the input, AI workflow, and output for website video, original AI video, product images and video, talking scenes, and interior design tours."
       path="/how-it-works"
     >
@@ -365,7 +365,7 @@ export function HowItWorksPage() {
                   </div>
                 </div>
                 <div className={`relative mt-5 grid gap-3 ${index === 0 ? "md:grid-cols-3" : ""}`}>
-                  {[["You provide", input], ["AiWebVideo does", process], ["You receive", result]].map(([label, body]) => (
+                  {[["You provide", input], ["Linkreel does", process], ["You receive", result]].map(([label, body]) => (
                     <div key={label} className="rounded-2xl border border-white/[.07] bg-white/[.025] p-4">
                       <p className="text-xs font-semibold text-white">{label}</p>
                       <p className="mt-2 text-xs leading-6 text-text-muted">{body}</p>
@@ -422,8 +422,8 @@ export function HowItWorksPage() {
       <section className="border-b border-white/[.06]">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-5 sm:py-16">
           <div className="grid gap-8 lg:grid-cols-[1.05fr_.95fr] lg:items-center">
-            <div className="relative overflow-hidden rounded-[30px] border border-white/[.1] bg-[#0c0917] p-5 sm:p-6">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(139,92,246,.18),transparent_42%)]" />
+            <div className="relative overflow-hidden rounded-[30px] border border-white/[.1] bg-[#0c0e12] p-5 sm:p-6">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(92,133,246,.18),transparent_42%)]" />
               <div className="relative rounded-[22px] border border-white/[.08] bg-black/20 p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2"><span className="h-2 w-2 animate-pulse rounded-full bg-mint" /><span className="text-xs font-semibold text-white">Generation in progress</span></div>
@@ -459,17 +459,17 @@ export function AboutPage() {
   return (
     <Shell
       eyebrow="Company"
-      title="About AiWebVideo"
-      seoTitle="About AiWebVideo — AI Creative Platform for Video & Design"
-      intro="AiWebVideo is an AI creative platform for generating website marketing videos, AI videos, product photography, product videos, talking scenes, interior concepts, and architecture visualizations from the sources you already have."
-      description="What AiWebVideo is, how you use it, and where its limits are: an AI creative platform for website videos, product media, interior design and architecture concepts."
+      title="About Linkreel"
+      seoTitle="About Linkreel — AI Creative Platform for Video & Design"
+      intro="Linkreel is an AI creative platform for generating website marketing videos, AI videos, product photography, product videos, talking scenes, interior concepts, and architecture visualizations from the sources you already have."
+      description="What Linkreel is, how you use it, and where its limits are: an AI creative platform for website videos, product media, interior design and architecture concepts."
       path="/about"
     >
       <section>
         <div className="mx-auto grid max-w-5xl gap-5 px-4 py-12 sm:px-5 sm:py-16 md:grid-cols-3">
           {[
             [
-              "What AiWebVideo does",
+              "What Linkreel does",
               "It turns public websites, product links, original ideas, real product photos, and photos, plans or map locations of real spaces into directed video, images, and design concepts, in one workspace.",
             ],
             [
@@ -503,7 +503,7 @@ const faqGroups = [
     items: [
       [
         "What is the main product?",
-        "AiWebVideo makes website videos, original AI videos, product photos and videos, talking scenes, and interior design images or walkthroughs. Choose the mode that matches your source and desired output.",
+        "Linkreel makes website videos, original AI videos, product photos and videos, talking scenes, and interior design images or walkthroughs. Choose the mode that matches your source and desired output.",
       ],
       [
         "Do I need to choose every setting?",
@@ -600,7 +600,7 @@ export function FaqPage() {
       title="Frequently asked questions"
       seoTitle="AI Video, Product Media & Interior Design FAQ"
       intro="Straight answers about website and AI video, product references, interior design, credits, and saved projects."
-      description="Answers to common questions about AiWebVideo's website video, product images and videos, interior design, generation, credits, billing, and accounts."
+      description="Answers to common questions about Linkreel's website video, product images and videos, interior design, generation, credits, billing, and accounts."
       path="/faq"
     >
       <section>
@@ -692,8 +692,8 @@ export function PrivacyPage() {
     <LegalPage
       title="Privacy notice"
       seoTitle="Privacy Notice"
-      intro="This notice explains the main information handled when you use AiWebVideo."
-      description="AiWebVideo's privacy notice: what account, website, and billing information is processed, how it's used, and your choices."
+      intro="This notice explains the main information handled when you use Linkreel."
+      description="Linkreel's privacy notice: what account, website, and billing information is processed, how it's used, and your choices."
       path="/privacy"
       sections={[
         [
@@ -726,8 +726,8 @@ export function TermsPage() {
     <LegalPage
       title="Terms of service"
       seoTitle="Terms of Service"
-      intro="These terms describe the basic rules for using AiWebVideo and its production features."
-      description="AiWebVideo's terms of service: account responsibilities, content rights, credits and billing, acceptable use, and service availability."
+      intro="These terms describe the basic rules for using Linkreel and its production features."
+      description="Linkreel's terms of service: account responsibilities, content rights, credits and billing, acceptable use, and service availability."
       path="/terms"
       sections={[
         [

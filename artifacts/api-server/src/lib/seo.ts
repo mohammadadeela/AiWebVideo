@@ -26,36 +26,36 @@ type PublicPageDefinition = Omit<SeoPage, 'path' | 'index'> & { copy: SeoCopy };
 
 const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
   '/': {
-    title: 'AiWebVideo — AI Video, Product Photo & Architecture Generator',
+    title: 'Linkreel: turn any link into a video with AI',
     description:
-      'AiWebVideo is an AI creative platform for website marketing videos, AI videos, product photos and videos, talking scenes, interior design and architecture concept visuals.',
+      'Paste a website, product page or map link and Linkreel turns it into a finished AI video or image set. Free to try, no card needed.',
     copy: {
-      eyebrow: 'AiWebVideo: AI video, product media, interior design and architecture',
-      h1: 'Create AI videos, product content and visual designs with AiWebVideo',
+      eyebrow: 'Linkreel, formerly AiWebVideo',
+      h1: 'Paste a link. Get a video.',
       intro:
-        'AiWebVideo is an AI creative platform. Start with a public website URL, a product link, an original idea, dialogue, product photos, or photos and plans of a real space or site. Choose video, images, or a design walkthrough; AiWebVideo keeps references, creative direction, progress, and finished media in one workspace.',
+        'Linkreel is an AI video generator that starts from a link. Paste a website, a product page or a Google Maps location, or add a few photos, say what you want in one sentence, and download a finished video or a set of images. It works like a chat: one box, and the whole production stays in one conversation.',
       sections: [
-        { heading: 'Website to video', body: 'Paste a public website and describe the audience, offer, and campaign. Public page content and brand cues provide source context for a generated video.' },
-        { heading: 'Idea or dialogue to video', body: 'Describe an original scene, or write the people, setting, and dialogue for a talking video. Add optional image references when visual identity matters, and direct the story, camera, style, and format.' },
-        { heading: 'Real product to photos or video', body: 'Paste a product page link or upload photos of the real product. AiWebVideo reads the product photos it can access, you choose the references, and generation starts only when you confirm.' },
-        { heading: 'Real spaces to design images or walkthroughs', body: 'Upload room or property photos, floor plans, or sketches and describe the intended design. Supply measured dimensions or scaled plans when proportions matter; a single photo cannot guarantee exact measurements.' },
-        { heading: 'Architecture on a real site', body: 'Paste a map link, address, or coordinates, point at the exact shop, floor, building, or empty plot, and create concept visuals. These are AI visualizations for concept purposes, not surveyed or construction-accurate plans.' },
-        { heading: 'One production workspace', body: 'Keep the prompt, source material, selected settings, credits, progress, and completed results in the same project conversation.' },
+        { heading: 'Website link to video', body: 'Paste any public website. Linkreel reads the pages, picks the story, and generates a marketing video. Adding a sentence about what to highlight is optional.' },
+        { heading: 'Product link to video and photos', body: 'Paste a product page from Amazon, Shopify, Etsy or any shop. The product photos are picked up automatically; choose which to use and get a product video or a set of four studio photos. If a shop blocks automatic reading, add one photo instead.' },
+        { heading: 'Prompt to video and talking scenes', body: 'Describe an original scene, or the people, setting and dialogue for a talking video. Add image references when a face, product or style has to match.' },
+        { heading: 'Rooms and buildings', body: 'Redesign a room from a photo, plan or CAD drawing, or place a new building on a real map location. These are concept visuals, not surveyed or construction-accurate plans.' },
+        { heading: 'Know the price first', body: 'Every creation shows its exact credit cost before anything is generated. New accounts start with free credits and no card. Reading a link and previewing what was found is free.' },
       ],
       faq: [
-        ['What is AiWebVideo?', 'AiWebVideo is an AI creative platform at aiwebvideo.com for generating website marketing videos, AI videos, product photos and videos, talking scenes, interior design concepts, and architecture concept visualizations.'],
-        ['Can I turn a website URL into a video?', 'Yes. Submit a public website or product page, then describe what the campaign should promote.'],
-        ['Can I generate product images and videos from a product link?', 'Yes. Paste a product page link in Product Photos or Product Video. AiWebVideo reads the photos it can access, you select the references, and generation starts only after you confirm. If a shop blocks automatic reading, upload a photo instead.'],
-        ['Can I make interior design images or a tour?', 'Yes. Upload authorized photos, plans, or sketches and choose design images or a walkthrough. Use explicit measurements or a scaled plan when proportions matter.'],
-        ['Can I visualize a building on a real location?', 'Yes, as a concept. Paste a map link or address, mark the exact place, and describe the building. The result is an AI visualization, not a surveyed or construction-accurate plan.'],
+        ['What is Linkreel?', 'Linkreel (formerly AiWebVideo, at aiwebvideo.com) is an AI tool that turns a website link, a product page, a map location or a few photos into finished videos and images.'],
+        ['How do I turn a website into a video?', 'Paste the website link into Linkreel and press send. It reads the pages, writes the story and generates a finished video you can download. Adding a sentence about what to highlight is optional.'],
+        ['Is Linkreel free to try?', 'Yes. Reading your link and previewing what was found is free, and every new account gets free starter credits with no card needed.'],
+        ['Can it make a video from a product link?', 'Yes. Paste a product page link. The product photos are picked up automatically and turned into a product video or a set of studio photos. If a shop blocks automatic reading, upload one photo instead.'],
+        ['What else can I make?', 'Videos from a text prompt, talking scenes, interior redesigns from a room photo or plan, and concept visuals of a building placed on a real map location.'],
+        ['How much does a video cost?', 'You see the exact credits before anything is generated. Credits are bought in one-time packs or monthly plans; see the pricing page for current prices.'],
       ],
-      links: [['Website Video Generator', '/website-video-generator'], ['AI Video Generator', '/ai-video-generator'], ['Product Photo Generator', '/product-photo-generator'], ['Product Video Generator', '/product-video-generator'], ['Product Link to Video', '/product-page-to-video'], ['Talking Video Generator', '/talking-video-generator'], ['AI Interior Design Generator', '/ai-interior-design-generator'], ['AI Architecture Generator', '/ai-architectural-visualization'], ['Building on a Real Site', '/architecture-site-placement'], ['All creation modes', '/features'], ['Examples', '/examples'], ['About AiWebVideo', '/about']],
+      links: [['Website Video Generator', '/website-video-generator'], ['AI Video Generator', '/ai-video-generator'], ['Product Photo Generator', '/product-photo-generator'], ['Product Video Generator', '/product-video-generator'], ['Product Link to Video', '/product-page-to-video'], ['Talking Video Generator', '/talking-video-generator'], ['AI Interior Design Generator', '/ai-interior-design-generator'], ['AI Architecture Generator', '/ai-architectural-visualization'], ['Building on a Real Site', '/architecture-site-placement'], ['All creation modes', '/features'], ['Examples', '/examples'], ['About Linkreel', '/about']],
     },
   },
   '/url-to-video': {
-    title: 'URL to Video AI Generator — Turn a Website Into Video | AiWebVideo',
+    title: 'URL to Video AI Generator — Turn a Website Into Video | Linkreel',
     description:
-      'Paste a public website URL and turn it into a brand-aware AI marketing video. AiWebVideo reads the page, plans the story, generates the film, and keeps production in one workspace.',
+      'Paste a public website URL and turn it into a brand-aware AI marketing video. Linkreel reads the page, plans the story, generates the film, and keeps production in one workspace.',
     copy: {
       eyebrow: 'URL to video AI',
       h1: 'Turn any website URL into an AI video',
@@ -66,7 +66,7 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
         { heading: 'Generate the campaign', body: 'The workflow plans the story and produces AI-generated video scenes instead of presenting a simple screenshot slideshow as the final film.' },
       ],
       faq: [
-        ['What is a URL to video generator?', 'It is a workflow that uses a webpage link as source context for creating a video. AiWebVideo combines that page with your campaign goal and directs the production.'],
+        ['What is a URL to video generator?', 'It is a workflow that uses a webpage link as source context for creating a video. Linkreel combines that page with your campaign goal and directs the production.'],
         ['What URLs work best?', 'Public pages with clear products, services, features, visuals, and calls to action work best. Private pages that require login should not be submitted.'],
         ['Can I make vertical video?', 'Yes. Common landscape, portrait, and square formats are supported by the creator.'],
       ],
@@ -74,9 +74,9 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
     },
   },
   '/website-video-generator': {
-    title: 'AI Website Video Generator — Website to Marketing Video | AiWebVideo',
+    title: 'AI Website Video Generator — Website to Marketing Video | Linkreel',
     description:
-      'Create an AI marketing video from your website. AiWebVideo studies useful pages and brand context, builds the campaign direction, and generates the final film in one workspace.',
+      'Create an AI marketing video from your website. Linkreel studies useful pages and brand context, builds the campaign direction, and generates the final film in one workspace.',
     copy: {
       eyebrow: 'Website video generator',
       h1: 'Create a marketing video from your website',
@@ -94,7 +94,7 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
     },
   },
   '/saas-demo-video-generator': {
-    title: 'SaaS Demo Video Generator — Create Product Videos With AI | AiWebVideo',
+    title: 'SaaS Demo Video Generator — Create Product Videos With AI | Linkreel',
     description:
       'Create AI SaaS demo and launch videos from your product website. Ground the story in real product positioning and interface context, then generate the campaign in one workspace.',
     copy: {
@@ -114,20 +114,20 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
     },
   },
   '/product-page-to-video': {
-    title: 'Product Link to AI Video & Photos — Product URL to Ad | AiWebVideo',
+    title: 'Product Link to AI Video & Photos — Product URL to Ad | Linkreel',
     description:
-      'Paste a product page link. AiWebVideo reads the product name, description and photos it can access, you choose the references, then it generates product photos or a product video when you confirm.',
+      'Paste a product page link. Linkreel reads the product name, description and photos it can access, you choose the references, then it generates product photos or a product video when you confirm.',
     copy: {
       eyebrow: 'Product link to video and photos',
       h1: 'Turn a product link into product photos or video',
-      intro: 'Paste the link to a product page. AiWebVideo reads the product information and photos it can access, shows them for you to review and select, and generates product photos or a product video only after you press create.',
+      intro: 'Paste the link to a product page. Linkreel reads the product information and photos it can access, shows them for you to review and select, and generates product photos or a product video only after you press create.',
       createHref: '/?create=product-video#generate',
       sections: [
         { heading: 'Paste the product link', body: 'In Product Photos or Product Video, paste the product page address. A direct image address works too: right-click a product photo, choose Copy image address, and paste it.' },
-        { heading: 'AiWebVideo reads what is publicly accessible', body: 'It looks for the product name, description, price and brand the page declares, and for the product photos in the page. For pages that only show their gallery after scripts run, a browser step is used. It does not sign in, solve CAPTCHAs, or get around access controls.' },
+        { heading: 'Linkreel reads what is publicly accessible', body: 'It looks for the product name, description, price and brand the page declares, and for the product photos in the page. For pages that only show their gallery after scripts run, a browser step is used. It does not sign in, solve CAPTCHAs, or get around access controls.' },
         { heading: 'You review and choose the references', body: 'See the product name and the photos found, select or deselect photos, and add your own reference photos. Nothing is generated yet.' },
         { heading: 'Describe what you want, then create', body: 'Write the setting, lighting, camera and goal. Generation starts only when you confirm, and the credit estimate is shown first.' },
-        { heading: 'When a shop blocks automatic reading', body: 'Some shops refuse automated access. AiWebVideo then keeps the product name it found and asks for one photo: upload one, paste a screenshot, or paste a copied image address. Availability depends on each shop and on what its page exposes.' },
+        { heading: 'When a shop blocks automatic reading', body: 'Some shops refuse automated access. Linkreel then keeps the product name it found and asks for one photo: upload one, paste a screenshot, or paste a copied image address. Availability depends on each shop and on what its page exposes.' },
       ],
       faq: [
         ['Does it work with every online store?', 'No. It works with pages that publicly expose the product and its photos. Shops that block automated access, or that require a login, cannot be read; you can upload a photo instead.'],
@@ -140,12 +140,12 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
     },
   },
   '/ai-video-generator': {
-    title: 'AI Video Generator — Create AI Videos From Prompts | AiWebVideo',
-    description: 'Create original AI videos from a prompt and optional image references. Direct the story, camera, style, pacing, and format with AiWebVideo.',
+    title: 'AI Video Generator — Create AI Videos From Prompts | Linkreel',
+    description: 'Create original AI videos from a prompt and optional image references. Direct the story, camera, style, pacing, and format with Linkreel.',
     copy: {
       eyebrow: 'AI video generator',
       h1: 'Create an original AI video from an idea',
-      intro: 'Describe the video you want in normal language, add references when useful, and let AiWebVideo turn the idea into a complete AI-directed video.',
+      intro: 'Describe the video you want in normal language, add references when useful, and let Linkreel turn the idea into a complete AI-directed video.',
       createHref: '/?create=video#generate',
       sections: [
         { heading: 'Describe the idea', body: 'Explain the subject, setting, action, style, audience, or story in your own words.' },
@@ -155,7 +155,7 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
         { heading: 'Use the right mode', body: 'For dialogue and character performance, use Talking Video. For a public website as source, use Website Video. For a real product that needs supplied images, use Product Video.' },
       ],
       faq: [
-        ['What is an AI video generator?', 'It is a tool that uses an instruction and optional references to generate video content. AiWebVideo adds creative planning so the request becomes a coherent production.'],
+        ['What is an AI video generator?', 'It is a tool that uses an instruction and optional references to generate video content. Linkreel adds creative planning so the request becomes a coherent production.'],
         ['Can I use an image as a reference?', 'Yes. Optional reference images can help anchor subjects, products, identity, or visual direction.'],
         ['Can I choose portrait video?', 'Yes. The creator supports common landscape, portrait, and square formats.'],
       ],
@@ -163,12 +163,12 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
     },
   },
   '/product-photo-generator': {
-    title: 'AI Product Photo Generator — Create Product Images | AiWebVideo',
+    title: 'AI Product Photo Generator — Create Product Images | Linkreel',
     description: 'Upload real product references and create polished AI product photos for ecommerce, campaigns, social media, and marketing.',
     copy: {
       eyebrow: 'AI product photo generator',
       h1: 'Create product images from real references',
-      intro: 'Give AiWebVideo your real product images and describe the scene, styling, background, or campaign you want. The product remains the visual anchor.',
+      intro: 'Give Linkreel your real product images and describe the scene, styling, background, or campaign you want. The product remains the visual anchor.',
       createHref: '/?create=photo#generate',
       sections: [
         { heading: 'Upload the real product', body: 'Add clear product images that show the shape, materials, colors, and important details.' },
@@ -186,12 +186,12 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
     },
   },
   '/product-video-generator': {
-    title: 'AI Product Video Generator — Create Product Videos | AiWebVideo',
+    title: 'AI Product Video Generator — Create Product Videos | Linkreel',
     description: 'Create AI product videos from real product images. Preserve the product as the reference while generating commercial motion, camera movement, and environments.',
     copy: {
       eyebrow: 'AI product video generator',
       h1: 'Create product videos from real references',
-      intro: 'Upload the real product, describe the commercial direction, and let AiWebVideo build a continuous product-focused film around it.',
+      intro: 'Upload the real product, describe the commercial direction, and let Linkreel build a continuous product-focused film around it.',
       createHref: '/?create=product-video#generate',
       sections: [
         { heading: 'Use real product references', body: 'Provide clear images that show the real product and important details.' },
@@ -209,12 +209,12 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
     },
   },
   '/talking-video-generator': {
-    title: 'AI Talking Video Generator — Dialogue & Scenario Videos | AiWebVideo',
+    title: 'AI Talking Video Generator — Dialogue & Scenario Videos | Linkreel',
     description: 'Create AI talking and scenario videos from a description of the characters, dialogue, setting, camera, and performance you want.',
     copy: {
       eyebrow: 'AI talking video generator',
       h1: 'Direct a talking or scenario-driven AI video',
-      intro: 'Describe the people, conversation, testimonial, or scripted scenario and let AiWebVideo direct the performance, camera blocking, pacing, and scene audio.',
+      intro: 'Describe the people, conversation, testimonial, or scripted scenario and let Linkreel direct the performance, camera blocking, pacing, and scene audio.',
       createHref: '/?create=scenario#generate',
       sections: [
         { heading: 'Describe the scene', body: 'Explain who is present, where they are, what happens, and what the viewer should understand.' },
@@ -232,12 +232,12 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
     },
   },
   '/ai-interior-design-generator': {
-    title: 'AI Interior Design Generator — Images & Walkthrough Tours | AiWebVideo',
+    title: 'AI Interior Design Generator — Images & Walkthrough Tours | Linkreel',
     description: 'Upload room photos, plans, or sketches and create AI interior design concepts, realistic redesign images, and walkthrough videos with reference-aware controls.',
     copy: {
       eyebrow: 'AI interior design generator',
       h1: 'Redesign rooms, homes, shops, and real estate spaces with AI',
-      intro: 'Upload photos, floor plans, sketches, or elevations, then describe the interior you want. AiWebVideo can create design images or a walkthrough while using your references as the visual and architectural starting point.',
+      intro: 'Upload photos, floor plans, sketches, or elevations, then describe the interior you want. Linkreel can create design images or a walkthrough while using your references as the visual and architectural starting point.',
       createHref: '/?create=interior#generate',
       sections: [
         { heading: 'Upload the space', body: 'Add room photos, plans, sketches, elevations, or other references you are authorized to use.' },
@@ -256,7 +256,7 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
     },
   },
   '/interior-design-walkthrough-video': {
-    title: 'AI Interior Design Walkthrough Video Generator | AiWebVideo',
+    title: 'AI Interior Design Walkthrough Video Generator | Linkreel',
     description: 'Turn room photos, plans, sketches, or design concepts into an AI interior design walkthrough video for homes, shops, and property presentations.',
     copy: {
       eyebrow: 'Interior design walkthrough video',
@@ -276,7 +276,7 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
     },
   },
   '/real-estate-walkthrough-video': {
-    title: 'AI Real Estate Walkthrough Video Generator | AiWebVideo',
+    title: 'AI Real Estate Walkthrough Video Generator | Linkreel',
     description: 'Create property walkthrough and presentation videos from real estate photos, plans, sketches, and interior design references.',
     copy: {
       eyebrow: 'Real estate walkthrough video',
@@ -296,7 +296,7 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
     },
   },
   '/3d-house-walkthrough': {
-    title: '3D House Walkthrough AI Generator | AiWebVideo',
+    title: '3D House Walkthrough AI Generator | Linkreel',
     description: 'Create a 3D-style visual walkthrough concept for a house using photos, floor plans, sketches, and interior design references.',
     copy: {
       eyebrow: '3D house walkthrough',
@@ -316,15 +316,15 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
     },
   },
   '/ai-architectural-visualization': {
-    title: 'AI Architecture Generator & Visualization | AiWebVideo',
+    title: 'AI Architecture Generator & Visualization | Linkreel',
     description: 'Create AI architecture concept images for a real place: start from a map link, address, site photo or plan, choose what to design, and describe the building. Concept visualization only.',
     copy: {
       eyebrow: 'AI architecture generator',
       h1: 'Create AI architecture concepts for a real place',
-      intro: 'AI visualization for concept purposes: not a surveyed or construction-accurate plan. Start from where the building will stand, a photo or plan, and a brief, and AiWebVideo creates presentation-oriented concept images or a walkthrough.',
+      intro: 'AI visualization for concept purposes: not a surveyed or construction-accurate plan. Start from where the building will stand, a photo or plan, and a brief, and Linkreel creates presentation-oriented concept images or a walkthrough.',
       createHref: '/?create=architecture#generate',
       sections: [
-        { heading: 'Start from the place', body: 'Paste a Google Maps link, an address or coordinates, or add a photo or screenshot of the site. AiWebVideo shows the spot and keeps it as the context for the design.' },
+        { heading: 'Start from the place', body: 'Paste a Google Maps link, an address or coordinates, or add a photo or screenshot of the site. Linkreel shows the spot and keeps it as the context for the design.' },
         { heading: 'Choose what to design', body: 'Design a whole building, one shop or unit, one floor, or empty land, and say which level when it matters. The rest of the real street stays as it is.' },
         { heading: 'Describe the building', body: 'Specify style, materials, floors, facade, landscape, and presentation. Add plot dimensions or a CAD drawing (DXF) when exact sizes matter.' },
         { heading: 'Facade redesigns, villas and commercial buildings', body: 'The same workflow covers redesigning an existing facade, a new villa, or a commercial building concept.' },
@@ -334,25 +334,25 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
         ['Can it replace architectural drawings?', 'No. Generated visuals are presentation concepts and do not replace professional architectural, engineering, surveying, CAD, or BIM documentation.'],
         ['Can I visualize a building on a real site?', 'Yes. See Building on a Real Site: paste a map link or address and mark the exact place.'],
         ['Can I use a sketch or plan?', 'Yes. Sketches, plans, photos, and CAD drawings (DXF) can be supplied as references.'],
-        ['Is this a Google product?', 'No. AiWebVideo is independent. Google Maps and Street View are trademarks of Google LLC and are only referred to as optional sources of location imagery.'],
+        ['Is this a Google product?', 'No. Linkreel is independent. Google Maps and Street View are trademarks of Google LLC and are only referred to as optional sources of location imagery.'],
       ],
       links: [['Building on a Real Site', '/architecture-site-placement'], ['AI Interior Design Generator', '/ai-interior-design-generator'], ['3D House Walkthrough', '/3d-house-walkthrough'], ['Floor Plan to 3D', '/floor-plan-to-3d'], ['Real Estate Walkthrough', '/real-estate-walkthrough-video']],
     },
   },
   '/architecture-site-placement': {
-    title: 'Visualize a Building on a Real Site with AI | AiWebVideo',
+    title: 'Visualize a Building on a Real Site with AI | Linkreel',
     description: 'Place a building concept on a real location: paste a map link, address or coordinates, mark the exact shop, floor or plot on a photo or street picture, and generate concept visuals.',
     copy: {
       eyebrow: 'Building on a real site',
       h1: 'Visualize a building on a real site',
-      intro: 'Paste a map link, an address, or coordinates; point at the exact shop, floor, building, or empty plot; say what it should become. AiWebVideo creates concept visuals for that place. AI visualization for concept purposes, not a surveyed or construction-accurate plan.',
+      intro: 'Paste a map link, an address, or coordinates; point at the exact shop, floor, building, or empty plot; say what it should become. Linkreel creates concept visuals for that place. AI visualization for concept purposes, not a surveyed or construction-accurate plan.',
       createHref: '/?create=architecture#generate',
       sections: [
-        { heading: '1. Paste the location', body: 'Use a Google Maps link, an address, or coordinates. AiWebVideo finds the point and shows it on a map so you can confirm it is the right place.' },
+        { heading: '1. Paste the location', body: 'Use a Google Maps link, an address, or coordinates. Linkreel finds the point and shows it on a map so you can confirm it is the right place.' },
         { heading: '2. Look at the street', body: 'Where street-level imagery is offered and available, you can look around it. Otherwise add a photo or screenshot of the plot. Imagery coverage varies by place, and some places have none.' },
         { heading: '3. Tap the exact place', body: 'Tap the shop, floor, building, or empty plot you mean. The mark is used as a locating aid for the design.' },
         { heading: '4. Say what it is, then describe the design', body: 'Choose whole building, one shop or unit, one floor, or empty land (and the level), then describe the building and add plot dimensions if you have them.' },
-        { heading: 'Limitations', body: 'Results are concept visualizations. Map and street imagery can be out of date, and a photo cannot establish exact dimensions. AiWebVideo is not affiliated with Google; Google Maps and Street View are trademarks of Google LLC.' },
+        { heading: 'Limitations', body: 'Results are concept visualizations. Map and street imagery can be out of date, and a photo cannot establish exact dimensions. Linkreel is not affiliated with Google; Google Maps and Street View are trademarks of Google LLC.' },
       ],
       faq: [
         ['Can I use an address instead of a map link?', 'Yes. Paste a map link, type an address, or type coordinates.'],
@@ -364,7 +364,7 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
     },
   },
   '/floor-plan-to-3d': {
-    title: 'Floor Plan to 3D AI Generator — Visualize Floor Plans | AiWebVideo',
+    title: 'Floor Plan to 3D AI Generator — Visualize Floor Plans | Linkreel',
     description: 'Use a floor plan, sketch, or architectural reference to create AI interior design images and walkthrough-style visual concepts.',
     copy: {
       eyebrow: 'Floor plan to 3D concept',
@@ -384,7 +384,7 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
     },
   },
   '/room-redesign-ai': {
-    title: 'AI Room Redesign Generator — Redesign a Room From a Photo | AiWebVideo',
+    title: 'AI Room Redesign Generator — Redesign a Room From a Photo | Linkreel',
     description: 'Upload a room photo and create interior redesign concepts with new furniture, materials, colors, lighting, and style.',
     copy: {
       eyebrow: 'AI room redesign',
@@ -404,9 +404,9 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
     },
   },
   '/examples': {
-    title: 'AI Video, Product Media & Interior Design Examples | AiWebVideo',
+    title: 'AI Video, Product Media & Interior Design Examples | Linkreel',
     description:
-      'Explore available AiWebVideo campaign videos and practical starting points for website video, AI video, product photos and video, talking scenes, and interior design.',
+      'Explore available Linkreel campaign videos and practical starting points for website video, AI video, product photos and video, talking scenes, and interior design.',
     copy: {
       eyebrow: 'Examples and use cases',
       h1: 'See what you can create from a website, product, idea, or space',
@@ -421,7 +421,7 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
     },
   },
   '/guides/turn-website-into-video': {
-    title: 'How to Turn a Website Into a Video With AI | AiWebVideo',
+    title: 'How to Turn a Website Into a Video With AI | Linkreel',
     description:
       'A practical guide to turning a website into a useful AI marketing video: choose the goal, source pages, story, format, prompt, and review criteria.',
     copy: {
@@ -437,7 +437,7 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
     },
   },
   '/guides/saas-product-demo-video': {
-    title: 'How to Create a SaaS Product Demo Video With AI | AiWebVideo',
+    title: 'How to Create a SaaS Product Demo Video With AI | Linkreel',
     description:
       'Plan a stronger SaaS product video by choosing one audience, one product angle, the right website context, a clear narrative, and a distribution format.',
     copy: {
@@ -453,7 +453,7 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
     },
   },
   '/guides/product-page-video-ads': {
-    title: 'How to Turn a Product Page Into a Video Ad With AI | AiWebVideo',
+    title: 'How to Turn a Product Page Into a Video Ad With AI | Linkreel',
     description:
       'A practical guide to converting ecommerce product-page context into a focused AI video campaign for launches, offers, and social promotion.',
     copy: {
@@ -469,7 +469,7 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
     },
   },
   '/guides/create-ai-video-from-prompt': {
-    title: 'How to Create an AI Video From a Prompt or Dialogue | AiWebVideo',
+    title: 'How to Create an AI Video From a Prompt or Dialogue | Linkreel',
     description: 'Plan an original AI video or talking scene: define the subject, action, camera, references, audio, format, and review criteria before generating.',
     copy: {
       eyebrow: 'Practical guide',
@@ -487,7 +487,7 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
     },
   },
   '/guides/product-photos-and-videos-from-images': {
-    title: 'How to Make AI Product Photos and Videos From Images | AiWebVideo',
+    title: 'How to Make AI Product Photos and Videos From Images | Linkreel',
     description: 'Use real product photos as references for AI ecommerce imagery and product commercials, with practical guidance for lighting, motion, fidelity, and review.',
     copy: {
       eyebrow: 'Practical guide',
@@ -505,7 +505,7 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
     },
   },
   '/guides/interior-design-from-photos-and-plans': {
-    title: 'How to Create AI Interior Design From Photos and Plans | AiWebVideo',
+    title: 'How to Create AI Interior Design From Photos and Plans | Linkreel',
     description: 'Prepare room photos, scaled plans, measurements, preserved elements, and a design brief for AI interior images or a presentation walkthrough.',
     copy: {
       eyebrow: 'Practical guide',
@@ -523,12 +523,12 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
     },
   },
   '/features': {
-    title: 'AI Video, Product Media & Interior Design Features | AiWebVideo',
+    title: 'AI Video, Product Media & Interior Design Features | Linkreel',
     description:
-      'Compare AiWebVideo creation modes: website video, original AI video, product photos and video, talking scenes, and interior design images or walkthroughs.',
+      'Compare Linkreel creation modes: website video, original AI video, product photos and video, talking scenes, and interior design images or walkthroughs.',
     copy: {
       eyebrow: 'Choose the right creation mode',
-      h1: 'What can I create with AiWebVideo?',
+      h1: 'What can I create with Linkreel?',
       intro: 'Choose the source you already have and the result you need. Every mode runs in the same creator, with its own references, settings, and credit estimate.',
       sections: [
         { heading: 'Website Video: public URL to campaign', body: 'Provide a public business website or product page and a campaign goal. The site supplies messaging and brand context; the output is an AI-directed marketing video.' },
@@ -548,7 +548,7 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
     },
   },
   '/how-it-works': {
-    title: 'How AI Video, Product Images & Interior Design Work | AiWebVideo',
+    title: 'How AI Video, Product Images & Interior Design Work | Linkreel',
     description:
       'See the input, AI workflow, and output for website video, original AI video, product images and video, talking scenes, and interior design tours.',
     copy: {
@@ -566,13 +566,13 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
     },
   },
   '/pricing': {
-    title: 'AI Video, Product Media & Interior Design Pricing | AiWebVideo',
+    title: 'AI Video, Product Media & Interior Design Pricing | Linkreel',
     description:
       'See credit-based pricing for website and AI videos, product images and videos, talking scenes, and interior design images or tours.',
     copy: {
       eyebrow: 'Pricing',
       h1: 'Know the production cost before you generate',
-      intro: 'AiWebVideo uses credits for paid generation. The creator shows the estimated production cost based on the selected mode, duration, quality, and audio choices.',
+      intro: 'Linkreel uses credits for paid generation. The creator shows the estimated production cost based on the selected mode, duration, quality, and audio choices.',
       sections: [
         { heading: 'Credits before generation', body: 'See the current production estimate before starting paid generation.' },
         { heading: 'Multiple creation modes', body: 'Website video, original AI video, product photos and video, talking scenes, and interior design image or video modes use the shared credit system. Exact estimates depend on selected options.' },
@@ -581,15 +581,15 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
     },
   },
   '/about': {
-    title: 'About AiWebVideo — AI Creative Platform for Video & Design',
+    title: 'About Linkreel — AI Creative Platform for Video & Design',
     description:
-      'What AiWebVideo is, how you use it, and where its limits are: an AI creative platform for website videos, product media, interior design and architecture concepts.',
+      'What Linkreel is, how you use it, and where its limits are: an AI creative platform for website videos, product media, interior design and architecture concepts.',
     copy: {
-      eyebrow: 'About AiWebVideo',
-      h1: 'About AiWebVideo',
-      intro: 'AiWebVideo is an AI creative platform for generating website marketing videos, AI videos, product photography, product videos, talking scenes, interior concepts, and architecture visualizations from the sources you already have.',
+      eyebrow: 'About Linkreel',
+      h1: 'About Linkreel',
+      intro: 'Linkreel is an AI creative platform for generating website marketing videos, AI videos, product photography, product videos, talking scenes, interior concepts, and architecture visualizations from the sources you already have.',
       sections: [
-        { heading: 'What AiWebVideo does', body: 'It turns public websites, product links, original ideas, real product photos, and photos, plans or map locations of real spaces into directed video, images, and design concepts, in one workspace.' },
+        { heading: 'What Linkreel does', body: 'It turns public websites, product links, original ideas, real product photos, and photos, plans or map locations of real spaces into directed video, images, and design concepts, in one workspace.' },
         { heading: 'How it is built to be used', body: 'You choose a creation mode, add your sources, review the references, and confirm before paid generation starts. Credit estimates are shown before you create.' },
         { heading: 'Limitations we state openly', body: 'Results depend on the sources you provide. Some shops block automatic reading of product pages. Interior and architecture results are concept visualizations, not construction documents, surveys, or exact measurements.' },
         { heading: 'Contact and policies', body: 'See the pricing, terms, and privacy pages linked below.' },
@@ -598,9 +598,9 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
     },
   },
   '/faq': {
-    title: 'AI Video, Product Media & Interior Design FAQ | AiWebVideo',
+    title: 'AI Video, Product Media & Interior Design FAQ | Linkreel',
     description:
-      'Answers to common questions about AiWebVideo\'s website video, product images and videos, interior design, generation, credits, billing, and accounts.',
+      'Answers to common questions about Linkreel\'s website video, product images and videos, interior design, generation, credits, billing, and accounts.',
     copy: {
       eyebrow: 'Frequently asked questions',
       h1: 'Frequently asked questions',
@@ -615,25 +615,25 @@ const PUBLIC_PAGES: Record<string, PublicPageDefinition> = {
     },
   },
   '/privacy': {
-    title: 'Privacy Notice | AiWebVideo',
+    title: 'Privacy Notice | Linkreel',
     description:
-      'Read how AiWebVideo handles account details, submitted website URLs, creative instructions, project files, and billing identifiers.',
-    copy: { eyebrow: 'Privacy notice', h1: 'How AiWebVideo handles service information', intro: 'The privacy notice explains the main information processed for accounts, website capture, project files, generation, and billing.', links: [['Terms', '/terms'], ['About', '/about']] },
+      'Read how Linkreel handles account details, submitted website URLs, creative instructions, project files, and billing identifiers.',
+    copy: { eyebrow: 'Privacy notice', h1: 'How Linkreel handles service information', intro: 'The privacy notice explains the main information processed for accounts, website capture, project files, generation, and billing.', links: [['Terms', '/terms'], ['About', '/about']] },
   },
   '/terms': {
-    title: 'Terms of Service | AiWebVideo',
+    title: 'Terms of Service | Linkreel',
     description:
-      'Read the AiWebVideo terms for accounts, submitted content, generated media, credits, billing, acceptable use, and availability.',
-    copy: { eyebrow: 'Terms of service', h1: 'Rules for using AiWebVideo', intro: 'The terms cover account responsibilities, rights to submitted content, credits and billing, acceptable use, and service availability.', links: [['Privacy', '/privacy'], ['FAQ', '/faq']] },
+      'Read the Linkreel terms for accounts, submitted content, generated media, credits, billing, acceptable use, and availability.',
+    copy: { eyebrow: 'Terms of service', h1: 'Rules for using Linkreel', intro: 'The terms cover account responsibilities, rights to submitted content, credits and billing, acceptable use, and service availability.', links: [['Privacy', '/privacy'], ['FAQ', '/faq']] },
   },
 };
 
 const PRIVATE_PAGES: Record<string, Omit<SeoPage, 'path' | 'index'>> = {
-  '/dashboard': { title: 'Workspace | AiWebVideo', description: 'Your private AiWebVideo production workspace.' },
-  '/profile': { title: 'Your Account | AiWebVideo', description: 'Manage your private AiWebVideo account, plan, and credits.' },
-  '/admin': { title: 'Admin | AiWebVideo', description: 'Private AiWebVideo administration console.' },
-  '/admin/reports': { title: 'Admin Reports | AiWebVideo', description: 'Private AiWebVideo financial and subscription reports.' },
-  '/studio': { title: 'Studio | AiWebVideo', description: 'Your private video and image editing projects.' },
+  '/dashboard': { title: 'Workspace | Linkreel', description: 'Your private Linkreel production workspace.' },
+  '/profile': { title: 'Your Account | Linkreel', description: 'Manage your private Linkreel account, plan, and credits.' },
+  '/admin': { title: 'Admin | Linkreel', description: 'Private Linkreel administration console.' },
+  '/admin/reports': { title: 'Admin Reports | Linkreel', description: 'Private Linkreel financial and subscription reports.' },
+  '/studio': { title: 'Studio | Linkreel', description: 'Your private video and image editing projects.' },
 };
 
 export const SITEMAP_PATHS = Object.freeze(Object.keys(PUBLIC_PAGES));
@@ -649,8 +649,8 @@ export function getSeoPage(pathname: string): SeoPage {
   if (publicPage) return { title: publicPage.title, description: publicPage.description, path, index: true };
   const privatePage = PRIVATE_PAGES[path];
   if (privatePage) return { ...privatePage, path, index: false };
-  if (/^\/studio\/project\/[^/]+$/.test(path)) return { path, title: 'Studio Editor | AiWebVideo', description: 'Your private video and image editing project.', index: false };
-  return { path, title: 'Page Not Found | AiWebVideo', description: 'The requested AiWebVideo page could not be found.', index: false };
+  if (/^\/studio\/project\/[^/]+$/.test(path)) return { path, title: 'Studio Editor | Linkreel', description: 'Your private video and image editing project.', index: false };
+  return { path, title: 'Page Not Found | Linkreel', description: 'The requested Linkreel page could not be found.', index: false };
 }
 
 export function isKnownPage(pathname: string): boolean {
@@ -683,16 +683,17 @@ function buildStructuredData(page: SeoPage, publicUrl: string): string {
   const definition = PUBLIC_PAGES[page.path];
   const graph: Record<string, unknown>[] = [
     {
-      '@type': 'WebSite', '@id': `${base}/#website`, url: `${base}/`, name: 'AiWebVideo', alternateName: ['AI Web Video', 'AiWebVideo.com'],
+      '@type': 'WebSite', '@id': `${base}/#website`, url: `${base}/`, name: 'Linkreel', alternateName: ['AiWebVideo', 'AI Web Video', 'aiwebvideo.com'],
       publisher: { '@id': `${base}/#organization` },
     },
     {
-      '@type': 'Organization', '@id': `${base}/#organization`, name: 'AiWebVideo', url: `${base}/`,
+      '@type': 'Organization', '@id': `${base}/#organization`, name: 'Linkreel', alternateName: 'AiWebVideo', url: `${base}/`,
       logo: { '@type': 'ImageObject', url: `${base}/icon-512.png`, width: 512, height: 512 },
     },
     {
-      '@type': 'SoftwareApplication', '@id': `${base}/#application`, name: 'AiWebVideo', applicationCategory: 'MultimediaApplication', operatingSystem: 'Web',
+      '@type': 'SoftwareApplication', '@id': `${base}/#application`, name: 'Linkreel', applicationCategory: 'MultimediaApplication', operatingSystem: 'Web',
       url: `${base}/`, description: PUBLIC_PAGES['/'].description,
+      offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD', description: 'Free starter credits, no card needed' },
       featureList: [
         'Website video from a public URL', 'AI video from a prompt and optional references',
         'AI product images from real product photos or a product link', 'AI product videos from real product photos or a product link',
@@ -712,7 +713,7 @@ function buildStructuredData(page: SeoPage, publicUrl: string): string {
       '@type': 'BreadcrumbList',
       '@id': `${canonical}#breadcrumb`,
       itemListElement: [
-        { '@type': 'ListItem', position: 1, name: 'AiWebVideo', item: `${base}/` },
+        { '@type': 'ListItem', position: 1, name: 'Linkreel', item: `${base}/` },
         { '@type': 'ListItem', position: 2, name: definition?.copy.h1 ?? page.title, item: canonical },
       ],
     });
@@ -744,7 +745,7 @@ function renderPublishedExamples(videos: ReadonlyArray<PublicMarketingVideo>, ba
     const url = safePublicMediaUrl(video.url, base);
     if (!url) return '';
     const poster = safePublicMediaUrl(video.posterUrl, base);
-    const caption = escapeText(video.caption?.trim() || video.eyebrow?.trim() || 'AiWebVideo campaign film');
+    const caption = escapeText(video.caption?.trim() || video.eyebrow?.trim() || 'Linkreel campaign film');
     const title = escapeText(video.eyebrow?.trim() || 'Published campaign film');
     const image = poster ? `<img src="${escapeAttribute(poster)}" alt="${caption}" loading="lazy" />` : '';
     const directVideo = /\.(?:mp4|webm|mov|m4v)$/i.test(new URL(url).pathname);
@@ -753,7 +754,7 @@ function renderPublishedExamples(videos: ReadonlyArray<PublicMarketingVideo>, ba
       : '';
     return `<figure>${player}<a href="${escapeAttribute(url)}">${image}<h3>${title}</h3></a><figcaption>${caption}</figcaption></figure>`;
   }).filter(Boolean).join('');
-  return figures ? `<section><h2>Published campaign films</h2><p>These films are selected in AiWebVideo's public showcase. The use cases below describe workflows and are not claimed customer results.</p>${figures}</section>` : '';
+  return figures ? `<section><h2>Published campaign films</h2><p>These films are selected in Linkreel's public showcase. The use cases below describe workflows and are not claimed customer results.</p>${figures}</section>` : '';
 }
 
 function renderSeoSnapshot(page: SeoPage, publicUrl: string, examples: ReadonlyArray<PublicMarketingVideo>): string {
@@ -767,9 +768,9 @@ function renderSeoSnapshot(page: SeoPage, publicUrl: string, examples: ReadonlyA
     ? `<section><h2>Frequently asked questions</h2>${copy.faq.map(([question, answer]) => `<article><h3>${escapeText(question)}</h3><p>${escapeText(answer)}</p></article>`).join('')}</section>`
     : '';
   const links = copy.links?.length
-    ? `<nav aria-label="Related AiWebVideo pages"><h2>Explore AiWebVideo</h2><ul>${copy.links.map(([label, href]) => `<li><a href="${escapeAttribute(href)}">${escapeText(label)}</a></li>`).join('')}</ul></nav>`
+    ? `<nav aria-label="Related Linkreel pages"><h2>Explore Linkreel</h2><ul>${copy.links.map(([label, href]) => `<li><a href="${escapeAttribute(href)}">${escapeText(label)}</a></li>`).join('')}</ul></nav>`
     : '';
-  return `<div class="seo-initial" data-seo-initial="true"><div class="seo-initial__inner"><p class="seo-initial__eyebrow">${escapeText(copy.eyebrow)}</p><h1>${escapeText(copy.h1)}</h1><p class="seo-initial__intro">${escapeText(copy.intro)}</p>${sections}${publishedExamples}${faq}${links}<p class="seo-initial__cta"><a href="${definition.copy.createHref ?? "/?create=website#generate"}">Start creating with AiWebVideo</a></p></div></div>`;
+  return `<div class="seo-initial" data-seo-initial="true"><div class="seo-initial__inner"><p class="seo-initial__eyebrow">${escapeText(copy.eyebrow)}</p><h1>${escapeText(copy.h1)}</h1><p class="seo-initial__intro">${escapeText(copy.intro)}</p>${sections}${publishedExamples}${faq}${links}<p class="seo-initial__cta"><a href="${definition.copy.createHref ?? "/?create=website#generate"}">Start creating with Linkreel</a></p></div></div>`;
 }
 
 export function renderSeoDocument(html: string, page: SeoPage, publicUrl: string, examples: ReadonlyArray<PublicMarketingVideo> = []): string {
@@ -818,10 +819,10 @@ export function buildRobotsTxt(publicUrl: string): string {
   const base = publicUrl.replace(/\/$/, '');
   // Private app areas are kept out of crawling. robots.txt is not a privacy control: those pages are also protected by sign-in
   // and carry noindex. Search crawlers are named so they are never caught by a blanket rule added later. OAI-SearchBot (ChatGPT
-  // search) is separate from GPTBot (model training); GPTBot is intentionally not listed, so this file does not change that
+  // search) and the other answer-engine fetchers listed here are separate from model-training crawlers such as GPTBot; those are intentionally not listed, so this file does not change that
   // business decision either way.
   const privateRules = 'Disallow: /api/\nDisallow: /dashboard\nDisallow: /profile\nDisallow: /admin\nDisallow: /studio\n';
-  const named = ['Googlebot', 'Bingbot', 'OAI-SearchBot'].map((agent) => `User-agent: ${agent}\nAllow: /\n${privateRules}`).join('\n');
+  const named = ['Googlebot', 'Bingbot', 'OAI-SearchBot', 'ChatGPT-User', 'PerplexityBot', 'Perplexity-User', 'Claude-SearchBot', 'Claude-User', 'Applebot', 'DuckDuckBot'].map((agent) => `User-agent: ${agent}\nAllow: /\n${privateRules}`).join('\n');
   return `${named}\nUser-agent: *\nAllow: /\n${privateRules}\nSitemap: ${base}/sitemap.xml\n`;
 }
 
@@ -833,7 +834,7 @@ export function buildSitemapXml(publicUrl: string): string {
 
 export function buildAiSummary(publicUrl: string): string {
   const base = publicUrl.replace(/\/$/, '');
-  return `# AiWebVideo\n\nAiWebVideo creates AI videos, product images, and interior design concepts from user-provided sources. Choose the mode that matches your input and desired output. The official feature directory is ${base}/features.\n\n## Creation modes\n- Website Video: public website URL plus campaign goal to AI-directed marketing video. ${base}/website-video-generator\n- URL to Video: a public webpage or landing page as source context. ${base}/url-to-video\n- SaaS Demo Video: public SaaS site and a specific product or launch angle. ${base}/saas-demo-video-generator\n- Product Link to Video and Photos: paste a product page link; AiWebVideo reads the product photos it can access, you choose the references, and generation starts when you confirm. Shops that block automatic reading need an uploaded photo. ${base}/product-page-to-video\n- AI Video: original prompt, optionally with image references, to generated video. ${base}/ai-video-generator\n- Product Photos: upload real product photos to create still campaign or ecommerce images. ${base}/product-photo-generator\n- Product Video: upload real product photos to create a product-focused moving film. ${base}/product-video-generator\n- Talking Video: describe characters, dialogue, setting, and camera direction to create a talking scene. ${base}/talking-video-generator\n- Interior Design: upload room or property photos, plans, sketches, or elevations and request design images or a walkthrough video. ${base}/ai-interior-design-generator\n- Architecture: map link, address or coordinates, site photo or plan, and a brief, to concept visuals (not construction-accurate plans). ${base}/ai-architectural-visualization\n- Building on a Real Site: mark the exact shop, floor or plot on a location and visualize a building concept there. ${base}/architecture-site-placement\n\n## Interior design and property workflows\n- Interior Design Walkthrough: ${base}/interior-design-walkthrough-video\n- Real Estate Walkthrough: ${base}/real-estate-walkthrough-video\n- 3D-Style House Walkthrough: ${base}/3d-house-walkthrough\n- Floor Plan to 3D-Style Concepts: ${base}/floor-plan-to-3d\n- Room Redesign From a Photo: ${base}/room-redesign-ai\n\n## Important distinctions\n- Use Product Page to Video for a public product URL; use Product Photos or Product Video when uploading real product images for reference.\n- Use AI Video for an original film without a website; use Talking Video when dialogue or a scenario leads the scene.\n- Interior Design can produce still concepts or a presentation walkthrough. A single photo does not establish exact dimensions; provide explicit measurements or a scaled plan when geometry matters. Generated concepts are not construction documents.\n- Credits are estimated from selected settings before paid generation. Production results depend on provided references and supported model capabilities.\n\n## More information\n- Official site: ${base}/\n- All creation modes: ${base}/features\n- How it works: ${base}/how-it-works\n- Examples and use cases: ${base}/examples\n- Pricing: ${base}/pricing\n- Frequently asked questions: ${base}/faq\n- Website video guide: ${base}/guides/turn-website-into-video\n- SaaS video guide: ${base}/guides/saas-product-demo-video\n- Product page video guide: ${base}/guides/product-page-video-ads\n- AI video prompt and dialogue guide: ${base}/guides/create-ai-video-from-prompt\n- Product photo and video reference guide: ${base}/guides/product-photos-and-videos-from-images\n- Interior design from photos and plans guide: ${base}/guides/interior-design-from-photos-and-plans\n`;
+  return `# Linkreel\n\n> Paste a link. Get a video. Linkreel (formerly AiWebVideo) turns a website link, a product page, a map location or a few photos into finished AI videos and images.\n\n## Quick facts\n- What it is: a chat-style AI video and image generator that starts from a link. One text box: paste a link or describe what you want.\n- Former name: AiWebVideo. Official site: ${base}/\n- Inputs: website URL, product page URL, Google Maps link or address, photos, floor plans, CAD drawings (.dxf), or a text prompt.\n- Outputs: videos of 8 to 60 seconds in 9:16, 16:9 or 1:1, at 1080p or 4K, with scene sound, narration or music; and sets of four images.\n- Price: free to try. New accounts get free starter credits with no card. Reading a link and previewing it is free. The exact credit cost is shown before anything is generated. Credits come in one-time packs and monthly plans: ${base}/pricing\n- How to use it: open ${base}/, paste a link, optionally add one sentence, press send, download the result.\n\nThe official feature directory is ${base}/features.\n\n## Creation modes\n- Website Video: public website URL plus campaign goal to AI-directed marketing video. ${base}/website-video-generator\n- URL to Video: a public webpage or landing page as source context. ${base}/url-to-video\n- SaaS Demo Video: public SaaS site and a specific product or launch angle. ${base}/saas-demo-video-generator\n- Product Link to Video and Photos: paste a product page link; Linkreel reads the product photos it can access, you choose the references, and generation starts when you confirm. Shops that block automatic reading need an uploaded photo. ${base}/product-page-to-video\n- AI Video: original prompt, optionally with image references, to generated video. ${base}/ai-video-generator\n- Product Photos: upload real product photos to create still campaign or ecommerce images. ${base}/product-photo-generator\n- Product Video: upload real product photos to create a product-focused moving film. ${base}/product-video-generator\n- Talking Video: describe characters, dialogue, setting, and camera direction to create a talking scene. ${base}/talking-video-generator\n- Interior Design: upload room or property photos, plans, sketches, or elevations and request design images or a walkthrough video. ${base}/ai-interior-design-generator\n- Architecture: map link, address or coordinates, site photo or plan, and a brief, to concept visuals (not construction-accurate plans). ${base}/ai-architectural-visualization\n- Building on a Real Site: mark the exact shop, floor or plot on a location and visualize a building concept there. ${base}/architecture-site-placement\n\n## Interior design and property workflows\n- Interior Design Walkthrough: ${base}/interior-design-walkthrough-video\n- Real Estate Walkthrough: ${base}/real-estate-walkthrough-video\n- 3D-Style House Walkthrough: ${base}/3d-house-walkthrough\n- Floor Plan to 3D-Style Concepts: ${base}/floor-plan-to-3d\n- Room Redesign From a Photo: ${base}/room-redesign-ai\n\n## Important distinctions\n- Use Product Page to Video for a public product URL; use Product Photos or Product Video when uploading real product images for reference.\n- Use AI Video for an original film without a website; use Talking Video when dialogue or a scenario leads the scene.\n- Interior Design can produce still concepts or a presentation walkthrough. A single photo does not establish exact dimensions; provide explicit measurements or a scaled plan when geometry matters. Generated concepts are not construction documents.\n- Credits are estimated from selected settings before paid generation. Production results depend on provided references and supported model capabilities.\n\n## More information\n- Official site: ${base}/\n- All creation modes: ${base}/features\n- How it works: ${base}/how-it-works\n- Examples and use cases: ${base}/examples\n- Pricing: ${base}/pricing\n- Frequently asked questions: ${base}/faq\n- Website video guide: ${base}/guides/turn-website-into-video\n- SaaS video guide: ${base}/guides/saas-product-demo-video\n- Product page video guide: ${base}/guides/product-page-video-ads\n- AI video prompt and dialogue guide: ${base}/guides/create-ai-video-from-prompt\n- Product photo and video reference guide: ${base}/guides/product-photos-and-videos-from-images\n- Interior design from photos and plans guide: ${base}/guides/interior-design-from-photos-and-plans\n`;
 }
 
 /**

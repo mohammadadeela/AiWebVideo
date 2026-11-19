@@ -1,12 +1,22 @@
-# AiWebVideo
+# Linkreel
 
-AiWebVideo creates AI videos, product images, and interior design concepts from user-provided sources. Choose the mode that matches your input and desired output. The official feature directory is https://aiwebvideo.com/features.
+> Paste a link. Get a video. Linkreel (formerly AiWebVideo) turns a website link, a product page, a map location or a few photos into finished AI videos and images.
+
+## Quick facts
+- What it is: a chat-style AI video and image generator that starts from a link. One text box: paste a link or describe what you want.
+- Former name: AiWebVideo. Official site: https://aiwebvideo.com/
+- Inputs: website URL, product page URL, Google Maps link or address, photos, floor plans, CAD drawings (.dxf), or a text prompt.
+- Outputs: videos of 8 to 60 seconds in 9:16, 16:9 or 1:1, at 1080p or 4K, with scene sound, narration or music; and sets of four images.
+- Price: free to try. New accounts get free starter credits with no card. Reading a link and previewing it is free. The exact credit cost is shown before anything is generated. Credits come in one-time packs and monthly plans: https://aiwebvideo.com/pricing
+- How to use it: open https://aiwebvideo.com/, paste a link, optionally add one sentence, press send, download the result.
+
+The official feature directory is https://aiwebvideo.com/features.
 
 ## Creation modes
 - Website Video: public website URL plus campaign goal to AI-directed marketing video. https://aiwebvideo.com/website-video-generator
 - URL to Video: a public webpage or landing page as source context. https://aiwebvideo.com/url-to-video
 - SaaS Demo Video: public SaaS site and a specific product or launch angle. https://aiwebvideo.com/saas-demo-video-generator
-- Product Link to Video and Photos: paste a product page link; AiWebVideo reads the product photos it can access, you choose the references, and generation starts when you confirm. Shops that block automatic reading need an uploaded photo. https://aiwebvideo.com/product-page-to-video
+- Product Link to Video and Photos: paste a product page link; Linkreel reads the product photos it can access, you choose the references, and generation starts when you confirm. Shops that block automatic reading need an uploaded photo. https://aiwebvideo.com/product-page-to-video
 - AI Video: original prompt, optionally with image references, to generated video. https://aiwebvideo.com/ai-video-generator
 - Product Photos: upload real product photos to create still campaign or ecommerce images. https://aiwebvideo.com/product-photo-generator
 - Product Video: upload real product photos to create a product-focused moving film. https://aiwebvideo.com/product-video-generator

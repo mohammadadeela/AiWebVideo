@@ -717,7 +717,7 @@ export async function generateMarketingVideo(
       ? GENERATION_MODELS[publicModelId as keyof typeof GENERATION_MODELS]
       : GENERATION_MODELS['cinema-2'];
     if (outputQuality === '4k' && !selectedPublicModel.supports4k) {
-      throw new Error('The selected AiWebVideo model does not support 4K output. Choose 1080p or a higher model.');
+      throw new Error('The selected Linkreel model does not support 4K output. Choose 1080p or a higher model.');
     }
     const model = selectedPublicModel.providerModel;
     if (!model) throw new Error('No video generation model is configured.');

@@ -36,7 +36,7 @@ function isSignInMethod(value: string | null): value is SignInMethod {
 
 function lastUsedButtonClass(active: boolean) {
   return active
-    ? 'border-violet/45 ring-1 ring-inset ring-violet/20 bg-[linear-gradient(135deg,rgba(139,92,246,.10),rgba(236,72,153,.045))] shadow-[0_16px_36px_-28px_rgba(139,92,246,.95)]'
+    ? 'border-violet/45 ring-1 ring-inset ring-violet/20 bg-[linear-gradient(135deg,rgba(92,133,246,.10),rgba(72,116,236,.045))] shadow-[0_16px_36px_-28px_rgba(0,0,0,.95)]'
     : '';
 }
 
@@ -44,7 +44,7 @@ function LastUsedBadge() {
   return (
     <span
       aria-label="Last used sign-in method"
-      className="pointer-events-none absolute -top-2 right-3 z-20 inline-flex h-4 items-center rounded-full border border-white/10 bg-[linear-gradient(135deg,#7c3aed_0%,#ec4899_72%,#f59e0b_145%)] px-2.5 font-utility text-[8px] font-semibold uppercase leading-none tracking-[.13em] text-white shadow-[0_8px_22px_-10px_rgba(139,92,246,.9),0_4px_14px_-8px_rgba(236,72,153,.8),inset_0_1px_0_rgba(255,255,255,.20)]"
+      className="pointer-events-none absolute -top-2 right-3 z-20 inline-flex h-4 items-center rounded-full border border-white/10 bg-[linear-gradient(135deg,#7c3aed_0%,#ec4899_72%,#f59e0b_145%)] px-2.5 font-utility text-[8px] font-semibold uppercase leading-none tracking-[.13em] text-white shadow-[0_8px_22px_-10px_rgba(0,0,0,.9),0_4px_14px_-8px_rgba(0,0,0,.8),inset_0_1px_0_rgba(255,255,255,.20)]"
     >
       Last used
     </span>
@@ -66,7 +66,7 @@ function LastUsedMethod({ active, children }: { active: boolean; children: React
 // provider not enabled in the console, popup blocked, etc.) instead of
 // staring at one generic sentence for every possible failure.
 function firebaseErrorMessage(err: unknown): string {
-  // The AiWebVideo server answered (after Google/GitHub itself succeeded) and refused or failed: its
+  // The Linkreel server answered (after Google/GitHub itself succeeded) and refused or failed: its
   // message is written for customers (suspended account, email not verified, registrations paused...).
   if (err instanceof ApiError) {
     if (err.code === 'FIREBASE_NOT_CONFIGURED') return 'Google and GitHub sign-in are temporarily unavailable. Please use email instead.';
@@ -161,7 +161,7 @@ export function AuthModal({ onClose, onSignedIn, initialMode = 'signin' }: { onC
 
   useEffect(() => {
     // If Firebase completes while this tab is backgrounded, watchAuthState
-    // waits until the AiWebVideo HttpOnly server session is actually valid,
+    // waits until the Linkreel HttpOnly server session is actually valid,
     // then completes the exact pending sign-in flow even if Chrome never
     // resolves the original popup promise.
     const unsubscribe = watchAuthState((user) => {

@@ -90,7 +90,7 @@ export function PurchaseModal({ onClose, title, summary, context, funded = 0, re
         onClick={busyCheckout ? undefined : onClose}
       >
         <div
-          className={`w-full max-w-lg max-h-[92dvh] overflow-y-auto overscroll-contain rounded-t-[24px] border border-white/10 bg-[#120e22]/96 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl animate-fade-in-up transition-opacity duration-150 sm:max-h-[90vh] sm:rounded-3xl sm:p-5 ${busyCheckout ? "invisible opacity-0" : "visible opacity-100"}`}
+          className={`w-full max-w-lg max-h-[92dvh] overflow-y-auto overscroll-contain rounded-t-[24px] border border-white/10 bg-[#12141a]/96 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl animate-fade-in-up transition-opacity duration-150 sm:max-h-[90vh] sm:rounded-3xl sm:p-5 ${busyCheckout ? "invisible opacity-0" : "visible opacity-100"}`}
           onClick={(event) => event.stopPropagation()}
         >
           <div className="flex items-start justify-between gap-4">
@@ -129,7 +129,7 @@ export function PurchaseModal({ onClose, title, summary, context, funded = 0, re
                   type="button"
                   onClick={() => buy(option)}
                   aria-label={`${option.title}, ${formatUsd(option.amountUsd)}${option.kind === "plan" ? " per month" : ""}${isBest ? (option.covers ? ", best fit" : ", closest fit") : ""}`}
-                  className={`${ROW} ${isBest ? "border-violet/55 bg-violet/[.12] shadow-[0_16px_40px_-26px_rgba(139,92,246,.95)]" : "border-white/10 bg-white/[.025] hover:border-violet/35"}`}
+                  className={`${ROW} ${isBest ? "border-violet/55 bg-violet/[.12] shadow-[0_16px_40px_-26px_rgba(0,0,0,.95)]" : "border-white/10 bg-white/[.025] hover:border-violet/35"}`}
                 >
                   <span className="min-w-0">
                     <span className="flex flex-wrap items-center gap-2 text-sm font-bold text-white">

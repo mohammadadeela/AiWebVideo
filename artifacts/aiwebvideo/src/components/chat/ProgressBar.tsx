@@ -85,7 +85,7 @@ export function ProgressBar({
         aria-label={label}
       >
         <div
-          className="h-full rounded-full bg-signature shadow-[0_0_14px_rgba(236,72,153,.35)] transition-[width] duration-700 ease-out"
+          className="h-full rounded-full bg-signature shadow-[0_0_14px_rgba(0,0,0,.35)] transition-[width] duration-700 ease-out"
           style={{ width: `${safeProgress}%` }}
         />
       </div>

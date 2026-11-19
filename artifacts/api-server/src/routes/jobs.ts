@@ -771,7 +771,7 @@ router.post("/:id/storyboard", requireAuth, async (req, res) => {
     const planningAudioMode = requestedAudioMode ?? savedWorkflowForCredit?.audioMode ?? "native_audio";
     const selectedGenerationModel = generationModelForMode(modelId, mode, (job.capture_metadata as CaptureMeta | null)?.studioKind);
     if (outputQuality === "4k" && !selectedGenerationModel.supports4k) {
-      throw new AppError("The selected AiWebVideo model does not support 4K. Choose 1080p or a higher model.", 400, "MODEL_QUALITY_UNSUPPORTED");
+      throw new AppError("The selected Linkreel model does not support 4K. Choose 1080p or a higher model.", 400, "MODEL_QUALITY_UNSUPPORTED");
     }
     const planningQuote = videoCreditQuote(
       mode,
@@ -1219,7 +1219,7 @@ router.post("/:id/render", requireAuth, async (req, res) => {
     );
     const renderQuality = storyboard.outputQuality ?? "1080p";
     if (renderQuality === "4k" && !selectedRenderModel.supports4k) {
-      throw new AppError("The selected AiWebVideo model does not support 4K. Choose 1080p or a higher model.", 400, "MODEL_QUALITY_UNSUPPORTED");
+      throw new AppError("The selected Linkreel model does not support 4K. Choose 1080p or a higher model.", 400, "MODEL_QUALITY_UNSUPPORTED");
     }
     const recomputedCost = videoCreditCost(
       job.mode,

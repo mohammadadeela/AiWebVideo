@@ -74,7 +74,7 @@ export async function verifyEmailConnection(): Promise<void> {
 }
 
 /* ── Shared branded header ─────────────────────────────────────────── */
-const BRAND_NAME = 'AiWebVideo';
+const BRAND_NAME = 'Linkreel';
 const BRAND_URL = 'https://aiwebvideo.com';
 
 function emailShell(bodyHtml: string): string {
@@ -229,7 +229,7 @@ export async function sendCreditPurchaseEmail(input: { to: string; credits: numb
       ['Receipt', input.reference],
       ['Date', (input.paidAt ?? new Date()).toISOString().slice(0, 10)],
     ],
-    note: 'Keep this email as your payment receipt. Payment details are handled securely by PayPal; AiWebVideo does not store full card numbers.',
+    note: 'Keep this email as your payment receipt. Payment details are handled securely by PayPal; Linkreel does not store full card numbers.',
     ctaLabel: 'View billing & usage', ctaUrl: `${BRAND_URL}/profile#billing`,
   });
 }
@@ -295,7 +295,7 @@ export async function sendSubscriptionPaymentFailedEmail(input: { to: string; pl
       ...(input.plan ? [['Plan', input.plan] as [string, string]] : []),
       ...(input.reference ? [['Subscription', input.reference] as [string, string]] : []),
     ],
-    note: 'Please review your payment method in PayPal. Your existing AiWebVideo credits and projects are not removed by this notice.',
+    note: 'Please review your payment method in PayPal. Your existing Linkreel credits and projects are not removed by this notice.',
     ctaLabel: 'View billing', ctaUrl: `${BRAND_URL}/profile#billing`,
   });
 }
@@ -313,7 +313,7 @@ export async function sendPaymentRefundedEmail(input: { to: string; amountUsd?: 
       ...(typeof input.amountUsd === 'number' ? [['Amount', `$${input.amountUsd.toFixed(2)} USD`] as [string, string]] : []),
       ['Payment reference', input.reference],
     ],
-    note: 'If you have questions about this payment, review the transaction in PayPal and your AiWebVideo billing history.',
+    note: 'If you have questions about this payment, review the transaction in PayPal and your Linkreel billing history.',
     ctaLabel: 'View billing history', ctaUrl: `${BRAND_URL}/profile#billing`,
   });
 }
@@ -323,7 +323,7 @@ export async function sendWelcomeEmail(input: { to: string }) {
   return sendAccountEmail({
     to: input.to,
     subject: `Welcome to ${BRAND_NAME}`,
-    title: 'Your AiWebVideo account is ready',
+    title: 'Your Linkreel account is ready',
     intro: 'You can now keep projects, credits, billing and completed media connected to one account.',
     rows: [
       ['Website preview', 'Free before paid generation'],
@@ -340,7 +340,7 @@ export async function sendPasswordChangedEmail(input: { to: string }) {
     to: input.to,
     subject: `${BRAND_NAME} password changed`,
     title: 'Your password was changed',
-    intro: 'The password for your AiWebVideo account was updated successfully.',
+    intro: 'The password for your Linkreel account was updated successfully.',
     note: 'If you made this change, no action is needed. If you did not, reset your password immediately and review your account access.',
     ctaLabel: 'Open account security', ctaUrl: `${BRAND_URL}/profile#security`,
   });

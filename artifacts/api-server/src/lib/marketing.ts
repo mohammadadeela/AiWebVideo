@@ -45,7 +45,7 @@ export const MAX_LANDING_EXAMPLES = 4;
 export const MAX_MARKETING_VIDEOS = 280;
 const emptyVideo = (id: string): MarketingVideo => ({ id, url: null, posterUrl: null, caption: null, overlayText: null, eyebrow: null, kind: 'video', feature: null });
 const defaults: MarketingSettings = {
-  heading: 'Made with AiWebVideo',
+  heading: 'Made with Linkreel',
   description: 'See short examples created by people using the studio, then start with your own website.',
   videos: { showcase: [emptyVideo('example-1'), emptyVideo('example-2'), emptyVideo('example-3')], examples: [] },
 };

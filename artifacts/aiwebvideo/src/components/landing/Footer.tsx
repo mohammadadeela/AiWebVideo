@@ -1,177 +1,81 @@
 import { Link } from "wouter";
 import { Wordmark } from "@/components/ui/Wordmark";
 import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/support";
+import { BRAND } from "@/lib/brand";
+
+// Every public page is one click from every other page: this is also the site's internal link map for search engines.
+const COLUMNS: ReadonlyArray<{ title: string; links: ReadonlyArray<readonly [string, string]> }> = [
+  {
+    title: "Make",
+    links: [
+      ["/website-video-generator", "Website video"],
+      ["/product-video-generator", "Product video"],
+      ["/product-photo-generator", "Product photos"],
+      ["/ai-video-generator", "AI video"],
+      ["/talking-video-generator", "Talking video"],
+      ["/ai-interior-design-generator", "Interior design"],
+      ["/ai-architectural-visualization", "Architecture"],
+    ],
+  },
+  {
+    title: "Use it for",
+    links: [
+      ["/url-to-video", "URL to video"],
+      ["/product-page-to-video", "Product link to video"],
+      ["/saas-demo-video-generator", "SaaS demo video"],
+      ["/real-estate-walkthrough-video", "Real estate walkthrough"],
+      ["/interior-design-walkthrough-video", "Interior walkthrough"],
+      ["/architecture-site-placement", "Building on a real site"],
+      ["/floor-plan-to-3d", "Floor plan to 3D"],
+    ],
+  },
+  {
+    title: "Learn",
+    links: [
+      ["/examples", "Examples"],
+      ["/how-it-works", "How it works"],
+      ["/guides/turn-website-into-video", "Website video guide"],
+      ["/guides/product-page-video-ads", "Product ad guide"],
+      ["/guides/create-ai-video-from-prompt", "Prompt guide"],
+      ["/faq", "Questions"],
+    ],
+  },
+  {
+    title: "Company",
+    links: [
+      ["/pricing", "Pricing"],
+      ["/about", "About"],
+      ["/privacy", "Privacy"],
+      ["/terms", "Terms"],
+    ],
+  },
+];
 
 export function Footer() {
   return (
-    <>
-      <footer className="border-t border-white/[.06] bg-black/15">
-        <div className="mx-auto max-w-7xl px-5 pb-8 pt-16">
-          <div className="mb-14 grid grid-cols-2 gap-10 sm:grid-cols-3 lg:grid-cols-[1.6fr_1fr_1fr_1fr_1fr]">
-            <div className="col-span-2 sm:col-span-1">
-              <Wordmark />
-            </div>
-            <div>
-              <p className="mb-4 text-xs font-semibold text-white">
-                Create
-              </p>
-              <ul className="space-y-3 text-xs text-text-muted">
-                <li>
-                  <a
-                    href="/#generate"
-                    className="transition-colors hover:text-white"
-                  >
-                    Website video
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="/?create=video#generate"
-                    className="transition-colors hover:text-white"
-                  >
-                    AI video
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="/?create=photo#generate"
-                    className="transition-colors hover:text-white"
-                  >
-                    Product photos
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="/?create=product-video#generate"
-                    className="transition-colors hover:text-white"
-                  >
-                    Product video
-                  </a>
-                </li>
-                <li><a href="/?create=scenario#generate" className="transition-colors hover:text-white">Talking video</a></li>
-                <li><a href="/?create=interior#generate" className="transition-colors hover:text-white">Interior design</a></li>
-                <li>
-                  <Link
-                    href="/dashboard"
-                    className="transition-colors hover:text-white"
-                  >
-                    Workspace
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <p className="mb-4 text-xs font-semibold text-white">Features</p>
-              <ul className="space-y-3 text-xs text-text-muted">
-                <li><Link href="/website-video-generator" className="transition-colors hover:text-white">Website video</Link></li>
-                <li><Link href="/ai-video-generator" className="transition-colors hover:text-white">AI video generator</Link></li>
-                <li><Link href="/product-photo-generator" className="transition-colors hover:text-white">Product photo generator</Link></li>
-                <li><Link href="/product-video-generator" className="transition-colors hover:text-white">Product video generator</Link></li>
-                <li><Link href="/talking-video-generator" className="transition-colors hover:text-white">Talking video generator</Link></li>
-                <li><Link href="/ai-interior-design-generator" className="transition-colors hover:text-white">Interior design generator</Link></li>
-                <li><Link href="/interior-design-walkthrough-video" className="transition-colors hover:text-white">Interior walkthrough</Link></li>
-                <li><Link href="/ai-architectural-visualization" className="transition-colors hover:text-white">Architecture generator</Link></li>
-                <li><Link href="/architecture-site-placement" className="transition-colors hover:text-white">Building on a real site</Link></li>
-                <li><Link href="/features" className="transition-colors hover:text-white">All creation modes</Link></li>
-              </ul>
-            </div>
-            <div>
-              <p className="mb-4 text-xs font-semibold text-white">
-                Learn
-              </p>
-              <ul className="space-y-3 text-xs text-text-muted">
-                <li><Link href="/url-to-video" className="transition-colors hover:text-white">URL to video</Link></li>
-                <li><Link href="/saas-demo-video-generator" className="transition-colors hover:text-white">SaaS demo video</Link></li>
-                <li><Link href="/product-page-to-video" className="transition-colors hover:text-white">Product link to video</Link></li>
-                <li><Link href="/examples" className="transition-colors hover:text-white">Examples</Link></li>
-                <li>
-                  <Link
-                    href="/features"
-                    className="transition-colors hover:text-white"
-                  >
-                    Features
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/how-it-works"
-                    className="transition-colors hover:text-white"
-                  >
-                    How it works
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/pricing"
-                    className="transition-colors hover:text-white"
-                  >
-                    Pricing
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/faq"
-                    className="transition-colors hover:text-white"
-                  >
-                    Help & FAQ
-                  </Link>
-                </li>
-                <li><Link href="/guides/turn-website-into-video" className="transition-colors hover:text-white">Website video guide</Link></li>
-                <li><Link href="/guides/create-ai-video-from-prompt" className="transition-colors hover:text-white">AI video prompt guide</Link></li>
-                <li><Link href="/guides/product-photos-and-videos-from-images" className="transition-colors hover:text-white">Product media guide</Link></li>
-                <li><Link href="/guides/interior-design-from-photos-and-plans" className="transition-colors hover:text-white">Interior design guide</Link></li>
-              </ul>
-            </div>
-            <div>
-              <p className="mb-4 text-xs font-semibold text-white">
-                Company
-              </p>
-              <ul className="space-y-3 text-xs text-text-muted">
-                <li>
-                  <Link
-                    href="/about"
-                    className="transition-colors hover:text-white"
-                  >
-                    About
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/profile"
-                    className="transition-colors hover:text-white"
-                  >
-                    Account
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/privacy"
-                    className="transition-colors hover:text-white"
-                  >
-                    Privacy
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/terms"
-                    className="transition-colors hover:text-white"
-                  >
-                    Terms
-                  </Link>
-                </li>
-                <li>
-                  <a href={SUPPORT_MAILTO} className="break-all transition-colors hover:text-white">
-                    Support: {SUPPORT_EMAIL}
-                  </a>
-                </li>
-              </ul>
-            </div>
+    <footer className="border-t border-white/[.07]">
+      <div className="mx-auto max-w-6xl px-5 pb-10 pt-14">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-10 md:grid-cols-[1.4fr_1fr_1fr_1fr_1fr]">
+          <div className="col-span-2 md:col-span-1">
+            <Link href="/" aria-label={`${BRAND.name} home`}><Wordmark /></Link>
+            <p className="mt-4 max-w-[26ch] text-[14px] leading-6 text-text-dim">{BRAND.tagline}</p>
+            <a href={SUPPORT_MAILTO} className="mt-4 inline-block text-[14px] text-text-muted transition hover:text-white">{SUPPORT_EMAIL}</a>
           </div>
-          <div className="flex flex-col items-start justify-between gap-4 border-t border-white/[.06] pt-6 sm:flex-row sm:items-center">
-            <p className="text-xs text-text-dim">© {new Date().getFullYear()} AiWebVideo</p>
-          </div>
+          {COLUMNS.map((column) => (
+            <nav key={column.title} aria-label={column.title}>
+              <p className="text-[13px] font-semibold text-white">{column.title}</p>
+              <ul className="mt-4 space-y-2.5">
+                {column.links.map(([href, label]) => (
+                  <li key={href}><Link href={href} className="text-[14px] text-text-dim transition hover:text-white">{label}</Link></li>
+                ))}
+              </ul>
+            </nav>
+          ))}
         </div>
-      </footer>
-    </>
+        <p className="mt-12 border-t border-white/[.07] pt-6 text-[13px] text-text-dim">
+          © {new Date().getFullYear()} {BRAND.name}, formerly {BRAND.formerName}.
+        </p>
+      </div>
+    </footer>
   );
 }

@@ -43,7 +43,7 @@
   overscroll-behavior: contain;
   scrollbar-width: thin;
   border-top: 0 !important;
-  background: linear-gradient(180deg, rgba(14, 11, 25, 0), rgba(14, 11, 25, .96) 16%, rgba(14, 11, 25, .995)) !important;
+  background: linear-gradient(180deg, rgba(13, 15, 20, 0), rgba(13, 15, 20, .96) 16%, rgba(13, 15, 20, .995)) !important;
   box-shadow: none !important;
   backdrop-filter: blur(14px) !important;
   -webkit-backdrop-filter: blur(14px) !important;
@@ -94,12 +94,12 @@
   /* Pull the action surface behind the control so the handle is inside it. */
   margin: 9px auto -39px !important;
   padding: 0 !important;
-  border: 1px solid rgba(176, 143, 255, .38) !important;
+  border: 1px solid rgba(146, 174, 252, .38) !important;
   border-radius: 999px !important;
-  background: linear-gradient(180deg, rgba(52, 39, 84, .98), rgba(30, 23, 50, .98)) !important;
-  color: rgba(250, 248, 255, .98) !important;
+  background: linear-gradient(180deg, rgba(54, 58, 69, .98), rgba(27, 31, 40, .98)) !important;
+  color: rgba(248, 250, 255, .98) !important;
   box-shadow:
-    0 9px 24px -17px rgba(124, 58, 237, .9),
+    0 9px 24px -17px rgba(0, 0, 0, .9),
     inset 0 1px 0 rgba(255, 255, 255, .09);
   backdrop-filter: blur(14px);
   transform: translateY(0);
@@ -115,10 +115,10 @@
 
 .finished-action-tray > .finished-chat-collapse-toggle:hover {
   transform: translateY(-1px);
-  border-color: rgba(193, 166, 255, .58) !important;
-  background: linear-gradient(180deg, rgba(61, 45, 98, .99), rgba(35, 26, 59, .99)) !important;
+  border-color: rgba(168, 191, 253, .58) !important;
+  background: linear-gradient(180deg, rgba(62, 68, 81, .99), rgba(31, 36, 47, .99)) !important;
   box-shadow:
-    0 12px 28px -18px rgba(124, 58, 237, 1),
+    0 12px 28px -18px rgba(0, 0, 0, 1),
     inset 0 1px 0 rgba(255, 255, 255, .11);
 }
 
@@ -127,7 +127,7 @@
 }
 
 .finished-action-tray > .finished-chat-collapse-toggle:focus-visible {
-  outline: 2px solid rgba(193, 166, 255, .68);
+  outline: 2px solid rgba(168, 191, 253, .68);
   outline-offset: 3px;
 }
 
@@ -149,7 +149,7 @@
   border: 1px solid rgba(255, 255, 255, .075);
   border-bottom-color: rgba(255, 255, 255, .045);
   border-radius: 20px 20px 12px 12px;
-  background: linear-gradient(180deg, rgba(23, 18, 39, .70), rgba(16, 13, 28, .52));
+  background: linear-gradient(180deg, rgba(21, 24, 31, .70), rgba(15, 17, 23, .52));
   box-shadow:
     0 24px 52px -44px rgba(0, 0, 0, .9),
     inset 0 1px 0 rgba(255, 255, 255, .025);
@@ -186,12 +186,12 @@
   border-color: rgba(255, 255, 255, .07) !important;
   background: rgba(255, 255, 255, .025) !important;
   font-size: 11.5px !important;
-  color: rgba(235, 231, 248, .9) !important;
+  color: rgba(231, 236, 248, .9) !important;
 }
 
 .finished-action-tray > .finished-action-buttons > button.w-full:hover {
-  border-color: rgba(176, 143, 255, .18) !important;
-  background: rgba(124, 92, 205, .07) !important;
+  border-color: rgba(146, 174, 252, .18) !important;
+  background: rgba(92, 122, 205, .07) !important;
 }
 
 /* Saved references visually continue the same window sheet. */
@@ -205,7 +205,7 @@
   padding: 0 11px !important;
   border: 1px solid rgba(255, 255, 255, .07) !important;
   border-radius: 12px 12px 18px 18px !important;
-  background: linear-gradient(180deg, rgba(18, 15, 31, .48), rgba(14, 12, 24, .34)) !important;
+  background: linear-gradient(180deg, rgba(17, 19, 25, .48), rgba(13, 15, 20, .34)) !important;
   opacity: 1;
   overflow: hidden;
   pointer-events: auto;
@@ -253,7 +253,7 @@
   font-size: 10.5px !important;
   line-height: 1rem !important;
   font-weight: 650 !important;
-  color: rgba(246, 243, 255, .91) !important;
+  color: rgba(243, 246, 255, .91) !important;
 }
 
 .finished-reuse-details > summary > div > p:not(:first-child) {
@@ -265,7 +265,7 @@
   border: 1px solid rgba(255, 255, 255, .065) !important;
   border-radius: 999px !important;
   background: rgba(255, 255, 255, .035) !important;
-  color: rgba(196, 186, 226, .85) !important;
+  color: rgba(186, 197, 226, .85) !important;
   font-size: 8.5px !important;
 }
 
@@ -276,7 +276,7 @@
   height: 16px;
   align-items: center;
   justify-content: center;
-  color: rgba(171, 160, 207, .82);
+  color: rgba(174, 180, 193, .82);
   font-size: 12px;
   line-height: 1;
   transition: transform 160ms ease, color 160ms ease;
@@ -284,7 +284,7 @@
 
 .finished-reuse-details[open] > summary::after {
   transform: rotate(180deg);
-  color: rgba(242, 237, 255, .96);
+  color: rgba(237, 242, 255, .96);
 }
 
 .finished-reuse-details[open] > div {
@@ -327,7 +327,7 @@
   font-size: 10px !important;
   line-height: 1rem !important;
   font-weight: 650 !important;
-  color: rgba(188, 181, 218, .78) !important;
+  color: rgba(192, 197, 207, .78) !important;
 }
 
 .finished-chat-composer > .mb-2.px-1 > p:not(:first-child) {
@@ -349,10 +349,10 @@
 }
 
 .finished-chat-composer form:focus-within {
-  border-color: rgba(159, 126, 246, .24) !important;
+  border-color: rgba(126, 158, 246, .24) !important;
   background: rgba(255, 255, 255, .055) !important;
   box-shadow:
-    0 20px 50px -38px rgba(86, 55, 170, .9),
+    0 20px 50px -38px rgba(0, 0, 0, .9),
     inset 0 1px 0 rgba(255, 255, 255, .035) !important;
 }
 
@@ -366,7 +366,7 @@
 
 .finished-chat-composer form textarea::placeholder {
   font-size: 14px !important;
-  color: rgba(149, 137, 192, .78) !important;
+  color: rgba(153, 160, 176, .78) !important;
 }
 
 .finished-chat-composer form button {
@@ -395,7 +395,7 @@
   border: 0;
   border-radius: 999px;
   background: transparent;
-  color: rgba(158, 137, 221, .84);
+  color: rgba(137, 159, 221, .84);
   font-size: 9.5px;
   font-weight: 650;
   line-height: 1;
@@ -405,8 +405,8 @@
 }
 
 .finished-action-tray > .finished-start-over-dock:hover {
-  color: rgba(238, 232, 255, .98);
-  background: rgba(127, 92, 205, .075);
+  color: rgba(233, 238, 254, .98);
+  background: rgba(92, 122, 205, .075);
 }
 
 .finished-action-tray > .finished-start-over-dock:active {
@@ -427,7 +427,7 @@
 .chat-widget-shell.chat-finish-collapsed > div > .chat-scroll:has(.finished-action-tray) {
   max-height: min(34dvh, 160px) !important;
   padding-top: 8px !important;
-  background: linear-gradient(180deg, rgba(14, 11, 25, 0), rgba(14, 11, 25, .96) 24%, rgba(14, 11, 25, .995)) !important;
+  background: linear-gradient(180deg, rgba(13, 15, 20, 0), rgba(13, 15, 20, .96) 24%, rgba(13, 15, 20, .995)) !important;
 }
 
 .chat-widget-shell.chat-finish-collapsed .finished-action-tray > .finished-chat-collapse-toggle {
@@ -439,7 +439,7 @@
   margin: 0 auto -1px !important;
   border-bottom-color: transparent !important;
   border-radius: 15px 15px 0 0 !important;
-  background: rgba(29, 24, 49, .98) !important;
+  background: rgba(27, 31, 40, .98) !important;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08) !important;
 }
 
@@ -452,8 +452,8 @@
 }
 
 .chat-widget-shell.chat-finish-collapsed .finished-chat-composer form {
-  border-color: rgba(176, 143, 255, .18) !important;
-  background: rgba(29, 24, 49, .98) !important;
+  border-color: rgba(146, 174, 252, .18) !important;
+  background: rgba(27, 31, 40, .98) !important;
   box-shadow:
     0 22px 54px -35px rgba(0, 0, 0, .98),
     inset 0 1px 0 rgba(255, 255, 255, .035) !important;

@@ -24,36 +24,14 @@ export function ChatBubble({
   const isBot = role === "bot";
   const renderedChildren = normalizeCancellationCopy(children, isBot);
   return (
-    <div
-      className={clsx(
-        "flex items-start gap-2.5 animate-fade-in",
-        isBot ? "justify-start" : "justify-end",
-        immersive && isBot && "w-full",
-      )}
-    >
-      {isBot && (
-        <div
-          className={clsx(
-            "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg",
-            immersive ? "bg-white/[.055]" : "border border-white/10 bg-white/[.05]",
-          )}
-        >
-          <img src="/logo.svg" alt="" width={18} height={18} className="rounded" />
-        </div>
-      )}
+    <div className={clsx("flex items-start gap-3", isBot ? "justify-start" : "justify-end", isBot && "w-full")}>
+      {isBot && <img src="/logo.svg" alt="" width={24} height={24} className="mt-0.5 h-6 w-6 shrink-0" />}
       <div
         className={clsx(
-          "text-sm leading-7",
-          immersive && isBot
-            ? "min-w-0 flex-1 px-1 py-0.5 text-text-primary"
-            : immersive
-              ? "max-w-[88%] rounded-[22px] bg-white/[.085] px-4 py-2.5 text-white sm:max-w-[78%]"
-              : clsx(
-                  "max-w-[92%] px-4 py-3.5 backdrop-blur-sm sm:max-w-[88%]",
-                  isBot
-                    ? "rounded-2xl rounded-tl-md border border-white/[.08] bg-white/[.045] text-text-primary shadow-[0_16px_38px_-28px_rgba(0,0,0,.72)]"
-                    : "rounded-2xl rounded-tr-md border border-violet/25 bg-[linear-gradient(135deg,rgba(110,76,255,.96),rgba(220,78,150,.92))] text-white shadow-[0_18px_42px_-26px_rgba(139,92,246,.95)]",
-                ),
+          "text-[15px] leading-7",
+          isBot
+            ? "min-w-0 flex-1 text-text-primary"
+            : "max-w-[88%] rounded-[22px] bg-white/[.09] px-4 py-2.5 text-white sm:max-w-[78%]",
         )}
       >
         {renderedChildren}
@@ -64,11 +42,9 @@ export function ChatBubble({
 
 export function TypingIndicator() {
   return (
-    <div className="flex items-start gap-2.5 justify-start" aria-live="polite" aria-label="Assistant is typing">
-      <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[.05]">
-        <img src="/logo.svg" alt="" width={18} height={18} className="rounded" />
-      </div>
-      <div className="flex items-center gap-1.5 rounded-2xl rounded-tl-md border border-white/[.055] bg-white/[.025] px-4 py-3.5">
+    <div className="flex items-start justify-start gap-3" aria-live="polite" aria-label="Working">
+      <img src="/logo.svg" alt="" width={24} height={24} className="mt-0.5 h-6 w-6 shrink-0" />
+      <div className="flex h-7 items-center gap-1.5">
         <span className="h-1.5 w-1.5 rounded-full bg-text-dim animate-typing-dot [animation-delay:0ms]" />
         <span className="h-1.5 w-1.5 rounded-full bg-text-dim animate-typing-dot [animation-delay:150ms]" />
         <span className="h-1.5 w-1.5 rounded-full bg-text-dim animate-typing-dot [animation-delay:300ms]" />

@@ -207,7 +207,7 @@ export function ChatInputBar({
         )}
         <button
           type="submit"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-signature text-white shadow-[0_10px_28px_-14px_rgba(139,92,246,.95)] transition hover:brightness-110 active:scale-95 disabled:pointer-events-none disabled:opacity-35"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-signature text-white shadow-[0_10px_28px_-14px_rgba(0,0,0,.95)] transition hover:brightness-110 active:scale-95 disabled:pointer-events-none disabled:opacity-35"
           disabled={disabled || !value.trim()}
           aria-label="Send message"
           title="Send"

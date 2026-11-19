@@ -303,7 +303,7 @@ router.post('/', tryAuth, uploadImages, async (req, res) => {
       }
       const selectedModel = generationModelForMode(publicModelId, studioMode, studioKind);
       if (studioQuality === '4k' && !selectedModel.supports4k) {
-        throw new AppError('The selected AiWebVideo model does not support 4K. Choose 1080p or a higher model.', 400, 'MODEL_QUALITY_UNSUPPORTED');
+        throw new AppError('The selected Linkreel model does not support 4K. Choose 1080p or a higher model.', 400, 'MODEL_QUALITY_UNSUPPORTED');
       }
       const requiredCredits = videoCreditCost(
         studioMode,

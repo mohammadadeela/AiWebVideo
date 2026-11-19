@@ -86,7 +86,7 @@ const INPUT_CLASS =
 export function ProfilePage() {
   useSeo({
     title: "Your account",
-    description: "Manage your AiWebVideo account, plan, and credits.",
+    description: "Manage your Linkreel account, plan, and credits.",
     path: "/profile",
     noindex: true,
   });
@@ -233,7 +233,7 @@ export function ProfilePage() {
             <h1 className="mt-5 font-display text-2xl font-bold text-text-primary">Sign in to see your account</h1>
             <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
               <Button variant="primary" onClick={() => setShowAuthModal(true)}>Sign in</Button>
-              <Button variant="secondary" asChild><Link href="/#generate">Back to AiWebVideo</Link></Button>
+              <Button variant="secondary" asChild><Link href="/#generate">Back to Linkreel</Link></Button>
             </div>
           </div>
         ) : (
@@ -309,7 +309,7 @@ export function ProfilePage() {
                   aria-selected={tab === id}
                   aria-controls={`panel-${id}`}
                   onClick={() => selectTab(id)}
-                  className={`min-h-10 rounded-xl px-2 text-xs font-semibold transition ${tab === id ? "bg-white text-[#1b1030] shadow" : "text-text-muted hover:text-white"}`}
+                  className={`min-h-10 rounded-xl px-2 text-xs font-semibold transition ${tab === id ? "bg-white text-[#181b23] shadow" : "text-text-muted hover:text-white"}`}
                 >
                   {label}
                 </button>

@@ -46,7 +46,7 @@ const KIND: Record<ProductionKind, {
     accentText: "text-mint",
     accentBg: "bg-mint/[.08]",
     accentBorder: "border-mint/20",
-    accentDot: "bg-mint shadow-[0_0_10px_rgba(52,217,196,.72)]",
+    accentDot: "bg-mint shadow-[0_0_10px_rgba(0,0,0,.72)]",
   },
   "ai-video": {
     label: "AI video",
@@ -54,7 +54,7 @@ const KIND: Record<ProductionKind, {
     accentText: "text-violet",
     accentBg: "bg-violet/[.09]",
     accentBorder: "border-violet/20",
-    accentDot: "bg-violet shadow-[0_0_10px_rgba(139,92,246,.72)]",
+    accentDot: "bg-violet shadow-[0_0_10px_rgba(0,0,0,.72)]",
   },
   "product-photos": {
     label: "Product photos",
@@ -62,7 +62,7 @@ const KIND: Record<ProductionKind, {
     accentText: "text-pink",
     accentBg: "bg-pink/[.08]",
     accentBorder: "border-pink/20",
-    accentDot: "bg-pink shadow-[0_0_10px_rgba(236,72,153,.72)]",
+    accentDot: "bg-pink shadow-[0_0_10px_rgba(0,0,0,.72)]",
   },
   "campaign-photos": {
     label: "Campaign photos",
@@ -70,7 +70,7 @@ const KIND: Record<ProductionKind, {
     accentText: "text-violet",
     accentBg: "bg-violet/[.09]",
     accentBorder: "border-violet/20",
-    accentDot: "bg-violet shadow-[0_0_10px_rgba(139,92,246,.72)]",
+    accentDot: "bg-violet shadow-[0_0_10px_rgba(0,0,0,.72)]",
   },
   "product-video": {
     label: "Product video",
@@ -78,7 +78,7 @@ const KIND: Record<ProductionKind, {
     accentText: "text-pink",
     accentBg: "bg-pink/[.08]",
     accentBorder: "border-pink/20",
-    accentDot: "bg-pink shadow-[0_0_10px_rgba(236,72,153,.72)]",
+    accentDot: "bg-pink shadow-[0_0_10px_rgba(0,0,0,.72)]",
   },
   "talking-scene": {
     label: "Talking scene",
@@ -86,7 +86,7 @@ const KIND: Record<ProductionKind, {
     accentText: "text-gold",
     accentBg: "bg-gold/[.08]",
     accentBorder: "border-gold/20",
-    accentDot: "bg-gold shadow-[0_0_10px_rgba(251,191,36,.72)]",
+    accentDot: "bg-gold shadow-[0_0_10px_rgba(0,0,0,.72)]",
   },
   "interior-design": {
     label: "Interior design",
@@ -94,7 +94,7 @@ const KIND: Record<ProductionKind, {
     accentText: "text-mint",
     accentBg: "bg-mint/[.08]",
     accentBorder: "border-mint/20",
-    accentDot: "bg-mint shadow-[0_0_10px_rgba(52,217,196,.72)]",
+    accentDot: "bg-mint shadow-[0_0_10px_rgba(0,0,0,.72)]",
   },
   "architecture": {
     label: "Architecture",
@@ -102,7 +102,7 @@ const KIND: Record<ProductionKind, {
     accentText: "text-violet",
     accentBg: "bg-violet/[.09]",
     accentBorder: "border-violet/20",
-    accentDot: "bg-violet shadow-[0_0_10px_rgba(139,92,246,.72)]",
+    accentDot: "bg-violet shadow-[0_0_10px_rgba(0,0,0,.72)]",
   },
 };
 
@@ -375,12 +375,12 @@ export function GenerationCanvas({
   return (
     <>
       <section
-        className="relative w-full overflow-hidden rounded-[20px] border border-white/[.09] bg-[#0d0a18]/95 shadow-[0_22px_64px_-42px_rgba(139,92,246,.82)]"
+        className="relative w-full overflow-hidden rounded-[20px] border border-white/[.09] bg-[#0d0e13]/95 shadow-[0_22px_64px_-42px_rgba(0,0,0,.82)]"
         aria-label={copy.label + " generation progress"}
         aria-live="polite"
         aria-atomic="false"
       >
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_-10%,rgba(139,92,246,.14),transparent_34%),radial-gradient(circle_at_100%_100%,rgba(52,217,196,.05),transparent_28%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_-10%,rgba(92,133,246,.14),transparent_34%),radial-gradient(circle_at_100%_100%,rgba(52,217,140,.05),transparent_28%)]" />
         <div className="relative p-3.5 sm:p-4">
           <div className="flex items-start gap-3">
             <span
@@ -447,7 +447,7 @@ export function GenerationCanvas({
                   aria-valuenow={safeProgress}
                 >
                   <div
-                    className="h-full rounded-full bg-signature shadow-[0_0_14px_rgba(236,72,153,.25)] transition-[width] duration-700"
+                    className="h-full rounded-full bg-signature shadow-[0_0_14px_rgba(0,0,0,.25)] transition-[width] duration-700"
                     style={{ width: safeProgress + "%" }}
                   />
                 </div>
@@ -584,13 +584,13 @@ export function GenerationCanvas({
           if (!stopSubmitting) setStopDialogOpen(open);
         }}
       >
-        <AlertDialogContent className="w-[calc(100%-2rem)] max-w-[440px] overflow-hidden rounded-[24px] border border-white/[.1] bg-[#100c1d] p-0 text-white shadow-[0_28px_90px_-28px_rgba(0,0,0,.92),0_0_70px_-36px_rgba(244,63,94,.45)] sm:rounded-[24px]">
+        <AlertDialogContent className="w-[calc(100%-2rem)] max-w-[440px] overflow-hidden rounded-[24px] border border-white/[.1] bg-[#0f1117] p-0 text-white shadow-[0_28px_90px_-28px_rgba(0,0,0,.92),0_0_70px_-36px_rgba(0,0,0,.45)] sm:rounded-[24px]">
           <div className="relative overflow-hidden p-5 sm:p-6">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_8%_0%,rgba(244,63,94,.13),transparent_34%),radial-gradient(circle_at_100%_100%,rgba(139,92,246,.12),transparent_32%)]" />
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_8%_0%,rgba(244,63,94,.13),transparent_34%),radial-gradient(circle_at_100%_100%,rgba(92,133,246,.12),transparent_32%)]" />
             <div className="relative">
               <AlertDialogHeader className="space-y-0 text-left">
                 <div className="flex items-start gap-3.5">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-pink/20 bg-pink/[.09] text-pink shadow-[0_12px_32px_-18px_rgba(244,63,94,.8)]">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-pink/20 bg-pink/[.09] text-pink shadow-[0_12px_32px_-18px_rgba(0,0,0,.8)]">
                     <AlertTriangle size={20} strokeWidth={1.9} />
                   </span>
                   <div className="min-w-0 pt-0.5">
@@ -663,7 +663,7 @@ export function GenerationCanvas({
                   type="button"
                   onClick={() => void confirmStopProduction()}
                   disabled={stopPreviewLoading || stopSubmitting || stopRequested}
-                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-pink/30 bg-pink px-4 text-[11px] font-semibold text-white shadow-[0_12px_30px_-18px_rgba(244,63,94,.9)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-pink/30 bg-pink px-4 text-[11px] font-semibold text-white shadow-[0_12px_30px_-18px_rgba(0,0,0,.9)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {stopSubmitting ? <LoaderCircle size={13} className="animate-spin" /> : <X size={13} />}
                   {stopSubmitting

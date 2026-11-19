@@ -108,7 +108,7 @@ export function modelPriceRows(): ModelPriceRow[] {
     const both = model.supportedQualities.includes("1080p") && model.supportedQualities.includes("4k");
     return {
       id: model.id,
-      name: model.name.replace(/^AiWebVideo\s+/, ""),
+      name: model.name.replace(/^(?:Linkreel|AiWebVideo)\s+/, ""),
       kind: isVideo ? "Video" : model.family === "image" ? "Images" : "Interior & architecture",
       unit: isVideo ? "per second" : "per set of 4",
       standard: single && model.supportedQualities[0] === "4k" ? perUnit("4k") : perUnit("1080p"),

@@ -33,14 +33,14 @@ const pages: Record<string, SeoLanding> = {
     title: "Turn any website URL into an AI video",
     seoTitle: "URL to Video AI Generator — Turn a Website Into Video",
     description:
-      "Paste a public website URL and turn it into a brand-aware AI marketing video. AiWebVideo reads the page, plans the story, generates the film, and keeps production in one workspace.",
+      "Paste a public website URL and turn it into a brand-aware AI marketing video. Linkreel reads the page, plans the story, generates the film, and keeps production in one workspace.",
     intro:
-      "Paste a public URL, describe what you want to promote, and let AiWebVideo use the real page as creative context for a finished campaign video.",
+      "Paste a public URL, describe what you want to promote, and let Linkreel use the real page as creative context for a finished campaign video.",
     primaryLabel: "Turn a URL into video",
     highlights: ["Public URL as source", "Brand-aware creative direction", "AI-generated final film", "Landscape, portrait and square"],
     problemTitle: "A link already contains the raw material for a campaign",
     problemBody:
-      "Product pages, SaaS homepages, launch pages and business websites already contain positioning, visuals, calls to action and brand cues. AiWebVideo turns that source into a production brief instead of making you rebuild it manually in a timeline editor.",
+      "Product pages, SaaS homepages, launch pages and business websites already contain positioning, visuals, calls to action and brand cues. Linkreel turns that source into a production brief instead of making you rebuild it manually in a timeline editor.",
     workflow: [
       ["Paste the URL", "Use a public website, landing page, product page or homepage as the source."],
       ["Add the campaign goal", "Tell the AI what to promote, who the audience is, and what action the video should drive."],
@@ -61,7 +61,7 @@ const pages: Record<string, SeoLanding> = {
       ["Launch pages", "Convert a new feature or campaign page into video content for social and paid distribution."],
     ],
     faq: [
-      ["What is a URL to video generator?", "It is a workflow that uses a webpage link as source context for creating a video. AiWebVideo reads the public website, combines it with your goal, plans the campaign and generates the video."],
+      ["What is a URL to video generator?", "It is a workflow that uses a webpage link as source context for creating a video. Linkreel reads the public website, combines it with your goal, plans the campaign and generates the video."],
       ["What URLs work best?", "Public pages with clear products, services, features, visuals and calls to action work best. Private pages or pages that require login should not be submitted."],
       ["Is the result only a slideshow of screenshots?", "No. Website captures are used as creative grounding. The paid generation flow creates AI-generated video scenes for the campaign rather than presenting a simple screenshot slideshow as the final film."],
       ["Can I choose vertical or square video?", "Yes. The creator supports common landscape, portrait and square formats, with smart defaults available when you do not want to configure every setting."],
@@ -79,7 +79,7 @@ const pages: Record<string, SeoLanding> = {
     title: "Create a marketing video from your website",
     seoTitle: "AI Website Video Generator — Website to Marketing Video",
     description:
-      "Create an AI marketing video from your website. AiWebVideo studies useful pages and brand context, builds the campaign direction, and generates the final film in one workspace.",
+      "Create an AI marketing video from your website. Linkreel studies useful pages and brand context, builds the campaign direction, and generates the final film in one workspace.",
     intro:
       "Use the website as the source of truth for the business—not just a single block of copied text—and turn it into campaign-ready video.",
     primaryLabel: "Create from my website",
@@ -88,7 +88,7 @@ const pages: Record<string, SeoLanding> = {
     problemBody:
       "A homepage rarely tells the whole story. Features, products, pricing, use cases and calls to action often live across multiple pages. The website workflow is designed to use the useful public context before the creative plan is produced.",
     workflow: [
-      ["Start with the website", "Paste the public site you want AiWebVideo to understand."],
+      ["Start with the website", "Paste the public site you want Linkreel to understand."],
       ["Capture useful context", "The workflow gathers relevant visible pages and avoids treating every page as equally important."],
       ["Choose the campaign direction", "Describe the offer, launch, product or business story you want the video to communicate."],
       ["Generate a coherent plan", "AI builds the story beats, visual direction, duration and audio choices around that goal."],
@@ -108,7 +108,7 @@ const pages: Record<string, SeoLanding> = {
     ],
     faq: [
       ["How is this different from URL to video?", "URL to video is the broad input pattern. The website-video workflow is designed specifically for turning a business website and its useful public pages into a campaign story."],
-      ["Does AiWebVideo need access to private pages?", "No. Use public pages only. Do not submit private dashboards, customer data, or pages you are not authorized to use."],
+      ["Does Linkreel need access to private pages?", "No. Use public pages only. Do not submit private dashboards, customer data, or pages you are not authorized to use."],
       ["Can I tell it what part of the website matters?", "Yes. Your prompt can focus the production on a product, offer, feature, audience or call to action."],
       ["Can I return while generation is running?", "Yes. Signed-in project history is designed to keep active production state available when you leave and return to the workspace."],
     ],
@@ -132,7 +132,7 @@ const pages: Record<string, SeoLanding> = {
     highlights: ["Product positioning", "Feature-page context", "Launch storytelling", "Social-ready formats"],
     problemTitle: "Software needs a story, not a screen-recording dump",
     problemBody:
-      "A useful SaaS campaign has to decide what the viewer should understand first, which feature matters, and what action should follow. AiWebVideo lets the website provide product context while the prompt defines the campaign angle.",
+      "A useful SaaS campaign has to decide what the viewer should understand first, which feature matters, and what action should follow. Linkreel lets the website provide product context while the prompt defines the campaign angle.",
     workflow: [
       ["Paste the SaaS website", "Start with the public product website or launch page."],
       ["Choose the audience", "Describe who the video is for: prospects, existing users, teams, founders or a specific industry."],
@@ -171,20 +171,20 @@ const pages: Record<string, SeoLanding> = {
     title: "Turn a product link into product photos or video",
     seoTitle: "Product Link to AI Video & Photos — Product URL to Ad",
     description:
-      "Paste a product page link. AiWebVideo reads the product name, description and photos it can access, you choose the references, then it generates product photos or a product video when you confirm.",
+      "Paste a product page link. Linkreel reads the product name, description and photos it can access, you choose the references, then it generates product photos or a product video when you confirm.",
     intro:
-      "Paste the link to a product page. AiWebVideo reads the product information and photos it can access, shows them for you to review and select, and generates product photos or a product video only after you press create.",
+      "Paste the link to a product page. Linkreel reads the product information and photos it can access, shows them for you to review and select, and generates product photos or a product video only after you press create.",
     primaryLabel: "Start from a product link",
     highlights: ["Product URL as the start", "You choose the photos", "Nothing generates until you confirm", "Upload fallback for blocked shops"],
     problemTitle: "The product page already has the photos and the facts",
     problemBody:
-      "A product page usually holds the product name, description, price, brand and a gallery of photos. Instead of saving each photo by hand, paste the link: AiWebVideo reads what the page publicly exposes and lets you pick the references to use for product photos or a product video.",
+      "A product page usually holds the product name, description, price, brand and a gallery of photos. Instead of saving each photo by hand, paste the link: Linkreel reads what the page publicly exposes and lets you pick the references to use for product photos or a product video.",
     workflow: [
       ["Paste the product link", "In Product Photos or Product Video, paste the product page address. A direct image address works too: right-click a product photo, choose Copy image address, and paste it."],
-      ["AiWebVideo reads what is publicly accessible", "It looks for the product name, description, price and brand the page declares, and for the product photos in the page. For pages that only show their gallery after scripts run, a browser step is used. It does not sign in, solve CAPTCHAs or get around access controls."],
+      ["Linkreel reads what is publicly accessible", "It looks for the product name, description, price and brand the page declares, and for the product photos in the page. For pages that only show their gallery after scripts run, a browser step is used. It does not sign in, solve CAPTCHAs or get around access controls."],
       ["Review and choose the references", "See the product name and the photos found, select or deselect photos, and add your own reference photos. Nothing is generated yet."],
       ["Describe what you want, then create", "Write the setting, lighting, camera and goal. Generation starts only when you confirm, and the credit estimate is shown first."],
-      ["If a shop blocks automatic reading", "Some shops refuse automated access. AiWebVideo keeps the product name it found and asks for one photo: upload one, paste a screenshot, or paste a copied image address."],
+      ["If a shop blocks automatic reading", "Some shops refuse automated access. Linkreel keeps the product name it found and asks for one photo: upload one, paste a screenshot, or paste a copied image address."],
     ],
     benefits: [
       ["No saving photos by hand", "The product photos the page exposes are brought in for you to choose from."],
@@ -216,9 +216,9 @@ const pages: Record<string, SeoLanding> = {
     createHref: "/?create=video#generate",
     eyebrow: "AI video generator",
     title: "AI Video Generator — Create Videos From Text and Images",
-    seoTitle: "AI Video Generator — Create AI Videos From Prompts | AiWebVideo",
-    description: "Create original AI videos from a prompt and optional image references. Direct the story, camera, style, pacing and format with AiWebVideo.",
-    intro: "Describe the video you want in normal language, add references when useful, and let AiWebVideo turn the idea into a complete AI-directed video.",
+    seoTitle: "AI Video Generator — Create AI Videos From Prompts | Linkreel",
+    description: "Create original AI videos from a prompt and optional image references. Direct the story, camera, style, pacing and format with Linkreel.",
+    intro: "Describe the video you want in normal language, add references when useful, and let Linkreel turn the idea into a complete AI-directed video.",
     primaryLabel: "Create an AI video",
     highlights: ["Text-to-video creative direction", "Optional image references", "Landscape, portrait and square", "Campaign-ready output"],
     problemTitle: "Start with an idea instead of a blank timeline",
@@ -226,7 +226,7 @@ const pages: Record<string, SeoLanding> = {
     workflow: [["Describe the idea", "Explain the subject, setting, action, style, audience or story in your own words."], ["Add references", "Supply images when identity, appearance, product details or visual direction should stay grounded."], ["Direct the result", "Use duration, aspect ratio, quality and audio choices when they matter for the campaign."], ["AI plans the production", "The creator turns the brief into a coherent sequence with camera, motion, pacing and visual direction."], ["Generate the video", "Follow production in the workspace and review the finished AI video when it is ready."]],
     benefits: [["Natural-language control", "Describe the outcome instead of learning a complex timeline or prompt syntax."], ["Reference-aware", "Optional images can anchor the visual direction when the result needs a specific subject or look."], ["Multiple formats", "Create landscape, portrait or square media for different destinations."], ["Built for complete videos", "The workflow is designed around one coherent final production rather than unrelated clips."]],
     useCases: [["Social campaigns", "Create original visual concepts for vertical and square social content."], ["Brand concepts", "Explore cinematic concepts, product stories and campaign directions before production."], ["Explainer visuals", "Turn a concept or scenario into visual storytelling without recording a traditional shoot."], ["Creative testing", "Generate different visual directions around the same campaign idea."]],
-    faq: [["What is an AI video generator?", "It is a tool that uses an instruction and optional references to generate video content. AiWebVideo adds creative planning so the request becomes a coherent production."], ["Can I use an image as a reference?", "Yes. Optional reference images can help anchor subjects, products, identity or visual direction."], ["Can I choose portrait video?", "Yes. The creator supports common landscape, portrait and square formats."], ["Can I make a product video instead?", "Yes. Use the dedicated Product Video page when the real product should remain the central reference."]],
+    faq: [["What is an AI video generator?", "It is a tool that uses an instruction and optional references to generate video content. Linkreel adds creative planning so the request becomes a coherent production."], ["Can I use an image as a reference?", "Yes. Optional reference images can help anchor subjects, products, identity or visual direction."], ["Can I choose portrait video?", "Yes. The creator supports common landscape, portrait and square formats."], ["Can I make a product video instead?", "Yes. Use the dedicated Product Video page when the real product should remain the central reference."]],
     related: [["Product Video Generator", "/product-video-generator", "Create a reference-grounded product film."], ["Product Photo Generator", "/product-photo-generator", "Create campaign images from real product references."], ["Talking Video Generator", "/talking-video-generator", "Create dialogue and scenario-driven video."], ["AI video prompt guide", "/guides/create-ai-video-from-prompt", "Plan a clearer video brief before generating."]],
   },
   productPhoto: {
@@ -234,14 +234,14 @@ const pages: Record<string, SeoLanding> = {
     createHref: "/?create=photo#generate",
     eyebrow: "AI product photo generator",
     title: "AI Product Photo Generator — Create Product Images From References",
-    seoTitle: "AI Product Photo Generator — Create Product Images | AiWebVideo",
+    seoTitle: "AI Product Photo Generator — Create Product Images | Linkreel",
     description: "Upload real product references and create polished AI product photos for ecommerce, campaigns, social media and marketing.",
-    intro: "Give AiWebVideo your real product images and describe the scene, styling, background or campaign you want. The product remains the visual anchor.",
+    intro: "Give Linkreel your real product images and describe the scene, styling, background or campaign you want. The product remains the visual anchor.",
     primaryLabel: "Create product photos",
     highlights: ["Real product references", "Campaign image directions", "Ecommerce-ready concepts", "Multiple visual styles"],
     problemTitle: "Create new product imagery without reshooting every concept",
     problemBody: "Product marketing often needs many visual contexts: clean studio shots, lifestyle scenes, seasonal campaigns and social variations. Reference-based generation lets you start from the real product while directing the creative setting.",
-    workflow: [["Upload the real product", "Add clear product images that show the shape, materials, colors and important details."], ["Describe the scene", "Ask for a studio setup, lifestyle environment, seasonal concept, campaign mood or specific composition."], ["Keep the product grounded", "The supplied reference remains the primary visual anchor rather than becoming an unrelated inspiration image."], ["Generate the image", "AiWebVideo creates the requested product-focused visual direction."], ["Create variations", "Use different prompts and compositions to build a consistent campaign set."]],
+    workflow: [["Upload the real product", "Add clear product images that show the shape, materials, colors and important details."], ["Describe the scene", "Ask for a studio setup, lifestyle environment, seasonal concept, campaign mood or specific composition."], ["Keep the product grounded", "The supplied reference remains the primary visual anchor rather than becoming an unrelated inspiration image."], ["Generate the image", "Linkreel creates the requested product-focused visual direction."], ["Create variations", "Use different prompts and compositions to build a consistent campaign set."]],
     benefits: [["Reference-first", "Start from the actual product rather than a generic text-only object."], ["More campaign variations", "Explore multiple scenes and art directions from the same source product."], ["Useful across channels", "Create visuals for ecommerce, social, ads and promotional campaigns."], ["Creative consistency", "Keep the product and visual language central while changing the environment."]],
     useCases: [["Ecommerce hero images", "Create new merchandising concepts around the same real product."], ["Lifestyle campaigns", "Place the product in a directed environment that matches the campaign."], ["Seasonal promotions", "Create visual concepts for launches, holidays and promotional periods."], ["Social content", "Generate fresh product compositions for recurring social campaigns."]],
     faq: [["Do I need to upload a product image?", "Yes. Product-photo generation is designed around supplied references when the exact product should remain central."], ["Can I request a specific background?", "Yes. Describe the environment, surface, lighting, composition and campaign mood you want."], ["Can I make a product video from the same product?", "Yes. Product Video is a separate mode designed for reference-grounded motion."], ["Are these just background replacements?", "No. The workflow can create a new campaign composition around the referenced product, subject to the capabilities of the underlying image model."]],
@@ -252,9 +252,9 @@ const pages: Record<string, SeoLanding> = {
     createHref: "/?create=product-video#generate",
     eyebrow: "AI product video generator",
     title: "AI Product Video Generator — Create Product Videos From Real References",
-    seoTitle: "AI Product Video Generator — Create Product Videos | AiWebVideo",
+    seoTitle: "AI Product Video Generator — Create Product Videos | Linkreel",
     description: "Create AI product videos from real product images. Preserve the product as the reference while generating commercial motion, camera movement and environments.",
-    intro: "Upload the real product, describe the commercial direction, and let AiWebVideo build a continuous product-focused film around it.",
+    intro: "Upload the real product, describe the commercial direction, and let Linkreel build a continuous product-focused film around it.",
     primaryLabel: "Create a product video",
     highlights: ["Real product image references", "Commercial camera motion", "Continuous product storytelling", "Portrait, landscape and square"],
     problemTitle: "Turn a real product image into a campaign film",
@@ -270,9 +270,9 @@ const pages: Record<string, SeoLanding> = {
     createHref: "/?create=scenario#generate",
     eyebrow: "AI talking video generator",
     title: "AI Talking Video Generator — Create Dialogue, Testimonials and Scenes",
-    seoTitle: "AI Talking Video Generator — Dialogue & Scenario Videos | AiWebVideo",
+    seoTitle: "AI Talking Video Generator — Dialogue & Scenario Videos | Linkreel",
     description: "Create AI talking and scenario videos from a description of the characters, dialogue, setting, camera and performance you want.",
-    intro: "Describe the people, conversation, testimonial or scripted scenario and let AiWebVideo direct the performance, camera blocking, pacing and scene audio.",
+    intro: "Describe the people, conversation, testimonial or scripted scenario and let Linkreel direct the performance, camera blocking, pacing and scene audio.",
     primaryLabel: "Create a talking video",
     highlights: ["Dialogue and scenarios", "Character direction", "Camera and performance", "Scene audio"],
     problemTitle: "Direct a complete scene without organizing a traditional shoot",
@@ -288,9 +288,9 @@ const pages: Record<string, SeoLanding> = {
     createHref: "/?create=interior#generate",
     eyebrow: "AI interior design generator",
     title: "AI Interior Design Generator — Redesign Rooms, Homes and Spaces",
-    seoTitle: "AI Interior Design Generator — Images & Walkthrough Tours | AiWebVideo",
+    seoTitle: "AI Interior Design Generator — Images & Walkthrough Tours | Linkreel",
     description: "Upload room photos, plans or sketches and create AI interior design concepts, realistic redesign images and walkthrough videos with reference-aware controls.",
-    intro: "Upload photos, floor plans, sketches or elevations, then describe the interior you want. AiWebVideo can create design images or a walkthrough while using your references as the visual and architectural starting point.",
+    intro: "Upload photos, floor plans, sketches or elevations, then describe the interior you want. Linkreel can create design images or a walkthrough while using your references as the visual and architectural starting point.",
     primaryLabel: "Create an interior design",
     highlights: ["Room photos and plans", "Design concept images", "Interior walkthrough video", "Reference-aware geometry"],
     problemTitle: "Turn a real space into a visual design concept",
@@ -306,7 +306,7 @@ const pages: Record<string, SeoLanding> = {
     createHref: "/?create=interior#generate",
     eyebrow: "Interior design walkthrough video",
     title: "Create an AI Interior Design Walkthrough Video",
-    seoTitle: "AI Interior Design Walkthrough Video Generator | AiWebVideo",
+    seoTitle: "AI Interior Design Walkthrough Video Generator | Linkreel",
     description: "Turn room photos, plans, sketches, or design concepts into an AI interior design walkthrough video for homes, shops, and property presentations.",
     intro: "Upload the space and describe the design direction. Create a presentation-style walkthrough that follows your references instead of starting from a generic room.",
     primaryLabel: "Create a walkthrough",
@@ -324,7 +324,7 @@ const pages: Record<string, SeoLanding> = {
     createHref: "/?create=interior#generate",
     eyebrow: "Real estate walkthrough video",
     title: "Create an AI Real Estate Property Walkthrough",
-    seoTitle: "AI Real Estate Walkthrough Video Generator | AiWebVideo",
+    seoTitle: "AI Real Estate Walkthrough Video Generator | Linkreel",
     description: "Create property walkthrough and presentation videos from real estate photos, plans, sketches, and interior design references.",
     intro: "Turn property references into a guided visual tour or redesign presentation. Describe the rooms, style, audience, and story you want the walkthrough to communicate.",
     primaryLabel: "Create a property walkthrough",
@@ -342,7 +342,7 @@ const pages: Record<string, SeoLanding> = {
     createHref: "/?create=interior#generate",
     eyebrow: "3D house walkthrough",
     title: "Create a 3D-Style House Walkthrough With AI",
-    seoTitle: "3D House Walkthrough AI Generator | AiWebVideo",
+    seoTitle: "3D House Walkthrough AI Generator | Linkreel",
     description: "Create a 3D-style visual walkthrough concept for a house using photos, floor plans, sketches, and interior design references.",
     intro: "Start from your house references and describe the architectural and interior direction. Generate a presentation walkthrough that communicates the space and proposed design.",
     primaryLabel: "Create a house walkthrough",
@@ -362,7 +362,7 @@ const pages: Record<string, SeoLanding> = {
     title: "Create AI architecture concepts for a real place",
     seoTitle: "AI Architecture Generator & Visualization",
     description: "Create AI architecture concept images for a real place: start from a map link, address, site photo or plan, choose what to design, and describe the building. Concept visualization only.",
-    intro: "AI visualization for concept purposes: not a surveyed or construction-accurate plan. Start from where the building will stand, a photo or plan, and a brief, and AiWebVideo creates presentation-oriented concept images or a walkthrough.",
+    intro: "AI visualization for concept purposes: not a surveyed or construction-accurate plan. Start from where the building will stand, a photo or plan, and a brief, and Linkreel creates presentation-oriented concept images or a walkthrough.",
     primaryLabel: "Create architecture concepts",
     highlights: ["Start from a real place", "Whole building, shop, floor or land", "Plans, photos and CAD (DXF)", "Concept visualization only"],
     problemTitle: "Make an architectural concept easier to see",
@@ -389,7 +389,7 @@ const pages: Record<string, SeoLanding> = {
       ["Can it replace architectural drawings?", "No. Generated visuals are presentation concepts and do not replace professional architectural, engineering, surveying, CAD, or BIM documentation."],
       ["Can I visualize a building on a real site?", "Yes. See Building on a Real Site: paste a map link or address and mark the exact place."],
       ["Can I use a sketch or plan?", "Yes. Sketches, plans, photos and CAD drawings (DXF) can be supplied as references."],
-      ["Is this a Google product?", "No. AiWebVideo is independent. Google Maps and Street View are trademarks of Google LLC and are only referred to as optional sources of location imagery."],
+      ["Is this a Google product?", "No. Linkreel is independent. Google Maps and Street View are trademarks of Google LLC and are only referred to as optional sources of location imagery."],
     ],
     related: [
       ["Building on a Real Site", "/architecture-site-placement", "Mark the exact place on a real location."],
@@ -404,13 +404,13 @@ const pages: Record<string, SeoLanding> = {
     title: "Visualize a building on a real site",
     seoTitle: "Visualize a Building on a Real Site with AI",
     description: "Place a building concept on a real location: paste a map link, address or coordinates, mark the exact shop, floor or plot on a photo or street picture, and generate concept visuals.",
-    intro: "Paste a map link, an address, or coordinates; point at the exact shop, floor, building or empty plot; say what it should become. AiWebVideo creates concept visuals for that place. AI visualization for concept purposes, not a surveyed or construction-accurate plan.",
+    intro: "Paste a map link, an address, or coordinates; point at the exact shop, floor, building or empty plot; say what it should become. Linkreel creates concept visuals for that place. AI visualization for concept purposes, not a surveyed or construction-accurate plan.",
     primaryLabel: "Visualize on my site",
     highlights: ["Map link, address or coordinates", "Tap the exact place", "Photo or street picture", "Concept visualization only"],
     problemTitle: "Show where it will stand, not just what it looks like",
     problemBody: "A building concept is easier to judge in its real surroundings. Pointing at the exact place tells the design what to change and what to leave alone.",
     workflow: [
-      ["Paste the location", "Use a Google Maps link, an address or coordinates. AiWebVideo finds the point and shows it on a map so you can confirm it is the right place."],
+      ["Paste the location", "Use a Google Maps link, an address or coordinates. Linkreel finds the point and shows it on a map so you can confirm it is the right place."],
       ["Look at the street", "Where street-level imagery is offered and available you can look around it. Otherwise add a photo or screenshot of the plot. Coverage varies by place, and some places have none."],
       ["Tap the exact place", "Tap the shop, floor, building or empty plot you mean. The mark is used as a locating aid for the design."],
       ["Say what it is, then describe the design", "Choose whole building, one shop or unit, one floor, or empty land (and the level), then describe the building and add plot dimensions if you have them."],
@@ -419,7 +419,7 @@ const pages: Record<string, SeoLanding> = {
       ["Your exact spot", "Mark one shop or one floor instead of redesigning the whole building."],
       ["Your own photo wins", "If street imagery is old or missing, your recent photo takes priority."],
       ["Honest limits", "Map and street imagery can be out of date, and a photo cannot establish exact dimensions."],
-      ["Independent of Google", "AiWebVideo is not affiliated with Google; Google Maps and Street View are trademarks of Google LLC."],
+      ["Independent of Google", "Linkreel is not affiliated with Google; Google Maps and Street View are trademarks of Google LLC."],
     ],
     useCases: [
       ["Shop fronts", "Visualize a new shop front on a real street."],
@@ -444,13 +444,13 @@ const pages: Record<string, SeoLanding> = {
     createHref: "/?create=interior#generate",
     eyebrow: "Floor plan to 3D concept",
     title: "Turn a Floor Plan Into a 3D-Style Design Concept",
-    seoTitle: "Floor Plan to 3D AI Generator — Visualize Floor Plans | AiWebVideo",
+    seoTitle: "Floor Plan to 3D AI Generator — Visualize Floor Plans | Linkreel",
     description: "Use a floor plan, sketch, or architectural reference to create AI interior design images and walkthrough-style visual concepts.",
     intro: "Upload a floor plan and describe the style, materials, furniture, rooms, and presentation you want. Use dimensions and scale when accurate geometry matters.",
     primaryLabel: "Visualize a floor plan",
     highlights: ["Floor plan input", "Room visualization", "Interior concepts", "Walkthrough output"],
     problemTitle: "Give a floor plan a visual dimension",
-    problemBody: "A plan shows layout from above, while a visual concept can help communicate how the rooms might look and feel. AiWebVideo uses the plan as a reference for presentation-oriented generation.",
+    problemBody: "A plan shows layout from above, while a visual concept can help communicate how the rooms might look and feel. Linkreel uses the plan as a reference for presentation-oriented generation.",
     workflow: [["Upload the plan", "Add a clear floor plan, sketch, or other authorized architectural reference."], ["Provide scale", "Include dimensions or a scale reference when room proportions must be reliable."], ["Describe the interior", "Specify style, furniture, finishes, colors, lighting, and room function."], ["Choose images or walkthrough", "Create still concepts or a presentation-style video."], ["Review and refine", "Continue from the project with another design direction when needed."]],
     benefits: [["Plan-first", "Start from the actual layout instead of a generic room."], ["Interior visualization", "Explore materials, furniture, lighting, and atmosphere."], ["Presentation-ready", "Create images or a walkthrough for explaining the concept."], ["Natural-language control", "Describe the design without complex 3D software controls."]],
     useCases: [["Home planning", "Visualize a house or apartment layout."], ["Renovation", "Explore a proposed room arrangement and finish direction."], ["Retail planning", "Visualize a shop layout and customer-facing design."], ["Client review", "Create visual support for discussing a plan."]],
@@ -462,9 +462,9 @@ const pages: Record<string, SeoLanding> = {
     createHref: "/?create=interior#generate",
     eyebrow: "AI room redesign",
     title: "Redesign a Room From a Photo With AI",
-    seoTitle: "AI Room Redesign Generator — Redesign a Room From a Photo | AiWebVideo",
+    seoTitle: "AI Room Redesign Generator — Redesign a Room From a Photo | Linkreel",
     description: "Upload a room photo and create interior redesign concepts with new furniture, materials, colors, lighting, and style.",
-    intro: "Give AiWebVideo a room photo and describe the look you want. Explore modern, luxury, minimalist, commercial, or other interior directions while keeping the room as the visual starting point.",
+    intro: "Give Linkreel a room photo and describe the look you want. Explore modern, luxury, minimalist, commercial, or other interior directions while keeping the room as the visual starting point.",
     primaryLabel: "Redesign my room",
     highlights: ["Room photo input", "Furniture and materials", "Style variations", "Optional walkthrough"],
     problemTitle: "Explore a new room direction before committing to it",
@@ -596,7 +596,7 @@ function SearchLandingPage({ page }: { page: SeoLanding }) {
 
         <section className="px-5 py-16">
           <div className="relative mx-auto max-w-5xl overflow-hidden rounded-[34px] border border-white/10 bg-panel px-6 py-14 text-center">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(139,92,246,.22),transparent_52%)]" />
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(92,133,246,.22),transparent_52%)]" />
             <Link2 size={20} className="relative mx-auto text-mint" />
             <h2 className="relative mt-4 font-display text-3xl font-bold tracking-[-.035em] text-white">Start with your source and a clear idea</h2>
             <p className="relative mx-auto mt-3 max-w-xl text-sm leading-6 text-text-muted">Open the creator, add your prompt or references, and review the credit estimate before generating in the same project workspace.</p>
@@ -664,7 +664,7 @@ const exampleCards = [
 export function ExamplesPage() {
   useSeo({
     title: "AI Video, Product Media & Interior Design Examples",
-    description: "Explore available AiWebVideo campaign videos and practical starting points for website video, AI video, product photos and video, talking scenes, and interior design.",
+    description: "Explore available Linkreel campaign videos and practical starting points for website video, AI video, product photos and video, talking scenes, and interior design.",
     path: "/examples",
   });
 

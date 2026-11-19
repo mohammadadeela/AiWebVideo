@@ -38,7 +38,7 @@ const STUDIO_CARD_META: Record<StudioKind, StudioCardMeta> = {
     glow: 'bg-orange-500/20',
     iconStyle: 'border-orange-300/25 bg-orange-400/10 text-orange-200',
     pillStyle: 'border-orange-300/20 bg-orange-400/10 text-orange-100',
-    borderHover: 'hover:border-orange-300/45 hover:shadow-[0_24px_60px_-32px_rgba(249,115,22,.85)]',
+    borderHover: 'hover:border-orange-300/45 hover:shadow-[0_24px_60px_-32px_rgba(0,0,0,.85)]',
   },
   idea: {
     icon: Film,
@@ -51,7 +51,7 @@ const STUDIO_CARD_META: Record<StudioKind, StudioCardMeta> = {
     glow: 'bg-violet/25',
     iconStyle: 'border-violet/30 bg-violet/15 text-violet-200',
     pillStyle: 'border-violet/25 bg-violet/10 text-violet-100',
-    borderHover: 'hover:border-violet/60 hover:shadow-[0_24px_60px_-32px_rgba(139,92,246,.95)]',
+    borderHover: 'hover:border-violet/60 hover:shadow-[0_24px_60px_-32px_rgba(0,0,0,.95)]',
   },
   scenario: {
     icon: MessageCircleMore,
@@ -64,7 +64,7 @@ const STUDIO_CARD_META: Record<StudioKind, StudioCardMeta> = {
     glow: 'bg-cyan-400/20',
     iconStyle: 'border-cyan-300/25 bg-cyan-400/10 text-cyan-100',
     pillStyle: 'border-cyan-300/20 bg-cyan-400/10 text-cyan-50',
-    borderHover: 'hover:border-cyan-300/45 hover:shadow-[0_24px_60px_-32px_rgba(34,211,238,.75)]',
+    borderHover: 'hover:border-cyan-300/45 hover:shadow-[0_24px_60px_-32px_rgba(0,0,0,.75)]',
   },
   interior: {
     icon: Ruler,
@@ -77,7 +77,7 @@ const STUDIO_CARD_META: Record<StudioKind, StudioCardMeta> = {
     glow: 'bg-emerald-400/20',
     iconStyle: 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100',
     pillStyle: 'border-emerald-300/20 bg-emerald-400/10 text-emerald-50',
-    borderHover: 'hover:border-emerald-300/45 hover:shadow-[0_24px_60px_-32px_rgba(52,211,153,.75)]',
+    borderHover: 'hover:border-emerald-300/45 hover:shadow-[0_24px_60px_-32px_rgba(0,0,0,.75)]',
   },
 };
 
@@ -95,7 +95,7 @@ export function StudioToolCards({ className = '', detailed = false }: { classNam
             href={config.path}
             aria-label={`${meta.cta}. ${meta.description}`}
             onClick={() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' })}
-            className={`group relative flex min-h-[300px] cursor-pointer flex-col overflow-hidden rounded-[24px] border border-white/10 bg-[#151027]/90 p-5 text-left shadow-[0_20px_55px_-38px_rgba(0,0,0,.95)] transition-all duration-300 hover:-translate-y-1.5 hover:bg-[#1b1432] active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-bg ${meta.borderHover}`}
+            className={`group relative flex min-h-[300px] cursor-pointer flex-col overflow-hidden rounded-[24px] border border-white/10 bg-[#14171e]/90 p-5 text-left shadow-[0_20px_55px_-38px_rgba(0,0,0,.95)] transition-all duration-300 hover:-translate-y-1.5 hover:bg-[#1a1e27] active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-bg ${meta.borderHover}`}
           >
             <span className={`pointer-events-none absolute -right-12 -top-14 h-36 w-36 rounded-full blur-3xl transition-opacity duration-300 group-hover:opacity-100 ${meta.glow}`} aria-hidden="true" />
             <span className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${meta.accent}`} aria-hidden="true" />

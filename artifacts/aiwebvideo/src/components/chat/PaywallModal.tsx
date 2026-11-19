@@ -33,7 +33,7 @@ export function PaywallModal({
   const isPhotoMode = mode === 'photos' || mode === 'icon';
   const required = estimateRenderCredits(mode, skipVoiceover, durationSeconds, outputQuality, modelId);
   const modelLabel = useMemo(() => {
-    try { return publicModel(modelId ?? (isPhotoMode ? 'graphic-2' : 'cinema-2')).name.replace(/^AiWebVideo\s+/, ''); } catch { return null; }
+    try { return publicModel(modelId ?? (isPhotoMode ? 'graphic-2' : 'cinema-2')).name.replace(/^(?:Linkreel|AiWebVideo)\s+/, ''); } catch { return null; }
   }, [isPhotoMode, modelId]);
   const summary = [
     isPhotoMode ? '4 photos' : `${durationSeconds}s`,

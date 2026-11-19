@@ -57,7 +57,7 @@ export interface JobWorkflowState {
   savedAt: number;
   stage: WorkflowStage;
   mode: JobMode;
-  /** Public AiWebVideo model id. Provider model names remain server-only. */
+  /** Public Linkreel model id. Provider model names remain server-only. */
   modelId?: string;
   durationSeconds: number;
   featuresText: string | null;

@@ -1,7 +1,7 @@
 import { Building2, Film, Globe2, House, Image as ImageIcon, MessageCircleMore, PackageOpen, type LucideIcon } from "lucide-react";
 
 /**
- * The seven things AiWebVideo can make. ONE list, used by the navbar menu, the chat box and the floating cards, so they
+ * The seven things Linkreel can make. ONE list, used by the navbar menu, the chat box and the floating cards, so they
  * can never disagree about names or order.
  */
 export type CreationIntent =

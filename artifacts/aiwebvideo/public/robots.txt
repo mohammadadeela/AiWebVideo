@@ -22,6 +22,62 @@ Disallow: /profile
 Disallow: /admin
 Disallow: /studio
 
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /profile
+Disallow: /admin
+Disallow: /studio
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /profile
+Disallow: /admin
+Disallow: /studio
+
+User-agent: Perplexity-User
+Allow: /
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /profile
+Disallow: /admin
+Disallow: /studio
+
+User-agent: Claude-SearchBot
+Allow: /
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /profile
+Disallow: /admin
+Disallow: /studio
+
+User-agent: Claude-User
+Allow: /
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /profile
+Disallow: /admin
+Disallow: /studio
+
+User-agent: Applebot
+Allow: /
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /profile
+Disallow: /admin
+Disallow: /studio
+
+User-agent: DuckDuckBot
+Allow: /
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /profile
+Disallow: /admin
+Disallow: /studio
+
 User-agent: *
 Allow: /
 Disallow: /api/

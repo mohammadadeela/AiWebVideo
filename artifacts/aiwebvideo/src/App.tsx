@@ -3,7 +3,7 @@ import { Redirect, Route, Switch, Router as WouterRouter } from 'wouter';
 import { AppErrorBoundary } from '@/components/system/AppErrorBoundary';
 import { ConnectionBanner } from '@/components/system/ConnectionBanner';
 import { useReturnToOpener } from '@/hooks/use-return-to-opener';
-import { SpaceJumpLoader, SpaceJumpTransition } from '@/components/system/SpaceJumpLoader';
+import { PageLoader } from '@/components/system/PageLoader';
 
 const HomePage = lazy(() => import('@/pages/HomePage').then((module) => ({ default: module.HomePage })));
 const DashboardPage = lazy(() => import('@/pages/DashboardPage').then((module) => ({ default: module.DashboardPage })));
@@ -51,6 +51,7 @@ function Router() {
     <Switch>
       <Route path="/" component={HomePage} />
       <Route path="/dashboard" component={DashboardPage} />
+      <Route path="/app"><Redirect to="/dashboard" /></Route>
       <Route path="/pricing" component={PricingPage} />
       <Route path="/profile" component={ProfilePage} />
       <Route path="/admin/reports" component={AdminPage} />
@@ -101,14 +102,10 @@ function App() {
 
   return (
     <AppErrorBoundary>
-      <div className="cinematic-site">
-        <div className="page-backdrop" aria-hidden="true" />
-        <ConnectionBanner />
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
-          <Suspense fallback={<SpaceJumpLoader />}><Router /></Suspense>
-          <SpaceJumpTransition />
-        </WouterRouter>
-      </div>
+      <ConnectionBanner />
+      <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
+        <Suspense fallback={<PageLoader />}><Router /></Suspense>
+      </WouterRouter>
     </AppErrorBoundary>
   );
 }

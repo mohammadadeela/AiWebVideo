@@ -60,7 +60,7 @@ export function PricingPage() {
             {offerActive && welcomeOffer && (
               <a
                 href="#buy-credits"
-                className="mx-auto mt-6 flex max-w-xl items-center justify-between gap-3 rounded-2xl border border-mint/30 bg-mint/[.08] px-4 py-3 text-left shadow-[0_18px_50px_-35px_rgba(52,211,153,.75)] transition hover:bg-mint/[.12]"
+                className="mx-auto mt-6 flex max-w-xl items-center justify-between gap-3 rounded-2xl border border-mint/30 bg-mint/[.08] px-4 py-3 text-left shadow-[0_18px_50px_-35px_rgba(0,0,0,.75)] transition hover:bg-mint/[.12]"
               >
                 <span className="flex min-w-0 items-center gap-3">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-mint/15 text-mint">

@@ -1,5 +1,5 @@
 /**
- * Decides which AiWebVideo account a verified Google/GitHub/Facebook sign-in belongs to.
+ * Decides which Linkreel account a verified Google/GitHub/Facebook sign-in belongs to.
  *
  * The users table has TWO unique keys (firebase_uid and email). Matching on only one of them made a
  * returning person crash into the other: a customer who first signed up with email + password and later
@@ -33,7 +33,7 @@ export function decideFirebaseAccount<T extends AccountCandidate>(input: {
       action: 'reject',
       code: 'EMAIL_MISSING',
       status: 400,
-      message: 'This sign-in did not share an email address. Make your email visible to AiWebVideo in that account, or use another sign-in method.',
+      message: 'This sign-in did not share an email address. Make your email visible to Linkreel in that account, or use another sign-in method.',
     };
   }
 

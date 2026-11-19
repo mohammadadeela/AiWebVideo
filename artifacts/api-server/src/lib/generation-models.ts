@@ -40,7 +40,7 @@ export interface GenerationModelDefinition {
 export const GENERATION_MODELS: Record<PublicGenerationModelId, GenerationModelDefinition> = {
   'cinema-1': {
     id: 'cinema-1',
-    publicName: 'AiWebVideo Cinema 1',
+    publicName: 'Linkreel Cinema 1',
     kind: 'video',
     description: 'Fast, efficient 1080p video for everyday ads and social content.',
     bestFor: 'Fast social clips, product teasers and lower-cost drafts',
@@ -54,7 +54,7 @@ export const GENERATION_MODELS: Record<PublicGenerationModelId, GenerationModelD
   },
   'cinema-2': {
     id: 'cinema-2',
-    publicName: 'AiWebVideo Cinema 2',
+    publicName: 'Linkreel Cinema 2',
     kind: 'video',
     description: 'Balanced cinematic quality, speed and native scene sound.',
     bestFor: 'Website promos, product videos and campaign content',
@@ -68,7 +68,7 @@ export const GENERATION_MODELS: Record<PublicGenerationModelId, GenerationModelD
   },
   'cinema-pro': {
     id: 'cinema-pro',
-    publicName: 'AiWebVideo Cinema Pro',
+    publicName: 'Linkreel Cinema Pro',
     kind: 'video',
     description: 'Highest-fidelity cinematic generation for premium commercial work.',
     bestFor: 'Hero campaigns, premium ads and maximum visual quality',
@@ -82,7 +82,7 @@ export const GENERATION_MODELS: Record<PublicGenerationModelId, GenerationModelD
   },
   'graphic-1': {
     id: 'graphic-1',
-    publicName: 'AiWebVideo Graphic 1',
+    publicName: 'Linkreel Graphic 1',
     kind: 'image',
     description: 'Quick product and campaign images with low generation cost.',
     bestFor: 'Fast concepts, ecommerce variants and high-volume image work',
@@ -97,7 +97,7 @@ export const GENERATION_MODELS: Record<PublicGenerationModelId, GenerationModelD
   },
   'graphic-2': {
     id: 'graphic-2',
-    publicName: 'AiWebVideo Graphic 2',
+    publicName: 'Linkreel Graphic 2',
     kind: 'image',
     description: 'Sharper, more detailed campaign images with strong instruction following.',
     bestFor: 'Product photography, social creatives and polished marketing images',
@@ -114,7 +114,7 @@ export const GENERATION_MODELS: Record<PublicGenerationModelId, GenerationModelD
   },
   'graphic-pro': {
     id: 'graphic-pro',
-    publicName: 'AiWebVideo Graphic Pro',
+    publicName: 'Linkreel Graphic Pro',
     kind: 'image',
     description: 'Professional 4K visual generation for demanding commercial assets.',
     bestFor: 'Premium campaign art, complex layouts and high-detail product work',
@@ -129,7 +129,7 @@ export const GENERATION_MODELS: Record<PublicGenerationModelId, GenerationModelD
   },
   'space-1': {
     id: 'space-1',
-    publicName: 'AiWebVideo Space 1',
+    publicName: 'Linkreel Space 1',
     kind: 'interior',
     description: 'Fast interior concepts for exploring layouts, mood and materials.',
     bestFor: 'Early concepts and rapid interior iterations',
@@ -144,7 +144,7 @@ export const GENERATION_MODELS: Record<PublicGenerationModelId, GenerationModelD
   },
   'space-2': {
     id: 'space-2',
-    publicName: 'AiWebVideo Space 2',
+    publicName: 'Linkreel Space 2',
     kind: 'interior',
     description: 'Detailed interior visualization with stronger material and geometry fidelity.',
     bestFor: 'Retail, residential and architectural design presentations',
@@ -161,7 +161,7 @@ export const GENERATION_MODELS: Record<PublicGenerationModelId, GenerationModelD
   },
   'space-pro': {
     id: 'space-pro',
-    publicName: 'AiWebVideo Space Pro',
+    publicName: 'Linkreel Space Pro',
     kind: 'interior',
     description: 'Premium 4K interior visualization for presentation-ready design work.',
     bestFor: 'Final concepts, client presentations and high-detail spaces',

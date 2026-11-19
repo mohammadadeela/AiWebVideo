@@ -7,7 +7,7 @@ import type { PublicModelCard, PublicModelId } from "@/lib/generationModels";
 const FAMILY_HEADING = { video: "Video models", image: "Image models", interior: "Space models" } as const;
 
 function shortName(model: PublicModelCard) {
-  return model.name.replace(/^AiWebVideo\s+/, "");
+  return model.name.replace(/^(?:Linkreel|AiWebVideo)\s+/, "");
 }
 
 export function creditsFor(model: PublicModelCard, quality: "1080p" | "4k") {

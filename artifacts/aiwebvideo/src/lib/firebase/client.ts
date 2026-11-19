@@ -50,7 +50,7 @@ const POPUP_UNAVAILABLE = new Set(['auth/popup-blocked', 'auth/operation-not-sup
 async function providerPopup(provider: GoogleAuthProvider | GithubAuthProvider | FacebookAuthProvider) {
   const auth = getFirebaseAuth();
   // Make provider state explicitly durable. This matters when the OAuth popup
-  // completes while AiWebVideo is backgrounded or the user changes tabs.
+  // completes while Linkreel is backgrounded or the user changes tabs.
   try { await setPersistence(auth, browserLocalPersistence); } catch { /* restricted storage: Firebase uses what it can */ }
   try {
     return await signInWithPopup(auth, provider);
@@ -144,7 +144,7 @@ async function serverSession(): Promise<{ active: boolean; email: string | null 
 /**
  * Firebase can finish an OAuth sign-in even when the popup promise that opened
  * it is delayed by browser focus/COOP behavior. Bridge that durable Firebase
- * identity to AiWebVideo's HttpOnly server session independently of the modal
+ * identity to Linkreel's HttpOnly server session independently of the modal
  * that started the login. This makes provider auth resilient to switching tabs,
  * backgrounding the page, or returning after the popup completed elsewhere.
  */
@@ -219,7 +219,7 @@ export function watchAuthState(callback: (user: User | null) => void) {
       if (stopped || currentRevision !== revision) return;
     }
 
-    // A Firebase identity alone is not a usable AiWebVideo session. Wait for
+    // A Firebase identity alone is not a usable Linkreel session. Wait for
     // the server cookie before showing Workspace or starting paid work.
     if (session === null) {
       if (!lastVerified) deliver(null);

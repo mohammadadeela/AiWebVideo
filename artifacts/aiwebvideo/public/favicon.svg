@@ -1,31 +1,5 @@
-<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="AiWebVideo logo">
-  <defs>
-    <linearGradient id="orbit" x1="9" y1="10" x2="56" y2="54" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#67E8F9"/>
-      <stop offset=".42" stop-color="#8B5CF6"/>
-      <stop offset=".74" stop-color="#EC4899"/>
-      <stop offset="1" stop-color="#FB923C"/>
-    </linearGradient>
-    <linearGradient id="core" x1="20" y1="14" x2="43" y2="49" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#FFFFFF"/>
-      <stop offset=".55" stop-color="#EDE9FE"/>
-      <stop offset="1" stop-color="#C4B5FD"/>
-    </linearGradient>
-    <radialGradient id="space" cx=".35" cy=".2" r=".9">
-      <stop stop-color="#201346"/>
-      <stop offset=".5" stop-color="#0E0A1F"/>
-      <stop offset="1" stop-color="#07050F"/>
-    </radialGradient>
-    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur stdDeviation="2.2" result="b"/>
-      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-  </defs>
-  <rect x="3" y="3" width="58" height="58" rx="18" fill="url(#space)" stroke="#FFFFFF" stroke-opacity=".12"/>
-  <ellipse cx="32" cy="31.5" rx="25" ry="10.5" fill="none" stroke="url(#orbit)" stroke-width="2.8" stroke-linecap="round" transform="rotate(-20 32 31.5)" opacity=".88"/>
-  <ellipse cx="32" cy="31.5" rx="20" ry="7.5" fill="none" stroke="url(#orbit)" stroke-width="1.4" transform="rotate(58 32 31.5)" opacity=".5"/>
-  <path d="M16.5 47.5 28.1 16.9c.7-1.9 2.2-3 4-3 1.9 0 3.4 1.1 4.1 3l11.3 30.6" fill="none" stroke="url(#core)" stroke-width="6.2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M23.8 36.2h16.5" fill="none" stroke="url(#orbit)" stroke-width="5" stroke-linecap="round" filter="url(#glow)"/>
-  <circle cx="50.5" cy="18.8" r="3.2" fill="#67E8F9" filter="url(#glow)"/>
-  <circle cx="13.8" cy="26.5" r="1.7" fill="#F472B6"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" role="img" aria-label="Linkreel">
+  <rect width="64" height="64" rx="17" fill="#3D6BF0"/>
+  <path d="M27 21h-5a11 11 0 0 0 0 22h5" stroke="#fff" stroke-width="6.500" stroke-linecap="round"/>
+  <path d="M33 22.700v18.600a3 3 0 0 0 4.700 2.500l13.600-9.300a3 3 0 0 0 0-5L37.700 20.200a3 3 0 0 0-4.700 2.500Z" fill="#FFC857"/>
 </svg>

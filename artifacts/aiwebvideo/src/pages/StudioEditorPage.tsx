@@ -136,7 +136,7 @@ function Field({ label, value, min, max, step = 0.01, onChange, suffix }: { labe
 export function StudioEditorPage() {
   const [, params] = useRoute('/studio/project/:projectId');
   const projectId = params?.projectId ?? '';
-  useSeo({ title: 'Studio Editor | AiWebVideo', description: 'Edit video and images with AiWebVideo Studio.', path: `/studio/project/${projectId}`, noindex: true });
+  useSeo({ title: 'Studio Editor | Linkreel', description: 'Edit video and images with Linkreel Studio.', path: `/studio/project/${projectId}`, noindex: true });
 
   const [project, setProject] = useState<StudioProject | null>(null);
   const [state, setState] = useState<StudioProjectState | null>(null);
@@ -652,7 +652,7 @@ export function StudioEditorPage() {
   ) : <div className="p-6 text-center text-xs leading-5 text-text-muted">Select a layer on the canvas or timeline to edit precise properties.</div>;
 
   const aiPanel = (
-    <div className="flex h-full min-h-0 flex-col bg-[#0b0811]">
+    <div className="flex h-full min-h-0 flex-col bg-[#090b0e]">
       <div className="flex items-center justify-between border-b border-white/10 px-4 py-3"><div className="flex items-center gap-2"><span className="grid size-8 place-items-center rounded-lg bg-violet/15 text-violet"><Pencil size={16} /></span><div><div className="text-sm font-semibold text-white">AI Edit</div><div className="text-[10px] text-text-muted">Understands your real project</div></div></div><button type="button" className="lg:hidden" onClick={() => setMobileSheet(null)}><X size={18} /></button></div>
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
         {!chat.length && <div className="rounded-xl border border-white/10 bg-white/[.025] p-4 text-xs leading-5 text-text-muted"><div className="font-medium text-white">Try an exact edit</div><p className="mt-2">“Put this picture on the video at 13 seconds on the left and keep it for 4 seconds.”</p><p className="mt-2">Then: “A little smaller.” or “Move it slightly higher.”</p></div>}
@@ -669,14 +669,14 @@ export function StudioEditorPage() {
 
   return (
     <div
-      className="cinematic-page flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-[#060409] text-text-primary"
+      className="cinematic-page flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-[#050607] text-text-primary"
       onDragEnter={(event) => { event.preventDefault(); setDragging(true); }}
       onDragOver={(event) => event.preventDefault()}
       onDragLeave={(event) => { if (event.currentTarget === event.target) setDragging(false); }}
       onDrop={(event) => { event.preventDefault(); setDragging(false); void handleFiles(Array.from(event.dataTransfer.files)); }}
     >
       <input ref={fileInputRef} type="file" className="hidden" multiple accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime,audio/mpeg,audio/mp4,audio/wav,audio/ogg" onChange={(event) => { void handleFiles(Array.from(event.currentTarget.files ?? [])); event.currentTarget.value = ''; }} />
-      <header className="z-30 flex h-14 shrink-0 items-center gap-2 border-b border-white/10 bg-[#09060d]/95 px-2 backdrop-blur-xl sm:px-3">
+      <header className="z-30 flex h-14 shrink-0 items-center gap-2 border-b border-white/10 bg-[#07080a]/95 px-2 backdrop-blur-xl sm:px-3">
         <Link href="/studio" aria-label="Back to Studio" className="grid size-9 place-items-center rounded-lg text-text-muted hover:bg-white/5 hover:text-white"><ArrowLeft size={18} /></Link>
         <button type="button" onClick={() => setRenameOpen(true)} className="min-w-0 max-w-[40vw] rounded-lg px-2 py-1 text-left hover:bg-white/5"><div className="truncate text-sm font-semibold text-white">{title}</div><div className="hidden text-[9px] text-text-muted sm:block">{state.canvas.aspectRatio} · {formatTime(state.duration)}</div></button>
         <div className="ml-auto flex items-center gap-1.5">
@@ -689,9 +689,9 @@ export function StudioEditorPage() {
       </header>
 
       <main className="flex min-h-0 flex-1">
-        <aside className="hidden w-[300px] shrink-0 border-r border-white/10 bg-[#0a0710] lg:block">{leftContent}</aside>
+        <aside className="hidden w-[300px] shrink-0 border-r border-white/10 bg-[#080a0d] lg:block">{leftContent}</aside>
         <section className="relative flex min-w-0 flex-1 flex-col">
-          <div className="relative min-h-0 flex-1 overflow-hidden bg-[radial-gradient(circle_at_center,rgba(105,67,190,.10),transparent_55%)] p-3 sm:p-5">
+          <div className="relative min-h-0 flex-1 overflow-hidden bg-[radial-gradient(circle_at_center,rgba(67,100,190,.10),transparent_55%)] p-3 sm:p-5">
             <div className="mx-auto flex h-full max-w-5xl items-center justify-center">
               <div ref={canvasRef} style={{ aspectRatio: canvasAspect, background: state.canvas.background }} className="relative max-h-full max-w-full overflow-hidden rounded-lg shadow-2xl shadow-black/60 ring-1 ring-white/10" onPointerDown={() => setState((current) => current ? { ...current, selectedLayerId: null } : current)}>
                 <div className="absolute inset-0" />
@@ -720,7 +720,7 @@ export function StudioEditorPage() {
             {dragging && <div className="absolute inset-3 z-40 grid place-items-center rounded-2xl border-2 border-dashed border-violet bg-violet/15 text-center backdrop-blur-sm"><div><Upload className="mx-auto text-violet" size={34} /><div className="mt-3 font-semibold text-white">Drop media into Studio</div><div className="mt-1 text-xs text-white/60">Uploads are free. AI credits are only used for paid AI operations.</div></div></div>}
           </div>
 
-          <div className="shrink-0 border-t border-white/10 bg-[#0a0710]">
+          <div className="shrink-0 border-t border-white/10 bg-[#080a0d]">
             <div className="flex h-11 items-center gap-2 border-b border-white/10 px-3">
               <button type="button" onClick={() => setPlaying((value) => !value)} className="grid size-8 place-items-center rounded-full bg-white text-black">{playing ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" className="translate-x-px" />}</button>
               <span className="w-[96px] text-xs tabular-nums text-white/80">{formatTime(playhead)} <span className="text-white/35">/ {formatTime(state.duration)}</span></span>
@@ -729,7 +729,7 @@ export function StudioEditorPage() {
             </div>
             <div className="h-[152px] overflow-auto sm:h-[180px]">
               <div className="relative min-w-full" style={{ width: `${Math.max(100, timelineZoom * 100)}%` }}>
-                <div className="sticky top-0 z-10 flex h-5 border-b border-white/5 bg-[#0a0710]/95 text-[9px] text-white/35">{Array.from({ length: Math.max(2, Math.ceil(duration / 5) + 1) }, (_, index) => { const sec = Math.min(duration, index * 5); return <span key={index} className="absolute" style={{ left: `${(sec / duration) * 100}%` }}>{sec}s</span>; })}</div>
+                <div className="sticky top-0 z-10 flex h-5 border-b border-white/5 bg-[#080a0d]/95 text-[9px] text-white/35">{Array.from({ length: Math.max(2, Math.ceil(duration / 5) + 1) }, (_, index) => { const sec = Math.min(duration, index * 5); return <span key={index} className="absolute" style={{ left: `${(sec / duration) * 100}%` }}>{sec}s</span>; })}</div>
                 <div className="relative py-1.5">
                   <div className="pointer-events-none absolute inset-y-0 z-30 w-px bg-violet" style={{ left: `${(playhead / duration) * 100}%` }} />
                   {state.layers.map((layer, index) => {
@@ -743,21 +743,21 @@ export function StudioEditorPage() {
             </div>
           </div>
         </section>
-        <aside className="hidden w-[310px] shrink-0 border-l border-white/10 bg-[#0a0710] xl:block">{mobileSheet === 'ai' || activeTool === 'ai' ? aiPanel : <div className="h-full overflow-y-auto"><div className="border-b border-white/10 px-4 py-3 text-xs font-semibold text-white">Inspector</div>{inspector}</div>}</aside>
+        <aside className="hidden w-[310px] shrink-0 border-l border-white/10 bg-[#080a0d] xl:block">{mobileSheet === 'ai' || activeTool === 'ai' ? aiPanel : <div className="h-full overflow-y-auto"><div className="border-b border-white/10 px-4 py-3 text-xs font-semibold text-white">Inspector</div>{inspector}</div>}</aside>
       </main>
 
-      <nav className="z-30 flex h-14 shrink-0 items-center justify-around border-t border-white/10 bg-[#0a0710] px-1 pb-[env(safe-area-inset-bottom)] lg:hidden">
+      <nav className="z-30 flex h-14 shrink-0 items-center justify-around border-t border-white/10 bg-[#080a0d] px-1 pb-[env(safe-area-inset-bottom)] lg:hidden">
         {([
           ['media', ImageIcon, 'Edit'], ['ai', Pencil, 'AI Edit'], ['text', TextCursorInput, 'Text'], ['audio', Music2, 'Audio'], ['captions', Captions, 'Captions'], ['canvas', Maximize2, 'Canvas'],
         ] as const).map(([tool, Icon, label]) => <button key={tool} type="button" onClick={() => { setActiveTool(tool); setMobileSheet(tool === 'ai' ? 'ai' : tool); }} className={`flex min-w-[52px] flex-col items-center gap-1 rounded-lg py-1 text-[9px] ${activeTool === tool ? 'text-violet' : 'text-text-muted'}`}><Icon size={16} />{label}</button>)}
         {selectedLayer && <button type="button" onClick={() => setMobileSheet('inspector')} className="flex min-w-[52px] flex-col items-center gap-1 rounded-lg py-1 text-[9px] text-text-muted"><SlidersHorizontal size={16} />Adjust</button>}
       </nav>
 
-      {mobileSheet && <div className="fixed inset-0 z-50 bg-black/45 backdrop-blur-[2px] lg:hidden" onPointerDown={(event) => { if (event.currentTarget === event.target) setMobileSheet(null); }}><div className={`absolute inset-x-0 bottom-0 max-h-[82dvh] overflow-hidden rounded-t-3xl border-t border-white/10 bg-[#0a0710] shadow-2xl ${mobileSheet === 'ai' ? 'h-[76dvh]' : 'h-[62dvh]'}`}><div className="mx-auto mt-2 h-1 w-10 rounded-full bg-white/20" />{mobileSheet === 'ai' ? aiPanel : mobileSheet === 'inspector' ? <div className="h-full overflow-y-auto pb-8"><div className="flex items-center justify-between border-b border-white/10 px-4 py-3 text-sm font-semibold text-white">Adjust<button type="button" onClick={() => setMobileSheet(null)}><X size={18} /></button></div>{inspector}</div> : <div className="h-full overflow-y-auto pb-8"><div className="flex items-center justify-between border-b border-white/10 px-4 py-3 text-sm font-semibold text-white">{mobileSheet[0].toUpperCase() + mobileSheet.slice(1)}<button type="button" onClick={() => setMobileSheet(null)}><X size={18} /></button></div>{leftContent}</div>}</div></div>}
+      {mobileSheet && <div className="fixed inset-0 z-50 bg-black/45 backdrop-blur-[2px] lg:hidden" onPointerDown={(event) => { if (event.currentTarget === event.target) setMobileSheet(null); }}><div className={`absolute inset-x-0 bottom-0 max-h-[82dvh] overflow-hidden rounded-t-3xl border-t border-white/10 bg-[#080a0d] shadow-2xl ${mobileSheet === 'ai' ? 'h-[76dvh]' : 'h-[62dvh]'}`}><div className="mx-auto mt-2 h-1 w-10 rounded-full bg-white/20" />{mobileSheet === 'ai' ? aiPanel : mobileSheet === 'inspector' ? <div className="h-full overflow-y-auto pb-8"><div className="flex items-center justify-between border-b border-white/10 px-4 py-3 text-sm font-semibold text-white">Adjust<button type="button" onClick={() => setMobileSheet(null)}><X size={18} /></button></div>{inspector}</div> : <div className="h-full overflow-y-auto pb-8"><div className="flex items-center justify-between border-b border-white/10 px-4 py-3 text-sm font-semibold text-white">{mobileSheet[0].toUpperCase() + mobileSheet.slice(1)}<button type="button" onClick={() => setMobileSheet(null)}><X size={18} /></button></div>{leftContent}</div>}</div></div>}
 
-      {exportOpen && <div className="fixed inset-0 z-[70] grid place-items-center bg-black/65 p-4 backdrop-blur-sm" onPointerDown={(event) => { if (event.currentTarget === event.target) setExportOpen(false); }}><div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0c0911] p-5 shadow-2xl"><div className="flex items-center justify-between"><div><h2 className="font-semibold text-white">Export</h2><p className="mt-1 text-xs text-text-muted">Final render uses source-quality media + your edit instructions.</p></div><button type="button" onClick={() => setExportOpen(false)}><X size={18} /></button></div><div className="mt-5 grid grid-cols-3 gap-2">{(['720p','1080p','4k'] as const).map((resolution) => <button type="button" key={resolution} onClick={() => setExportResolution(resolution)} className={`rounded-xl border p-3 text-sm font-semibold ${exportResolution === resolution ? 'border-violet bg-violet/15 text-white' : 'border-white/10 text-text-muted'}`}>{resolution}<span className="mt-1 block text-[9px] font-normal opacity-60">{resolution === '720p' ? 'Free export' : resolution === '1080p' ? 'Paid plans' : 'Pro / Agency'}</span></button>)}</div>{exportState && <div className="mt-4 rounded-xl border border-white/10 bg-white/[.03] p-3"><div className="flex items-center justify-between text-xs"><span className="capitalize text-white">{exportState.status}</span><span className="tabular-nums text-text-muted">{exportState.progress}%</span></div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-violet transition-all" style={{ width: `${exportState.progress}%` }} /></div>{exportState.error && <p className="mt-2 text-xs text-red-300">{exportState.error}</p>}{exportState.url && <a href={`${exportState.url}&download=1`} className="mt-3 flex items-center justify-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-semibold text-black"><Download size={14} />Download file</a>}</div>}<button type="button" onClick={() => void startExport()} disabled={Boolean(exportState && !['completed','failed','cancelled'].includes(exportState.status))} className="mt-4 w-full rounded-xl bg-violet px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">{exportState && !['completed','failed','cancelled'].includes(exportState.status) ? 'Rendering…' : 'Start export'}</button></div></div>}
+      {exportOpen && <div className="fixed inset-0 z-[70] grid place-items-center bg-black/65 p-4 backdrop-blur-sm" onPointerDown={(event) => { if (event.currentTarget === event.target) setExportOpen(false); }}><div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0a0b0e] p-5 shadow-2xl"><div className="flex items-center justify-between"><div><h2 className="font-semibold text-white">Export</h2><p className="mt-1 text-xs text-text-muted">Final render uses source-quality media + your edit instructions.</p></div><button type="button" onClick={() => setExportOpen(false)}><X size={18} /></button></div><div className="mt-5 grid grid-cols-3 gap-2">{(['720p','1080p','4k'] as const).map((resolution) => <button type="button" key={resolution} onClick={() => setExportResolution(resolution)} className={`rounded-xl border p-3 text-sm font-semibold ${exportResolution === resolution ? 'border-violet bg-violet/15 text-white' : 'border-white/10 text-text-muted'}`}>{resolution}<span className="mt-1 block text-[9px] font-normal opacity-60">{resolution === '720p' ? 'Free export' : resolution === '1080p' ? 'Paid plans' : 'Pro / Agency'}</span></button>)}</div>{exportState && <div className="mt-4 rounded-xl border border-white/10 bg-white/[.03] p-3"><div className="flex items-center justify-between text-xs"><span className="capitalize text-white">{exportState.status}</span><span className="tabular-nums text-text-muted">{exportState.progress}%</span></div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-violet transition-all" style={{ width: `${exportState.progress}%` }} /></div>{exportState.error && <p className="mt-2 text-xs text-red-300">{exportState.error}</p>}{exportState.url && <a href={`${exportState.url}&download=1`} className="mt-3 flex items-center justify-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-semibold text-black"><Download size={14} />Download file</a>}</div>}<button type="button" onClick={() => void startExport()} disabled={Boolean(exportState && !['completed','failed','cancelled'].includes(exportState.status))} className="mt-4 w-full rounded-xl bg-violet px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">{exportState && !['completed','failed','cancelled'].includes(exportState.status) ? 'Rendering…' : 'Start export'}</button></div></div>}
 
-      {renameOpen && <div className="fixed inset-0 z-[70] grid place-items-center bg-black/60 p-4" onPointerDown={(event) => { if (event.currentTarget === event.target) setRenameOpen(false); }}><form onSubmit={(event) => { event.preventDefault(); setRenameOpen(false); markDirty('Renamed project'); }} className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#0c0911] p-5"><label className="text-xs text-text-muted">Project title<input autoFocus value={title} maxLength={120} onChange={(event) => setTitle(event.currentTarget.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-black/25 px-3 py-2.5 text-sm text-white outline-none focus:border-violet/45" /></label><button type="submit" className="mt-4 w-full rounded-xl bg-white px-3 py-2.5 text-sm font-semibold text-black">Save title</button></form></div>}
+      {renameOpen && <div className="fixed inset-0 z-[70] grid place-items-center bg-black/60 p-4" onPointerDown={(event) => { if (event.currentTarget === event.target) setRenameOpen(false); }}><form onSubmit={(event) => { event.preventDefault(); setRenameOpen(false); markDirty('Renamed project'); }} className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#0a0b0e] p-5"><label className="text-xs text-text-muted">Project title<input autoFocus value={title} maxLength={120} onChange={(event) => setTitle(event.currentTarget.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-black/25 px-3 py-2.5 text-sm text-white outline-none focus:border-violet/45" /></label><button type="submit" className="mt-4 w-full rounded-xl bg-white px-3 py-2.5 text-sm font-semibold text-black">Save title</button></form></div>}
     </div>
   );
 }

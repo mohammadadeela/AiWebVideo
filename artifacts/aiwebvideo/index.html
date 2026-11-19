@@ -2,39 +2,40 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AiWebVideo — AI Video, Product Photo &amp; Architecture Generator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Linkreel: turn any link into a video with AI</title>
     <meta
       name="description"
-      content="AiWebVideo is an AI creative platform for website marketing videos, AI videos, product photos and videos, talking scenes, interior design and architecture concept visuals."
+      content="Paste a website, product page or map link and Linkreel turns it into a finished AI video or image set. Free to try, no card needed."
     />
     <meta name="robots" content="index, follow" />
     <meta
       name="googlebot"
       content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
     />
-    <meta name="application-name" content="AiWebVideo" />
-    <meta name="apple-mobile-web-app-title" content="AiWebVideo" />
+    <meta name="application-name" content="Linkreel" />
+    <meta name="apple-mobile-web-app-title" content="Linkreel" />
     <link rel="canonical" href="https://aiwebvideo.com/" />
-    <meta
-      property="og:title"
-      content="AiWebVideo — AI Video, Product Photo &amp; Architecture Generator"
-    />
+    <meta property="og:title" content="Linkreel: turn any link into a video with AI" />
     <meta
       property="og:description"
-      content="AiWebVideo is an AI creative platform for website marketing videos, AI videos, product photos and videos, talking scenes, interior design and architecture concept visuals."
+      content="Paste a website, product page or map link and get a finished AI video or image set."
     />
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="AiWebVideo" />
+    <meta property="og:site_name" content="Linkreel" />
     <meta property="og:url" content="https://aiwebvideo.com/" />
-    <meta property="og:image" content="https://aiwebvideo.com/icon-512.png" />
+    <meta property="og:image" content="https://aiwebvideo.com/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="AiWebVideo — AI Video, Product Photo &amp; Architecture Generator" />
+    <meta name="twitter:title" content="Linkreel: turn any link into a video with AI" />
     <meta
       name="twitter:description"
-      content="Create website videos, product media, original AI video, talking scenes, and interior design images or walkthroughs."
+      content="Paste a website, product page or map link and get a finished AI video or image set."
     />
-    <meta name="theme-color" content="#140F27" />
+    <meta name="twitter:image" content="https://aiwebvideo.com/og-image.png" />
+    <meta name="theme-color" content="#0F1218" />
+    <meta name="color-scheme" content="dark" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" sizes="any" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
@@ -43,7 +44,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
     <script id="site-structured-data" type="application/ld+json">
@@ -54,14 +55,15 @@
             "@type": "WebSite",
             "@id": "https://aiwebvideo.com/#website",
             "url": "https://aiwebvideo.com/",
-            "name": "AiWebVideo",
-            "alternateName": ["AI Web Video", "AiWebVideo.com"],
+            "name": "Linkreel",
+            "alternateName": ["AiWebVideo", "AI Web Video", "aiwebvideo.com"],
             "publisher": { "@id": "https://aiwebvideo.com/#organization" }
           },
           {
             "@type": "Organization",
             "@id": "https://aiwebvideo.com/#organization",
-            "name": "AiWebVideo",
+            "name": "Linkreel",
+            "alternateName": "AiWebVideo",
             "url": "https://aiwebvideo.com/",
             "logo": {
               "@type": "ImageObject",
@@ -73,11 +75,12 @@
           {
             "@type": "SoftwareApplication",
             "@id": "https://aiwebvideo.com/#application",
-            "name": "AiWebVideo",
+            "name": "Linkreel",
             "applicationCategory": "MultimediaApplication",
             "operatingSystem": "Web",
             "url": "https://aiwebvideo.com/",
-            "description": "AiWebVideo is an AI creative platform for website marketing videos, AI videos, product photos and videos, talking scenes, interior design and architecture concept visuals.",
+            "description": "Linkreel turns a website link, a product page, a map location or a few photos into finished AI videos and images.",
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD", "description": "Free starter credits, no card needed" },
             "publisher": { "@id": "https://aiwebvideo.com/#organization" }
           }
         ]
@@ -85,27 +88,24 @@
     </script>
 
     <style id="seo-initial-style">
-      .seo-initial{min-height:100vh;background:#0d0a18;color:#fff;font-family:Inter,system-ui,sans-serif;padding:72px 20px}
+      html{background:#0f1218}
+      .seo-initial{min-height:100vh;background:#0f1218;color:#f3f1ec;font-family:Geist,system-ui,sans-serif;padding:72px 20px}
       .seo-initial__inner{max-width:920px;margin:0 auto}
-      .seo-initial__eyebrow{text-transform:uppercase;letter-spacing:.18em;font-size:11px;color:#5eead4;margin:0 0 18px}
-      .seo-initial h1{font-family:Sora,Inter,sans-serif;font-size:clamp(2.4rem,7vw,5.2rem);line-height:1;letter-spacing:-.05em;margin:0 0 22px}
-      .seo-initial__intro{max-width:760px;color:#b7b2c9;font-size:17px;line-height:1.8;margin-bottom:44px}
+      .seo-initial__eyebrow{font-size:14px;color:#ffc857;margin:0 0 18px}
+      .seo-initial h1{font-family:"Bricolage Grotesque",Geist,system-ui,sans-serif;font-size:clamp(2.4rem,7vw,4.75rem);line-height:1;letter-spacing:-.045em;margin:0 0 22px}
+      .seo-initial__intro{max-width:760px;color:#b4b8c4;font-size:17px;line-height:1.7;margin-bottom:44px}
       .seo-initial section,.seo-initial nav{border-top:1px solid rgba(255,255,255,.09);padding:26px 0}
-      .seo-initial h2{font-family:Sora,Inter,sans-serif;font-size:22px;margin:0 0 10px}
+      .seo-initial h2{font-size:22px;margin:0 0 10px}
       .seo-initial h3{font-size:15px;margin:18px 0 6px}
-      .seo-initial p{color:#aaa4bc;line-height:1.75}
+      .seo-initial p{color:#b4b8c4;line-height:1.7}
       .seo-initial ul{display:flex;flex-wrap:wrap;gap:10px;padding:0;list-style:none}
-      .seo-initial a{color:#c4b5fd;text-decoration:none}
-      .seo-initial__cta a{display:inline-block;margin-top:12px;border:1px solid rgba(255,255,255,.12);padding:12px 16px;border-radius:12px;color:#fff;background:linear-gradient(135deg,#7c3aed,#db2777)}
+      .seo-initial a{color:#6b8fff;text-decoration:none}
+      .seo-initial__cta a{display:inline-block;margin-top:12px;padding:12px 18px;border-radius:999px;color:#0f1218;background:#fff;font-weight:600}
     </style>
   </head>
   <body>
     <div id="root"></div>
-    <noscript
-      >AiWebVideo creates AI videos, product photos and videos, talking scenes,
-      and interior design images or walkthroughs from websites, ideas, product
-      references, and room photos or plans. Enable JavaScript to create media.</noscript
-    >
+    <noscript>Linkreel (formerly AiWebVideo) turns website links, product pages, map locations and photos into AI videos and images. Enable JavaScript to create yours.</noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -55,7 +55,7 @@ export function ProgressiveImage({
 
   return (
     <div
-      className={`relative isolate overflow-hidden bg-[linear-gradient(145deg,#1b1533,#0b0912)] ${className}`}
+      className={`relative isolate overflow-hidden bg-[linear-gradient(145deg,#1a1e28,#0a0b0f)] ${className}`}
       style={style}
       onClick={onClick}
       data-loaded={loaded ? "true" : "false"}

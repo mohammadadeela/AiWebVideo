@@ -68,7 +68,7 @@ export function readPartialDeliveryMetadata(value: unknown): PartialDeliveryMeta
 export function partialDeliveryResultMessage(meta: PartialDeliveryMetadata): string {
   const secondsLabel = meta.missingSeconds === 1 ? 'second' : 'seconds';
   return `Partial video ready — ${meta.deliveredSeconds}s of ${meta.requestedSeconds}s delivered. ` +
-    `The AI video provider stopped before the final ${meta.missingSeconds} ${secondsLabel}, so AiWebVideo kept the completed video instead of starting another paid generation. ` +
+    `The AI video provider stopped before the final ${meta.missingSeconds} ${secondsLabel}, so Linkreel kept the completed video instead of starting another paid generation. ` +
     `${meta.refundedCredits} credits for the undelivered ${meta.missingSeconds}s were refunded automatically. ` +
     `For video duration, you were charged only for the ${meta.deliveredSeconds}s you received.`;
 }
