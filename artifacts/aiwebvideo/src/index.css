@@ -337,9 +337,13 @@
   background: transparent;
 }
 
-/* Global base */
-* {
-  border-color: rgba(255, 255, 255, 0.09);
+/* Default border colour. In the base layer on purpose: an unlayered rule here would beat every border-colour utility. */
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: rgba(255, 255, 255, 0.09);
+  }
 }
 
 html {

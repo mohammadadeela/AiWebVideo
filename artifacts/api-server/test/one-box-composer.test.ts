@@ -37,7 +37,7 @@ test('the composer is one box: links are picked up from the message, pasted link
   assert.match(form, /function routeLink\(link: string, rest: string \| null\): boolean/);
   assert.match(form, /onChange=\{\(event\) => onMessageChange\(event\.currentTarget\.value\)\}/);
   // a pasted link goes straight to its place instead of into the text
-  assert.match(form, /if \(!pasted \|\| !looksLikeLink\(pasted\) \|\| !linkSlotOpen\(\)/);
+  assert.match(form, /if \(!pasted \|\| !looksLikeLink\(pasted\) \|\| activeModeRef\.current === "interior"\) return;/);
   // a map link opens Architecture and a product page opens Product Video, without the person choosing first
   assert.match(form, /if \(mode !== "architecture"\) applyIntent\("architecture", true\);/);
   assert.match(form, /if \(!productMode\) applyIntent\("product-video", true\);/);

@@ -1341,7 +1341,9 @@ export function WebsiteBriefForm({
         onChange={(event) => onMessageChange(event.currentTarget.value)}
         onPaste={(event) => {
           const pasted = event.clipboardData.getData("text").trim();
-          if (!pasted || !looksLikeLink(pasted) || !linkSlotOpen() || activeModeRef.current === "interior") return;
+          // A link pasted on its own always goes to its place (and replaces one that was already there).
+          if (!pasted || !looksLikeLink(pasted) || activeModeRef.current === "interior") return;
+          if ((activeModeRef.current === "video" || activeModeRef.current === "scenario") && brief.trim()) return;
           event.preventDefault();
           routeLink(pasted, null);
         }}
@@ -1585,9 +1587,10 @@ export function WebsiteBriefForm({
 
         <Popover.Root open={modeMenuOpen} onOpenChange={setModeMenuOpen}>
           <Popover.Trigger asChild>
-            <button type="button" aria-label={`Making: ${activeFeature.label}. Change`} aria-haspopup="listbox" aria-expanded={modeMenuOpen} className={toolClass(modeMenuOpen)} data-testid="mode-menu">
+            <button type="button" aria-label={`Making: ${activeFeature.label}. Change`} aria-haspopup="listbox" aria-expanded={modeMenuOpen} className={`${toolClass(modeMenuOpen)} max-sm:px-2`} data-testid="mode-menu">
               <ActiveIcon size={16} className="text-violet" />
-              <span className="whitespace-nowrap">{activeFeature.label}</span>
+              <span className="whitespace-nowrap max-[430px]:hidden">{activeFeature.label}</span>
+              <span className="whitespace-nowrap min-[431px]:hidden">{activeFeature.short}</span>
               <ChevronDown size={13} className={`text-text-dim transition-transform ${modeMenuOpen ? "rotate-180" : ""}`} />
             </button>
           </Popover.Trigger>
@@ -1621,7 +1624,7 @@ export function WebsiteBriefForm({
           onClick={() => { setOpenSettingMenu(null); setCompactPanel(null); setSettingsOpen((current) => !current); }}
           aria-expanded={settingsOpen}
           aria-label={`Settings: ${settingsSummary}`}
-          className={toolClass(settingsOpen)}
+          className={`${toolClass(settingsOpen)} max-sm:px-2`}
           data-testid="settings-toggle"
         >
           <SlidersHorizontal size={15} />
@@ -1633,7 +1636,7 @@ export function WebsiteBriefForm({
           onClick={() => { setOpenSettingMenu(null); toggleIdeas(); }}
           aria-expanded={compactPanel === "ideas"}
           aria-label="Ideas"
-          className={`${toolClass(compactPanel === "ideas")} max-sm:px-2.5`}
+          className={`${toolClass(compactPanel === "ideas")} max-sm:px-2`}
         >
           <Lightbulb size={15} className={selectedIdea ? "text-gold" : undefined} />
           <span className="max-sm:hidden">Ideas</span>
@@ -1642,7 +1645,7 @@ export function WebsiteBriefForm({
         <span className="min-w-0 flex-1" />
 
         {showCreditPricing && !linkBusy && (
-          <span className="shrink-0 whitespace-nowrap pr-1.5 font-utility text-[12px] text-text-dim" title="What this will use" data-testid="composer-cost">{exactCredits} credits</span>
+          <span className="shrink-0 whitespace-nowrap pr-1.5 font-utility text-[12px] text-text-dim" title="What this will use" aria-label={`${exactCredits} credits`} data-testid="composer-cost">{exactCredits}<span className="max-[430px]:hidden"> credits</span><span className="min-[431px]:hidden"> cr</span></span>
         )}
         <button
           type="button"
