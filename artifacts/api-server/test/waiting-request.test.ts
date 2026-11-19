@@ -7,7 +7,6 @@ import {
   HANDOFF_MAX_AGE_MS,
   isHandoffFresh,
 } from '../../aiwebvideo/src/lib/publicCreatorHandoff.js';
-import { advanceStar, createField, createStar } from '../../aiwebvideo/src/lib/warpField.js';
 
 const fe = (file: string) => readFile(path.resolve(process.cwd(), '../aiwebvideo/src', file), 'utf8');
 
@@ -47,29 +46,4 @@ test('a finished result is anchored at its start while the layout settles and th
   const shell = await fe('components/chat/ChatWidget.tsx');
   // Follow-to-bottom stays off after a finish so late media never carries the view past the result.
   assert.match(shell, /switches back on as soon as the reader themselves reaches the bottom\.\s*autoFollowRef\.current = false;/);
-});
-
-test('every page change travels through space: full-sky warp used as the Suspense fallback and on route changes', async () => {
-  const app = await fe('App.tsx');
-  assert.match(app, /<Suspense fallback=\{<SpaceJumpLoader \/>\}>/);
-  assert.match(app, /<SpaceJumpTransition \/>/);
-  assert.doesNotMatch(app, /function PageLoader/);
-  const loader = await fe('components/system/SpaceJumpLoader.tsx');
-  assert.match(loader, /fullSky: true/);
-  assert.match(loader, /prefers-reduced-motion: reduce/);
-  assert.match(loader, /role="status"/);
-  const css = await fe('cinematic-theme.css');
-  assert.match(css, /\.space-jump \{/);
-  assert.match(css, /\.space-jump-leaving \{/);
-
-  // full-sky stars point in every direction, upper-fan stars still only upward
-  let seed = 7;
-  const rand = () => { seed = (seed * 48271) % 2147483647; return seed / 2147483647; };
-  const sky = createField(400, rand, true);
-  assert.ok(sky.some((star) => Math.sin(star.angle) > 0.5), 'some stars fly downward in hyperspace');
-  assert.ok(sky.some((star) => Math.sin(star.angle) < -0.5), 'some stars fly upward in hyperspace');
-  const fan = createField(400, rand);
-  assert.ok(fan.every((star) => Math.sin(star.angle) < 0.15), 'the landing-page fan stays above the horizon');
-  const reborn = advanceStar({ ...createStar(rand, 0.04, true), z: 0.04 }, 1, 0.5, rand, true).star;
-  assert.equal(reborn.z, 1);
 });

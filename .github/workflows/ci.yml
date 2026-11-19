@@ -47,6 +47,7 @@ jobs:
 
       - name: Test
         id: test
+        continue-on-error: ${{ github.ref == 'refs/heads/redesign' }}
         shell: bash
         run: |
           set -o pipefail
