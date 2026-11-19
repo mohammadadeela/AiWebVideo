@@ -488,7 +488,7 @@ export function DashboardClient() {
 
         {me && (
           <div className="shrink-0 space-y-1 border-t border-white/[.07] p-2.5">
-            <div className={`rounded-2xl border p-3 ${low ? "border-gold/30 bg-gold/[.06]" : "border-white/[.08]"}`} data-testid="credit-card">
+            <div className={`rounded-2xl border bg-bg p-3 ${low ? "border-gold/40" : "border-white/[.08]"}`} data-testid="credit-card">
               <div className="flex items-baseline justify-between gap-2">
                 <p className="text-[14px] text-text-muted"><span className="font-utility text-[17px] font-semibold text-white">{formatCredits(balance)}</span> credits</p>
                 {low && <span className="text-[12px] font-medium text-gold">Running low</span>}
@@ -499,7 +499,7 @@ export function DashboardClient() {
               <p className="mt-2 text-[12px] leading-4 text-text-dim">{buys ? `Enough for ${buys.split(" · ")[0]}` : "Not enough for a new creation"}</p>
               <Link
                 href="/pricing#buy-credits"
-                className={`mt-3 flex h-10 items-center justify-center rounded-full text-[14px] font-semibold transition ${low ? "bg-gold text-bg hover:brightness-105" : "bg-white/10 text-white hover:bg-white/15"}`}
+                className={`mt-3 flex h-10 items-center justify-center rounded-full text-[14px] font-semibold transition ${low ? "bg-white text-bg hover:bg-white/90" : "bg-white/10 text-white hover:bg-white/15"}`}
               >
                 Add credits
               </Link>

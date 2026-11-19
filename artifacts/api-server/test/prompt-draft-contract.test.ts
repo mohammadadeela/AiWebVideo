@@ -22,6 +22,6 @@ test('every feature shares ONE prompt text, which survives a page change and is 
   const form = await fe('components/chat/WebsiteBriefForm.tsx');
   assert.match(form, /const \[brief, setBrief\] = useState\(\(\) => loadPromptDraft\(\)\);\s*const prompt = brief;\s*const setPrompt = setBrief;/);
   assert.match(form, /useEffect\(\(\) => \{ savePromptDraft\(brief\); \}, \[brief\]\);/);
-  assert.equal((form.match(/clearPromptDraft\(\);/g) ?? []).length, 2);               // website submit and studio submit
+  assert.equal((form.match(/clearPromptDraft\(\);/g) ?? []).length, 3);               // website submit, studio submit, and a start planned by the assistant
   assert.doesNotMatch(form, /useState\(""\);\s*const \[prompt, setPrompt\]/);          // no second, separate text state
 });

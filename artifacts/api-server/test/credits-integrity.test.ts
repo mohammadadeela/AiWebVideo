@@ -65,7 +65,27 @@ test('only the routes reviewed for credit gating may call a paid provider', asyn
   }
   // jobs.ts: reserve-then-plan and claim-then-render (checked above). A new route that calls a provider must be
   // added here deliberately, after adding its own credit gate.
-  assert.deepEqual(callers.sort(), ['jobs.ts']);
+  // assistant.ts: the one free call. It is a short text answer (no image, video or voice), so instead of a credit
+  // gate it has its own limits, checked below.
+  assert.deepEqual(callers.sort(), ['assistant.ts', 'jobs.ts']);
+});
+
+test('the free assistant is limited per person, capped in size, and cannot start paid work itself', async () => {
+  const assistant = await src('routes/assistant.ts');
+  // every turn passes a limiter before the model is called: per account, or per address and per day for visitors
+  const call = assistant.indexOf('ai.models.generateContent(');
+  assert.ok(assistant.indexOf('allowAccount(`user:${req.user.id}`)') > 0 && assistant.indexOf('allowAccount(') < call);
+  assert.ok(assistant.indexOf('allowVisitor(`ip:${address}`) && allowVisitorDaily(`ip:${address}`)') > 0);
+  assert.match(assistant, /ASSISTANT_RATE_LIMITED/);
+  // what is sent to the model and what comes back are both bounded
+  assert.ok(assistant.indexOf('sanitizeMessages(') < call);
+  assert.match(assistant, /maxOutputTokens: \d+/);
+  assert.match(assistant, /abortSignal: AbortSignal\.timeout\(TURN_TIMEOUT_MS\)/);
+  // it only returns a checked plan: no generation, no credits, no database
+  assert.match(assistant, /res\.json\(normalizeAssistantTurn\(parsed, context\)\)/);
+  assert.doesNotMatch(assistant, /generateStoryboard|generateMarketing|generateVideos|grantCredits|credits_balance|query\(/);
+  // the site owner can switch it off without a deploy
+  assert.match(assistant, /process\.env\.ASSISTANT_ENABLED === 'false'/);
 });
 
 test('studio AI edits reserve credits atomically before the provider runs', async () => {

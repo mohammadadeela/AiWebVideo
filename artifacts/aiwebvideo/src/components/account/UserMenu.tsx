@@ -61,7 +61,7 @@ export function UserMenu({ email, plan, creditsBalance, isAdmin = false }: { ema
       {activeOffer && (
         <Link
           href="/pricing#buy-credits"
-          className="inline-flex h-10 items-center gap-1.5 rounded-full border border-gold/40 bg-gold/[.08] px-3 text-[13px] font-semibold text-gold transition hover:bg-gold/[.14]"
+          className="inline-flex h-10 items-center gap-1.5 rounded-full border border-gold/50 px-3 text-[13px] font-semibold text-gold transition hover:bg-gold/[.06]"
           aria-label={`${activeOffer.discountPercent}% off credit packs for ${formatWelcomeCountdown(activeOffer.expiresAt, now)}`}
         >
           <BadgePercent size={15} aria-hidden="true" />

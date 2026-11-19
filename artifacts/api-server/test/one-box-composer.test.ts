@@ -91,3 +91,26 @@ test('the public header always offers a way in, on every screen size', async () 
   assert.match(nav, /!authChecked && !waited \?/);              // a slow sign-in check never leaves only placeholders
   assert.doesNotMatch(nav, /max-sm:hidden[^>]*>\s*Start free/);
 });
+
+test('words go to the assistant first, and the request still starts when the assistant cannot answer', async () => {
+  const form = await fe('components/chat/WebsiteBriefForm.tsx');
+  // no assistant, or nothing written (a link or photos only): start directly
+  assert.match(form, /if \(!assistantOn \|\| !text\) \{ void submit\(\); return; \}/);
+  // any failure puts the words back and starts the direct way: the assistant is never a gate
+  assert.match(form, /\} catch \{[\s\S]{0,260}setBrief\(text\);\s*setAssistantBusy\(false\);\s*void submit\(\);/);
+  // the plan is shown in the composer, and the production begins only after the answer has finished appearing
+  assert.match(form, /if \(turn\.plan\) applyPlan\(turn\.plan\);\s*planToStartRef\.current = turn\.start \? turn\.plan : null;/);
+  assert.match(form, /if \(plan\) void startFromPlan\(plan\);/);
+  const thread = await fe('components/chat/AssistantThread.tsx');
+  assert.match(thread, /role="status">Thinking</);
+  assert.match(thread, /prefers-reduced-motion: reduce/);
+});
+
+test('light is the default theme, dark is a remembered choice, and both come from one set of variables', async () => {
+  const css = await fe('index.css');
+  assert.match(css, /:root \{\s*color-scheme: light;/);
+  assert.match(css, /:root\[data-theme="dark"\] \{\s*color-scheme: dark;/);
+  assert.match(css, /--color-white: var\(--ink\);/);
+  const theme = await fe('lib/theme.ts');
+  assert.match(theme, /localStorage\.setItem\(KEY, theme\)/);
+});

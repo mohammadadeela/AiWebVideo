@@ -1244,7 +1244,8 @@ export function WebsiteBriefForm({
   }
 
   function onMessageChange(value: string) {
-    const found = findLinkInText(value, false);
+    // With the assistant on, a link stays inside the sentence (it reads it there, and the sent message reads naturally).
+    const found = assistantOn ? null : findLinkInText(value, false);
     if (found && linkSlotOpen() && (activeModeRef.current !== "video" && activeModeRef.current !== "scenario" || !found.rest)) {
       if (routeLink(found.link, found.rest)) return;
     }
